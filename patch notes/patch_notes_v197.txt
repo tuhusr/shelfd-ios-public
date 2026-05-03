@@ -1,0 +1,14 @@
+Shelfd v197 — Direct Message search now works from the first character
+Date: 2026-05-02
+
+Summary
+The new DM search required at least 2 characters before showing any results, and displayed instruction/placeholder text in the results area. This update removes the restriction and the text.
+
+What changed
+- Removed the q.length < 2 guard in searchDirectMessageUsers() so Firestore queries fire as soon as 1 character is typed.
+- Removed the "Search a username to start a DM." message that appeared in the results area when the input was empty.
+- Removed the "Search users to start a chat" subtitle from the New Message composer panel header (the "Create a group chat" subtitle for group mode is preserved).
+- When the search input is empty the results area is now blank instead of showing instruction text.
+
+Files edited
+- script.js

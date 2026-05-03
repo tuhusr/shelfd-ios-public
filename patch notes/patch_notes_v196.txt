@@ -1,0 +1,22 @@
+Shelfd v196 — Fixed squashed friend card layout in Search and Requests tabs on mobile
+Date: 2026-05-02
+
+Summary
+In the Friends → Search and Friends → Requests tabs, cards for users who are already friends showed three action buttons (Message, Profile, Remove) that were squashing or overlapping the avatar and username on mobile screens. This update fixes the layout so info and buttons no longer fight for space.
+
+What was broken
+- The user-card in #find-people-view and #requests-view used a flat horizontal flexbox layout with justify-content:space-between.
+- When a friend-actions-group with three buttons (Message, Profile, Remove) was present, the button group took up too much horizontal space and pushed the avatar/name section into a tiny squashed area.
+- The "Tap to view full list" stat text was collapsing to a vertical single-letter layout because the left section had almost no remaining width.
+
+What changed
+- Added a @media (max-width: 640px) block in style.css that targets .user-card:has(.friend-actions-group) inside both #find-people-view and #requests-view.
+- Cards with a button group now switch to flex-direction: column so avatar/name renders on top and the button row renders below.
+- The friend-actions-group goes full width with flex-wrap: wrap so buttons distribute evenly.
+- Each button gets flex: 1 1 80px with min-height: 36px and border-radius: 999px for a consistent pill look.
+- Single-button cards (+ Add, Pending, Accept/Decline as standalone buttons) are not affected because they don't use the friend-actions-group wrapper.
+- Patch note added to SCREENLIST_PATCH_NOTES as v196 in script.js.
+
+Files edited
+- style.css
+- script.js

@@ -1,0 +1,21 @@
+{
+  "appId": "com.myscreenlist.app",
+  "appName": "Shelfd",
+  "webDir": "assets/public",
+  "server": {
+    "url": "https://myscreenlist.com",
+    "cleartext": false
+  },
+  "ios": {
+    "contentInset": "always"
+  },
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    },
+    "StatusBar": {
+      "style": "dark",
+      "backgroundColor": "#050410"
+    }
+  }
+}

@@ -1,0 +1,28 @@
+Shelfd v203 — Friend activity feed cards redesigned — Twitter/Instagram style
+Date: 2026-05-02
+
+Summary
+The activity cards shown when viewing a single friend's feed (Friends tab → tap their circular avatar) had poor spacing and a cluttered layout — a 46px avatar column taking up dead space, oversized grid gaps, and interaction buttons crammed into a narrow 46px column. The entire card layout has been redesigned to match the clean, minimal style of Twitter/X and Instagram.
+
+What was wrong
+- .activity-card used a 3-column grid (46px avatar | 1fr content | 88px poster). When hideActorName was true (always the case on single-user pages), the 46px avatar column was empty, pushing all text content to the right and misaligning everything.
+- The .activity-interactions div had no explicit grid placement, so it auto-flowed into the first available slot on row 2 — only 46px wide — making the reply and like buttons invisible or squished.
+- No visual hierarchy: "rated 8/10" sat at the same size as the title, stars floated without context, timestamp/type/section metadata were crammed together with no breathing room.
+- No clear separation between cards.
+
+What changed (style.css)
+- Added a new CSS block scoped entirely to .activity-page.user-filter-active to avoid touching the main feed or community tab.
+- .activity-card: grid changes to minmax(0,1fr) 82px (content + poster, no avatar column). border-radius: 0, background: transparent, border removed, thin border-bottom divider added (rgba(255,255,255,0.055)). Active scale animation removed to prevent jitter.
+- .activity-avatar-wrap: display: none — no individual avatars needed on a single-user page.
+- .activity-who-row: display: none — name row already suppressed by hideActorName logic.
+- .activity-action-text: 12px, muted purple (#7b72a8) — verb sits small above the title.
+- .activity-card-title-inline: block display, 16px bold white (#f4f0ff) — media title is the visual focal point.
+- .activity-stars-row: tightened spacing, 14px stars.
+- .activity-card-bottom: compact flex row with 11px timestamp, 10px event label, 10px section.
+- .activity-poster-col / .activity-poster-placeholder: grid-column 2, same width 82px, edge-to-edge (no border-radius on image).
+- .activity-interactions: grid-column 1/-1 (spans full card width), grid-row 2, flex row with 6px/10px padding and a hairline top border. Buttons use pill hover state, blue tint for reply, red for liked heart.
+- Light mode overrides included for all affected text colors.
+
+Files edited
+- style.css
+- script.js

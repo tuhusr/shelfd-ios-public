@@ -1,0 +1,14 @@
+Shelfd v195 — Direct Message chat list shows sent time instead of "Encrypted message"
+Date: 2026-05-02
+
+Summary
+When a user sends a message in Direct Messages, the chat list previously showed "Encrypted message" as the conversation preview. This update replaces that label with a relative timestamp such as "sent 3h ago" so users can see at a glance when the last message was sent.
+
+What changed
+- getDirectMessageChatPreviewText() now checks if the stored lastMessage starts with "Encrypted" and, if so, renders "sent X ago" using the thread's lastMessageAtMs timestamp instead.
+- This covers all three encrypted message types: regular text messages ("Encrypted message"), photo messages ("Encrypted photo"), and shared-media messages ("Encrypted share").
+- Unread threads continue to show "X new message(s)" as before — that display is unaffected.
+- The timeAgo() helper already present in script.js is reused, so output matches the existing relative-time format used elsewhere in the app (e.g. "just now", "5m ago", "3h ago", "2d ago").
+
+Files edited
+- script.js

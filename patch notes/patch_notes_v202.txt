@@ -1,0 +1,38 @@
+Shelfd v202 — User activity page redesigned with clean mobile profile header
+Date: 2026-05-02
+
+Summary
+Viewing a friend's activity feed (tapping their circular avatar in the Friends tab) previously opened a cluttered page with a floating back button, a hidden quick-actions bar, and a generic "Activity Feed" title with no context about whose feed was showing. The page has been fully redesigned with a clean, minimalist mobile-first profile header that surfaces the user's avatar, display name, and action buttons in a single cohesive strip at the top.
+
+What was broken / ugly
+- Page showed generic "Activity Feed" / "All recent activity from friends" text with no indication of whose activity was being viewed.
+- Action buttons (View List, View Profile) were in a separate floating bar that was hidden by default and only shown via syncActivityPageQuickActions, adding complexity for no gain.
+- No avatar or user identity shown anywhere on the page when filtering to a specific user.
+- When viewing the full (unfiltered) feed the page had the same layout as a filtered single-user feed, so no differentiation.
+
+What changed
+index.html
+- Removed the old #activity-page-quick-actions div entirely.
+- Added .activity-page-user-strip inside .activity-page-header: contains an <img class="activity-page-user-avatar"> and a .activity-page-user-info div that holds the title and subtitle elements (now with IDs for JS control).
+- Added .activity-page-header-actions below the strip: two pill buttons — "View List" (activity-page-screenlist-btn) and "View Profile" (activity-page-profile-btn).
+
+script.js
+- loadFullActivityFeed: when a filterUid is provided, now populates the user strip — sets avatar src, updates #activity-page-title to the user's display name, updates #activity-page-subtitle to "Recent activity", adds has-user class to show the avatar, and shows #activity-page-header-actions. When filterUid is absent (full feed view) the strip stays in its default generic state and header actions remain hidden. Also passes hideHeading: true and hideSharedWatchPill: true to suppress the redundant section label when viewing a single user's feed.
+- syncActivityPageQuickActions: simplified to always hide the old floating quick-actions bar (now a no-op cleanup since the bar no longer exists in HTML).
+- buildActivityFeedHeaderHTML: added hideHeading option — returns empty string immediately if hideHeading is true and there are no tabs to render, avoiding a blank section header above the cards.
+- renderFriendActivityItems: passes hideHeading through to buildActivityFeedHeaderHTML.
+
+style.css
+- .activity-page-user-strip: flex row, 14px gap, aligns center.
+- .activity-page-user-avatar: 54×54px circle with subtle purple border; hidden by default, shown when parent has .has-user class.
+- .activity-page-user-info: flex column, grows to fill remaining space.
+- .activity-page-header-actions: flex row with 10px gap, hidden by default (display:none), shown by JS when filterUid is set.
+- .activity-page-action-btn: full-width pill buttons (flex:1), 11px/16px padding, 13px bold font, smooth transition.
+- .activity-page-screenlist-btn: outlined style using purple border and purple text.
+- .activity-page-profile-btn: filled purple gradient pill matching the "Add to Library" button design language (linear-gradient(135deg, #7c3aed, #9333ea), white text).
+- Light mode overrides added so gradient and white text are preserved.
+
+Files edited
+- index.html
+- script.js
+- style.css

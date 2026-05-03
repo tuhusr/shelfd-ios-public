@@ -1,0 +1,52 @@
+Shelfd v204 — Re-applied v195–v203 to current codebase
+Date: 2026-05-02
+
+Summary
+After a context switch to ChatGPT, all changes from v195–v203 were lost because the older pre-v195 files were used as a base. This patch re-applies every change cleanly to the up-to-date codebase.
+
+Changes re-applied
+v195 — DM chat preview shows "sent Xh ago" instead of "Encrypted message"
+  - Added getDirectMessageChatPreviewText(thread) helper
+  - DM chat list now calls this helper instead of rendering thread.lastMessage directly
+
+v196 — Mobile fix for squashed friend cards in Search + Requests tabs
+  - @media (max-width: 640px) block added: #find-people-view and #requests-view cards with .friend-actions-group stack vertically
+
+v197 — Remove 2-char DM search restriction + placeholder text
+  - Removed q.length < 2 early return in searchDirectMessageUsers
+  - Empty query now clears results silently instead of showing placeholder text
+  - Removed "Search users to start a chat" subtitle for 1:1 mode
+  - Removed "Search a username to start." default text from results container
+
+v198 — Live reply count update on activity cards
+  - Added updateActivityReplyCountBadge(postId, count) function
+  - Called in both loadActivityReplies and loadFeedPostReplies after fetching replies array
+
+v199 — Deep purple friend card contrast fix in Search tab
+  - #find-people-view .user-card gets background #130a30 and purple border
+  - .friend-message-btn: white text
+  - .friend-remove-btn: red text
+  - .friend-profile-btn: light purple text
+
+v200 — Heart like persists after tab switch
+  - Added patchCachedActivityLikes(postOrFeedId, eventKey, isNowLiked) function
+  - toggleFeedLike calls patchCachedActivityLikes(postId, `feed:${postId}`, !isLiked) after Firestore write
+  - toggleActivityLike calls patchCachedActivityLikes(null, cachedActivity?.eventKey, !isLiked) after Firestore write
+
+v201 — View Profile button purple gradient pill style
+  - .profile-view-btn updated from gold (#f4d27a) to linear-gradient(135deg, #7c3aed, #9333ea)
+  - White text, transparent border, pill border-radius, purple box-shadow
+  - Light mode override preserves purple gradient
+
+v202 — Activity page redesign: profile header strip
+  - index.html: Replaced old activity-page-quick-actions floating bar with new activity-page-user-strip (avatar + name + subtitle) and activity-page-header-actions (View List + View Profile pill buttons)
+  - style.css: Added all new classes — activity-page-user-strip, activity-page-user-avatar, activity-page-user-info, activity-page-header-actions, activity-page-action-btn, activity-page-profile-btn; light mode overrides included
+  - script.js: loadFullActivityFeed populates avatar/name/subtitle and shows header actions when filterUid is set; syncActivityPageQuickActions simplified to always hide old bar; buildActivityFeedHeaderHTML supports hideHeading option; renderFriendActivityItems passes hideHeading through
+
+v203 — Twitter/Instagram-style card layout for single-user feed
+  - style.css: Full .activity-page.user-filter-active CSS block — edge-to-edge cards, no avatar column, clean typography hierarchy, full-width interaction bar with pill hover states
+
+Files edited
+- index.html
+- script.js
+- style.css

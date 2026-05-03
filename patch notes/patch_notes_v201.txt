@@ -1,0 +1,14 @@
+Shelfd v201 — View Profile button matches Add to Library purple pill style
+Date: 2026-05-02
+
+Summary
+The View Profile button shown in the banner when browsing another user's list was styled as a gold-tinted back button. It now matches the purple gradient pill used for the Add to Library button on media profile pages.
+
+What changed
+- .profile-view-btn now uses background: linear-gradient(135deg, #7c3aed, #9333ea), white text, transparent border, border-radius: 999px, and a matching box-shadow — identical design language to .discover-add-btn.
+- Hover state uses filter: brightness(1.08) to lighten the gradient slightly.
+- Light-mode overrides updated so the purple gradient and white text are preserved in light mode too.
+
+Files edited
+- style.css
+- script.js

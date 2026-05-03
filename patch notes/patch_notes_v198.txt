@@ -1,0 +1,17 @@
+Shelfd v198 — Activity card reply count now updates after posting a comment
+Date: 2026-05-02
+
+Summary
+After commenting on an activity card and pressing back, the reply count on the card stayed at 0 (or the stale value). The reply detail view was being refreshed from Firestore but the count badge on the card itself was never updated.
+
+What was broken
+- loadFeedPostReplies() and loadActivityReplies() both fetched the fresh replies array from Firestore after a post, but only updated the replies list inside the detail page.
+- The activity card in the feed still held the count from when the card was first rendered, so going back always showed the old number.
+
+What changed
+- Added updateActivityReplyCountBadge(postId, count) which queries document.querySelectorAll('.activity-card[data-post-id="..."] .activity-reply-count') and writes the new count.
+- Called updateActivityReplyCountBadge immediately after the replies array is fetched in both loadActivityReplies (for activities collection) and loadFeedPostReplies (for feed collection).
+- The update fires as soon as replies reload — which happens right after every successful reply post — so the count is correct the moment the user presses back.
+
+Files edited
+- script.js

@@ -1,0 +1,33 @@
+Shelfd v206 — Activity card revamp: Instagram/Twitter-inspired layout
+Date: 2026-05-02
+
+Summary
+Full layout redesign for activity cards in the main Friends activity feed and the single-user activity page. Zero double-padding, full-width interaction bar split evenly between reply and like (like Twitter/Instagram), tighter typography, wider poster column, and clean hover states on each button.
+
+What changed
+
+style.css
+Main feed cards (#community-view #activity-tab-view .activity-card):
+- Removed card-level padding (was 12px, causing double-padding with child padding).
+- grid-template-columns: 44px minmax(0,1fr) 78px (wider poster, was 42px/66px).
+- column-gap and row-gap set to 0; each child controls its own spacing.
+- overflow: hidden so poster clips to rounded corners cleanly.
+- .activity-avatar-wrap: padding 14px 0 0 12px, no extra gaps.
+- .activity-content-col: padding 13px 10px 11px 10px.
+- .activity-poster-col / .activity-poster-placeholder: stretch to full column height, top-right corner rounded.
+- .activity-interactions: grid-column 1/-1 (spans full card width), row 2, zero padding/gap.
+- Each .activity-interaction-btn: flex:1, centered, 9px vertical padding — 50/50 split like Twitter.
+- Reply hover: blue tint; like hover: purple tint; liked state: red.
+- Thin divider between buttons matches card border style.
+- Typography tightened: name 13.5px/700, action text 12.5px muted, title 15px/800, time 11px very muted.
+- Light mode overrides included.
+
+Single-user activity page (.activity-page.user-filter-active):
+- Poster widened to 88px (was 82px).
+- Content col padding bumped to 15px 12px 12px 16px.
+- Interaction bar updated to match main feed: full-width split, zero gap, same divider style.
+- Title upgraded to 16px/800 with tight letter-spacing.
+
+Files edited
+- style.css
+- patch notes/patch_notes_v206.txt

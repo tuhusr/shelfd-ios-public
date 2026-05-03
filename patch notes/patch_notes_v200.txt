@@ -1,0 +1,18 @@
+Shelfd v200 — Activity feed heart like now persists after tab switch
+Date: 2026-05-02
+
+Summary
+Liking a heart on an activity card would revert to un-liked when the user switched tabs or when the feed re-rendered. The Firestore write succeeded but the in-memory activity cache still held the old likes array, so every re-render overwrote the correct state.
+
+What was broken
+- friendActivityCache.activities holds the activity data used to render the feed.
+- toggleFeedLike and toggleActivityLike both wrote to Firestore and updated the DOM button, but neither updated the cached activity's likes array.
+- When the feed re-rendered from cache (tab switch, filter change, etc.) it re-calculated isLiked from the stale cache and the heart reverted.
+
+What changed
+- Added patchCachedActivityLikes(postOrFeedId, eventKey, isNowLiked) which finds the matching entry in friendActivityCache.activities (by postId/id or eventKey) and updates its likes array in-place.
+- toggleFeedLike now calls patchCachedActivityLikes(postId, 'feed:${postId}', !isLiked) after a successful Firestore write.
+- toggleActivityLike captures the cachedActivity from friendActivityClickTargets before the async Firestore call, then calls patchCachedActivityLikes(null, cachedActivity.eventKey, !isLiked) on success.
+
+Files edited
+- script.js

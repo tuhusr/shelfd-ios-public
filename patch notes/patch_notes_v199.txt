@@ -1,0 +1,16 @@
+Shelfd v199 — Fixed friend card contrast and button colours in Friends → Search
+Date: 2026-05-02
+
+Summary
+Friend cards in the Friends → Search tab were nearly invisible against the all-black background, and the Profile button had no contrast. Button text colours were also inconsistent.
+
+What changed
+- Card background changed to deep static purple (#130a30) with a purple border (rgba(139,92,246,0.42)) and a soft box-shadow so cards are clearly visible against the black page.
+- Profile button: purple tinted background with a brighter border and #c4b5fd text — no longer blends into the card.
+- Message button: text colour set to white (#fff).
+- Remove button: text and border changed to red (#ef4444) with a faint red background tint to signal the destructive action.
+- All overrides are scoped to #find-people-view .user-card so no other views are affected.
+
+Files edited
+- style.css
+- script.js

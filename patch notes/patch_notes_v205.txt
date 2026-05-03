@@ -1,0 +1,41 @@
+Shelfd v205 — Add to Shelf: universal search modal with media type filters
+Date: 2026-05-02
+
+Summary
+The "Add Show" button in My Lists now opens a universal "Add to Shelf" modal that searches across all media types at once. Results are sorted by popularity (most popular first), each result has a type badge (Movie / TV Show / Anime), and filter pills let users narrow by category. When a result is selected its media category is auto-detected and it lands in the correct shelf section.
+
+What changed
+
+index.html
+- "Add TV Show" modal title replaced with "Add to Shelf" (static).
+- "Add Show" toolbar button relabeled "Add to Shelf".
+- Added .shelf-filter-pills row inside #tmdb-search-area with 7 pills: All, Movies, TV Shows, Anime, Games, Manga, Books.
+- Search input placeholder updated to "Search movies, shows, anime, games..."
+
+script.js
+- Added addShelfSearchFilter variable (default 'all').
+- Added setAddShelfFilter(filter): updates active pill highlight and re-triggers search.
+- Added searchUniversalShelf(token): new primary search function.
+  - filter='all'    → TMDB search/multi (movies + TV in one call), sorted by popularity desc, up to 8 results.
+  - filter='movies' → TMDB search/movie, sorted by popularity desc.
+  - filter='tv'     → TMDB search/tv, sorted by popularity desc.
+  - filter='anime'  → TMDB search/tv filtered to anime via isAnimeDiscoverCandidate(), sorted by popularity.
+  - filter='games'  → falls through to existing searchRAWG().
+  - filter='books'/'manga' → falls through to manual entry.
+  - Each result shows a colored type badge (Movie / TV Show / Anime) next to the title.
+- doSearch() now always calls searchUniversalShelf() unless filter is games/books/manga.
+- handleAddTitleLiveSearchInput() reading-section check now uses addShelfSearchFilter instead of activeSection.
+- selectTMDB(id, knownType): accepts optional knownType ('movie' or 'tv') passed from search results so type is not inferred from activeSection.
+- openModal(): always sets title to "Add to Shelf", resets filter to 'all' and resets pill active states.
+- Dynamic add button label update changed from section-specific text to always "Add to Shelf".
+
+style.css
+- .shelf-filter-pills: flex-wrap row with 6px gap.
+- .shelf-filter-pill: pill button with purple outline, active state uses purple gradient.
+- .shelf-result-badge: small inline badge; .badge-movie (blue), .badge-tv (green), .badge-anime (amber).
+- Light mode overrides included.
+
+Files edited
+- index.html
+- script.js
+- style.css
