@@ -2195,3 +2195,306 @@ body.light-mode .feed-reply-context button {
     transition: none !important;
   }
 }
+
+
+/* v278: Full post Twitter-style replies + keyboard-locked compact composer. */
+#feed-post-page {
+  overflow: hidden !important;
+}
+#feed-post-page .overlay-page-inner {
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  max-height: 100dvh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+#feed-post-page .overlay-page-header {
+  flex: 0 0 auto !important;
+}
+#feed-post-page .overlay-page-content {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+  padding-bottom: calc(var(--feed-post-composer-height, 74px) + var(--feed-reply-keyboard-offset, 0px) + 14px) !important;
+  scroll-padding-bottom: calc(var(--feed-post-composer-height, 74px) + var(--feed-reply-keyboard-offset, 0px) + 18px) !important;
+}
+#feed-post-replies-composer {
+  bottom: var(--feed-reply-keyboard-offset, 0px) !important;
+  padding: 7px 12px calc(7px + env(safe-area-inset-bottom, 0px)) !important;
+  transform: translate3d(-50%, 0, 0) !important;
+  will-change: transform !important;
+}
+#feed-post-replies-composer .feed-reply-composer {
+  gap: 8px !important;
+  margin-bottom: 5px !important;
+}
+#feed-post-replies-composer .feed-reply-avatar {
+  flex: 0 0 32px !important;
+  width: 32px !important;
+  height: 32px !important;
+}
+#feed-post-replies-composer .feed-reply-input {
+  min-height: 32px !important;
+  max-height: 72px !important;
+  padding: 6px 11px !important;
+  font-size: 16px !important;
+  line-height: 1.18 !important;
+  overflow-y: auto !important;
+}
+#feed-post-replies-composer .feed-reply-actions {
+  padding-left: 40px !important;
+}
+#feed-post-replies-composer #feed-reply-btn {
+  min-height: 32px !important;
+  min-width: 68px !important;
+  padding: 0 14px !important;
+  font-size: 13px !important;
+}
+.feed-reply-item.feed-reply-nested,
+.x-reply-item.feed-reply-nested,
+.feed-reply-item.feed-reply-threaded,
+.x-reply-item.feed-reply-threaded {
+  padding-left: 20px !important;
+  background: transparent !important;
+}
+.feed-reply-children,
+.feed-reply-children .feed-reply-item,
+.feed-reply-children .x-reply-item {
+  margin: 0 !important;
+  border-left: 0 !important;
+  padding-left: 0 !important;
+}
+.feed-reply-thread-line {
+  min-height: 22px !important;
+  background: rgba(255,255,255,0.18) !important;
+}
+body.true-dark-mode .feed-reply-thread-line,
+body.true-dark-mode .feed-reply-item,
+body.true-dark-mode .x-reply-item {
+  border-color: rgba(255,255,255,0.18) !important;
+}
+@media (max-width: 768px) {
+  #feed-post-page .overlay-page-content {
+    padding-bottom: calc(var(--feed-post-composer-height, 68px) + var(--feed-reply-keyboard-offset, 0px) + 12px) !important;
+  }
+  #feed-post-replies-composer {
+    padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .feed-reply-item.feed-reply-nested,
+  .x-reply-item.feed-reply-nested,
+  .feed-reply-item.feed-reply-threaded,
+  .x-reply-item.feed-reply-threaded {
+    padding-left: 16px !important;
+  }
+}
+
+/* v279: Full post floating composer rebuild — separate fixed layer, no swipe-transform conflict. */
+#feed-post-page {
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+  touch-action: pan-y !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+#feed-post-page.feed-post-swipe-dragging,
+#feed-post-page.feed-post-swipe-closing,
+#feed-post-page.feed-post-swipe-restoring {
+  transform: none !important;
+  transition: none !important;
+  opacity: 1 !important;
+}
+#feed-post-page .overlay-page-inner {
+  width: min(100%, 640px) !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  min-height: 100dvh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  margin: 0 auto !important;
+  transform: none !important;
+}
+#feed-post-page .overlay-page-header {
+  flex: 0 0 auto !important;
+  position: relative !important;
+  z-index: 14 !important;
+}
+#feed-post-page .overlay-page-content,
+#feed-post-scroll-content {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+  padding-bottom: calc(var(--feed-post-composer-height, 54px) + var(--feed-reply-keyboard-offset, 0px) + 20px) !important;
+  scroll-padding-bottom: calc(var(--feed-post-composer-height, 54px) + var(--feed-reply-keyboard-offset, 0px) + 24px) !important;
+  transform: translateZ(0) !important;
+}
+#feed-post-replies-composer.feed-post-floating-composer,
+#feed-post-replies-composer {
+  position: fixed !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: var(--feed-reply-keyboard-offset, 0px) !important;
+  z-index: 1000001 !important;
+  width: min(100%, 640px) !important;
+  transform: translate3d(-50%, 0, 0) !important;
+  margin: 0 !important;
+  padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px)) !important;
+  border-top: 1px solid var(--feed-post-divider, rgba(255,255,255,0.16)) !important;
+  border-bottom: 0 !important;
+  background: rgba(8, 6, 18, 0.97) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+  backdrop-filter: blur(18px) !important;
+  box-shadow: 0 -10px 26px rgba(0,0,0,0.34) !important;
+  contain: layout paint !important;
+}
+body.true-dark-mode #feed-post-replies-composer {
+  background: rgba(5,5,5,0.98) !important;
+}
+#feed-post-replies-composer .feed-reply-context {
+  margin: 0 0 5px 40px !important;
+  min-height: 16px !important;
+  font-size: 11px !important;
+  line-height: 1.2 !important;
+}
+#feed-post-replies-composer .feed-reply-composer {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+#feed-post-replies-composer .feed-reply-avatar {
+  flex: 0 0 30px !important;
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+}
+#feed-post-replies-composer .feed-reply-input {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  min-height: 30px !important;
+  height: 30px !important;
+  max-height: 56px !important;
+  padding: 5px 11px !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,0.055) !important;
+  color: #f8f4ff !important;
+  font-size: 14px !important;
+  line-height: 1.22 !important;
+  resize: none !important;
+  overflow-y: auto !important;
+  transform: translateZ(0) !important;
+}
+#feed-post-replies-composer .feed-reply-input:focus {
+  border-color: rgba(167,139,250,0.36) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+#feed-post-replies-composer .feed-reply-actions {
+  display: none !important;
+}
+#feed-post-replies-composer #feed-reply-btn {
+  flex: 0 0 auto !important;
+  min-height: 30px !important;
+  height: 30px !important;
+  min-width: 58px !important;
+  padding: 0 12px !important;
+  border-radius: 999px !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+}
+#feed-post-replies-list {
+  padding-bottom: 12px !important;
+}
+.feed-reply-item,
+.x-reply-item,
+.feed-reply-item.feed-reply-nested,
+.x-reply-item.feed-reply-nested,
+.feed-reply-item.feed-reply-threaded,
+.x-reply-item.feed-reply-threaded {
+  padding: 14px 16px !important;
+  gap: 10px !important;
+  background: transparent !important;
+  margin: 0 !important;
+  border-bottom: 1px solid var(--feed-post-divider, rgba(255,255,255,0.16)) !important;
+}
+.feed-reply-avatar-col {
+  flex: 0 0 34px !important;
+  width: 34px !important;
+}
+.feed-reply-avatar-img {
+  width: 34px !important;
+  height: 34px !important;
+}
+.feed-reply-content {
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+}
+.feed-reply-thread-line {
+  width: 1px !important;
+  margin: 7px auto 0 !important;
+  min-height: 24px !important;
+  background: rgba(255,255,255,0.20) !important;
+}
+body.true-dark-mode .feed-reply-thread-line {
+  background: rgba(255,255,255,0.23) !important;
+}
+.feed-reply-inline-reply {
+  padding-top: 6px !important;
+}
+body.light-mode #feed-post-replies-composer {
+  background: rgba(255,255,255,0.97) !important;
+  box-shadow: 0 -10px 26px rgba(18,8,46,0.12) !important;
+}
+body.light-mode #feed-post-replies-composer .feed-reply-input {
+  background: #f8f6ff !important;
+  color: #12082e !important;
+  border-color: rgba(124,58,237,0.16) !important;
+}
+@media (max-width: 768px) {
+  #feed-post-replies-composer.feed-post-floating-composer,
+  #feed-post-replies-composer {
+    width: 100% !important;
+    left: 0 !important;
+    transform: translate3d(0, 0, 0) !important;
+    padding: 5px 9px calc(5px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  #feed-post-page .overlay-page-content,
+  #feed-post-scroll-content {
+    padding-bottom: calc(var(--feed-post-composer-height, 50px) + var(--feed-reply-keyboard-offset, 0px) + 18px) !important;
+  }
+  #feed-post-replies-composer .feed-reply-input {
+    font-size: 16px !important; /* prevent iPhone zoom */
+    min-height: 30px !important;
+    height: 30px !important;
+    padding: 4px 10px !important;
+  }
+  #feed-post-replies-composer .feed-reply-avatar {
+    flex-basis: 29px !important;
+    width: 29px !important;
+    height: 29px !important;
+    min-width: 29px !important;
+  }
+  #feed-post-replies-composer #feed-reply-btn {
+    height: 30px !important;
+    min-height: 30px !important;
+  }
+  .feed-reply-item,
+  .x-reply-item,
+  .feed-reply-item.feed-reply-nested,
+  .x-reply-item.feed-reply-nested,
+  .feed-reply-item.feed-reply-threaded,
+  .x-reply-item.feed-reply-threaded {
+    padding: 13px 14px !important;
+  }
+}

@@ -24,11 +24,16 @@ function normalizeDirectMessageIds(value) {
   return Array.isArray(value) ? value.map(id => String(id || '').trim()).filter(Boolean) : [];
 }
 
+function isDirectMessageEncryptedRecord(message = {}) {
+  return !!(message && (message.isEncrypted || message.dmE2ee || message.encryptedPayload || message.ciphertext));
+}
+
 function normalizeDirectMessageMap(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   return Object.entries(value).reduce((acc, [id, raw]) => {
     if (!id || !raw || typeof raw !== 'object') return acc;
-    acc[id] = { ...raw, id: raw.id || id };
+    const normalized = { ...raw, id: raw.id || id };
+    acc[id] = Array.isArray(normalized.messages) ? normalizeDirectMessageThread(normalized) : normalized;
     return acc;
   }, {});
 }
@@ -584,12 +589,8 @@ function openDirectMessagesPage() {
   page.setAttribute('aria-hidden', 'false');
   document.body.classList.add('dm-fullscreen-open');
   updateDirectMessagesTopbar();
+  pruneEncryptedDirectMessageThreadsForCurrentUser();
   renderDirectMessagesView();
-  ensureDirectMessageEncryptionReady(currentUser?.uid || '').then(() => {
-    if (isDirectMessagesPageOpen()) renderDirectMessagesView();
-  }).catch(error => {
-    console.warn('Direct Message encryption unlock/setup skipped:', error);
-  });
   requestAnimationFrame(() => page.classList.add('open'));
 }
 
@@ -663,22 +664,34 @@ async function clearDirectMessageRequestMirror(uid = '', direction = 'incoming',
   }
 }
 
+function getDirectMessageLastPreviewFromMessages(messages = [], fallback = '') {
+  const last = Array.isArray(messages) && messages.length ? messages[messages.length - 1] : null;
+  if (!last) return String(fallback || '').replace(/^(Encrypted|Secure)\s+(message|photo|share)$/i, '').trim();
+  if (last.imageData) return 'Photo';
+  if (last.shareMedia) return 'Shared media';
+  return String(last.text || fallback || '').trim();
+}
+
 function normalizeDirectMessageThread(thread = {}) {
   const participantUids = getDirectMessageParticipantUids(thread);
-  const messages = Array.isArray(thread.messages)
-    ? thread.messages
-        .filter(Boolean)
-        .slice(-80)
-        .map(message => {
-          const nextMessage = { ...(message || {}) };
-          if (nextMessage.shareMedia) {
-            nextMessage.shareMedia = normalizeSharedMediaPayload(nextMessage.shareMedia);
-          }
-          return nextMessage;
-        })
-    : [];
+  const rawMessages = Array.isArray(thread.messages) ? thread.messages.filter(Boolean) : [];
+  const removedEncryptedCount = rawMessages.filter(isDirectMessageEncryptedRecord).length;
+  const messages = rawMessages
+    .filter(message => !isDirectMessageEncryptedRecord(message))
+    .slice(-80)
+    .map(message => {
+      const nextMessage = { ...(message || {}), isEncrypted: false };
+      delete nextMessage.dmE2ee;
+      delete nextMessage.encryptedPayload;
+      delete nextMessage.ciphertext;
+      if (nextMessage.shareMedia) {
+        nextMessage.shareMedia = normalizeSharedMediaPayload(nextMessage.shareMedia);
+      }
+      return nextMessage;
+    });
   const isGroup = thread.isGroup === true || thread.type === 'group' || participantUids.length > 2;
-  return {
+  const lastMessage = getDirectMessageLastPreviewFromMessages(messages, thread.lastMessage || '');
+  const cleanThread = {
     id: thread.id || '',
     type: isGroup ? 'group' : 'direct',
     isGroup,
@@ -689,17 +702,43 @@ function normalizeDirectMessageThread(thread = {}) {
     participantUids,
     participants: thread.participants || {},
     messages,
-    lastMessage: thread.lastMessage || (messages.length ? (messages[messages.length - 1].isEncrypted ? 'Secure message' : (messages[messages.length - 1].text || (messages[messages.length - 1].imageData ? 'Photo' : ''))) : ''),
+    lastMessage,
     lastMessageFromUid: thread.lastMessageFromUid || (messages.length ? messages[messages.length - 1].fromUid : ''),
     lastMessageAtMs: Number(thread.lastMessageAtMs || (messages.length ? messages[messages.length - 1].createdAtMs : 0) || Date.now()),
     unreadUids: Array.isArray(thread.unreadUids) ? thread.unreadUids.filter(Boolean) : [],
     createdAtMs: Number(thread.createdAtMs || Date.now()),
     updatedAtMs: Number(thread.updatedAtMs || thread.lastMessageAtMs || Date.now())
   };
+  if (removedEncryptedCount) cleanThread._removedEncryptedMessages = removedEncryptedCount;
+  return cleanThread;
+}
+
+let directMessageEncryptedPruneInFlight = false;
+async function pruneEncryptedDirectMessageThreadsForCurrentUser() {
+  if (!currentUser || directMessageEncryptedPruneInFlight) return;
+  const dirty = Object.values(dmThreadMap || {}).filter(thread => Number(thread?._removedEncryptedMessages || 0) > 0);
+  if (!dirty.length) return;
+  directMessageEncryptedPruneInFlight = true;
+  try {
+    const ref = db.collection('users').doc(currentUser.uid);
+    const patch = {};
+    dirty.forEach(thread => {
+      const cleanThread = { ...thread };
+      delete cleanThread._removedEncryptedMessages;
+      dmThreadMap[cleanThread.id] = cleanThread;
+      patch[`directMessageThreadMap.${cleanThread.id}`] = cleanThread;
+    });
+    await ref.update(patch);
+  } catch (error) {
+    console.warn('Direct Message encrypted-message cleanup skipped:', error);
+  } finally {
+    directMessageEncryptedPruneInFlight = false;
+  }
 }
 async function setDirectMessageThreadMirror(uid = '', thread = {}) {
   const cleanThread = normalizeDirectMessageThread(thread);
   if (!uid || !cleanThread.id) return;
+  delete cleanThread._removedEncryptedMessages;
   await db.collection('users').doc(uid).set({
     directMessageThreads: firebase.firestore.FieldValue.arrayUnion(cleanThread.id),
     directMessageThreadMap: { [cleanThread.id]: cleanThread }
@@ -1215,7 +1254,6 @@ function formatDirectMessageTime(ts = 0) {
 
 function getDirectMessageChatPreviewText(thread = {}) {
   const msg = thread.lastMessage || (isDirectMessageGroupThread(thread) ? 'Group chat created' : 'Messages unlocked');
-  if (msg.startsWith('Encrypted') && thread.lastMessageAtMs) return `sent ${timeAgo(thread.lastMessageAtMs)}`;
   return msg;
 }
 
@@ -1664,9 +1702,7 @@ function renderDirectMessageThread(threadId = activeDmThreadId) {
       ${messages.length ? messages.map(message => {
         const mine = message.fromUid === currentUser?.uid;
         const sender = isGroup && !mine ? getDirectMessageProfile(message.fromUid || '', thread.participants?.[message.fromUid] || {}) : null;
-        const content = message.isEncrypted
-          ? renderDirectMessageEncryptedContent(message, thread.id)
-          : renderDirectMessagePayloadContent(getDirectMessagePlainPayload(message), false);
+        const content = renderDirectMessagePayloadContent(getDirectMessagePlainPayload(message), false);
         return `<div class="dm-bubble-row ${mine ? 'mine' : 'theirs'}"><div class="dm-bubble">${sender ? `<small>${renderDisplayNameHTML(sender, 'User')}</small>` : ''}${content}<em>${formatDirectMessageTime(message.createdAtMs)}</em></div></div>`;
       }).join('') : `<div class="dm-thread-empty">Chat accepted. Send the first message.</div>`}
     </div>
@@ -1794,7 +1830,6 @@ function renderDirectMessagesView() {
     document.querySelectorAll('#dm-message-list').forEach(list => {
       list.scrollTop = list.scrollHeight;
     });
-    if (activeDmThreadId) hydrateDirectMessageEncryptionInView(activeDmThreadId);
   });
 }
 

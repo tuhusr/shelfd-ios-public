@@ -97,6 +97,7 @@ async function loadDiscover(force = false) {
   if (discoverLoading) return;
   if (discoverLoaded && !force && isDiscoverMemoryFresh(discoverLoadedAt)) {
     syncDiscoverMediaTabSections();
+    ensureDiscoverFriendWatchingRefreshSystem();
     return;
   }
 
@@ -108,6 +109,11 @@ async function loadDiscover(force = false) {
     syncDiscoverMediaTabSections();
 
     const sections = [
+      {
+        label: 'What Your Friends Are Watching',
+        gridId: 'discover-friends-watching-grid',
+        run: async () => renderFriendWatchingDiscoverCards(await fetchFriendWatchingDiscoverTitles(DISCOVER_LIMIT), 'discover-friends-watching-grid', { row: true })
+      },
       {
         label: 'TV Newest Releases',
         gridId: 'discover-tv-new-releases-grid',
@@ -177,11 +183,6 @@ async function loadDiscover(force = false) {
           render: items => renderRankedDiscoverCards('tv', items, 'discover-tv-hidden-gems-grid'),
           force
         })
-      },
-      {
-        label: 'What Your Friends Are Watching',
-        gridId: 'discover-friends-watching-grid',
-        run: async () => renderFriendWatchingDiscoverCards(await fetchFriendWatchingDiscoverTitles(DISCOVER_LIMIT), 'discover-friends-watching-grid', { row: true })
       },
       {
         label: 'Movie Newest Releases',
@@ -277,6 +278,7 @@ async function loadDiscover(force = false) {
     discoverLoaded = true;
     discoverLoadedAt = Date.now();
     syncDiscoverMediaTabSections();
+    ensureDiscoverFriendWatchingRefreshSystem();
   } catch(e) {
     console.error("Discover load failed:", e);
     renderDiscoverError("Discovery could not load. It will try again automatically later.");
@@ -1117,6 +1119,91 @@ function getFriendWatchlistStatusLabel(item = {}, section = '') {
   return item.status ? item.status.charAt(0).toUpperCase() + item.status.slice(1) : 'Watchlist';
 }
 
+
+const DISCOVER_FRIEND_WATCHING_REFRESH_MS = 6 * 60 * 60 * 1000;
+let discoverFriendWatchingRefreshTimer = null;
+let discoverFriendWatchingRefreshInFlight = false;
+let discoverFriendWatchingRefreshDebounce = null;
+let discoverFriendWatchingRealtimeKey = '';
+let discoverFriendWatchingRealtimeUnsubs = [];
+
+function isDiscoverFriendWatchingGridVisible() {
+  const grid = document.getElementById('discover-friends-watching-grid');
+  if (!grid) return false;
+  const section = grid.closest('.discover-media-tab-section');
+  return !section || section.style.display !== 'none';
+}
+
+function cleanupDiscoverFriendWatchingRealtime() {
+  discoverFriendWatchingRealtimeUnsubs.forEach(unsub => {
+    try { if (typeof unsub === 'function') unsub(); } catch (e) {}
+  });
+  discoverFriendWatchingRealtimeUnsubs = [];
+  discoverFriendWatchingRealtimeKey = '';
+}
+
+function scheduleDiscoverFriendWatchingRefresh(delayMs = 500) {
+  clearTimeout(discoverFriendWatchingRefreshDebounce);
+  discoverFriendWatchingRefreshDebounce = setTimeout(() => {
+    refreshDiscoverFriendWatchingDisplays({ reason: 'scheduled' });
+  }, Math.max(0, delayMs));
+}
+
+async function refreshDiscoverFriendWatchingDisplays(options = {}) {
+  if (discoverFriendWatchingRefreshInFlight) return;
+  if (isPreviewMode?.()) return;
+  const mainGrid = document.getElementById('discover-friends-watching-grid');
+  const fullPage = document.getElementById('discover-friends-full-page');
+  const fullGridVisible = fullPage && fullPage.style.display !== 'none';
+  if (!mainGrid && !fullGridVisible) return;
+
+  discoverFriendWatchingRefreshInFlight = true;
+  try {
+    const rowItems = await fetchFriendWatchingDiscoverTitles(DISCOVER_LIMIT);
+    if (mainGrid && isDiscoverFriendWatchingGridVisible()) {
+      renderFriendWatchingDiscoverCards(rowItems, 'discover-friends-watching-grid', { row: true });
+    }
+    if (fullGridVisible) {
+      const fullItems = rowItems.length >= 120 ? rowItems : await fetchFriendWatchingDiscoverTitles(120);
+      renderFriendWatchingDiscoverCards(fullItems, 'discover-friends-full-grid', { fullPage: true, skipLimit: true });
+    }
+  } catch (e) {
+    console.warn('Friend watching refresh failed:', e);
+  } finally {
+    discoverFriendWatchingRefreshInFlight = false;
+  }
+}
+
+function ensureDiscoverFriendWatchingRealtime() {
+  if (isPreviewMode?.() || !currentUser || !Array.isArray(friends) || !friends.length || typeof db === 'undefined') {
+    cleanupDiscoverFriendWatchingRealtime();
+    return;
+  }
+  const key = friends.map(uid => String(uid || '').trim()).filter(Boolean).sort().join('|');
+  if (!key || key === discoverFriendWatchingRealtimeKey) return;
+  cleanupDiscoverFriendWatchingRealtime();
+  discoverFriendWatchingRealtimeKey = key;
+  discoverFriendWatchingRealtimeUnsubs = key.split('|').map(uid => {
+    try {
+      return db.collection('watchlist').doc(uid).onSnapshot(() => {
+        scheduleDiscoverFriendWatchingRefresh(650);
+      }, error => console.warn('Friend watching realtime listener failed:', error));
+    } catch (e) {
+      console.warn('Friend watching realtime listener setup failed:', e);
+      return null;
+    }
+  }).filter(Boolean);
+}
+
+function ensureDiscoverFriendWatchingRefreshSystem() {
+  if (!discoverFriendWatchingRefreshTimer) {
+    discoverFriendWatchingRefreshTimer = setInterval(() => {
+      refreshDiscoverFriendWatchingDisplays({ reason: 'six-hour-refresh' });
+    }, DISCOVER_FRIEND_WATCHING_REFRESH_MS);
+  }
+  ensureDiscoverFriendWatchingRealtime();
+}
+
 function addFriendWatchingCandidate(grouped, item = {}, section = '', friend = {}) {
   const title = (item.title || item.name || '').trim();
   if (!title || !item.cover) return;
@@ -1484,7 +1571,10 @@ async function searchGamesDiscoverDatabase() {
 let discoverUniversalSearchSource = 'tmdb';
 let discoverUniversalSearchTimer = null;
 let discoverUniversalSearchToken = 0;
+let discoverUniversalSearchFilterState = null;
+let discoverUniversalSearchDefaultLoading = false;
 const DISCOVER_UNIVERSAL_SEARCH_DEBOUNCE_MS = 90;
+const DISCOVER_UNIVERSAL_SEARCH_DEFAULT_LIMIT = 21;
 
 function normalizeDiscoverUniversalSearchSource(source = '') {
   const key = String(source || '').trim().toLowerCase();
@@ -1504,21 +1594,92 @@ function getDiscoverUniversalSearchPlaceholder(source = discoverUniversalSearchS
   return 'Search all media';
 }
 
+function getDiscoverUniversalSearchFilterGridId(source = discoverUniversalSearchSource) {
+  const normalized = normalizeDiscoverUniversalSearchSource(source);
+  if (normalized === 'movie') return 'discover-movie-universal-search-grid';
+  if (normalized === 'tv') return 'discover-tv-universal-search-grid';
+  if (normalized === 'anime') return 'anime-discover-universal-search-grid';
+  if (normalized === 'tmdb') return 'discover-universal-search-grid';
+  return '';
+}
+
+function isDiscoverUniversalSearchFilterable(source = discoverUniversalSearchSource) {
+  return ['tmdb', 'movie', 'tv', 'anime'].includes(normalizeDiscoverUniversalSearchSource(source));
+}
+
+function ensureDiscoverUniversalSearchFilterState() {
+  const gridId = getDiscoverUniversalSearchFilterGridId();
+  if (!discoverUniversalSearchFilterState || discoverUniversalSearchFilterState.gridId !== gridId) {
+    discoverUniversalSearchFilterState = {
+      mode: 'universal-search',
+      gridId,
+      sortKey: 'default',
+      newReleaseCountryCode: '',
+      newReleaseRange: discoverNewReleaseRange,
+      filters: discoverUniversalSearchFilterState?.filters || getEmptyDiscoverCategoryFilters(),
+      overrideItems: null,
+      overrideRenderer: null,
+      overrideType: null
+    };
+  }
+  return discoverUniversalSearchFilterState;
+}
+
+function getDiscoverUniversalSearchFilterCount() {
+  const state = ensureDiscoverUniversalSearchFilterState();
+  const filters = state.filters || getEmptyDiscoverCategoryFilters();
+  return Object.keys(DISCOVER_CATEGORY_FILTER_GROUPS).reduce((sum, key) => sum + (filters[key]?.length || 0), 0);
+}
+
+function updateDiscoverUniversalSearchFilterButtonState() {
+  const btn = document.getElementById('discover-universal-search-filter-btn');
+  if (!btn) return;
+  const filterable = isDiscoverUniversalSearchFilterable();
+  const count = filterable ? getDiscoverUniversalSearchFilterCount() : 0;
+  btn.style.display = filterable ? 'inline-flex' : 'none';
+  btn.classList.toggle('has-active-filter', !!count);
+  btn.setAttribute('aria-label', count ? `Filter Discovery search. ${count} active` : 'Filter Discovery search');
+  const label = btn.querySelector('.discover-universal-search-filter-label');
+  if (label) label.textContent = count ? `Filter ${count}` : 'Filter';
+}
+
+function syncDiscoverUniversalSearchFilterContext() {
+  if (!isDiscoverUniversalSearchFilterable()) {
+    updateDiscoverUniversalSearchFilterButtonState();
+    return null;
+  }
+  const state = ensureDiscoverUniversalSearchFilterState();
+  state.gridId = getDiscoverUniversalSearchFilterGridId();
+  state.mode = 'universal-search';
+  discoverCategoryFullState = state;
+  updateDiscoverUniversalSearchFilterButtonState();
+  return state;
+}
+
 function ensureDiscoverUniversalSearchOverlay() {
   let overlay = document.getElementById('discover-universal-search-overlay');
   if (overlay) return overlay;
   overlay = document.createElement('div');
   overlay.id = 'discover-universal-search-overlay';
-  overlay.className = 'discover-universal-search-overlay';
+  overlay.className = 'discover-universal-search-overlay shelfline-filter-ui discover-universal-search-shelfline';
   overlay.setAttribute('aria-hidden', 'true');
+  overlay.dataset.uiPattern = 'ShelfLine Filter UI';
   overlay.innerHTML = `
     <div class="discover-universal-search-panel" role="dialog" aria-modal="true" aria-label="Search Discovery">
       <button class="discover-universal-search-notch" type="button" onclick="closeDiscoverUniversalSearch()" aria-label="Close search"></button>
-      <div class="discover-universal-search-header">
+      <div class="discover-universal-search-titlebar">
         <button class="discover-universal-search-back" type="button" onclick="closeDiscoverUniversalSearch()" aria-label="Close search">←</button>
-        <input id="discover-universal-search-input" class="discover-universal-search-input" type="search" inputmode="search" autocomplete="off" spellcheck="false" placeholder="Search Discovery" oninput="queueDiscoverUniversalSearch(this.value)" onkeydown="handleDiscoverUniversalSearchKey(event)">
+        <div class="discover-universal-search-title">Search</div>
         <button id="discover-universal-search-clear" class="discover-universal-search-clear" type="button" onclick="clearDiscoverUniversalSearch()" aria-label="Clear search" style="display:none;">×</button>
       </div>
+      <div class="discover-universal-search-header">
+        <input id="discover-universal-search-input" class="discover-universal-search-input" type="search" inputmode="search" autocomplete="off" spellcheck="false" placeholder="Search Discovery" oninput="queueDiscoverUniversalSearch(this.value)" onkeydown="handleDiscoverUniversalSearchKey(event)">
+        <button id="discover-universal-search-filter-btn" class="discover-category-filter-btn discover-universal-search-filter-btn" type="button" onclick="openDiscoverUniversalSearchFilterSheet()" aria-label="Filter Discovery search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <span class="discover-universal-search-filter-label">Filter</span>
+        </button>
+      </div>
+      <div class="discover-universal-search-subtitle">Search across Discovery without leaving this page.</div>
       <div class="discover-universal-search-tabs" aria-label="Discovery search categories">
         <button class="discover-universal-search-tab" type="button" data-discover-search-source="tmdb" onclick="switchDiscoverUniversalSearchSource('tmdb')">All Media</button>
         <button class="discover-universal-search-tab" type="button" data-discover-search-source="movie" onclick="switchDiscoverUniversalSearchSource('movie')">Movies</button>
@@ -1614,6 +1775,8 @@ function setDiscoverUniversalSearchSource(source = 'tmdb') {
   });
   const input = document.getElementById('discover-universal-search-input');
   if (input) input.placeholder = getDiscoverUniversalSearchPlaceholder(discoverUniversalSearchSource);
+  ensureDiscoverUniversalSearchFilterState();
+  syncDiscoverUniversalSearchFilterContext();
 }
 
 function openDiscoverUniversalSearch(source = 'tmdb') {
@@ -1630,8 +1793,9 @@ function openDiscoverUniversalSearch(source = 'tmdb') {
     setTimeout(() => input.focus({ preventScroll: true }), 80);
   }
   const grid = document.getElementById('discover-universal-search-grid');
+  syncDiscoverUniversalSearchFilterContext();
   if (grid && !String(input?.value || '').trim()) {
-    grid.innerHTML = '<div class="discover-universal-search-empty">Search across Discovery without leaving this page.</div>';
+    renderDiscoverUniversalSearchDefault(true);
   }
 }
 
@@ -1643,6 +1807,7 @@ function closeDiscoverUniversalSearch() {
   overlay.style.transform = '';
   overlay.style.opacity = '';
   overlay.setAttribute('aria-hidden', 'true');
+  overlay.dataset.uiPattern = 'ShelfLine Filter UI';
   document.body.classList.remove('discover-universal-search-open');
   setTimeout(() => {
     if (!overlay.classList.contains('open')) overlay.style.display = 'none';
@@ -1660,7 +1825,7 @@ function clearDiscoverUniversalSearch() {
   const grid = document.getElementById('discover-universal-search-grid');
   if (input) input.value = '';
   if (clearBtn) clearBtn.style.display = 'none';
-  if (grid) grid.innerHTML = '<div class="discover-universal-search-empty">Search across Discovery without leaving this page.</div>';
+  if (grid) renderDiscoverUniversalSearchDefault(true);
   if (input) input.focus({ preventScroll: true });
 }
 
@@ -1669,6 +1834,7 @@ function switchDiscoverUniversalSearchSource(source = 'tmdb') {
   const input = document.getElementById('discover-universal-search-input');
   const query = String(input?.value || '').trim();
   if (query) runDiscoverUniversalSearch(query);
+  else renderDiscoverUniversalSearchDefault(true);
 }
 
 function handleDiscoverUniversalSearchKey(event) {
@@ -1930,14 +2096,25 @@ async function runDiscoverUniversalSearch(value = '') {
   if (!grid) return;
   const token = ++discoverUniversalSearchToken;
   if (!query) {
-    grid.classList.remove('discover-universal-search-results-list');
-    grid.innerHTML = '<div class="discover-universal-search-empty">Search across Discovery without leaving this page.</div>';
+    await renderDiscoverUniversalSearchDefault(true);
     return;
   }
   const source = discoverUniversalSearchSource;
+  syncDiscoverUniversalSearchFilterContext();
   grid.classList.remove('discover-universal-search-results-list');
   grid.innerHTML = '<div class="discover-message">Searching...</div>';
   try {
+    if (source !== 'rawg' && isDiscoverUniversalSearchFilterable(source) && getDiscoverUniversalSearchFilterCount()) {
+      const filteredItems = await fetchDiscoverFilteredMediaItems();
+      if (token !== discoverUniversalSearchToken) return;
+      const rows = preferDiscoverUniversalPrefixMatches(
+        filteredItems.map(item => ({ kind: 'tmdb', item, score: scoreDiscoverUniversalTmdbResult(item, query) }))
+          .filter(row => Number(row.score || 0) > 0),
+        query
+      ).sort((a, b) => Number(b.score || 0) - Number(a.score || 0)).slice(0, DISCOVER_UNIVERSAL_SEARCH_DEFAULT_LIMIT);
+      renderDiscoverUniversalSearchRows(rows, grid);
+      return;
+    }
     if (source === 'rawg') {
       const items = await fetchRawgSearchResults(query);
       if (token !== discoverUniversalSearchToken) return;
@@ -1963,6 +2140,168 @@ async function runDiscoverUniversalSearch(value = '') {
   }
 }
 
+
+
+function getDiscoverUniversalSearchScope(source = discoverUniversalSearchSource) {
+  const normalized = normalizeDiscoverUniversalSearchSource(source);
+  if (normalized === 'movie') return 'movie';
+  if (normalized === 'tv') return 'tv';
+  if (normalized === 'anime') return 'anime';
+  if (normalized === 'tmdb') return 'mixed';
+  return '';
+}
+
+async function fetchDiscoverUniversalBestThisYear(source = discoverUniversalSearchSource) {
+  const scope = getDiscoverUniversalSearchScope(source);
+  if (!scope) return [];
+  const items = scope === 'mixed'
+    ? [
+        ...(await fetchAndRankThisYearsBest('movie')),
+        ...(await fetchAndRankThisYearsBest('tv')),
+        ...(await fetchAndRankThisYearsBest('anime'))
+      ]
+    : await fetchAndRankThisYearsBest(scope);
+  const normalized = normalizeDiscoverTypedItems(items, scope === 'mixed' ? 'mixed' : (scope === 'movie' ? 'movie' : 'tv'))
+    .filter(item => item?.poster_path && getDiscoverSortTitle(item));
+  return normalized
+    .map(item => ({
+      ...item,
+      calculatedScore: Number(item.calculatedScore || 0) || scoreDiscoverTmdbItem(normalized, item, 'yearsBest', scope === 'anime' ? 'anime' : (item.media_type || scope)),
+      discoverContext: item.discoverContext || getDiscoverFilteredContextLine(item)
+    }))
+    .sort(compareDiscoverCalculatedScoreDesc)
+    .slice(0, DISCOVER_UNIVERSAL_SEARCH_DEFAULT_LIMIT);
+}
+
+
+function rankDiscoverUniversalRawgGames(items = [], kind = 'trending') {
+  return (Array.isArray(items) ? items : [])
+    .map(item => ({
+      ...item,
+      calculatedScore: scoreGameDiscoverItem(items, item, kind),
+      discoverContext: item.discoverContext || buildGameDiscoverContext(item, 'Past 2 years')
+    }))
+    .sort((a, b) => {
+      const scoreCompare = Number(b.calculatedScore || 0) - Number(a.calculatedScore || 0);
+      if (scoreCompare) return scoreCompare;
+      const addedCompare = gameAddedCount(b) - gameAddedCount(a);
+      if (addedCompare) return addedCompare;
+      const ratingCompare = Number(b.rating || 0) - Number(a.rating || 0);
+      if (ratingCompare) return ratingCompare;
+      return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' });
+    })
+    .slice(0, DISCOVER_UNIVERSAL_SEARCH_DEFAULT_LIMIT);
+}
+
+function isRawgGameReleasedWithinPastTwoYears(item = {}, startDate = null, endDate = null) {
+  const releasedAt = Date.parse(`${item.released || ''}T00:00:00`);
+  if (!Number.isFinite(releasedAt)) return false;
+  const start = startDate instanceof Date ? startDate.getTime() : 0;
+  const end = endDate instanceof Date ? endDate.getTime() : Date.now();
+  return releasedAt >= start && releasedAt <= end;
+}
+
+async function fetchDiscoverUniversalTopRawgGamesPastTwoYears() {
+  const today = new Date();
+  const past = new Date(today);
+  past.setFullYear(today.getFullYear() - 2);
+  const startString = getRawgDateString(past);
+  const endString = getRawgDateString(today);
+  let pool = await fetchRawgPages({
+    dates: `${startString},${endString}`,
+    ordering: '-added'
+  }, 5, 220);
+  let filtered = pool.filter(item => isRawgGameReleasedWithinPastTwoYears(item, past, today));
+  let ranked = rankDiscoverUniversalRawgGames(filtered, 'trending');
+  if (ranked.length >= Math.min(12, DISCOVER_UNIVERSAL_SEARCH_DEFAULT_LIMIT)) return ranked;
+
+  pool = await fetchRawgPages({
+    dates: `${startString},${endString}`,
+    ordering: '-rating'
+  }, 5, 180);
+  filtered = pool.filter(item => isRawgGameReleasedWithinPastTwoYears(item, past, today));
+  ranked = rankDiscoverUniversalRawgGames(filtered, 'years-best');
+  if (ranked.length) return ranked;
+
+  pool = await fetchRawgPages({
+    dates: `${startString},${endString}`,
+    ordering: '-metacritic'
+  }, 4, 140);
+  return rankDiscoverUniversalRawgGames(pool.filter(item => isRawgGameReleasedWithinPastTwoYears(item, past, today)), 'rated');
+}
+
+async function renderDiscoverUniversalSearchDefault(force = false) {
+  const grid = document.getElementById('discover-universal-search-grid');
+  if (!grid || discoverUniversalSearchDefaultLoading) return;
+  const source = discoverUniversalSearchSource;
+  const filterable = isDiscoverUniversalSearchFilterable(source);
+  syncDiscoverUniversalSearchFilterContext();
+  if (source === 'rawg') {
+    discoverUniversalSearchDefaultLoading = true;
+    grid.classList.remove('discover-universal-search-results-list');
+    grid.innerHTML = '<div class="discover-message">Loading top games from the past 2 years...</div>';
+    try {
+      const cacheKey = `universal-rawg-games-past-2-years:${DISCOVER_CATEGORY_FILTER_VERSION}:${new Date().getFullYear()}:${new Date().getMonth()}`;
+      const items = await loadDiscoverCachedData(cacheKey, fetchDiscoverUniversalTopRawgGamesPastTwoYears, force);
+      const rows = (items || []).map(item => ({ kind: 'game', item, score: Number(item.calculatedScore || 0) }));
+      renderDiscoverUniversalSearchRows(rows, grid);
+      if (!rows.length) grid.innerHTML = '<div class="discover-universal-search-empty">No top games found for the past 2 years.</div>';
+    } catch (error) {
+      console.error('Universal Discovery game defaults failed:', error);
+      grid.innerHTML = '<div class="discover-message">Top games could not load. Try search.</div>';
+    } finally {
+      discoverUniversalSearchDefaultLoading = false;
+    }
+    return;
+  }
+  if (filterable && getDiscoverUniversalSearchFilterCount()) {
+    await loadDiscoverUniversalSearchFilteredItems(force);
+    return;
+  }
+  discoverUniversalSearchDefaultLoading = true;
+  grid.classList.remove('discover-universal-search-results-list');
+  grid.innerHTML = '<div class="discover-message">Loading this year’s best media...</div>';
+  try {
+    const cacheKey = `universal-best-year:${DISCOVER_CATEGORY_FILTER_VERSION}:${source}:${new Date().getFullYear()}`;
+    const items = await loadDiscoverCachedData(cacheKey, () => fetchDiscoverUniversalBestThisYear(source), force);
+    const rows = (items || []).map(item => ({ kind: 'tmdb', item, score: Number(item.calculatedScore || 0) }));
+    renderDiscoverUniversalSearchRows(rows, grid);
+    if (!rows.length) grid.innerHTML = '<div class="discover-universal-search-empty">No best-of-year titles found yet.</div>';
+  } catch (error) {
+    console.error('Universal Discovery default titles failed:', error);
+    grid.innerHTML = '<div class="discover-message">This year’s best titles could not load. Try search.</div>';
+  } finally {
+    discoverUniversalSearchDefaultLoading = false;
+  }
+}
+
+function openDiscoverUniversalSearchFilterSheet() {
+  if (!isDiscoverUniversalSearchFilterable()) return;
+  syncDiscoverUniversalSearchFilterContext();
+  openDiscoverCategoryFilterSheet();
+}
+
+async function loadDiscoverUniversalSearchFilteredItems(force = false) {
+  const grid = document.getElementById('discover-universal-search-grid');
+  if (!grid || !isDiscoverUniversalSearchFilterable()) return;
+  syncDiscoverUniversalSearchFilterContext();
+  if (!hasDiscoverCategoryMediaFilters()) {
+    renderDiscoverUniversalSearchDefault(force);
+    return;
+  }
+  grid.classList.remove('discover-universal-search-results-list');
+  grid.innerHTML = '<div class="discover-message">Loading filtered titles...</div>';
+  try {
+    const cacheKey = `universal-search-filters:${DISCOVER_CATEGORY_FILTER_VERSION}:${discoverUniversalSearchSource}:${JSON.stringify(getDiscoverCategoryFilters())}`;
+    const items = await loadDiscoverCachedData(cacheKey, fetchDiscoverFilteredMediaItems, force);
+    const rows = (items || []).map(item => ({ kind: 'tmdb', item, score: Number(item.calculatedScore || 0) }));
+    renderDiscoverUniversalSearchRows(rows, grid);
+    if (!rows.length) grid.innerHTML = '<div class="discover-universal-search-empty">No titles found for these filters.</div>';
+  } catch (error) {
+    console.error('Universal Discovery filtered titles failed:', error);
+    grid.innerHTML = '<div class="discover-message">Filtered titles could not load. Try a lighter filter set.</div>';
+  }
+}
 
 function getRawgDateString(date) {
   return date.toISOString().slice(0, 10);
@@ -3502,42 +3841,23 @@ async function appendDirectMessageToThread(threadId = '', text = '', shareMedia 
   if ((!cleanText && !normalizedShareMedia && !photoMedia) || !currentUser || !thread) return false;
   const now = Date.now();
   const messageId = `msg_${currentUser.uid}_${now}`;
-  const plainPayload = {
+  const message = {
+    id: messageId,
+    fromUid: currentUser.uid,
+    createdAtMs: now,
+    isEncrypted: false,
     text: cleanText.slice(0, 1000),
     shareMedia: normalizedShareMedia || null,
     imageData: photoMedia?.imageData || '',
     imageName: photoMedia?.name || ''
   };
-  let encryptedEnvelope = null;
-  try {
-    encryptedEnvelope = await encryptDirectMessagePayloadForThread(thread, messageId, plainPayload);
-  } catch (error) {
-    console.error('Direct Message encryption failed:', error);
-    const errorMessage = String(error?.message || '');
-    if (error?.dmE2eeOwnKeyMissing) {
-      showToast(error?.dmE2eeNeedsUnlock ? 'Enter your Shelfd Secure Key to unlock encrypted messages.' : 'Secure message key is not ready yet.', { durationMs: 2600 });
-      return false;
-    }
-    if (error?.dmE2eeMissingPublicKey || /open the updated app|public key|secure messages/i.test(errorMessage)) {
-      showDmE2eeMissingKeyWarningToast();
-      return false;
-    }
-    showToast(errorMessage || 'Could not encrypt this message');
-    return false;
-  }
-  const message = {
-    id: messageId,
-    fromUid: currentUser.uid,
-    createdAtMs: now,
-    ...encryptedEnvelope
-  };
-  const lastMessage = photoMedia?.imageData ? 'Encrypted photo' : normalizedShareMedia ? 'Encrypted share' : 'Encrypted message';
+  const lastMessage = photoMedia?.imageData ? 'Photo' : normalizedShareMedia ? 'Shared media' : message.text;
   const unreadUids = isDirectMessageGroupThread(thread)
     ? (thread.participantUids || []).filter(uid => uid && uid !== currentUser.uid)
     : [getDirectMessageOtherUid(thread)].filter(Boolean);
   const nextThread = normalizeDirectMessageThread({
     ...thread,
-    messages: [...(thread.messages || []), message].slice(-80),
+    messages: [...(thread.messages || []), message].filter(msg => !isDirectMessageEncryptedRecord(msg)).slice(-80),
     lastMessage,
     lastMessageFromUid: currentUser.uid,
     lastMessageAtMs: now,
@@ -4638,6 +4958,297 @@ const discoverCategoryDataStore = {};
 let discoverCategoryFullState = null;
 let discoverCategoryFullHistoryActive = false;
 
+
+const DISCOVER_CATEGORY_FILTER_LIMIT = 21;
+const DISCOVER_CATEGORY_FILTER_PAGE_COUNT = 3;
+const DISCOVER_CATEGORY_FILTER_VERSION = 'v284-shelfline-search-filters';
+
+// ShelfLine Filter UI: Shelfd's clean Letterboxd-inspired list-panel system.
+// Reuse this pattern when a feature needs flat text rows, semi-soft dividers,
+// checkmarks for selected rows, and right-to-left drill-down panels without heavy gradients/pills.
+const SHELFLINE_FILTER_UI_PATTERN = {
+  name: 'ShelfLine Filter UI',
+  intent: 'Clean Letterboxd-style filtering/search surfaces for Shelfd.',
+  traits: [
+    'flat dark/light surface',
+    'text-first rows',
+    'semi-soft divider lines',
+    'minimal checkmarks',
+    'right-to-left panel drilldown',
+    'no heavy bubbles, capsules, or decorative gradients'
+  ]
+};
+window.SHELFD_UI_PATTERNS = window.SHELFD_UI_PATTERNS || {};
+window.SHELFD_UI_PATTERNS.SHELF_LINE_FILTER_UI = SHELFLINE_FILTER_UI_PATTERN;
+
+let discoverCategoryFilterPanelKey = 'main';
+
+const DISCOVER_CATEGORY_DECADE_FILTERS = Array.from({ length: 16 }, (_, index) => {
+  const start = 2020 - (index * 10);
+  return { key: `decade:${start}`, label: `${start}s`, start, end: start + 9 };
+});
+const DISCOVER_CATEGORY_YEAR_FILTERS = DISCOVER_CATEGORY_DECADE_FILTERS.flatMap(decade =>
+  Array.from({ length: 10 }, (_, offset) => {
+    const year = decade.start + offset;
+    return { key: String(year), label: String(year), year, decadeStart: decade.start };
+  })
+);
+function isDiscoverCategoryYearDisabled(year) {
+  const currentYear = new Date().getFullYear();
+  return Number(year || 0) > currentYear;
+}
+
+const DISCOVER_CATEGORY_GENRE_FILTERS = [
+  { key: 'genre:28', label: 'Action', id: 28 },
+  { key: 'genre:12', label: 'Adventure', id: 12 },
+  { key: 'genre:16', label: 'Animation', id: 16 },
+  { key: 'genre:35', label: 'Comedy', id: 35 },
+  { key: 'genre:80', label: 'Crime', id: 80 },
+  { key: 'genre:99', label: 'Documentary', id: 99 },
+  { key: 'genre:18', label: 'Drama', id: 18 },
+  { key: 'genre:10751', label: 'Family', id: 10751 },
+  { key: 'genre:14', label: 'Fantasy', id: 14 },
+  { key: 'genre:36', label: 'History', id: 36 },
+  { key: 'genre:27', label: 'Horror', id: 27 },
+  { key: 'genre:10402', label: 'Music', id: 10402 },
+  { key: 'type:movie', label: 'Movie', contentType: 'movie' },
+  { key: 'genre:9648', label: 'Mystery', id: 9648 },
+  { key: 'genre:10749', label: 'Romance', id: 10749 },
+  { key: 'genre:878', label: 'Science Fiction', id: 878 },
+  { key: 'type:tv', label: 'TV', contentType: 'tv' },
+  { key: 'genre:53', label: 'Thriller', id: 53 },
+  { key: 'genre:10752', label: 'War', id: 10752 },
+  { key: 'genre:37', label: 'Western', id: 37 }
+];
+
+const DISCOVER_CATEGORY_COUNTRY_FILTERS = [
+  { key: 'AU', label: 'Australia' },
+  { key: 'BR', label: 'Brazil' },
+  { key: 'CA', label: 'Canada' },
+  { key: 'CN', label: 'China' },
+  { key: 'FR', label: 'France' },
+  { key: 'DE', label: 'Germany' },
+  { key: 'HK', label: 'Hong Kong' },
+  { key: 'IN', label: 'India' },
+  { key: 'IE', label: 'Ireland' },
+  { key: 'IT', label: 'Italy' },
+  { key: 'JP', label: 'Japan' },
+  { key: 'MX', label: 'Mexico' },
+  { key: 'NG', label: 'Nigeria' },
+  { key: 'RU', label: 'Russia' },
+  { key: 'KR', label: 'South Korea' },
+  { key: 'ES', label: 'Spain' },
+  { key: 'SE', label: 'Sweden' },
+  { key: 'TH', label: 'Thailand' },
+  { key: 'TR', label: 'Turkey' },
+  { key: 'GB', label: 'United Kingdom' },
+  { key: 'US', label: 'United States' }
+];
+
+const DISCOVER_CATEGORY_LANGUAGE_FILTERS = [
+  { key: 'ar', label: 'Arabic' },
+  { key: 'cn', label: 'Cantonese' },
+  { key: 'zh', label: 'Chinese' },
+  { key: 'en', label: 'English' },
+  { key: 'fr', label: 'French' },
+  { key: 'de', label: 'German' },
+  { key: 'hi', label: 'Hindi' },
+  { key: 'id', label: 'Indonesian' },
+  { key: 'it', label: 'Italian' },
+  { key: 'ja', label: 'Japanese' },
+  { key: 'ko', label: 'Korean' },
+  { key: 'ms', label: 'Malay' },
+  { key: 'pt', label: 'Portuguese' },
+  { key: 'ru', label: 'Russian' },
+  { key: 'es', label: 'Spanish' },
+  { key: 'sv', label: 'Swedish' },
+  { key: 'tl', label: 'Tagalog' },
+  { key: 'ta', label: 'Tamil' },
+  { key: 'te', label: 'Telugu' },
+  { key: 'th', label: 'Thai' },
+  { key: 'tr', label: 'Turkish' }
+];
+
+const DISCOVER_CATEGORY_SERVICE_FILTERS = [
+  { key: '350', label: 'Apple TV', providerId: 350, icon: '' },
+  { key: '337', label: 'Disney Plus', providerId: 337, icon: 'D+' },
+  { key: '1899', label: 'HBO Max', providerId: 1899, icon: 'MAX' },
+  { key: '15', label: 'Hulu', providerId: 15, icon: 'HU' },
+  { key: '8', label: 'Netflix', providerId: 8, icon: 'N' },
+  { key: '531', label: 'Paramount Plus', providerId: 531, icon: 'P+' },
+  { key: '386', label: 'Peacock', providerId: 386, icon: 'PC' },
+  { key: '300', label: 'Pluto TV', providerId: 300, icon: 'PL' },
+  { key: '9', label: 'Prime Video', providerId: 9, icon: 'PV' },
+  { key: '43', label: 'Starz', providerId: 43, icon: 'SZ' }
+];
+
+const DISCOVER_CATEGORY_FILTER_GROUPS = {
+  year: { label: 'Year', pluralLabel: 'Years', items: DISCOVER_CATEGORY_DECADE_FILTERS },
+  genre: { label: 'Genre', pluralLabel: 'Genres', items: DISCOVER_CATEGORY_GENRE_FILTERS },
+  country: { label: 'Country', pluralLabel: 'Countries', items: DISCOVER_CATEGORY_COUNTRY_FILTERS },
+  language: { label: 'Language', pluralLabel: 'Languages', items: DISCOVER_CATEGORY_LANGUAGE_FILTERS },
+  service: { label: 'Service', pluralLabel: 'Services', items: DISCOVER_CATEGORY_SERVICE_FILTERS }
+};
+
+function getDiscoverCategoryMediaScope(gridId = '') {
+  if (gridId === 'discover-universal-search-grid') return 'mixed';
+  if (gridId.startsWith('discover-movie-')) return 'movie';
+  if (gridId.startsWith('discover-tv-')) return 'tv';
+  if (gridId.startsWith('anime-discover-')) return 'anime';
+  return '';
+}
+
+function isDiscoverCategoryMediaFilterable(gridId = '') {
+  return !!getDiscoverCategoryMediaScope(gridId);
+}
+
+function getEmptyDiscoverCategoryFilters() {
+  return { year: [], genre: [], country: [], language: [], service: [] };
+}
+
+function getDiscoverCategoryFilters() {
+  if (!discoverCategoryFullState) return getEmptyDiscoverCategoryFilters();
+  if (!discoverCategoryFullState.filters) discoverCategoryFullState.filters = getEmptyDiscoverCategoryFilters();
+  Object.keys(DISCOVER_CATEGORY_FILTER_GROUPS).forEach(key => {
+    if (!Array.isArray(discoverCategoryFullState.filters[key])) discoverCategoryFullState.filters[key] = [];
+  });
+  return discoverCategoryFullState.filters;
+}
+
+function hasDiscoverCategoryMediaFilters() {
+  const filters = getDiscoverCategoryFilters();
+  return Object.keys(DISCOVER_CATEGORY_FILTER_GROUPS).some(key => filters[key]?.length);
+}
+
+function getDiscoverCategoryFilterCount() {
+  const filters = getDiscoverCategoryFilters();
+  return Object.keys(DISCOVER_CATEGORY_FILTER_GROUPS).reduce((sum, key) => sum + (filters[key]?.length || 0), 0);
+}
+
+function findDiscoverCategoryFilterItem(groupKey = '', value = '') {
+  if (groupKey === 'year') {
+    return DISCOVER_CATEGORY_YEAR_FILTERS.find(item => String(item.key) === String(value))
+      || DISCOVER_CATEGORY_DECADE_FILTERS.find(item => String(item.key) === String(value));
+  }
+  return (DISCOVER_CATEGORY_FILTER_GROUPS[groupKey]?.items || []).find(item => String(item.key) === String(value));
+}
+
+function getDiscoverCategoryFilterSummary(groupKey = '') {
+  const filters = getDiscoverCategoryFilters();
+  const values = filters[groupKey] || [];
+  if (!values.length) return '';
+  const labels = values.map(value => findDiscoverCategoryFilterItem(groupKey, value)?.label || value).filter(Boolean);
+  if (labels.length <= 2) return labels.join(', ');
+  return `${labels.slice(0, 2).join(', ')} +${labels.length - 2}`;
+}
+
+function renderDiscoverCategoryFilterCheck(isSelected = false) {
+  return `<strong class="discover-category-filter-check" aria-hidden="true">${isSelected ? '✓' : ''}</strong>`;
+}
+
+function renderDiscoverCategoryMainFilterPanel() {
+  const activeCount = getDiscoverCategoryFilterCount();
+  const groupKeys = ['year', 'genre', 'country', 'language', 'service'];
+  const rows = groupKeys.map(key => {
+    const group = DISCOVER_CATEGORY_FILTER_GROUPS[key];
+    const count = getDiscoverCategoryFilters()[key]?.length || 0;
+    const summary = getDiscoverCategoryFilterSummary(key);
+    return `<button class="discover-category-filter-row discover-category-filter-root-row${count ? ' selected' : ''}" type="button" onclick="openDiscoverCategoryFilterPanel('${escAttr(key)}')">
+      <span>${escHtml(group.label)}</span>
+      <strong>${summary ? escHtml(summary) : ''}</strong>
+      <em>›</em>
+    </button>`;
+  }).join('');
+  return `<div class="discover-category-filter-panel discover-category-filter-panel-main" data-filter-panel="main">
+    <div class="discover-category-filter-header discover-category-filter-header-flat">
+      <div><div class="discover-category-filter-kicker">${discoverCategoryFullState?.mode === 'universal-search' ? 'Search' : 'View All'}</div><h3>Filter</h3></div>
+      <button class="discover-category-filter-done" type="button" onclick="closeDiscoverCategoryFilterSheet()">Done</button>
+    </div>
+    <div class="discover-category-filter-rule"></div>
+    <div class="discover-category-filter-list">${rows}</div>
+    ${activeCount ? `<button class="discover-category-filter-clear-inline" type="button" onclick="clearDiscoverCategoryFilters()">Clear ${activeCount} filter${activeCount === 1 ? '' : 's'}</button>` : ''}
+  </div>`;
+}
+
+function renderDiscoverCategoryOptionFilterPanel(groupKey = '') {
+  const group = DISCOVER_CATEGORY_FILTER_GROUPS[groupKey] || DISCOVER_CATEGORY_FILTER_GROUPS.year;
+  const selected = new Set(getDiscoverCategoryFilters()[groupKey] || []);
+  let rows = '';
+  if (groupKey === 'year') {
+    rows = DISCOVER_CATEGORY_DECADE_FILTERS.map(item => {
+      const selectedYears = DISCOVER_CATEGORY_YEAR_FILTERS
+        .filter(yearItem => yearItem.decadeStart === item.start && selected.has(String(yearItem.key)));
+      const summary = selectedYears.length ? `${selectedYears.length} selected` : '';
+      return `<button class="discover-category-filter-row discover-category-filter-root-row discover-category-filter-decade-row${selectedYears.length ? ' selected' : ''}" type="button" onclick="openDiscoverCategoryFilterPanel('year-decade:${escAttr(String(item.start))}')">
+        <span>${escHtml(item.label)}</span>
+        <strong>${escHtml(summary)}</strong>
+        <em>›</em>
+      </button>`;
+    }).join('');
+  } else {
+    rows = (group.items || []).map(item => {
+      const isSelected = selected.has(String(item.key));
+      const iconHtml = groupKey === 'service'
+        ? `<span class="discover-category-filter-service-icon">${escHtml(item.icon || item.label.slice(0, 2))}</span>`
+        : '';
+      return `<button class="discover-category-filter-row discover-category-filter-option${isSelected ? ' selected' : ''}" type="button" onclick="toggleDiscoverCategoryFilterOption('${escAttr(groupKey)}','${escAttr(String(item.key))}')">
+        <span>${iconHtml}${escHtml(item.label)}</span>
+        ${renderDiscoverCategoryFilterCheck(isSelected)}
+      </button>`;
+    }).join('');
+  }
+  return `<div class="discover-category-filter-panel discover-category-filter-panel-sub" data-filter-panel="${escAttr(groupKey)}">
+    <div class="discover-category-filter-panel-top discover-category-filter-header-flat">
+      <button class="discover-category-filter-back" type="button" onclick="openDiscoverCategoryFilterPanel('main', 'back')" aria-label="Back">←</button>
+      <h3>${escHtml(group.pluralLabel || group.label)}</h3>
+      <button class="discover-category-filter-done" type="button" onclick="closeDiscoverCategoryFilterSheet()">Done</button>
+    </div>
+    <div class="discover-category-filter-rule"></div>
+    <div class="discover-category-filter-list">${rows || '<div class="discover-category-filter-empty">No filters available.</div>'}</div>
+  </div>`;
+}
+
+function renderDiscoverCategoryYearFilterPanel(decadeStart = 2020) {
+  const start = Number(decadeStart || 2020);
+  const decade = DISCOVER_CATEGORY_DECADE_FILTERS.find(item => Number(item.start) === start) || DISCOVER_CATEGORY_DECADE_FILTERS[0];
+  const selected = new Set(getDiscoverCategoryFilters().year || []);
+  const years = DISCOVER_CATEGORY_YEAR_FILTERS.filter(item => item.decadeStart === decade.start);
+  const rows = years.map(item => {
+    const disabled = isDiscoverCategoryYearDisabled(item.year);
+    const isSelected = selected.has(String(item.key));
+    const click = disabled ? '' : ` onclick="toggleDiscoverCategoryFilterOption('year','${escAttr(String(item.key))}')"`;
+    return `<button class="discover-category-filter-row discover-category-filter-option discover-category-filter-year-row${isSelected ? ' selected' : ''}${disabled ? ' disabled' : ''}" type="button"${disabled ? ' disabled aria-disabled="true"' : ''}${click}>
+      <span>${escHtml(item.label)}</span>
+      ${disabled ? '<strong>Unavailable</strong>' : renderDiscoverCategoryFilterCheck(isSelected)}
+    </button>`;
+  }).join('');
+  return `<div class="discover-category-filter-panel discover-category-filter-panel-sub" data-filter-panel="year-decade:${escAttr(String(decade.start))}">
+    <div class="discover-category-filter-panel-top discover-category-filter-header-flat">
+      <button class="discover-category-filter-back" type="button" onclick="openDiscoverCategoryFilterPanel('year', 'back')" aria-label="Back">←</button>
+      <h3>${escHtml(decade.label)}</h3>
+      <button class="discover-category-filter-done" type="button" onclick="closeDiscoverCategoryFilterSheet()">Done</button>
+    </div>
+    <div class="discover-category-filter-rule"></div>
+    <div class="discover-category-filter-list">${rows}</div>
+  </div>`;
+}
+
+function renderDiscoverCategorySimpleFilterSheet() {
+  if (!discoverCategoryFullState) return '';
+  const gridId = discoverCategoryFullState.gridId || '';
+  const sortOptions = getDiscoverFullPageSortOptions(gridId);
+  const currentSort = discoverCategoryFullState.sortKey || getDiscoverFullPageDefaultSort(gridId);
+  const sortHtml = sortOptions.map(option => `<button class="discover-category-filter-row discover-category-filter-option${option.key === currentSort ? ' selected' : ''}" type="button" onclick="setDiscoverFullCategorySortFromSheet('${escAttr(option.key)}')"><span>${escHtml(option.label)}</span>${renderDiscoverCategoryFilterCheck(option.key === currentSort)}</button>`).join('');
+  return `<div class="discover-category-filter-panel" data-filter-panel="simple">
+    <div class="discover-category-filter-header discover-category-filter-header-flat">
+      <div><div class="discover-category-filter-kicker">${discoverCategoryFullState?.mode === 'universal-search' ? 'Search' : 'View All'}</div><h3>Sort</h3></div>
+      <button class="discover-category-filter-done" type="button" onclick="closeDiscoverCategoryFilterSheet()">Done</button>
+    </div>
+    <div class="discover-category-filter-rule"></div>
+    <div class="discover-category-filter-list">${sortHtml}</div>
+  </div>`;
+}
+
 function storeDiscoverCategoryData(gridId, type, items, renderer) {
   if (!gridId || !DISCOVER_FULL_CATEGORY_GRID_IDS.includes(gridId)) return;
   discoverCategoryDataStore[gridId] = {
@@ -4816,22 +5427,15 @@ function getOrCreateDiscoverCategoryFullPage() {
 
 function getDiscoverCategoryActiveFilterText() {
   if (!discoverCategoryFullState) return '';
+  if (isDiscoverCategoryMediaFilterable(discoverCategoryFullState.gridId)) {
+    const count = getDiscoverCategoryFilterCount();
+    return count ? `${count} active filter${count === 1 ? '' : 's'}` : '';
+  }
   const sortOptions = getDiscoverFullPageSortOptions(discoverCategoryFullState.gridId);
   const defaultSort = getDiscoverFullPageDefaultSort(discoverCategoryFullState.gridId);
   const sortKey = discoverCategoryFullState.sortKey || defaultSort;
   const sortLabel = sortOptions.find(option => option.key === sortKey)?.label || 'Default';
-  const parts = [];
-  if (sortKey !== defaultSort) parts.push(sortLabel);
-  if (isDiscoverGridCountryFilterableNewRelease(discoverCategoryFullState.gridId)) {
-    const range = discoverCategoryFullState.newReleaseRange || discoverNewReleaseRange;
-    if (range !== discoverNewReleaseRange) parts.push(range === 'month' ? 'This Month' : 'This Week');
-    const countryCode = discoverCategoryFullState.newReleaseCountryCode || '';
-    if (countryCode) {
-      const country = getDiscoverNewReleaseCountryOptions().find(option => option.code === countryCode);
-      parts.push(country?.label || countryCode);
-    }
-  }
-  return parts.join(' · ');
+  return sortKey !== defaultSort ? sortLabel : '';
 }
 
 function updateDiscoverCategoryFilterButtonState() {
@@ -4839,48 +5443,28 @@ function updateDiscoverCategoryFilterButtonState() {
   if (!btn) return;
   const activeText = getDiscoverCategoryActiveFilterText();
   btn.classList.toggle('has-active-filter', !!activeText);
-  btn.setAttribute('aria-label', activeText ? `Sort and filter this category. Active: ${activeText}` : 'Sort and filter this category');
+  btn.setAttribute('aria-label', activeText ? `Filter this category. Active: ${activeText}` : 'Filter this category');
 }
 
 function renderDiscoverCategoryFilterSheet() {
   if (!discoverCategoryFullState) return '';
-  const gridId = discoverCategoryFullState.gridId || '';
-  const sortOptions = getDiscoverFullPageSortOptions(gridId);
-  const currentSort = discoverCategoryFullState.sortKey || getDiscoverFullPageDefaultSort(gridId);
-  const sortHtml = sortOptions.map(option => `<button class="discover-category-filter-row discover-category-filter-option${option.key === currentSort ? ' selected' : ''}" type="button" onclick="setDiscoverFullCategorySortFromSheet('${escAttr(option.key)}')"><span>${escHtml(option.label)}</span><strong>${option.key === currentSort ? 'Active' : ''}</strong><em>›</em></button>`).join('');
-  const isNewRelease = isDiscoverGridCountryFilterableNewRelease(gridId);
-  const range = discoverCategoryFullState.newReleaseRange || discoverNewReleaseRange;
-  const releaseHtml = isNewRelease ? `
-    <div class="discover-category-filter-rule"></div>
-    <div class="discover-category-filter-kicker">Release Range</div>
-    ${['week', 'month'].map(value => `<button class="discover-category-filter-row discover-category-filter-option${value === range ? ' selected' : ''}" type="button" onclick="setDiscoverFullCategoryRangeFromSheet('${value}')"><span>${value === 'week' ? 'This Week' : 'This Month'}</span><strong>${value === range ? 'Active' : ''}</strong><em>›</em></button>`).join('')}
-  ` : '';
-  const countryCode = discoverCategoryFullState.newReleaseCountryCode || '';
-  const countryHtml = isNewRelease ? `
-    <div class="discover-category-filter-rule"></div>
-    <div class="discover-category-filter-kicker">Country</div>
-    ${getDiscoverNewReleaseCountryOptions().map(option => `<button class="discover-category-filter-row discover-category-filter-option${option.code === countryCode ? ' selected' : ''}" type="button" onclick="setDiscoverFullCategoryCountryFromSheet('${escAttr(option.code)}')"><span>${escHtml(option.label)}</span><strong>${option.code === countryCode ? 'Active' : ''}</strong><em>›</em></button>`).join('')}
-  ` : '';
-  return `<div class="discover-category-filter-panel" data-filter-panel="simple">
-    <div class="discover-category-filter-handle" aria-hidden="true"></div>
-    <div class="discover-category-filter-header">
-      <div><div class="discover-category-filter-kicker">View All</div><h3>Sort & Filter</h3></div>
-      <button class="discover-category-filter-close" type="button" onclick="closeDiscoverCategoryFilterSheet()" aria-label="Close sort and filter">×</button>
-    </div>
-    <div class="discover-category-filter-rule"></div>
-    <div class="discover-category-filter-kicker">Sort</div>
-    <div class="discover-category-filter-list">${sortHtml}${releaseHtml}${countryHtml}</div>
-  </div>`;
+  if (!isDiscoverCategoryMediaFilterable(discoverCategoryFullState.gridId)) return renderDiscoverCategorySimpleFilterSheet();
+  if (discoverCategoryFilterPanelKey === 'main') return renderDiscoverCategoryMainFilterPanel();
+  if (String(discoverCategoryFilterPanelKey).startsWith('year-decade:')) {
+    return renderDiscoverCategoryYearFilterPanel(String(discoverCategoryFilterPanelKey).split(':')[1]);
+  }
+  return renderDiscoverCategoryOptionFilterPanel(discoverCategoryFilterPanelKey);
 }
 
 function openDiscoverCategoryFilterSheet() {
   if (!discoverCategoryFullState) return;
   closeDiscoverCategoryFilterSheet({ immediate: true });
+  discoverCategoryFilterPanelKey = 'main';
   const sheet = document.createElement('div');
   sheet.id = 'discover-category-filter-sheet';
-  sheet.className = 'discover-category-filter-sheet';
+  sheet.className = 'discover-category-filter-sheet discover-category-filter-sheet-letterboxd';
   sheet.style.display = 'block';
-  sheet.innerHTML = `<button class="discover-category-filter-scrim" type="button" onclick="closeDiscoverCategoryFilterSheet()" aria-label="Close sort and filter"></button><div class="discover-category-filter-drawer"><div class="discover-category-filter-track">${renderDiscoverCategoryFilterSheet()}</div></div>`;
+  sheet.innerHTML = `<button class="discover-category-filter-scrim" type="button" onclick="closeDiscoverCategoryFilterSheet()" aria-label="Close filter"></button><div class="discover-category-filter-drawer"><div class="discover-category-filter-track">${renderDiscoverCategoryFilterSheet()}</div></div>`;
   document.body.appendChild(sheet);
   document.body.classList.add('discover-category-filter-open');
   requestAnimationFrame(() => sheet.classList.add('open'));
@@ -4895,14 +5479,57 @@ function closeDiscoverCategoryFilterSheet(options = {}) {
     return;
   }
   sheet.classList.remove('open');
-  setTimeout(() => sheet.remove(), 260);
+  setTimeout(() => sheet.remove(), 240);
 }
 
-function refreshDiscoverCategoryFilterSheet() {
+function refreshDiscoverCategoryFilterSheet(direction = 'none') {
   const sheet = document.getElementById('discover-category-filter-sheet');
   if (!sheet || !discoverCategoryFullState) return;
   const track = sheet.querySelector('.discover-category-filter-track');
-  if (track) track.innerHTML = renderDiscoverCategoryFilterSheet();
+  if (!track) return;
+  track.classList.remove('filter-slide-in', 'filter-slide-back');
+  track.innerHTML = renderDiscoverCategoryFilterSheet();
+  if (direction && direction !== 'none') {
+    track.classList.add(direction === 'back' ? 'filter-slide-back' : 'filter-slide-in');
+    setTimeout(() => track.classList.remove('filter-slide-in', 'filter-slide-back'), 260);
+  }
+}
+
+function openDiscoverCategoryFilterPanel(panelKey = 'main', direction = 'in') {
+  if (!discoverCategoryFullState || !isDiscoverCategoryMediaFilterable(discoverCategoryFullState.gridId)) return;
+  const cleanPanelKey = String(panelKey || 'main');
+  const isYearDecadePanel = cleanPanelKey.startsWith('year-decade:');
+  discoverCategoryFilterPanelKey = (DISCOVER_CATEGORY_FILTER_GROUPS[cleanPanelKey] || cleanPanelKey === 'main' || isYearDecadePanel) ? cleanPanelKey : 'main';
+  refreshDiscoverCategoryFilterSheet(direction);
+}
+
+async function toggleDiscoverCategoryFilterOption(groupKey = '', value = '') {
+  if (!discoverCategoryFullState || !DISCOVER_CATEGORY_FILTER_GROUPS[groupKey]) return;
+  const filters = getDiscoverCategoryFilters();
+  const values = new Set(filters[groupKey] || []);
+  const cleanValue = String(value || '');
+  if (groupKey === 'year' && isDiscoverCategoryYearDisabled(Number(cleanValue))) return;
+  if (values.has(cleanValue)) values.delete(cleanValue);
+  else values.add(cleanValue);
+  filters[groupKey] = Array.from(values);
+  refreshDiscoverCategoryFilterSheet('none');
+  updateDiscoverCategoryFilterButtonState();
+  updateDiscoverUniversalSearchFilterButtonState();
+  if (discoverCategoryFullState?.mode === 'universal-search') await loadDiscoverUniversalSearchFilteredItems(true);
+  else await loadDiscoverFullFilteredItems(true);
+}
+
+async function clearDiscoverCategoryFilters() {
+  if (!discoverCategoryFullState) return;
+  discoverCategoryFullState.filters = getEmptyDiscoverCategoryFilters();
+  discoverCategoryFullState.overrideItems = null;
+  discoverCategoryFullState.overrideRenderer = null;
+  discoverCategoryFullState.overrideType = null;
+  refreshDiscoverCategoryFilterSheet('none');
+  updateDiscoverCategoryFilterButtonState();
+  updateDiscoverUniversalSearchFilterButtonState();
+  if (discoverCategoryFullState?.mode === 'universal-search') await renderDiscoverUniversalSearchDefault(true);
+  else renderDiscoverCategoryFullGrid();
 }
 
 function setDiscoverFullCategorySortFromSheet(sortKey = 'default') {
@@ -4920,12 +5547,154 @@ async function setDiscoverFullCategoryCountryFromSheet(code = '') {
   refreshDiscoverCategoryFilterSheet();
 }
 
+function getDiscoverFilterSelectedGenreIds() {
+  const selected = getDiscoverCategoryFilters().genre || [];
+  return selected
+    .map(value => findDiscoverCategoryFilterItem('genre', value))
+    .filter(item => item && Number.isFinite(Number(item.id)))
+    .map(item => String(item.id));
+}
+
+function getDiscoverFilterSelectedContentTypes(defaultScope = '') {
+  const selected = getDiscoverCategoryFilters().genre || [];
+  const explicit = selected
+    .map(value => findDiscoverCategoryFilterItem('genre', value))
+    .filter(item => item?.contentType)
+    .map(item => item.contentType);
+  if (defaultScope === 'anime') return ['tv'];
+  if (explicit.length) return Array.from(new Set(explicit));
+  if (defaultScope === 'mixed') return ['movie', 'tv'];
+  return defaultScope === 'movie' ? ['movie'] : ['tv'];
+}
+
+function buildDiscoverFilteredRequestParams(mediaType = 'tv', yearFilter = null) {
+  const filters = getDiscoverCategoryFilters();
+  const genreIds = getDiscoverFilterSelectedGenreIds();
+  const countryCodes = (filters.country || []).map(value => String(value || '').trim().toUpperCase()).filter(Boolean);
+  const languageCodes = (filters.language || []).map(value => String(value || '').trim()).filter(Boolean);
+  const serviceIds = (filters.service || []).map(value => String(value || '').trim()).filter(Boolean);
+  const params = {
+    sort_by: 'popularity.desc',
+    include_adult: 'false',
+    'vote_count.gte': mediaType === 'movie' ? '20' : '10',
+    watch_region: 'US'
+  };
+  if (yearFilter) {
+    let start = Number(yearFilter.year || yearFilter.start || yearFilter.key || 0);
+    let end = Number(yearFilter.end || start);
+    if (String(yearFilter.key || '').startsWith('decade:')) {
+      start = Number(yearFilter.start || 0);
+      end = Number(yearFilter.end || start + 9);
+    }
+    if (start) {
+      const dateField = mediaType === 'movie' ? 'primary_release_date' : 'first_air_date';
+      params[`${dateField}.gte`] = `${start}-01-01`;
+      params[`${dateField}.lte`] = `${end}-12-31`;
+    }
+  }
+  if (genreIds.length) params.with_genres = genreIds.join('|');
+  if (countryCodes.length) params.with_origin_country = countryCodes.join('|');
+  if (languageCodes.length) params.with_original_language = languageCodes.join('|');
+  if (serviceIds.length) {
+    params.with_watch_providers = serviceIds.join('|');
+    params.with_watch_monetization_types = 'flatrate|free|ads|rent|buy';
+  }
+  return params;
+}
+
+function getDiscoverFilteredContextLine(item = {}) {
+  const rating = Number(item.vote_average || 0);
+  const votes = Number(item.vote_count || 0);
+  const year = String(getDiscoverReleaseDate(item) || '').slice(0, 4);
+  return [year, rating ? `${rating.toFixed(1)} TMDB` : '', votes ? `${votes.toLocaleString()} votes` : '']
+    .filter(Boolean)
+    .join(' · ');
+}
+
+async function fetchDiscoverFilteredMediaItems() {
+  if (!discoverCategoryFullState) return [];
+  const baseScope = getDiscoverCategoryMediaScope(discoverCategoryFullState.gridId);
+  if (!baseScope) return [];
+  const filters = getDiscoverCategoryFilters();
+  const yearFilters = (filters.year || [])
+    .map(value => DISCOVER_CATEGORY_YEAR_FILTERS.find(item => String(item.key) === String(value))
+      || DISCOVER_CATEGORY_DECADE_FILTERS.find(item => String(item.key) === String(value)))
+    .filter(item => item && !isDiscoverCategoryYearDisabled(Number(item.year || 0)));
+  const yearRequests = yearFilters.length ? yearFilters : [null];
+  const mediaTypes = getDiscoverFilterSelectedContentTypes(baseScope);
+  const requestGroups = [];
+  mediaTypes.forEach(mediaType => {
+    yearRequests.forEach(yearFilter => {
+      const path = mediaType === 'movie' ? 'discover/movie' : 'discover/tv';
+      const params = buildDiscoverFilteredRequestParams(mediaType, yearFilter);
+      if (baseScope === 'anime' && !params.with_genres) params.with_genres = '16';
+      requestGroups.push(
+        fetchTmdbPages(path, params, DISCOVER_CATEGORY_FILTER_PAGE_COUNT)
+          .then(items => items.map(item => ({
+            ...markDiscoverMediaType(item, mediaType),
+            discoverContext: getDiscoverFilteredContextLine(item)
+          })))
+          .catch(error => {
+            console.warn('Discover filtered request failed:', path, params, error);
+            return [];
+          })
+      );
+    });
+  });
+  const combined = normalizeDiscoverTypedItems((await Promise.all(requestGroups)).flat(), mediaTypes.length > 1 ? 'mixed' : mediaTypes[0]);
+  const candidates = combined
+    .filter(item => item?.poster_path && getDiscoverSortTitle(item) && item.overview)
+    .filter(item => baseScope !== 'anime' || isAnimeDiscoverCandidate(item));
+  return candidates
+    .map(item => ({
+      ...item,
+      calculatedScore: scoreDiscoverTmdbItem(candidates, item, 'popular', baseScope === 'anime' ? 'anime' : (item.media_type || mediaTypes[0] || 'tv')),
+      discoverContext: item.discoverContext || getDiscoverFilteredContextLine(item)
+    }))
+    .sort(compareDiscoverCalculatedScoreDesc)
+    .slice(0, DISCOVER_CATEGORY_FILTER_LIMIT);
+}
+
+async function loadDiscoverFullFilteredItems(force = false) {
+  if (!discoverCategoryFullState || !isDiscoverCategoryMediaFilterable(discoverCategoryFullState.gridId)) return;
+  if (!hasDiscoverCategoryMediaFilters()) {
+    discoverCategoryFullState.overrideItems = null;
+    discoverCategoryFullState.overrideRenderer = null;
+    discoverCategoryFullState.overrideType = null;
+    renderDiscoverCategoryFullGrid();
+    return;
+  }
+  const grid = document.getElementById('discover-category-full-grid');
+  if (grid) grid.innerHTML = '<div class="discover-message">Loading filtered titles...</div>';
+  try {
+    const cacheKey = `full-filters:${DISCOVER_CATEGORY_FILTER_VERSION}:${discoverCategoryFullState.gridId}:${JSON.stringify(getDiscoverCategoryFilters())}`;
+    const items = await loadDiscoverCachedData(cacheKey, fetchDiscoverFilteredMediaItems, force);
+    discoverCategoryFullState.overrideItems = Array.isArray(items) ? items : [];
+    const scope = getDiscoverCategoryMediaScope(discoverCategoryFullState.gridId);
+    discoverCategoryFullState.overrideRenderer = scope === 'anime' ? 'cards' : 'ranked';
+    discoverCategoryFullState.overrideType = scope === 'movie' ? 'movie' : (scope === 'anime' ? 'tv' : 'tv');
+    renderDiscoverCategoryFullGrid();
+    if (!items?.length && grid) grid.innerHTML = '<div class="discover-message">No titles found for these filters.</div>';
+  } catch (error) {
+    console.error('Discover filtered titles failed:', error);
+    if (grid) grid.innerHTML = '<div class="discover-message">Filtered titles could not load. Try a lighter filter set.</div>';
+  }
+}
+
 function renderDiscoverCategorySortControls() {
   const sortRow = document.getElementById('discover-category-sort-row');
   const releaseRow = document.getElementById('discover-category-release-row');
   const countryRow = document.getElementById('discover-category-country-row');
   if (!sortRow || !discoverCategoryFullState) return;
+  if (isDiscoverCategoryMediaFilterable(discoverCategoryFullState.gridId)) {
+    sortRow.style.display = 'none';
+    if (releaseRow) { releaseRow.style.display = 'none'; releaseRow.innerHTML = ''; }
+    if (countryRow) { countryRow.style.display = 'none'; countryRow.innerHTML = ''; }
+    updateDiscoverCategoryFilterButtonState();
+    return;
+  }
   const options = getDiscoverFullPageSortOptions(discoverCategoryFullState.gridId);
+  sortRow.style.display = '';
   sortRow.innerHTML = options.map(option => `<button class="discover-category-sort-btn${option.key === discoverCategoryFullState.sortKey ? ' active' : ''}" type="button" onclick="setDiscoverCategorySort('${escAttr(option.key)}')">${escHtml(option.label)}</button>`).join('');
   const isNewRelease = isDiscoverGridCountryFilterableNewRelease(discoverCategoryFullState.gridId);
   if (releaseRow) {
@@ -5037,17 +5806,16 @@ async function openDiscoverCategoryFullPage(gridId = '') {
   page.scrollTop = 0;
   document.body.style.overflow = 'hidden';
   if (titleEl) titleEl.textContent = title;
-  if (subtitleEl) subtitleEl.textContent = isDiscoverGridCountryFilterableNewRelease(gridId)
-    ? 'View all US releases or filter by country of origin.'
+  if (subtitleEl) subtitleEl.textContent = isDiscoverCategoryMediaFilterable(gridId)
+    ? 'Filter by year, genre, country, language, and service.'
     : 'View all and sort this category.';
   if (grid) grid.innerHTML = '<div class="discover-message">Loading category...</div>';
-  discoverCategoryFullState = { gridId, sortKey: getDiscoverFullPageDefaultSort(gridId), newReleaseCountryCode: '', newReleaseRange: discoverNewReleaseRange };
+  discoverCategoryFullState = { gridId, sortKey: getDiscoverFullPageDefaultSort(gridId), newReleaseCountryCode: '', newReleaseRange: discoverNewReleaseRange, filters: getEmptyDiscoverCategoryFilters(), overrideItems: null, overrideRenderer: null, overrideType: null };
   renderDiscoverCategorySortControls();
   try {
     const stored = await ensureDiscoverCategoryData(gridId);
     if (!stored?.items?.length) throw new Error('No category data loaded');
-    if (isDiscoverGridCountryFilterableNewRelease(gridId)) await loadDiscoverFullNewReleaseItems(false);
-    else renderDiscoverCategoryFullGrid();
+    renderDiscoverCategoryFullGrid();
   } catch (e) {
     console.error('Discover category full page failed:', gridId, e);
     if (grid) grid.innerHTML = '<div class="discover-message">This category could not load.</div>';
@@ -5444,6 +6212,7 @@ function getOrCreateDiscoverFriendsFullPage() {
 }
 
 async function openDiscoverFriendsWatchingPage() {
+  ensureDiscoverFriendWatchingRefreshSystem();
   const page = getOrCreateDiscoverFriendsFullPage();
   const grid = page.querySelector('#discover-friends-full-grid');
   page.dataset.returnScrollY = String(window.scrollY || window.pageYOffset || 0);

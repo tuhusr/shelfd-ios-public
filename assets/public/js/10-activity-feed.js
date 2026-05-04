@@ -1147,7 +1147,7 @@ async function openActivityReplyPage(activityId) {
     bottom: 0 !important;
     z-index: 999999 !important;
     background: #0a0818 !important;
-    overflow-y: auto !important;
+    overflow: hidden !important;
     pointer-events: auto !important;
   `;
   document.body.style.overflow = 'hidden';
@@ -1193,6 +1193,7 @@ async function openActivityReplyPage(activityId) {
       console.log('Showing reply composer...');
       repliesComposer.style.display = 'block';
       initReplyComposer();
+      window.requestAnimationFrame(syncFeedPostComposerViewport);
     }
 
     console.log('Loading replies...');
@@ -1221,12 +1222,13 @@ function buildFeedReplyItemHTML(reply, index = 0, total = 1, depth = 0, childHtm
   const name = getDisplayName(user, user.displayName || user.name || 'User');
   const initial = String(name || 'U').charAt(0).toUpperCase();
   const timeStr = relativeTime(reply.timestamp);
-  const showLine = index < total - 1 || !!childHtml;
+  const parentId = getFeedReplyParentId(reply);
+  const showLine = index < total - 1;
   const avatarHtml = avatarSrc
     ? `<img class="feed-reply-avatar-img" src="${escAttr(avatarSrc)}" alt="" loading="lazy">`
     : `<div class="feed-reply-avatar-img feed-reply-avatar-placeholder">${escHtml(initial)}</div>`;
 
-  return `<article class="feed-reply-item x-reply-item ${depth ? 'feed-reply-nested' : ''}" data-reply-id="${escAttr(replyId)}" style="--reply-depth:${Math.min(3, depth)}">
+  return `<article class="feed-reply-item x-reply-item ${parentId ? 'feed-reply-threaded' : ''}" data-reply-id="${escAttr(replyId)}" data-parent-reply-id="${escAttr(parentId)}">
     <div class="feed-reply-avatar-col">
       ${avatarHtml}
       ${showLine ? '<div class="feed-reply-thread-line"></div>' : ''}
@@ -1238,7 +1240,6 @@ function buildFeedReplyItemHTML(reply, index = 0, total = 1, depth = 0, childHtm
       </div>
       <div class="feed-reply-text">${escHtml(reply.text || '')}</div>
       <button class="feed-reply-inline-reply" type="button" onclick="event.stopPropagation(); startFeedReplyTo('${escAttr(replyId)}','${escAttr(reply.uid || '')}')">Reply</button>
-      ${childHtml ? `<div class="feed-reply-children">${childHtml}</div>` : ''}
     </div>
   </article>`;
 }
@@ -1257,18 +1258,20 @@ function renderFeedRepliesList(replies = []) {
     byParent.get(key).push(reply);
   });
 
+  const flatReplies = [];
   const seen = new Set();
-  const renderBranch = (parentId = '', depth = 0) => {
+  const collectBranch = (parentId = '', depth = 0) => {
     const children = byParent.get(parentId) || [];
-    return children.map((reply, index) => {
-      if (seen.has(reply.id)) return '';
+    children.forEach(reply => {
+      if (seen.has(reply.id)) return;
       seen.add(reply.id);
-      const childHtml = depth >= 3 ? '' : renderBranch(reply.id, depth + 1);
-      return buildFeedReplyItemHTML(reply, index, children.length, depth, childHtml);
-    }).join('');
+      flatReplies.push({ ...reply, depth: Math.min(1, depth) });
+      collectBranch(reply.id, depth + 1);
+    });
   };
 
-  return renderBranch('', 0);
+  collectBranch('', 0);
+  return flatReplies.map((reply, index) => buildFeedReplyItemHTML(reply, index, flatReplies.length, reply.depth || 0, '')).join('');
 }
 
 function updateActivityReplyCountBadge(postId, count) {
@@ -1637,6 +1640,36 @@ let currentFeedPostCollection = 'feed';
 let currentFeedReplyParentId = '';
 let feedPostSwipeBackReady = false;
 let feedPostSwipeBackState = null;
+let feedPostViewportSyncReady = false;
+
+function syncFeedPostComposerViewport() {
+  const page = document.getElementById('feed-post-page');
+  if (!page || page.style.display === 'none') return;
+  const composer = document.getElementById('feed-post-replies-composer');
+  const visualViewport = window.visualViewport;
+  const viewportOffset = visualViewport
+    ? Math.max(0, Math.round(window.innerHeight - visualViewport.height - visualViewport.offsetTop))
+    : 0;
+  document.documentElement.style.setProperty('--feed-reply-keyboard-offset', `${viewportOffset}px`);
+  if (composer) {
+    const composerHeight = Math.ceil(composer.getBoundingClientRect().height || composer.offsetHeight || 76);
+    document.documentElement.style.setProperty('--feed-post-composer-height', `${composerHeight}px`);
+  }
+}
+
+function installFeedPostViewportSync() {
+  if (feedPostViewportSyncReady) {
+    syncFeedPostComposerViewport();
+    return;
+  }
+  feedPostViewportSyncReady = true;
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncFeedPostComposerViewport, { passive: true });
+    window.visualViewport.addEventListener('scroll', syncFeedPostComposerViewport, { passive: true });
+  }
+  window.addEventListener('resize', syncFeedPostComposerViewport, { passive: true });
+  window.requestAnimationFrame(syncFeedPostComposerViewport);
+}
 
 function isFeedPostSwipeBlockedTarget(target) {
   return !!(target && target.closest && target.closest('textarea, input, select, button, a, [contenteditable="true"], .x-post-media-poster'));
@@ -1655,7 +1688,9 @@ function resetFeedPostSwipeState(page = document.getElementById('feed-post-page'
 function prepareFeedPostPageForOpen(page = document.getElementById('feed-post-page')) {
   if (!page) return;
   resetFeedPostSwipeState(page);
-  installFeedPostSwipeBack(page);
+  // Disabled for now: the swipe-back transform can break iOS/PWA fixed keyboard composer behavior.
+  // Rebuild swipe-back later after the composer is fully stable.
+  installFeedPostViewportSync();
 }
 
 function installFeedPostSwipeBack(page = document.getElementById('feed-post-page')) {
@@ -1788,8 +1823,7 @@ function startFeedReplyTo(replyId = '', uid = '') {
   const input = document.getElementById('feed-reply-input');
   if (input) {
     input.placeholder = `Reply to ${name || 'comment'}`;
-    input.focus();
-    input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    focusFeedReplyInput();
   }
   updateFeedReplyContext();
 }
@@ -1839,7 +1873,7 @@ async function openFeedPostPage(postId) {
     bottom: 0 !important;
     z-index: 999999 !important;
     background: #0a0818 !important;
-    overflow-y: auto !important;
+    overflow: hidden !important;
     pointer-events: auto !important;
   `;
   document.body.style.overflow = 'hidden';
@@ -1899,6 +1933,7 @@ async function openFeedPostPage(postId) {
       console.log('Showing reply composer...');
       repliesComposer.style.display = 'block';
       initReplyComposer();
+      window.requestAnimationFrame(syncFeedPostComposerViewport);
     }
     
     // Load replies
@@ -2047,9 +2082,17 @@ function buildActivityPostDetailHTML(activity, activityId, collection = 'activit
 
 function focusFeedReplyInput() {
   const input = document.getElementById('feed-reply-input');
+  const scroller = document.getElementById('feed-post-scroll-content') || document.querySelector('#feed-post-page .overlay-page-content');
+  const keepScrollTop = scroller ? scroller.scrollTop : 0;
+  const keepWindowY = window.scrollY || window.pageYOffset || 0;
   if (input) {
-    input.focus();
-    input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    try { input.focus({ preventScroll: true }); }
+    catch (error) { input.focus(); }
+    window.requestAnimationFrame(() => {
+      if (scroller) scroller.scrollTop = keepScrollTop;
+      if (keepWindowY) window.scrollTo(0, keepWindowY);
+      syncFeedPostComposerViewport();
+    });
   }
 }
 
@@ -2062,6 +2105,9 @@ function closeFeedPostPage() {
   setFeedPostPageDeleteButton('', 'feed', false);
   clearFeedReplyParent(false);
   document.body.style.overflow = '';
+  document.documentElement.style.removeProperty('--feed-reply-keyboard-offset');
+  document.documentElement.style.removeProperty('--feed-post-composer-height');
+  currentFeedReplyParentId = '';
   currentFeedPostId = null;
   currentFeedPostCollection = 'feed';
 }
@@ -2089,12 +2135,23 @@ function initReplyComposer() {
   // Auto-expand and enable/disable button
   input.oninput = function() {
     this.style.height = 'auto';
-    this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+    this.style.height = Math.min(this.scrollHeight, 56) + 'px';
     btn.disabled = !this.value.trim();
+    syncFeedPostComposerViewport();
+  };
+  input.onfocus = function() {
+    const scroller = document.getElementById('feed-post-scroll-content') || document.querySelector('#feed-post-page .overlay-page-content');
+    const keepScrollTop = scroller ? scroller.scrollTop : 0;
+    window.requestAnimationFrame(() => {
+      if (scroller) scroller.scrollTop = keepScrollTop;
+      syncFeedPostComposerViewport();
+    });
   };
   
   input.value = '';
+  input.style.height = 'auto';
   btn.disabled = true;
+  window.requestAnimationFrame(syncFeedPostComposerViewport);
 }
 
 async function submitFeedReply() {
@@ -2136,6 +2193,7 @@ async function submitFeedReply() {
     clearFeedReplyParent(false);
     btn.textContent = 'Reply';
     btn.disabled = true;
+    window.requestAnimationFrame(syncFeedPostComposerViewport);
 
     if (collection === 'feed') {
       loadFeedPostReplies(currentFeedPostId);

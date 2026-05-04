@@ -1500,3 +1500,165 @@ body.light-mode .direct-messages-page.dm-keyboard-active .dm-compose-row {
     scroll-padding-bottom: calc(96px + var(--dm-keyboard-bottom, 0px)) !important;
   }
 }
+
+
+/* v280: Direct Messages plaintext, Aptos, centered segmented tabs, keyboard-stable composer. */
+.direct-messages-page,
+.direct-messages-page *,
+.dm-compose-card,
+.dm-compose-card *,
+.dm-group-edit-page,
+.dm-group-edit-page *,
+.dm-group-edit-crop-panel,
+.dm-group-edit-crop-panel * {
+  font-family: Aptos, "Aptos Display", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+.dm-e2ee-content,
+.dm-e2ee-badge,
+.dm-e2ee-loading,
+.dm-e2ee-recovery-modal,
+.dm-e2ee-key-warning-toast,
+.dm-e2ee-own-key-toast {
+  display: none !important;
+}
+
+.direct-messages-page .dm-subtabs {
+  width: min(420px, 100%) !important;
+  align-self: center !important;
+  justify-content: center !important;
+  gap: 0 !important;
+  padding: 2px 0 0 !important;
+  margin: 0 auto 8px !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,0.10) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.direct-messages-page .dm-subtabs button {
+  position: relative !important;
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  padding: 10px 10px 12px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: rgba(255,255,255,0.62) !important;
+  font-size: 14px !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.01em !important;
+  transform: none !important;
+}
+.direct-messages-page .dm-subtabs button::after {
+  content: '';
+  position: absolute;
+  left: 20%;
+  right: 20%;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 999px;
+  background: #ffffff;
+  opacity: 0;
+  transform: scaleX(0.45);
+  transition: opacity 180ms ease, transform 220ms cubic-bezier(.16,1,.3,1);
+}
+.direct-messages-page .dm-subtabs button.active {
+  color: #ffffff !important;
+  background: transparent !important;
+}
+.direct-messages-page .dm-subtabs button.active::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+.direct-messages-page .dm-subtabs span {
+  min-width: 16px !important;
+  height: 16px !important;
+  margin-left: 5px !important;
+  font-size: 10px !important;
+}
+
+.direct-messages-page.dm-thread-open .direct-messages-content {
+  overflow: hidden !important;
+  padding-bottom: 0 !important;
+}
+.direct-messages-page.dm-thread-open .dm-shell,
+.direct-messages-page.dm-thread-open .dm-thread-panel {
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+.direct-messages-page.dm-thread-open .dm-message-list {
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+  padding-bottom: calc(86px + var(--dm-keyboard-bottom, 0px)) !important;
+  scroll-padding-bottom: calc(96px + var(--dm-keyboard-bottom, 0px)) !important;
+}
+.direct-messages-page .dm-compose-row {
+  position: fixed !important;
+  left: 50% !important;
+  bottom: calc(max(6px, env(safe-area-inset-bottom, 0px)) + var(--dm-keyboard-bottom, 0px)) !important;
+  transform: translate3d(-50%, 0, 0) !important;
+  width: min(calc(100vw - 14px), 720px) !important;
+  z-index: 1295 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  padding: 6px !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  border-radius: 20px !important;
+  background: #141025 !important;
+  box-shadow: 0 14px 44px rgba(0,0,0,0.42) !important;
+  transition: bottom 150ms linear, background 160ms ease, box-shadow 160ms ease !important;
+  will-change: bottom;
+}
+.direct-messages-page .dm-compose-row:focus-within,
+.direct-messages-page.dm-keyboard-active .dm-compose-row {
+  transform: translate3d(-50%, 0, 0) !important;
+  background: #17122b !important;
+}
+.direct-messages-page .dm-compose-row input {
+  min-height: 38px !important;
+  height: 38px !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  border: 0 !important;
+  border-radius: 15px !important;
+  background: rgba(255,255,255,0.07) !important;
+  color: #ffffff !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  outline: none !important;
+}
+.direct-messages-page .dm-photo-upload-btn,
+.direct-messages-page .dm-send-btn {
+  min-height: 38px !important;
+  height: 38px !important;
+  border: 0 !important;
+  border-radius: 14px !important;
+  flex: 0 0 auto !important;
+}
+.direct-messages-page .dm-photo-upload-btn {
+  width: 38px !important;
+  padding: 0 !important;
+  background: rgba(255,255,255,0.08) !important;
+  color: #ffffff !important;
+}
+.direct-messages-page .dm-send-btn {
+  padding: 0 14px !important;
+  background: #ffffff !important;
+  color: #12082e !important;
+  font-weight: 750 !important;
+}
+body.light-mode .direct-messages-page .dm-subtabs { border-bottom-color: rgba(18,8,46,0.12) !important; }
+body.light-mode .direct-messages-page .dm-subtabs button { color: rgba(18,8,46,0.58) !important; }
+body.light-mode .direct-messages-page .dm-subtabs button.active { color: #12082e !important; }
+body.light-mode .direct-messages-page .dm-subtabs button::after { background: #12082e; }
+body.light-mode .direct-messages-page .dm-compose-row { background: #ffffff !important; border-color: rgba(18,8,46,0.10) !important; }
+body.light-mode .direct-messages-page .dm-compose-row input { background: rgba(18,8,46,0.055) !important; color: #12082e !important; }
+body.light-mode .direct-messages-page .dm-photo-upload-btn { background: rgba(18,8,46,0.06) !important; color: #12082e !important; }
+body.light-mode .direct-messages-page .dm-send-btn { background: #12082e !important; color: #ffffff !important; }

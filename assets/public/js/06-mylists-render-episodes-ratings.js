@@ -356,12 +356,24 @@ function getGameDetailsDraftValues(id = '', item = {}) {
   };
 }
 
+function getGameDetailsPanelById(id = '') {
+  const key = String(id || '').trim();
+  if (!key) return null;
+  return document.getElementById(`game-details-${key}`) ||
+    document.querySelector(`.game-details-panel[data-game-details-id="${CSS.escape(key)}"]`);
+}
+
+function getGameDetailsDraftBase(id = '') {
+  const key = String(id || '').trim();
+  const { item } = getScreenListGameById(key);
+  return getGameDetailsDraftValues(key, item || {});
+}
+
 function setGameDetailsDraft(id = '', field = '', value = '') {
   const key = String(id || '').trim();
   const cleanField = String(field || '').trim();
-  if (!key || !cleanField) return;
-  const { item } = getScreenListGameById(key);
-  const base = getGameDetailsDraftValues(key, item || {});
+  if (!key || !cleanField) return null;
+  const base = screenlistGameDetailsDraftState[key] || getGameDetailsDraftBase(key);
   const next = { ...base };
   if (cleanField === 'platform') next.platform = normalizeScreenListGamePlatform(value);
   if (cleanField === 'hours') next.hours = normalizeScreenListGameHours(value);
@@ -375,13 +387,13 @@ function handleGameDetailsHoursInput(id = '', inputEl = null) {
   if (!inputEl) return;
   const clean = clampScreenListGameHoursText(inputEl.value);
   if (inputEl.value !== clean) inputEl.value = clean;
-  setGameDetailsDraft(id, 'hours', clean);
+  setGameDetailsDraft(id || inputEl.dataset?.gameDetailsId, 'hours', clean);
 }
 
 function toggleGameDetailsPlatformMenu(id = '', event = null) {
   event?.preventDefault?.();
   event?.stopPropagation?.();
-  const key = String(id || '').trim();
+  const key = String(id || event?.currentTarget?.dataset?.gameDetailsId || event?.target?.closest?.('[data-game-details-id]')?.dataset?.gameDetailsId || '').trim();
   if (!key) return;
   const next = !screenlistGameDetailsPlatformMenuState[key];
   screenlistGameDetailsPlatformMenuState = {};
@@ -400,17 +412,20 @@ function toggleGameDetailsPlatformMenu(id = '', event = null) {
 function selectGameDetailsPlatform(id = '', value = '', event = null) {
   event?.preventDefault?.();
   event?.stopPropagation?.();
-  const key = String(id || '').trim();
+  const optionEl = event?.target?.closest?.('[data-game-platform-option]');
+  const key = String(id || optionEl?.dataset?.gameDetailsId || '').trim();
   if (!key) return;
-  const clean = normalizeScreenListGamePlatform(value);
+  const clean = normalizeScreenListGamePlatform(value || optionEl?.dataset?.value || '');
   setGameDetailsDraft(key, 'platform', clean);
   screenlistGameDetailsPlatformMenuState[key] = false;
   syncScreenListGameDetailGlobals();
   const box = document.getElementById(`game-platform-select-${key}`);
+  const hidden = document.getElementById(`game-platform-value-${key}`);
   const label = document.getElementById(`game-platform-label-${key}`);
   const menu = document.getElementById(`game-platform-options-${key}`);
   const trigger = document.getElementById(`game-platform-trigger-${key}`);
   if (box) box.dataset.value = clean;
+  if (hidden) hidden.value = clean;
   if (label) {
     label.textContent = clean || 'Select platform';
     label.classList.toggle('placeholder', !clean);
@@ -428,9 +443,12 @@ function getGameDetailsSelectorById(id = '', field = '') {
   const key = String(id || '').trim();
   const cleanField = String(field || '').trim();
   if (!key || !cleanField) return null;
-  const direct = document.getElementById(`game-${cleanField === 'tracker' ? 'tracker' : cleanField}-${key}`) ||
-    document.getElementById(`game-platform-select-${key}`);
-  if (direct && (cleanField !== 'platform' || direct.dataset?.gameDetailField === 'platform')) return direct;
+  if (cleanField === 'platform') {
+    return document.getElementById(`game-platform-value-${key}`) ||
+      document.getElementById(`game-platform-select-${key}`);
+  }
+  const direct = document.getElementById(`game-${cleanField === 'tracker' ? 'tracker' : cleanField}-${key}`);
+  if (direct) return direct;
   const matches = Array.from(document.querySelectorAll(`[data-game-detail-field="${cleanField}"]`));
   return matches.find(el =>
     String(el?.dataset?.gameDetailsId || el?.closest?.('.game-details-panel')?.dataset?.gameDetailsId || '').trim() === key
@@ -439,21 +457,67 @@ function getGameDetailsSelectorById(id = '', field = '') {
 
 function collectGameDetailsInputValues(id = '', panel = null) {
   const key = String(id || panel?.dataset?.gameDetailsId || '').trim();
+  const root = panel || getGameDetailsPanelById(key);
   const { item } = getScreenListGameById(key);
   const draft = getGameDetailsDraftValues(key, item || {});
-  const root = panel || document.getElementById(`game-details-${key}`);
+  const hiddenPlatform = document.getElementById(`game-platform-value-${key}`);
   const platformBox = root?.querySelector?.('[data-game-detail-field="platform"]') || getGameDetailsSelectorById(key, 'platform');
   const hoursEl = root?.querySelector?.('[data-game-detail-field="hours"]') || getGameDetailsSelectorById(key, 'hours');
   const trackerEl = root?.querySelector?.('[data-game-detail-field="tracker"]') || getGameDetailsSelectorById(key, 'tracker');
+  const rawPlatform = hiddenPlatform?.value || platformBox?.dataset?.value || platformBox?.value || draft.platform;
+  const rawHours = (hoursEl && 'value' in hoursEl) ? hoursEl.value : draft.hours;
+  const rawTracker = (trackerEl && 'value' in trackerEl) ? trackerEl.value : draft.tracker;
   const values = {
-    platform: normalizeScreenListGamePlatform(platformBox?.dataset?.value || draft.platform),
-    hours: normalizeScreenListGameHours((hoursEl && 'value' in hoursEl) ? hoursEl.value : draft.hours),
-    tracker: normalizeScreenListGameTrackerUrl((trackerEl && 'value' in trackerEl) ? trackerEl.value : draft.tracker)
+    platform: normalizeScreenListGamePlatform(rawPlatform),
+    hours: normalizeScreenListGameHours(rawHours),
+    tracker: normalizeScreenListGameTrackerUrl(rawTracker)
   };
   screenlistGameDetailsDraftState[key] = values;
   syncScreenListGameDetailGlobals();
   return values;
 }
+
+function initScreenListGameDetailsDelegatedHandlers() {
+  if (typeof document === 'undefined' || window.__screenListGameDetailsDelegatedV277) return;
+  window.__screenListGameDetailsDelegatedV277 = true;
+
+  document.addEventListener('click', event => {
+    const platformOption = event.target?.closest?.('[data-game-platform-option]');
+    if (platformOption) {
+      selectGameDetailsPlatform(platformOption.dataset.gameDetailsId || '', platformOption.dataset.value || '', event);
+      return;
+    }
+
+    const platformTrigger = event.target?.closest?.('[data-game-platform-trigger]');
+    if (platformTrigger) {
+      toggleGameDetailsPlatformMenu(platformTrigger.dataset.gameDetailsId || '', event);
+      return;
+    }
+
+    const saveBtn = event.target?.closest?.('[data-game-details-save]');
+    if (saveBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      saveGameDetailsEdit(saveBtn.dataset.gameDetailsId || '', saveBtn, event);
+      return;
+    }
+  }, true);
+
+  const syncField = event => {
+    const fieldEl = event.target?.closest?.('[data-game-detail-field]');
+    if (!fieldEl) return;
+    const id = String(fieldEl.dataset.gameDetailsId || fieldEl.closest?.('.game-details-panel')?.dataset?.gameDetailsId || '').trim();
+    const field = String(fieldEl.dataset.gameDetailField || '').trim();
+    if (!id || !field) return;
+    if (field === 'hours') handleGameDetailsHoursInput(id, fieldEl);
+    if (field === 'tracker') setGameDetailsDraft(id, 'tracker', fieldEl.value);
+  };
+
+  document.addEventListener('input', syncField, true);
+  document.addEventListener('change', syncField, true);
+  document.addEventListener('blur', syncField, true);
+}
+initScreenListGameDetailsDelegatedHandlers();
 
 async function persistOwnListDataImmediate(nextData = null) {
   const safeData = cloneListData(nextData || data);
@@ -494,7 +558,7 @@ function renderGameDetailsExpandButton(item = {}) {
 
 function renderGamePlatformOptionButtons(id = '', selected = '') {
   return SCREENLIST_GAME_PLATFORM_OPTIONS.map(option => `
-    <button class="game-platform-option${option === selected ? ' selected' : ''}" type="button" data-value="${escAttr(option)}" onclick="selectGameDetailsPlatform('${escAttr(id)}','${escAttr(option)}',event)">${escHtml(option)}</button>
+    <button class="game-platform-option${option === selected ? ' selected' : ''}" type="button" data-game-platform-option="true" data-game-details-id="${escAttr(id)}" data-value="${escAttr(option)}">${escHtml(option)}</button>
   `).join('');
 }
 
@@ -534,7 +598,8 @@ function renderGameDetailsPanel(item = {}) {
       <div class="game-details-field game-details-platform-field">
         <span>Platform</span>
         <div id="game-platform-select-${escAttr(id)}" class="game-platform-select" data-game-details-id="${escAttr(id)}" data-game-detail-field="platform" data-value="${escAttr(platform)}">
-          <button id="game-platform-trigger-${escAttr(id)}" class="game-platform-select-btn" type="button" aria-expanded="${menuOpen ? 'true' : 'false'}" onclick="toggleGameDetailsPlatformMenu('${escAttr(id)}',event)">
+          <input id="game-platform-value-${escAttr(id)}" data-game-details-id="${escAttr(id)}" data-game-detail-field="platform" type="hidden" value="${escAttr(platform)}">
+          <button id="game-platform-trigger-${escAttr(id)}" class="game-platform-select-btn" type="button" data-game-platform-trigger="true" data-game-details-id="${escAttr(id)}" aria-expanded="${menuOpen ? 'true' : 'false'}">
             <span id="game-platform-label-${escAttr(id)}" class="${platform ? '' : 'placeholder'}">${escHtml(platform || 'Select platform')}</span>
             <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M5 7.5 10 12l5-4.5"/></svg>
           </button>
@@ -548,7 +613,7 @@ function renderGameDetailsPanel(item = {}) {
     </div>
     <div class="game-details-edit-actions">
       <button class="game-details-cancel-btn" type="button" onclick="event.stopPropagation();cancelGameDetailsEdit('${escAttr(id)}')">Cancel</button>
-      <button class="game-details-save-btn" type="button" data-game-details-id="${escAttr(id)}" onclick="event.preventDefault();event.stopPropagation();saveGameDetailsEdit(this.dataset.gameDetailsId || '${escAttr(id)}', this, event)">Save</button>
+      <button class="game-details-save-btn" type="button" data-game-details-save="true" data-game-details-id="${escAttr(id)}">Save</button>
     </div>`;
 
   return `<div class="game-details-panel${isOpen ? ' open' : ''}${isEditing ? ' editing' : ''}" id="game-details-${escAttr(id)}" data-game-details-id="${escAttr(id)}">
@@ -617,19 +682,27 @@ function cancelGameDetailsEdit(id = '') {
 async function saveGameDetailsEdit(id = '', triggerEl = null, event = null) {
   event?.preventDefault?.();
   event?.stopPropagation?.();
-  if (viewingUser) return;
+  if (viewingUser) return false;
 
-  const panelFromButton = triggerEl?.closest?.('.game-details-panel') || null;
-  const key = String(id || panelFromButton?.dataset?.gameDetailsId || '').trim();
-  if (!key) return;
-  const button = triggerEl && typeof triggerEl === 'object' ? triggerEl : null;
-  const panel = panelFromButton || document.getElementById(`game-details-${key}`);
-  const values = collectGameDetailsInputValues(key, panel);
+  const button = triggerEl?.closest?.('[data-game-details-save]') || (triggerEl && typeof triggerEl === 'object' ? triggerEl : null);
+  if (button?.dataset?.saving === 'true') return false;
+
+  const panelFromButton = button?.closest?.('.game-details-panel') || triggerEl?.closest?.('.game-details-panel') || null;
+  const key = String(id || button?.dataset?.gameDetailsId || panelFromButton?.dataset?.gameDetailsId || '').trim();
+  if (!key) return false;
+
+  if (document.activeElement && typeof document.activeElement.blur === 'function') {
+    try { document.activeElement.blur(); } catch (error) {}
+  }
+
+  const panel = panelFromButton || getGameDetailsPanelById(key);
   const itemLookup = getScreenListGameById(key);
+  const values = collectGameDetailsInputValues(key, panel);
 
   if (typeof window !== 'undefined') {
     window.__lastGameDetailsSaveDebug = {
       at: Date.now(),
+      version: 'v277-real-save-rebuild',
       key,
       panelFound: !!panel,
       values: { ...values },
@@ -641,31 +714,37 @@ async function saveGameDetailsEdit(id = '', triggerEl = null, event = null) {
 
   if (itemLookup.index < 0) {
     if (typeof showToast === 'function') showToast('Could not save game details. Try again.');
-    return;
+    return false;
   }
 
   if (button) {
+    button.dataset.saving = 'true';
     button.disabled = true;
     button.dataset.originalText = button.dataset.originalText || button.textContent || 'Save';
     button.textContent = 'Saving';
   }
 
-  const nextData = cloneListData(data);
-  const nextIndex = (nextData.games || []).findIndex(entry =>
-    String(entry?.id || '') === key ||
-    getScreenListGameStableKey(entry) === key
+  const nextData = typeof cloneListData === 'function'
+    ? cloneListData(data)
+    : JSON.parse(JSON.stringify(data || getEmptyListData()));
+  if (!Array.isArray(nextData.games)) nextData.games = [];
+
+  const nextIndex = nextData.games.findIndex(entry =>
+    String(entry?.id || '') === key || getScreenListGameStableKey(entry) === key
   );
+
   if (nextIndex < 0) {
     if (button) {
       button.disabled = false;
+      button.dataset.saving = 'false';
       button.textContent = button.dataset.originalText || 'Save';
     }
     if (typeof showToast === 'function') showToast('Could not save game details. Try again.');
-    return;
+    return false;
   }
 
   const modifiedAt = new Date().toISOString();
-  const patchedItem = {
+  nextData.games[nextIndex] = {
     ...nextData.games[nextIndex],
     gamePlatform: values.platform,
     gamePlayedPlatform: values.platform,
@@ -684,13 +763,10 @@ async function saveGameDetailsEdit(id = '', triggerEl = null, event = null) {
     statsUrl: values.tracker,
     dateModified: modifiedAt
   };
-  nextData.games[nextIndex] = patchedItem;
 
-  data = cloneListData(nextData);
-  ownDataCache = cloneListData(nextData);
-  if (typeof window !== 'undefined' && window.__lastGameDetailsSaveDebug) {
-    window.__lastGameDetailsSaveDebug.afterPatch = getScreenListGameDetailValuesFromItem(data.games?.find(entry => String(entry?.id || '') === key) || {});
-  }
+  const normalizedData = typeof normalizeListData === 'function' ? normalizeListData(nextData) : nextData;
+  data = normalizedData;
+  ownDataCache = typeof cloneListData === 'function' ? cloneListData(normalizedData) : JSON.parse(JSON.stringify(normalizedData));
 
   screenlistGameDetailsOpenState[key] = true;
   screenlistGameDetailsEditState[key] = false;
@@ -698,21 +774,58 @@ async function saveGameDetailsEdit(id = '', triggerEl = null, event = null) {
   delete screenlistGameDetailsDraftState[key];
   syncScreenListGameDetailGlobals();
 
+  if (typeof window !== 'undefined' && window.__lastGameDetailsSaveDebug) {
+    window.__lastGameDetailsSaveDebug.afterPatch = getScreenListGameDetailValuesFromItem(data.games?.find(entry => String(entry?.id || '') === key) || {});
+    window.__lastGameDetailsSaveDebug.localDataPatched = true;
+  }
+
   try {
-    await persistOwnListDataImmediate(data);
+    if (saveTimeout) {
+      clearTimeout(saveTimeout);
+      saveTimeout = null;
+    }
+    localStorage.setItem('watchlist-tracker-data', JSON.stringify(data));
+    if (currentUser) localStorage.setItem('screenlist-own-data-backup-' + currentUser.uid, JSON.stringify(data));
+
+    if (DOC_REF) {
+      await DOC_REF.set({
+        shows: JSON.stringify(data.shows || []),
+        movies: JSON.stringify(data.movies || []),
+        anime: JSON.stringify(data.anime || []),
+        games: JSON.stringify(data.games || []),
+        manga: JSON.stringify(data.manga || []),
+        books: JSON.stringify(data.books || []),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    }
+
+    if (currentUser?.uid === CREATOR_PUBLIC_UID && typeof syncCreatorPublicProfileMirror === 'function') {
+      syncCreatorPublicProfileMirror(currentUser, userProfile, data).catch(error => console.warn('Creator mirror sync failed after game details save:', error));
+    }
+
+    if (typeof window !== 'undefined' && window.__lastGameDetailsSaveDebug) {
+      window.__lastGameDetailsSaveDebug.firestoreWriteComplete = true;
+    }
+
     render();
     if (typeof showToast === 'function') showToast('Game details saved');
+    return true;
   } catch (error) {
     console.error('Game details save failed:', error);
     screenlistGameDetailsDraftState[key] = values;
     screenlistGameDetailsOpenState[key] = true;
     screenlistGameDetailsEditState[key] = true;
     syncScreenListGameDetailGlobals();
+    if (typeof window !== 'undefined' && window.__lastGameDetailsSaveDebug) {
+      window.__lastGameDetailsSaveDebug.error = error?.message || String(error);
+    }
     render();
     if (typeof showToast === 'function') showToast('Could not save game details. Try again.');
+    return false;
   } finally {
     if (button) {
       button.disabled = false;
+      button.dataset.saving = 'false';
       button.textContent = button.dataset.originalText || 'Save';
     }
   }

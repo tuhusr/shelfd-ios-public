@@ -768,3 +768,536 @@ body.light-mode .discover-universal-search-body #discover-universal-search-grid.
     min-width: 74px !important;
   }
 }
+
+
+/* v283: ShelfLine Filter UI applied to Universal Discovery Search.
+   Pattern name embedded for future reuse: ShelfLine Filter UI.
+   Traits: flat surface, text-first rows, semi-soft divider lines, minimal checkmarks/underlines, no heavy bubbles/pills/gradients. */
+.discover-universal-search-overlay.shelfline-filter-ui,
+.discover-universal-search-overlay.discover-universal-search-shelfline {
+  background: #05040d !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-panel {
+  background: #05040d !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.discover-universal-search-titlebar {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 8px;
+  padding: max(10px, calc(env(safe-area-inset-top, 0px) + 8px)) 16px 8px;
+  border-bottom: 1px solid rgba(232, 227, 243, 0.12);
+}
+
+.discover-universal-search-title {
+  color: #f8f4ff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-align: center;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-back,
+.discover-universal-search-shelfline .discover-universal-search-clear {
+  width: 44px !important;
+  height: 38px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #f8f4ff !important;
+  box-shadow: none !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 19px !important;
+  font-weight: 600 !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-back {
+  justify-self: start;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-clear {
+  justify-self: end;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-header {
+  padding: 13px 16px 10px !important;
+  border-bottom: 1px solid rgba(232, 227, 243, 0.10);
+  touch-action: pan-y !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-input {
+  width: 100% !important;
+  height: 42px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  border-bottom: 1px solid rgba(232, 227, 243, 0.20) !important;
+  color: #ffffff !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 500 !important;
+  padding: 0 2px !important;
+  box-shadow: none !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-input:focus {
+  background: transparent !important;
+  border-color: rgba(248, 244, 255, 0.42) !important;
+  box-shadow: none !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-input::placeholder {
+  color: rgba(248, 244, 255, 0.38) !important;
+  font-weight: 500 !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-tabs {
+  gap: 0 !important;
+  padding: 0 16px !important;
+  border-bottom: 1px solid rgba(232, 227, 243, 0.12) !important;
+  overflow-x: auto;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-tab {
+  height: 44px !important;
+  padding: 0 14px !important;
+  border: 0 !important;
+  border-right: 1px solid rgba(232, 227, 243, 0.10) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: rgba(248, 244, 255, 0.58) !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.01em;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-tab:first-child {
+  padding-left: 0 !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-tab:last-child {
+  border-right: 0 !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-tab.active {
+  color: #ffffff !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-tab::after {
+  height: 1.5px !important;
+  background: #ffffff !important;
+  border-radius: 0 !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-divider {
+  display: none !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-body {
+  padding: 0 16px calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+  background: #05040d !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-empty {
+  min-height: 180px;
+  padding: 42px 0 !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  color: rgba(248, 244, 255, 0.48) !important;
+  font-size: 14px !important;
+  text-align: left !important;
+}
+
+.discover-universal-search-shelfline .discover-message,
+.discover-universal-search-shelfline .discover-universal-search-empty {
+  border-bottom: 1px solid rgba(232, 227, 243, 0.12);
+}
+
+.discover-universal-search-shelfline .discover-universal-search-body #discover-universal-search-grid.discover-universal-search-results-list {
+  gap: 0 !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-body #discover-universal-search-grid.discover-universal-search-results-list .discover-card {
+  min-height: 112px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  border-bottom: 1px solid rgba(232, 227, 243, 0.12) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-body #discover-universal-search-grid.discover-universal-search-results-list .discover-poster {
+  width: 66px !important;
+  min-width: 66px !important;
+  min-height: 98px !important;
+  align-self: center !important;
+  border-radius: 2px !important;
+  margin: 8px 0 !important;
+  overflow: hidden !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-body #discover-universal-search-grid.discover-universal-search-results-list .discover-card-body,
+.discover-universal-search-shelfline .discover-universal-search-body #discover-universal-search-grid.discover-universal-search-results-list .games-discover-card .discover-card-body {
+  padding: 10px 0 10px 12px !important;
+  gap: 5px !important;
+  justify-content: center !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-result-type {
+  color: rgba(248, 244, 255, 0.52) !important;
+  font-size: 9px !important;
+  letter-spacing: 0.08em !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-body #discover-universal-search-grid.discover-universal-search-results-list .discover-card-title {
+  color: #ffffff !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  line-height: 1.16 !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-body #discover-universal-search-grid.discover-universal-search-results-list .discover-card-overview,
+.discover-universal-search-shelfline .discover-universal-search-body #discover-universal-search-grid.discover-universal-search-results-list .discover-card-genre {
+  color: rgba(248, 244, 255, 0.58) !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-body #discover-universal-search-grid.discover-universal-search-results-list .discover-add-btn {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #ffffff !important;
+  padding: 0 !important;
+  min-height: 22px !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  box-shadow: none !important;
+}
+
+body.light-mode .discover-universal-search-overlay.shelfline-filter-ui,
+body.light-mode .discover-universal-search-shelfline .discover-universal-search-panel,
+body.light-mode .discover-universal-search-shelfline .discover-universal-search-body {
+  background: #f7f5fb !important;
+}
+
+body.light-mode .discover-universal-search-title,
+body.light-mode .discover-universal-search-shelfline .discover-universal-search-back,
+body.light-mode .discover-universal-search-shelfline .discover-universal-search-clear,
+body.light-mode .discover-universal-search-shelfline .discover-universal-search-input,
+body.light-mode .discover-universal-search-shelfline .discover-universal-search-tab.active,
+body.light-mode .discover-universal-search-shelfline .discover-universal-search-body #discover-universal-search-grid.discover-universal-search-results-list .discover-card-title,
+body.light-mode .discover-universal-search-shelfline .discover-universal-search-body #discover-universal-search-grid.discover-universal-search-results-list .discover-add-btn {
+  color: #12082e !important;
+}
+
+body.light-mode .discover-universal-search-titlebar,
+body.light-mode .discover-universal-search-shelfline .discover-universal-search-header,
+body.light-mode .discover-universal-search-shelfline .discover-universal-search-tabs,
+body.light-mode .discover-universal-search-shelfline .discover-universal-search-body #discover-universal-search-grid.discover-universal-search-results-list .discover-card,
+body.light-mode .discover-universal-search-shelfline .discover-message,
+body.light-mode .discover-universal-search-shelfline .discover-universal-search-empty {
+  border-color: rgba(18, 8, 46, 0.14) !important;
+}
+
+body.light-mode .discover-universal-search-shelfline .discover-universal-search-input {
+  border-bottom-color: rgba(18, 8, 46, 0.24) !important;
+}
+
+body.light-mode .discover-universal-search-shelfline .discover-universal-search-input::placeholder,
+body.light-mode .discover-universal-search-shelfline .discover-universal-search-tab,
+body.light-mode .discover-universal-search-shelfline .discover-universal-search-empty,
+body.light-mode .discover-universal-search-shelfline .discover-universal-search-result-type,
+body.light-mode .discover-universal-search-shelfline .discover-universal-search-body #discover-universal-search-grid.discover-universal-search-results-list .discover-card-overview,
+body.light-mode .discover-universal-search-shelfline .discover-universal-search-body #discover-universal-search-grid.discover-universal-search-results-list .discover-card-genre {
+  color: rgba(18, 8, 46, 0.58) !important;
+}
+
+@media (min-width: 701px) {
+  .discover-universal-search-shelfline .discover-universal-search-panel {
+    width: min(760px, 92vw) !important;
+    max-height: min(88vh, 820px) !important;
+    margin: 0 auto 28px !important;
+    border-radius: 0 !important;
+    border: 1px solid rgba(232, 227, 243, 0.14) !important;
+  }
+}
+
+
+/* v284: ShelfLine search page alignment + integrated filters */
+.discover-universal-search-shelfline .discover-universal-search-titlebar {
+  grid-template-columns: 44px minmax(0, 1fr) 44px !important;
+}
+.discover-universal-search-subtitle {
+  padding: 9px 16px 8px;
+  text-align: center;
+  color: rgba(248,244,255,0.62);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  border-bottom: 1px solid rgba(232,227,243,0.10);
+}
+.discover-universal-search-shelfline .discover-universal-search-header {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: end !important;
+  gap: 12px !important;
+}
+.discover-universal-search-filter-btn.discover-category-filter-btn {
+  min-height: 38px !important;
+  height: 38px !important;
+  padding: 0 0 2px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  gap: 5px !important;
+  border-bottom: 1px solid rgba(232,227,243,0.24) !important;
+}
+.discover-universal-search-filter-btn svg {
+  width: 18px !important;
+  height: 18px !important;
+}
+.discover-universal-search-filter-btn.has-active-filter {
+  color: #a78bfa !important;
+  border-bottom-color: #a78bfa !important;
+}
+.discover-universal-search-filter-btn.has-active-filter::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #a78bfa;
+  margin-left: 1px;
+}
+.discover-universal-search-shelfline .discover-universal-search-tabs {
+  justify-content: center !important;
+  align-items: center !important;
+  gap: clamp(12px, 4vw, 22px) !important;
+  padding: 0 12px !important;
+  text-align: center !important;
+  scrollbar-width: none !important;
+}
+.discover-universal-search-shelfline .discover-universal-search-tabs::-webkit-scrollbar {
+  display: none !important;
+}
+.discover-universal-search-shelfline .discover-universal-search-tab {
+  border-right: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  text-align: center !important;
+  justify-content: center !important;
+}
+.discover-universal-search-shelfline .discover-universal-search-empty {
+  min-height: 220px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  padding-left: 18px !important;
+  padding-right: 18px !important;
+}
+.discover-universal-search-shelfline .discover-message {
+  padding: 42px 0 !important;
+  text-align: center !important;
+  color: rgba(248,244,255,0.58) !important;
+}
+body.light-mode .discover-universal-search-subtitle {
+  color: rgba(18,8,46,0.58);
+  border-bottom-color: rgba(18,8,46,0.12);
+}
+body.light-mode .discover-universal-search-filter-btn.discover-category-filter-btn {
+  color: #12082e !important;
+  border-bottom-color: rgba(18,8,46,0.22) !important;
+}
+body.light-mode .discover-universal-search-filter-btn.has-active-filter {
+  color: #4c1d95 !important;
+  border-bottom-color: #4c1d95 !important;
+}
+body.light-mode .discover-universal-search-filter-btn.has-active-filter::after {
+  background: #4c1d95;
+}
+body.light-mode .discover-universal-search-shelfline .discover-message {
+  color: rgba(18,8,46,0.58) !important;
+}
+@media (max-width: 380px) {
+  .discover-universal-search-shelfline .discover-universal-search-tabs {
+    gap: 10px !important;
+  }
+  .discover-universal-search-shelfline .discover-universal-search-tab {
+    font-size: 12px !important;
+  }
+}
+
+
+/* v286: Universal Discovery search full-page shell + RAWG games default support.
+   Keeps ShelfLine Filter UI full-screen while preserving the pull-down notch close gesture. */
+.discover-universal-search-overlay.open {
+  display: flex !important;
+}
+.discover-universal-search-shelfline .discover-universal-search-panel {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+}
+.discover-universal-search-shelfline .discover-universal-search-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+}
+@media (min-width: 701px) {
+  .discover-universal-search-overlay {
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    background: #05040d !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .discover-universal-search-shelfline .discover-universal-search-panel {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-height: none !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+  }
+}
+body.light-mode .discover-universal-search-overlay {
+  background: #f7f5fb !important;
+}
+
+
+/* v288: Discover search compact top layout + larger ShelfLine result posters.
+   Keeps the Search / Filter / media tabs centered and removes any vertical tab separators. */
+.discover-universal-search-shelfline .discover-universal-search-titlebar {
+  padding-top: max(6px, calc(env(safe-area-inset-top, 0px) + 4px)) !important;
+  padding-bottom: 5px !important;
+  min-height: 42px !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-header {
+  padding: 7px 14px 6px !important;
+  gap: 10px !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-input {
+  height: 36px !important;
+}
+
+.discover-universal-search-filter-btn.discover-category-filter-btn {
+  height: 34px !important;
+  min-height: 34px !important;
+}
+
+.discover-universal-search-subtitle {
+  padding: 5px 16px 5px !important;
+  text-align: center !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-tabs {
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 0 !important;
+  padding: 0 10px !important;
+  overflow: visible !important;
+  border-bottom: 1px solid rgba(232, 227, 243, 0.12) !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-tab {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 39px !important;
+  padding: 0 2px 7px !important;
+  border-right: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  white-space: normal !important;
+  line-height: 1.06 !important;
+  font-size: 12.5px !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-tab::after {
+  left: 18% !important;
+  right: 18% !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-body {
+  padding-top: 2px !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-body #discover-universal-search-grid.discover-universal-search-results-list .discover-card {
+  min-height: 166px !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-body #discover-universal-search-grid.discover-universal-search-results-list .discover-poster {
+  width: 108px !important;
+  min-width: 108px !important;
+  min-height: 154px !important;
+  margin: 11px 0 !important;
+  border-radius: 3px !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-body #discover-universal-search-grid.discover-universal-search-results-list .discover-card-body,
+.discover-universal-search-shelfline .discover-universal-search-body #discover-universal-search-grid.discover-universal-search-results-list .games-discover-card .discover-card-body {
+  padding: 12px 0 12px 14px !important;
+  gap: 6px !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-body #discover-universal-search-grid.discover-universal-search-results-list .discover-card-title {
+  font-size: 15px !important;
+  line-height: 1.18 !important;
+}
+
+@media (max-width: 390px) {
+  .discover-universal-search-shelfline .discover-universal-search-header {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 8px !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .discover-universal-search-filter-btn.discover-category-filter-btn {
+    font-size: 11.5px !important;
+    gap: 4px !important;
+  }
+
+  .discover-universal-search-filter-btn svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  .discover-universal-search-shelfline .discover-universal-search-tab {
+    font-size: 11.3px !important;
+    padding-left: 1px !important;
+    padding-right: 1px !important;
+  }
+
+  .discover-universal-search-shelfline .discover-universal-search-body #discover-universal-search-grid.discover-universal-search-results-list .discover-card {
+    min-height: 156px !important;
+  }
+
+  .discover-universal-search-shelfline .discover-universal-search-body #discover-universal-search-grid.discover-universal-search-results-list .discover-poster {
+    width: 100px !important;
+    min-width: 100px !important;
+    min-height: 146px !important;
+  }
+}

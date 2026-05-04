@@ -1741,3 +1741,286 @@ body.main-tab-discover .edit-profile-btn {
     margin-top: calc(env(safe-area-inset-top, 0px) - 88px) !important;
   }
 }
+
+/* v282: ShelfLine Filter UI — Letterboxd-style View All filters for Movies / TV / Anime */
+.discover-category-filter-sheet-letterboxd .discover-category-filter-scrim {
+  background: rgba(0, 0, 0, 0.56);
+  transition: opacity 220ms ease;
+}
+.discover-category-filter-sheet-letterboxd .discover-category-filter-drawer {
+  inset: 0;
+  height: auto;
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  background: #08070d;
+  box-shadow: none;
+  transform: translate3d(100%, 0, 0);
+  transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
+  contain: layout paint style;
+}
+.discover-category-filter-sheet-letterboxd.open .discover-category-filter-drawer {
+  transform: translate3d(0, 0, 0);
+}
+.discover-category-filter-sheet-letterboxd .discover-category-filter-track {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transition: none;
+  transform: translate3d(0, 0, 0);
+}
+.discover-category-filter-track.filter-slide-in .discover-category-filter-panel {
+  animation: discoverFilterSlideIn 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.discover-category-filter-track.filter-slide-back .discover-category-filter-panel {
+  animation: discoverFilterSlideBack 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes discoverFilterSlideIn {
+  from { opacity: 0.84; transform: translate3d(34px, 0, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes discoverFilterSlideBack {
+  from { opacity: 0.84; transform: translate3d(-24px, 0, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+.discover-category-filter-sheet-letterboxd .discover-category-filter-panel {
+  width: min(720px, 100%);
+  min-width: 0;
+  margin: 0 auto;
+  padding: max(14px, calc(env(safe-area-inset-top, 0px) + 10px)) 18px calc(32px + env(safe-area-inset-bottom, 0px));
+  background: #08070d;
+  color: #fff;
+}
+.discover-category-filter-sheet-letterboxd .discover-category-filter-header-flat {
+  min-height: 48px;
+  padding: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.16);
+}
+.discover-category-filter-sheet-letterboxd .discover-category-filter-kicker {
+  color: rgba(255,255,255,0.48);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+.discover-category-filter-sheet-letterboxd .discover-category-filter-header h3,
+.discover-category-filter-sheet-letterboxd .discover-category-filter-panel-top h3 {
+  color: #fff;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.discover-category-filter-sheet-letterboxd .discover-category-filter-done,
+.discover-category-filter-sheet-letterboxd .discover-category-filter-back {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  min-width: 48px;
+  height: 42px;
+  padding: 0;
+  cursor: pointer;
+}
+.discover-category-filter-sheet-letterboxd .discover-category-filter-back {
+  font-size: 20px;
+  text-align: left;
+}
+.discover-category-filter-sheet-letterboxd .discover-category-filter-rule {
+  display: none;
+}
+.discover-category-filter-sheet-letterboxd .discover-category-filter-list {
+  padding-top: 8px;
+}
+.discover-category-filter-sheet-letterboxd .discover-category-filter-row {
+  min-height: 54px;
+  padding: 0 2px;
+  border-bottom: 1px solid rgba(255,255,255,0.13);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto) auto;
+  gap: 12px;
+  background: transparent !important;
+  color: #fff;
+}
+.discover-category-filter-sheet-letterboxd .discover-category-filter-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.discover-category-filter-sheet-letterboxd .discover-category-filter-root-row span {
+  font-weight: 600;
+}
+.discover-category-filter-sheet-letterboxd .discover-category-filter-row strong {
+  color: rgba(255,255,255,0.62);
+  font-size: 12px;
+  font-weight: 600;
+  max-width: 168px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.discover-category-filter-sheet-letterboxd .discover-category-filter-row em {
+  color: rgba(255,255,255,0.42);
+  font-size: 22px;
+}
+.discover-category-filter-sheet-letterboxd .discover-category-filter-option.selected span,
+.discover-category-filter-sheet-letterboxd .discover-category-filter-root-row.selected span {
+  color: #fff;
+}
+.discover-category-filter-sheet-letterboxd .discover-category-filter-year-row.disabled {
+  opacity: 0.34;
+  cursor: not-allowed;
+  background: #020207 !important;
+}
+.discover-category-filter-sheet-letterboxd .discover-category-filter-year-row.disabled span,
+.discover-category-filter-sheet-letterboxd .discover-category-filter-year-row.disabled strong {
+  color: rgba(255,255,255,0.38);
+}
+.discover-category-filter-sheet-letterboxd .discover-category-filter-decade-row strong {
+  color: rgba(255,255,255,0.58);
+}
+
+.discover-category-filter-sheet-letterboxd .discover-category-filter-check {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 900;
+  min-width: 18px;
+  text-align: right;
+}
+.discover-category-filter-sheet-letterboxd .discover-category-filter-clear-inline {
+  appearance: none;
+  width: 100%;
+  min-height: 46px;
+  margin-top: 18px;
+  border: 0;
+  border-top: 1px solid rgba(255,255,255,0.16);
+  border-bottom: 1px solid rgba(255,255,255,0.16);
+  background: transparent;
+  color: rgba(255,255,255,0.82);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.discover-category-filter-service-icon {
+  flex: 0 0 auto;
+  min-width: 28px;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+body.light-mode .discover-category-filter-sheet-letterboxd .discover-category-filter-drawer,
+body.light-mode .discover-category-filter-sheet-letterboxd .discover-category-filter-panel {
+  background: #ffffff;
+  color: #12082e;
+}
+body.light-mode .discover-category-filter-sheet-letterboxd .discover-category-filter-header h3,
+body.light-mode .discover-category-filter-sheet-letterboxd .discover-category-filter-panel-top h3,
+body.light-mode .discover-category-filter-sheet-letterboxd .discover-category-filter-row span,
+body.light-mode .discover-category-filter-sheet-letterboxd .discover-category-filter-done,
+body.light-mode .discover-category-filter-sheet-letterboxd .discover-category-filter-back,
+body.light-mode .discover-category-filter-sheet-letterboxd .discover-category-filter-check {
+  color: #12082e;
+}
+body.light-mode .discover-category-filter-sheet-letterboxd .discover-category-filter-row,
+body.light-mode .discover-category-filter-sheet-letterboxd .discover-category-filter-header-flat,
+body.light-mode .discover-category-filter-sheet-letterboxd .discover-category-filter-clear-inline {
+  border-color: rgba(18,8,46,0.14);
+}
+body.light-mode .discover-category-filter-service-icon {
+  border-color: rgba(18,8,46,0.18);
+  color: #12082e;
+}
+body.light-mode .discover-category-filter-sheet-letterboxd .discover-category-filter-year-row.disabled {
+  background: #f1f0f5 !important;
+  opacity: 0.42;
+}
+body.light-mode .discover-category-filter-sheet-letterboxd .discover-category-filter-year-row.disabled span,
+body.light-mode .discover-category-filter-sheet-letterboxd .discover-category-filter-year-row.disabled strong {
+  color: rgba(18,8,46,0.44);
+}
+
+@media (max-width: 700px) {
+  .discover-category-filter-sheet-letterboxd .discover-category-filter-row {
+    min-height: 52px;
+  }
+  .discover-category-filter-sheet-letterboxd .discover-category-filter-row span {
+    font-size: 15px;
+  }
+  .discover-category-filter-sheet-letterboxd .discover-category-filter-row strong {
+    max-width: 128px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .discover-category-filter-sheet-letterboxd .discover-category-filter-drawer,
+  .discover-category-filter-track.filter-slide-in .discover-category-filter-panel,
+  .discover-category-filter-track.filter-slide-back .discover-category-filter-panel {
+    transition: none;
+    animation: none;
+  }
+}
+
+
+/* ShelfLine Filter UI pattern name is also exposed in JS as window.SHELFD_UI_PATTERNS.SHELF_LINE_FILTER_UI for future reuse. */
+
+
+/* v285: Discover friend-watching priority + title-card status readability */
+#discover-view .discover-card-context,
+#discover-view .discover-card-meta,
+#anime-discover-view .discover-card-context,
+#anime-discover-view .discover-card-meta,
+.discover-category-full-page .discover-card-context,
+.discover-category-full-page .discover-card-meta {
+  font-size: 12px !important;
+  line-height: 1.28 !important;
+}
+
+#discover-view .discover-friend-watch-meta,
+.discover-friends-full-page .discover-friend-watch-meta {
+  font-size: 12.5px !important;
+  line-height: 1.28 !important;
+  color: #d8cff3 !important;
+}
+
+@media (max-width: 600px) {
+  #discover-view .discover-card-context,
+  #discover-view .discover-card-meta,
+  #anime-discover-view .discover-card-context,
+  #anime-discover-view .discover-card-meta,
+  .discover-category-full-page .discover-card-context,
+  .discover-category-full-page .discover-card-meta {
+    font-size: 11.5px !important;
+  }
+
+  #discover-view .discover-friend-watch-meta,
+  .discover-friends-full-page .discover-friend-watch-meta {
+    font-size: 11.8px !important;
+  }
+}
+
+/* v287: ShelfLine subtle white borders for What Your Friends Are Watching cards. */
+#discover-view #discover-friends-watching-grid.discover-friends-row .discover-card,
+.discover-friends-full-page #discover-friends-full-grid.discover-friends-full-grid .discover-card {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035) !important;
+}
+
+body.light-mode #discover-view #discover-friends-watching-grid.discover-friends-row .discover-card,
+body.light-mode .discover-friends-full-page #discover-friends-full-grid.discover-friends-full-grid .discover-card {
+  border-color: rgba(18, 8, 46, 0.14) !important;
+  box-shadow: inset 0 0 0 1px rgba(18, 8, 46, 0.025) !important;
+}

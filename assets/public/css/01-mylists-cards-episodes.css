@@ -582,7 +582,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: #d8cff3;
+  color: #ffffff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -637,7 +637,7 @@
   border: 0;
   border-left: 1px solid rgba(196,181,253,0.18);
   background: transparent;
-  color: #cfc6e8;
+  color: #ffffff;
   min-height: 28px;
   padding: 0 0 0 11px;
   display: inline-flex;
@@ -668,9 +668,9 @@
   overflow: hidden;
   transform: translate3d(0, -6px, 0);
   transition:
-    max-height 420ms cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 260ms ease,
-    transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+    max-height 520ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 300ms ease,
+    transform 520ms cubic-bezier(0.16, 1, 0.3, 1);
   will-change: max-height, opacity, transform;
   contain: layout paint;
 }
@@ -698,7 +698,7 @@
 .game-details-label,
 .game-details-field > span,
 .game-details-field-head > span:first-child {
-  color: #9f95ba;
+  color: #ffffff;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -715,7 +715,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: 5px;
-  color: #d8cff3;
+  color: #ffffff;
   font-size: 10px;
   font-weight: 650;
   letter-spacing: 0.01em;
@@ -744,7 +744,7 @@
   text-align: right;
 }
 .game-details-muted {
-  color: #8e84a6;
+  color: rgba(255,255,255,0.78);
   font-size: 12px;
   font-weight: 500;
   text-align: right;
@@ -813,7 +813,7 @@
   text-align: left;
   -webkit-tap-highlight-color: transparent;
 }
-.game-platform-select-btn .placeholder { color: #8e84a6; }
+.game-platform-select-btn .placeholder { color: rgba(255,255,255,0.72); }
 .game-platform-select-btn svg {
   width: 16px;
   height: 16px;
@@ -849,7 +849,7 @@
   border: 0;
   border-bottom: 1px solid rgba(196,181,253,0.08);
   background: transparent;
-  color: #d8cff3;
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -884,8 +884,18 @@
   cursor: pointer;
   padding: 4px 0;
 }
-.game-details-cancel-btn { color: #9f95ba; }
+.game-details-cancel-btn { color: #ffffff; }
 .game-details-save-btn { color: #ffffff; }
+.game-library-card .game-details-panel,
+.game-library-card .game-details-panel button,
+.game-library-card .game-details-panel input,
+.game-library-card .game-details-panel span,
+.game-library-card .game-details-panel strong,
+.game-library-card .game-details-panel a {
+  color: #ffffff;
+}
+.game-library-card .game-details-panel input::placeholder { color: rgba(255,255,255,0.58); }
+
 body.light-mode .game-card-edit-btn,
 body.light-mode .game-library-card .comments-btn,
 body.light-mode .game-details-expand-btn,

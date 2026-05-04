@@ -65,7 +65,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/css/00-base-layout.css?v=292-activity-card-smaller-text-halfstar-fix">
-<link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=275-games-details-rebuild">
+<link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=277-games-details-real-save-rebuild">
 <link rel="stylesheet" href="/css/02-comments-login-theme.css?v=292-activity-card-smaller-text-halfstar-fix">
 <link rel="stylesheet" href="/css/03-friends-discovery-base.css?v=292-activity-card-smaller-text-halfstar-fix">
 <link rel="stylesheet" href="/css/04-activity-feed.css?v=300-mylist-completion-modal-activity-card-actions">
@@ -73,16 +73,16 @@
 <link rel="stylesheet" href="/css/06-profile.css?v=292-activity-card-smaller-text-halfstar-fix">
 <link rel="stylesheet" href="/css/07-imports-discover-rankings.css?v=292-activity-card-smaller-text-halfstar-fix">
 <link rel="stylesheet" href="/css/08-watch-together.css?v=292-activity-card-smaller-text-halfstar-fix">
-<link rel="stylesheet" href="/css/09-direct-messages.css?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="stylesheet" href="/css/09-direct-messages.css?v=280-dm-plaintext-aptos-composer">
 <link rel="stylesheet" href="/css/10-mobile-transitions-media-profile.css?v=292-activity-card-smaller-text-halfstar-fix">
 <link rel="stylesheet" href="/css/11-patch-notes-friends-refinements.css?v=259-friends-activity-no-swipe">
 <link rel="stylesheet" href="/css/12-pwa-header-continuity.css?v=264-friends-search-nav-fluid">
-<link rel="stylesheet" href="/css/13-e2ee-activity-post.css?v=276-full-post-swipe-threads">
-<link rel="stylesheet" href="/css/14-live-update-discover-controls.css?v=292-activity-card-smaller-text-halfstar-fix">
-<link rel="stylesheet" href="/css/15-universal-discovery-search.css?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="stylesheet" href="/css/13-e2ee-activity-post.css?v=279-full-post-floating-reply-composer">
+<link rel="stylesheet" href="/css/14-live-update-discover-controls.css?v=287-friends-watching-shelfline-border">
+<link rel="stylesheet" href="/css/15-universal-discovery-search.css?v=288-discover-search-larger-posters-compact-tabs">
 
-<meta name="screenlist-build-version" content="2026-05-04-v276-full-post-swipe-threads">
-<script>window.SCREENLIST_BUILD_VERSION = "2026-05-04-v276-full-post-swipe-threads";</script>
+<meta name="screenlist-build-version" content="2026-05-04-v288-discover-search-larger-posters-compact-tabs">
+<script>window.SCREENLIST_BUILD_VERSION = "2026-05-04-v288-discover-search-larger-posters-compact-tabs";</script>
 </head>
 <body>
 
@@ -485,6 +485,12 @@
 
   <div class="discover-media-tab-section" data-discovery-tab="tv">
     <div class="discover-section">
+      <button class="discover-section-title discover-section-title-button" type="button" onclick="openDiscoverFriendsWatchingPage()">What Your Friends Are Watching</button>
+      <div class="discover-section-desc">Movies, shows, and anime currently on your friends' watching or watchlist rows.</div>
+      <div class="discover-grid" id="discover-friends-watching-grid"><div class="discover-message">Loading...</div></div>
+      <button class="discover-expand-btn" data-discover-target="discover-friends-watching-grid" onclick="openDiscoverFriendsWatchingPage()">Show more</button>
+    </div>
+    <div class="discover-section">
       <h2 class="discover-section-title">Newest Releases</h2>
       <div class="discover-section-desc">Newest TV shows releasing in the United States, sorted by first air date, not popularity.</div>
       <div class="discover-filter-row" aria-label="TV release range">
@@ -529,12 +535,6 @@
       <div class="discover-section-desc">Lower-mainstream TV shows with strong ratings and enough audience feedback.</div>
       <div class="discover-grid" id="discover-tv-hidden-gems-grid"><div class="discover-message">Loading...</div></div>
       <button class="discover-expand-btn" data-discover-target="discover-tv-hidden-gems-grid" onclick="toggleDiscoverSection('discover-tv-hidden-gems-grid')">Show more</button>
-    </div>
-    <div class="discover-section">
-      <button class="discover-section-title discover-section-title-button" type="button" onclick="openDiscoverFriendsWatchingPage()">What Your Friends Are Watching</button>
-      <div class="discover-section-desc">Movies, shows, and anime currently on your friends' watching or watchlist rows.</div>
-      <div class="discover-grid" id="discover-friends-watching-grid"><div class="discover-message">Loading...</div></div>
-      <button class="discover-expand-btn" data-discover-target="discover-friends-watching-grid" onclick="openDiscoverFriendsWatchingPage()">Show more</button>
     </div>
   </div>
 
@@ -1099,20 +1099,18 @@
       <h2 class="overlay-page-title">Post</h2>
       <button id="feed-post-delete-top-btn" class="feed-post-page-delete-btn" type="button" onclick="deleteCurrentFeedPostPagePost()" aria-label="Delete post" title="Delete post" style="display:none;">×</button>
     </div>
-    <div class="overlay-page-content">
+    <div class="overlay-page-content" id="feed-post-scroll-content">
       <div id="feed-post-detail-container">
         <div class="discover-message">Loading post...</div>
       </div>
       <div id="feed-post-replies-list"></div>
-      <div id="feed-post-replies-composer" style="display:none;">
-        <div class="feed-reply-composer">
-          <div class="feed-reply-avatar" id="feed-reply-avatar"></div>
-          <textarea id="feed-reply-input" class="feed-reply-input" placeholder="Post your reply" rows="2"></textarea>
-        </div>
-        <div class="feed-reply-actions">
-          <button class="btn-primary" onclick="submitFeedReply()" id="feed-reply-btn" disabled>Reply</button>
-        </div>
-      </div>
+    </div>
+  </div>
+  <div id="feed-post-replies-composer" class="feed-post-floating-composer" style="display:none;">
+    <div class="feed-reply-composer">
+      <div class="feed-reply-avatar" id="feed-reply-avatar"></div>
+      <textarea id="feed-reply-input" class="feed-reply-input" placeholder="Post your reply" rows="1"></textarea>
+      <button class="btn-primary" onclick="submitFeedReply()" id="feed-reply-btn" disabled>Reply</button>
     </div>
   </div>
 </div>
@@ -1120,16 +1118,16 @@
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="/js/00-live-update-pwa.js?v=302-splash-until-app-ready"></script>
 <script src="/js/01-firebase-login-state.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
-<script src="/js/02-messages-e2ee.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
+<script src="/js/02-messages-e2ee.js?v=280-dm-plaintext-aptos-composer"></script>
 <script src="/js/03-watch-together.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
 <script src="/js/04-shared-utils-data.js?v=274-games-details-save-event-state-fix"></script>
 <script src="/js/05-app-state-preview-routes.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
-<script src="/js/06-mylists-render-episodes-ratings.js?v=275-games-details-rebuild"></script>
+<script src="/js/06-mylists-render-episodes-ratings.js?v=277-games-details-real-save-rebuild"></script>
 <script src="/js/07-add-shelf-import-search.js?v=299-completion-post-prompt"></script>
 <script src="/js/08-discovery-state.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
-<script src="/js/09-direct-messages.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
-<script src="/js/10-activity-feed.js?v=276-full-post-swipe-threads"></script>
-<script src="/js/11-discovery-media-games-profiles.js?v=265-discover-search-exact-title-rank"></script>
+<script src="/js/09-direct-messages.js?v=280-dm-plaintext-aptos-composer"></script>
+<script src="/js/10-activity-feed.js?v=279-full-post-floating-reply-composer"></script>
+<script src="/js/11-discovery-media-games-profiles.js?v=286-discover-search-games-fullpage"></script>
 <script src="/js/12-patch-notes.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
 <script src="/js/13-discover-add-imports.js?v=299-completion-post-prompt"></script>
 <script src="/js/14-navigation.js?v=264-friends-search-nav-fluid"></script>
