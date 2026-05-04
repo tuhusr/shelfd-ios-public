@@ -4001,7 +4001,7 @@ function renderCard(item, isDraggable) {
   const statusPill = (s, label) => {
     let cls = "status-pill";
     if (item.status === s) cls += ` ${s}-active`;
-    return `<button type="button" class="${cls}" data-status="${escAttr(s)}" data-mylist-status-id="${itemIdAttr}">${label}</button>`;
+    return `<button class="${cls}" data-status="${s}" onclick="changeStatus('${item.id}','${s}')">${label}</button>`;
   };
   const statusButtons = getMyListStatusButtonConfigs(activeSection)
     .map(({ status, label }) => statusPill(status, label))
@@ -4386,7 +4386,7 @@ function renderSingleEp(itemId, ep) {
   }
   return `<div class="ep-row ${ep.watched ? 'watched-ep' : ''}" id="ep-row-${ep.id}">
     <div class="ep-left">
-      <button type="button" class="ep-check ${ep.watched ? 'checked' : ''}" data-ep-toggle-item-id="${escAttr(itemId)}" data-ep-toggle-ep-id="${escAttr(ep.id)}">
+      <button class="ep-check ${ep.watched ? 'checked' : ''}" onclick="toggleEp('${itemId}','${ep.id}')">
         ${ep.watched ? '✓' : ''}
       </button>
       <span class="ep-title-wrap">
@@ -6741,33 +6741,6 @@ function changeStatus(id, status) {
   }
   save(); render();
 }
-
-function initMyListCardActionDelegates() {
-  if (window.__shelfdMyListCardActionDelegatesReady) return;
-  window.__shelfdMyListCardActionDelegatesReady = true;
-  document.addEventListener('click', event => {
-    const statusButton = event.target && event.target.closest ? event.target.closest('#mylist-view .status-pill[data-mylist-status-id][data-status]') : null;
-    if (statusButton) {
-      event.preventDefault();
-      event.stopPropagation();
-      const itemId = statusButton.dataset.mylistStatusId || '';
-      const nextStatus = statusButton.dataset.status || '';
-      if (itemId && nextStatus) changeStatus(itemId, nextStatus);
-      return;
-    }
-
-    const episodeButton = event.target && event.target.closest ? event.target.closest('#mylist-view .ep-check[data-ep-toggle-item-id][data-ep-toggle-ep-id]') : null;
-    if (episodeButton) {
-      event.preventDefault();
-      event.stopPropagation();
-      const itemId = episodeButton.dataset.epToggleItemId || '';
-      const epId = episodeButton.dataset.epToggleEpId || '';
-      if (itemId && epId) toggleEp(itemId, epId);
-    }
-  }, true);
-}
-
-initMyListCardActionDelegates();
 
 function removeWatchTogetherGroupFromLocalState(groupId = '') {
   if (!groupId) return;
