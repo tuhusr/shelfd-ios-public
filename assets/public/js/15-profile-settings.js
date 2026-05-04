@@ -154,9 +154,9 @@ function calculateMyListShelfSummary(source = data) {
   const tvHours = (safe.shows || []).reduce((sum, item) => sum + (getWatchedEpisodeCount(item, 'shows') * 45 / 60), 0);
   const animeHours = (safe.anime || []).reduce((sum, item) => sum + (getWatchedEpisodeCount(item, 'anime') * 24 / 60), 0);
   const gameHours = (safe.games || []).reduce((sum, item) => {
-    const explicit = Number(item.hoursPlayed || item.playtimeHours || 0);
+    const explicit = Number(item.gameHoursPlayed || item.gameHours || item.hoursPlayed || item.playtimeHours || 0);
     if (explicit > 0) return sum + explicit;
-    const progress = Number(item.currentEp || item.currentHours || 0);
+    const progress = Number(item.currentHours || item.currentEp || 0);
     return sum + Math.max(0, progress);
   }, 0);
   return {
@@ -689,9 +689,9 @@ function calculateProfileStats() {
   const tvHours = (source.shows || []).reduce((sum, item) => sum + (getWatchedEpisodeCount(item, 'shows') * 45 / 60), 0);
   const animeHours = (source.anime || []).reduce((sum, item) => sum + (getWatchedEpisodeCount(item, 'anime') * 24 / 60), 0);
   const gameHours = (source.games || []).reduce((sum, item) => {
-    const explicit = Number(item.hoursPlayed || item.playtimeHours || 0);
+    const explicit = Number(item.gameHoursPlayed || item.gameHours || item.hoursPlayed || item.playtimeHours || 0);
     if (explicit > 0) return sum + explicit;
-    const progress = Number(item.currentEp || item.currentHours || 0);
+    const progress = Number(item.currentHours || item.currentEp || 0);
     return sum + Math.max(0, progress);
   }, 0);
   const moviesTvHours = movieHours + tvHours;

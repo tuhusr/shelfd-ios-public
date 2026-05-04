@@ -1819,3 +1819,379 @@ body.true-dark-mode #mylist-view .ep-name {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
+
+
+/* v301: Full-page post polish — brighter dark dividers, bottom reply composer, delete X only inside post page. */
+#feed-post-page {
+  --feed-post-divider: rgba(255, 255, 255, 0.16);
+  --feed-post-surface: rgba(8, 6, 18, 0.985);
+  overflow: hidden !important;
+}
+body.true-dark-mode #feed-post-page {
+  --feed-post-divider: rgba(255, 255, 255, 0.20);
+  --feed-post-surface: rgba(5, 5, 5, 0.985);
+}
+#feed-post-page .overlay-page-inner {
+  min-height: 100vh !important;
+  height: 100vh !important;
+  min-height: 100dvh !important;
+  height: 100dvh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  background: var(--feed-post-surface) !important;
+}
+#feed-post-page .overlay-page-header {
+  flex: 0 0 auto !important;
+  border-bottom-color: var(--feed-post-divider) !important;
+  background: rgba(8, 6, 18, 0.92) !important;
+  transform: translateZ(0);
+}
+body.true-dark-mode #feed-post-page .overlay-page-header {
+  background: rgba(5, 5, 5, 0.94) !important;
+}
+#feed-post-page .overlay-page-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.feed-post-page-delete-btn {
+  margin-left: auto;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.055);
+  color: #f8f4ff;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 24px;
+  line-height: 1;
+  font-weight: 650;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transform: translateZ(0);
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), background 180ms ease, border-color 180ms ease, color 180ms ease;
+  will-change: transform;
+}
+.feed-post-page-delete-btn:active {
+  transform: scale(0.92) translateZ(0);
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(248, 113, 113, 0.52);
+  color: #fecaca;
+}
+#feed-post-page .overlay-page-content {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding-bottom: calc(118px + env(safe-area-inset-bottom, 0px)) !important;
+  scroll-padding-bottom: calc(126px + env(safe-area-inset-bottom, 0px));
+  transform: translateZ(0);
+}
+#feed-post-detail-container {
+  border-bottom-color: var(--feed-post-divider) !important;
+}
+.x-post-actions-row {
+  border-top-color: var(--feed-post-divider) !important;
+}
+#feed-post-replies-list {
+  padding: 0 0 14px !important;
+}
+.feed-reply-item,
+.x-reply-item {
+  border-bottom-color: var(--feed-post-divider) !important;
+}
+.feed-reply-thread-line {
+  background: var(--feed-post-divider) !important;
+}
+#feed-post-replies-composer {
+  position: fixed !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: 0 !important;
+  z-index: 30 !important;
+  width: min(100%, 640px) !important;
+  transform: translate3d(-50%, 0, 0) !important;
+  padding: 11px 16px calc(11px + env(safe-area-inset-bottom, 0px)) !important;
+  border-top: 1px solid var(--feed-post-divider) !important;
+  border-bottom: 0 !important;
+  background: rgba(8, 6, 18, 0.94) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 -14px 34px rgba(0,0,0,0.34);
+  contain: layout paint style;
+}
+body.true-dark-mode #feed-post-replies-composer {
+  background: rgba(5,5,5,0.95) !important;
+}
+#feed-post-replies-composer .feed-reply-composer {
+  align-items: center !important;
+  gap: 10px !important;
+  margin-bottom: 7px !important;
+}
+#feed-post-replies-composer .feed-reply-avatar {
+  flex: 0 0 36px !important;
+  width: 36px !important;
+  height: 36px !important;
+}
+#feed-post-replies-composer .feed-reply-input {
+  min-height: 38px !important;
+  max-height: 96px !important;
+  padding: 9px 13px !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,0.055) !important;
+  font-size: 16px !important;
+  line-height: 1.25 !important;
+}
+#feed-post-replies-composer .feed-reply-input:focus {
+  border-color: rgba(167,139,250,0.46) !important;
+  box-shadow: 0 0 0 3px rgba(124,58,237,0.12);
+}
+#feed-post-replies-composer .feed-reply-actions {
+  display: flex !important;
+  justify-content: flex-end !important;
+  padding-left: 46px !important;
+  margin-top: 0 !important;
+}
+#feed-post-replies-composer #feed-reply-btn {
+  min-height: 38px !important;
+  min-width: 78px !important;
+  padding: 0 18px !important;
+}
+body.light-mode #feed-post-page {
+  --feed-post-divider: rgba(18, 8, 46, 0.12);
+  --feed-post-surface: rgba(255,255,255,0.985);
+}
+body.light-mode #feed-post-replies-composer {
+  background: rgba(255,255,255,0.94) !important;
+  box-shadow: 0 -14px 34px rgba(18,8,46,0.12);
+}
+body.light-mode #feed-post-replies-composer .feed-reply-input {
+  background: #f8f6ff !important;
+  color: #12082e !important;
+  border-color: rgba(124,58,237,0.18) !important;
+}
+@media (max-width: 768px) {
+  #feed-post-page .overlay-page-content {
+    padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  #feed-post-replies-composer {
+    width: 100% !important;
+    padding: 9px 12px calc(9px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .feed-post-page-delete-btn {
+    width: 36px;
+    height: 36px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .feed-post-page-delete-btn,
+  #feed-post-replies-composer {
+    transition: none !important;
+  }
+}
+
+/* v276: Full-page post swipe-back handoff, minimal delete confirm, threaded replies. */
+#feed-post-page {
+  transform-origin: 50% 54% !important;
+  will-change: transform, opacity !important;
+  backface-visibility: hidden !important;
+  -webkit-backface-visibility: hidden !important;
+  box-shadow: -18px 0 42px rgba(0,0,0,0.38);
+  touch-action: pan-y;
+}
+#feed-post-page.feed-post-swipe-dragging,
+#feed-post-page.feed-post-swipe-closing,
+#feed-post-page.feed-post-swipe-restoring {
+  pointer-events: auto !important;
+  transform-origin: 50% 54% !important;
+  will-change: transform !important;
+}
+#feed-post-page.feed-post-swipe-dragging {
+  transition: none !important;
+}
+#feed-post-page.feed-post-swipe-closing,
+#feed-post-page.feed-post-swipe-restoring {
+  transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1), opacity 220ms ease !important;
+}
+#feed-post-page.feed-post-swipe-closing {
+  opacity: 0.96 !important;
+}
+#feed-post-page .overlay-page-inner {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.feed-post-page-delete-btn {
+  width: 34px !important;
+  height: 34px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #f8f4ff !important;
+  font-size: 28px !important;
+  line-height: 1 !important;
+  font-weight: 400 !important;
+}
+.feed-post-page-delete-btn:active {
+  transform: scale(0.9) translateZ(0) !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  color: #fecaca !important;
+}
+.screenlist-delete-post-modal {
+  background: rgba(3, 2, 10, 0.72) !important;
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+}
+.screenlist-delete-post-card {
+  width: min(92vw, 360px) !important;
+  padding: 22px 18px 16px !important;
+  border-radius: 22px !important;
+  border: 1px solid rgba(255,255,255,0.11) !important;
+  background: #11101a !important;
+  box-shadow: 0 24px 70px rgba(0,0,0,0.52) !important;
+  transform: translate3d(0, 10px, 0) scale(0.985);
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease !important;
+}
+.screenlist-delete-post-modal.open .screenlist-delete-post-card {
+  transform: translate3d(0, 0, 0) scale(1);
+}
+.screenlist-delete-post-copy p {
+  margin: 0 0 18px !important;
+  color: #f8f4ff !important;
+  font-size: 15px !important;
+  line-height: 1.42 !important;
+  font-weight: 650 !important;
+  text-align: center !important;
+}
+.screenlist-delete-post-actions {
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 10px !important;
+  margin-top: 0 !important;
+}
+.screenlist-delete-post-cancel,
+.screenlist-delete-post-confirm {
+  min-height: 40px !important;
+  border-radius: 999px !important;
+  padding: 0 16px !important;
+  font-size: 13px !important;
+  font-weight: 850 !important;
+  font-family: 'DM Sans', sans-serif !important;
+}
+.screenlist-delete-post-cancel {
+  color: #ffffff !important;
+  background: transparent !important;
+  border: 1px solid rgba(255,255,255,0.16) !important;
+}
+.screenlist-delete-post-confirm {
+  color: #ffffff !important;
+  background: #dc2626 !important;
+  border: 1px solid #ef4444 !important;
+  box-shadow: none !important;
+}
+.screenlist-delete-post-confirm:active,
+.screenlist-delete-post-cancel:active {
+  transform: scale(0.96);
+}
+.feed-reply-item.feed-reply-nested,
+.x-reply-item.feed-reply-nested {
+  padding-left: calc(20px + (var(--reply-depth, 0) * 22px)) !important;
+  background: rgba(255,255,255,0.012);
+}
+.feed-reply-children {
+  margin-top: 12px;
+  border-left: 1px solid var(--feed-post-divider, rgba(255,255,255,0.16));
+}
+.feed-reply-children .feed-reply-item,
+.feed-reply-children .x-reply-item {
+  padding-right: 0 !important;
+  padding-bottom: 12px !important;
+  border-bottom: 0 !important;
+}
+.feed-reply-inline-reply {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #9b90c7;
+  padding: 7px 0 0;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.feed-reply-inline-reply:active {
+  color: #c4b5fd;
+  transform: scale(0.96);
+}
+.feed-reply-context {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 46px 8px;
+  padding: 0;
+  color: #b8afd1;
+  font-size: 12px;
+  font-weight: 750;
+}
+.feed-reply-context button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #ffffff;
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+body.light-mode .screenlist-delete-post-card {
+  background: #ffffff !important;
+  border-color: rgba(18,8,46,0.12) !important;
+  box-shadow: 0 24px 70px rgba(18,8,46,0.18) !important;
+}
+body.light-mode .screenlist-delete-post-copy p {
+  color: #12082e !important;
+}
+body.light-mode .screenlist-delete-post-cancel {
+  color: #12082e !important;
+  border-color: rgba(18,8,46,0.16) !important;
+}
+body.light-mode .feed-reply-inline-reply,
+body.light-mode .feed-reply-context {
+  color: #6d5aa8;
+}
+body.light-mode .feed-reply-context button {
+  color: #12082e;
+}
+@media (max-width: 768px) {
+  #feed-post-page {
+    box-shadow: -12px 0 34px rgba(0,0,0,0.34);
+  }
+  .feed-post-page-delete-btn {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 26px !important;
+  }
+  .feed-reply-item.feed-reply-nested,
+  .x-reply-item.feed-reply-nested {
+    padding-left: calc(16px + (var(--reply-depth, 0) * 18px)) !important;
+  }
+  .feed-reply-context {
+    margin: 0 42px 7px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #feed-post-page.feed-post-swipe-closing,
+  #feed-post-page.feed-post-swipe-restoring,
+  .screenlist-delete-post-card {
+    transition: none !important;
+  }
+}

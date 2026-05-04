@@ -2177,15 +2177,15 @@ body.true-dark-mode .activity-page .shelfd-social-card {
   }
 }
 
-/* v299: universal completion rating + Activity Feed post prompt (mobile/PWA first) */
+/* v300: centered completion modals + activity-card reply/delete actions (mobile/PWA first) */
 .screenlist-completion-modal {
   position: fixed;
   inset: 0;
   z-index: 2147483646;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
-  padding: 16px 12px max(16px, env(safe-area-inset-bottom, 0px));
+  padding: max(18px, env(safe-area-inset-top, 0px)) 14px max(18px, env(safe-area-inset-bottom, 0px));
   background: rgba(3, 2, 10, 0);
   opacity: 0;
   pointer-events: none;
@@ -2200,14 +2200,14 @@ body.true-dark-mode .activity-page .shelfd-social-card {
 .screenlist-completion-card {
   width: min(100%, 460px);
   border: 1px solid rgba(167,139,250,0.26);
-  border-radius: 28px 28px max(20px, env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-bottom, 0px));
+  border-radius: 28px;
   background:
     radial-gradient(circle at 18% 0%, rgba(124,58,237,0.22), transparent 34%),
     linear-gradient(180deg, rgba(25,16,56,0.985), rgba(8,6,20,0.99));
-  box-shadow: 0 -18px 64px rgba(0,0,0,0.54), inset 0 1px 0 rgba(255,255,255,0.05);
+  box-shadow: 0 22px 72px rgba(0,0,0,0.56), inset 0 1px 0 rgba(255,255,255,0.05);
   color: #f8f4ff;
   padding: 16px 15px 15px;
-  transform: translate3d(0, 22px, 0) scale(0.985);
+  transform: translate3d(0, 12px, 0) scale(0.965);
   opacity: 0;
   transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1), opacity 220ms linear;
   will-change: transform, opacity;
@@ -2351,6 +2351,87 @@ body.true-dark-mode .activity-page .shelfd-social-card {
 .screenlist-post-skip {
   color: #d8cff3 !important;
 }
+
+.screenlist-post-submit,
+.screenlist-delete-post-confirm {
+  border: 1px solid rgba(255, 216, 127, 0.5) !important;
+  background:
+    linear-gradient(135deg, rgba(255, 216, 127, 0.24), rgba(34, 211, 238, 0.12)),
+    rgba(8, 7, 18, 0.66) !important;
+  color: #fff3c6 !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3), 0 0 18px rgba(255, 216, 127, 0.14) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.screenlist-post-submit:active,
+.screenlist-delete-post-confirm:active {
+  transform: scale(0.985);
+}
+.screenlist-activity-delete-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 12;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 999px;
+  background: rgba(6, 5, 16, 0.66);
+  color: #f8f4ff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transform: translateZ(0);
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), background 180ms ease, border-color 180ms ease, color 180ms ease;
+  will-change: transform;
+}
+.screenlist-activity-delete-btn:active {
+  transform: scale(0.9) translateZ(0);
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(248, 113, 113, 0.46);
+  color: #fecaca;
+}
+.screenlist-delete-post-copy h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 19px;
+  line-height: 1.12;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+.screenlist-delete-post-copy p {
+  margin: 7px 0 0;
+  color: #b8afd1;
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 650;
+}
+.screenlist-delete-post-actions {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.screenlist-delete-post-actions button {
+  width: 100%;
+  justify-content: center;
+}
+.shelfd-social-card[data-shelfd-activity-card],
+.activity-card.feed-post[data-activity-card-id] {
+  cursor: pointer;
+}
+@media (max-width: 420px) {
+  .screenlist-delete-post-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (min-width: 560px) {
   .screenlist-completion-modal {
     align-items: center;
@@ -2371,7 +2452,7 @@ body.light-mode .screenlist-completion-card {
   background: #fff;
   border-color: rgba(124,58,237,0.18);
   color: #12082e;
-  box-shadow: 0 -18px 64px rgba(18,8,46,0.18);
+  box-shadow: 0 22px 64px rgba(18,8,46,0.18);
 }
 body.light-mode .screenlist-completion-copy h3,
 body.light-mode .screenlist-post-comment-label { color: #12082e; }

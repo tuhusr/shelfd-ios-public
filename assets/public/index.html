@@ -46,25 +46,43 @@
     }
   }, true);
 </script>
+<script>
+  (function initShelfdBootHold() {
+    var shouldHold = false;
+    try {
+      shouldHold = sessionStorage.getItem('screenlist-live-update-splash-v3') === '1'
+        || sessionStorage.getItem('screenlist-live-update-splash-v2') === '1'
+        || sessionStorage.getItem('screenlist-live-update-splash-v1') === '1'
+        || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    } catch (e) {}
+    if (!shouldHold) return;
+    window.__shelfdBootSplashNeeded = true;
+    document.documentElement.classList.add('screenlist-boot-hold');
+    var style = document.createElement('style');
+    style.id = 'screenlist-boot-hold-style';
+    style.textContent = 'html.screenlist-boot-hold body > :not(#screenlist-live-update-splash){visibility:hidden!important;}html.screenlist-boot-hold body{background:#000!important;}';
+    document.head.appendChild(style);
+  })();
+</script>
 <link rel="stylesheet" href="/css/00-base-layout.css?v=292-activity-card-smaller-text-halfstar-fix">
-<link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=275-games-details-rebuild">
 <link rel="stylesheet" href="/css/02-comments-login-theme.css?v=292-activity-card-smaller-text-halfstar-fix">
 <link rel="stylesheet" href="/css/03-friends-discovery-base.css?v=292-activity-card-smaller-text-halfstar-fix">
-<link rel="stylesheet" href="/css/04-activity-feed.css?v=299-completion-post-prompt">
+<link rel="stylesheet" href="/css/04-activity-feed.css?v=300-mylist-completion-modal-activity-card-actions">
 <link rel="stylesheet" href="/css/05-messages-early-polish.css?v=292-activity-card-smaller-text-halfstar-fix">
 <link rel="stylesheet" href="/css/06-profile.css?v=292-activity-card-smaller-text-halfstar-fix">
 <link rel="stylesheet" href="/css/07-imports-discover-rankings.css?v=292-activity-card-smaller-text-halfstar-fix">
 <link rel="stylesheet" href="/css/08-watch-together.css?v=292-activity-card-smaller-text-halfstar-fix">
 <link rel="stylesheet" href="/css/09-direct-messages.css?v=292-activity-card-smaller-text-halfstar-fix">
 <link rel="stylesheet" href="/css/10-mobile-transitions-media-profile.css?v=292-activity-card-smaller-text-halfstar-fix">
-<link rel="stylesheet" href="/css/11-patch-notes-friends-refinements.css?v=292-activity-card-smaller-text-halfstar-fix">
-<link rel="stylesheet" href="/css/12-pwa-header-continuity.css?v=292-activity-card-smaller-text-halfstar-fix">
-<link rel="stylesheet" href="/css/13-e2ee-activity-post.css?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="stylesheet" href="/css/11-patch-notes-friends-refinements.css?v=259-friends-activity-no-swipe">
+<link rel="stylesheet" href="/css/12-pwa-header-continuity.css?v=264-friends-search-nav-fluid">
+<link rel="stylesheet" href="/css/13-e2ee-activity-post.css?v=276-full-post-swipe-threads">
 <link rel="stylesheet" href="/css/14-live-update-discover-controls.css?v=292-activity-card-smaller-text-halfstar-fix">
 <link rel="stylesheet" href="/css/15-universal-discovery-search.css?v=292-activity-card-smaller-text-halfstar-fix">
 
-<meta name="screenlist-build-version" content="2026-05-04-v299-completion-post-prompt">
-<script>window.SCREENLIST_BUILD_VERSION = "2026-05-04-v299-completion-post-prompt";</script>
+<meta name="screenlist-build-version" content="2026-05-04-v276-full-post-swipe-threads">
+<script>window.SCREENLIST_BUILD_VERSION = "2026-05-04-v276-full-post-swipe-threads";</script>
 </head>
 <body>
 
@@ -354,11 +372,11 @@
 <div class="container main-content">
 
   <div class="friends-tabs">
-    <button class="friends-tab-btn active" id="ftab-activity" onclick="switchFriendsTab('activity')">Activity Feed <span id="activity-unread-badge" class="activity-unread-badge" style="display:none;"></span></button>
+    <button class="friends-tab-btn active" id="ftab-activity" onclick="switchFriendsTab('activity')">Activity <span id="activity-unread-badge" class="activity-unread-badge" style="display:none;"></span></button>
     <button class="friends-tab-btn" id="ftab-friends" onclick="switchFriendsTab('friends')">Friends <span id="friends-count-badge" class="friends-count-badge-hidden" aria-hidden="true"></span></button>
     <button class="friends-tab-btn" id="ftab-messages" onclick="switchFriendsTab('messages')" style="display:none;">Messages <span id="messages-count-badge" class="requests-badge" style="display:none;"></span></button>
     <button class="friends-tab-btn" id="ftab-requests" onclick="switchFriendsTab('requests')">Requests <span id="requests-count-badge" class="requests-badge" style="display:none;"></span></button>
-    <button class="friends-tab-btn" id="ftab-find" onclick="switchFriendsTab('find')">Search</button>
+    <button class="friends-tab-btn" id="ftab-find" onclick="switchFriendsTab('find')" style="display:none;" aria-hidden="true" tabindex="-1">Search</button>
   </div>
 
   <!-- Activity tab -->
@@ -401,6 +419,16 @@
 
   <!-- My Friends -->
   <div id="friends-list-view" style="display:none">
+    <div class="friends-inline-search-shell">
+      <label class="friends-inline-search-bar" for="friends-inline-search-input">
+        <svg class="friends-inline-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="6.4"></circle>
+          <path d="M16.2 16.2 21 21"></path>
+        </svg>
+        <input id="friends-inline-search-input" type="text" inputmode="search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="add/search a new friend" oninput="filterInlineFriendSearch(this.value)">
+      </label>
+    </div>
+    <div class="community-grid friends-inline-search-results" id="inline-friend-search-grid" style="display:none"></div>
     <div class="community-grid" id="friends-grid">
       <div class="skeleton-card"></div>
     </div>
@@ -1063,17 +1091,19 @@
 <div id="feed-post-page" class="overlay-page" style="display:none;">
   <div class="overlay-page-inner">
     <div class="overlay-page-header">
-      <button class="overlay-page-back-btn" onclick="closeFeedPostPage()">
+      <button class="overlay-page-back-btn" onclick="closeFeedPostPage()" aria-label="Back">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M19 12H5M12 19l-7-7 7-7"/>
         </svg>
       </button>
       <h2 class="overlay-page-title">Post</h2>
+      <button id="feed-post-delete-top-btn" class="feed-post-page-delete-btn" type="button" onclick="deleteCurrentFeedPostPagePost()" aria-label="Delete post" title="Delete post" style="display:none;">×</button>
     </div>
     <div class="overlay-page-content">
       <div id="feed-post-detail-container">
         <div class="discover-message">Loading post...</div>
       </div>
+      <div id="feed-post-replies-list"></div>
       <div id="feed-post-replies-composer" style="display:none;">
         <div class="feed-reply-composer">
           <div class="feed-reply-avatar" id="feed-reply-avatar"></div>
@@ -1083,30 +1113,29 @@
           <button class="btn-primary" onclick="submitFeedReply()" id="feed-reply-btn" disabled>Reply</button>
         </div>
       </div>
-      <div id="feed-post-replies-list"></div>
     </div>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-<script src="/js/00-live-update-pwa.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
+<script src="/js/00-live-update-pwa.js?v=302-splash-until-app-ready"></script>
 <script src="/js/01-firebase-login-state.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
 <script src="/js/02-messages-e2ee.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
 <script src="/js/03-watch-together.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
-<script src="/js/04-shared-utils-data.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
+<script src="/js/04-shared-utils-data.js?v=274-games-details-save-event-state-fix"></script>
 <script src="/js/05-app-state-preview-routes.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
-<script src="/js/06-mylists-render-episodes-ratings.js?v=299-completion-post-prompt"></script>
+<script src="/js/06-mylists-render-episodes-ratings.js?v=275-games-details-rebuild"></script>
 <script src="/js/07-add-shelf-import-search.js?v=299-completion-post-prompt"></script>
 <script src="/js/08-discovery-state.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
 <script src="/js/09-direct-messages.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
-<script src="/js/10-activity-feed.js?v=299-completion-post-prompt"></script>
-<script src="/js/11-discovery-media-games-profiles.js?v=299-completion-post-prompt"></script>
+<script src="/js/10-activity-feed.js?v=276-full-post-swipe-threads"></script>
+<script src="/js/11-discovery-media-games-profiles.js?v=265-discover-search-exact-title-rank"></script>
 <script src="/js/12-patch-notes.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
 <script src="/js/13-discover-add-imports.js?v=299-completion-post-prompt"></script>
-<script src="/js/14-navigation.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
-<script src="/js/15-profile-settings.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
-<script src="/js/16-friends-requests.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
-<script src="/js/17-comments-auth-init.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
+<script src="/js/14-navigation.js?v=264-friends-search-nav-fluid"></script>
+<script src="/js/15-profile-settings.js?v=274-games-details-save-event-state-fix"></script>
+<script src="/js/16-friends-requests.js?v=267-friends-load-helper-fix"></script>
+<script src="/js/17-comments-auth-init.js?v=302-splash-until-app-ready"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {

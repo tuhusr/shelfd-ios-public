@@ -512,15 +512,24 @@ function updateRequestsBadges() {
   const sharedWatchIncomingTotal = watchTogetherIncomingRequestIds.length;
   const friendIncomingTotal = incomingRequests.length;
   const directMessageTotal = getDirectMessageNotificationCount();
-  const communityAlertTotal = friendIncomingTotal + sharedWatchIncomingTotal + directMessageTotal;
+  const requestTabTotal = friendIncomingTotal + sharedWatchIncomingTotal;
+  const communityAlertTotal = requestTabTotal + directMessageTotal;
+  const requestsTab = document.getElementById('ftab-requests');
 
   if (tabBadge) {
-    if (friendIncomingTotal > 0) {
-      tabBadge.textContent = friendIncomingTotal;
-      tabBadge.style.display = 'inline-block';
+    if (requestTabTotal > 0) {
+      tabBadge.textContent = String(requestTabTotal);
+      tabBadge.style.display = 'inline-flex';
+      tabBadge.setAttribute('aria-label', `${requestTabTotal} incoming request${requestTabTotal === 1 ? '' : 's'}`);
     } else {
       tabBadge.style.display = 'none';
+      tabBadge.removeAttribute('aria-label');
     }
+  }
+
+  if (requestsTab) {
+    requestsTab.classList.toggle('has-request-alert', requestTabTotal > 0);
+    requestsTab.setAttribute('aria-label', requestTabTotal > 0 ? `Requests, ${requestTabTotal} incoming` : 'Requests');
   }
 
   if (activityDot) {
@@ -599,14 +608,22 @@ async function loadCommunity(forceActivity = false) {
       activeFriendsTab = 'activity';
       activeActivitySubTab = 'feed';
     }
+    const targetTab = forceActivity ? 'activity' : ((activeFriendsTab === 'find' ? 'friends' : activeFriendsTab) || 'activity');
     if (isPreviewMode()) {
       PREVIEW_COMMUNITY_USERS.forEach(user => { usersMap[user.uid] = user; });
-      switchFriendsTab(forceActivity ? 'activity' : (activeFriendsTab || 'activity'));
+      switchFriendsTab(targetTab);
       return;
     }
+
+    const hadLocalFriendState = friendsDataLoadedOnce || friends.length || incomingRequests.length || outgoingRequests.length || watchTogetherIncomingRequestIds.length;
+    switchFriendsTab(targetTab);
+
     await loadFriendsData();
     primeFriendProfiles().catch(() => {});
-    switchFriendsTab(forceActivity ? 'activity' : (activeFriendsTab || 'activity'));
+
+    if (!hadLocalFriendState && document.getElementById('nav-community')?.classList.contains('active')) {
+      switchFriendsTab(targetTab);
+    }
   } catch(e) {
     console.error("loadCommunity failed:", e);
     const grid = document.getElementById('friends-grid');
@@ -614,7 +631,22 @@ async function loadCommunity(forceActivity = false) {
   }
 }
 
+
+function runFriendsTabWorkWhenSmooth(fn) {
+  if (typeof fn !== 'function') return;
+  const run = () => requestAnimationFrame(() => {
+    try { fn(); }
+    catch (error) { console.error('Friends tab work failed:', error); }
+  });
+  if (document.body.classList.contains('main-nav-switching')) {
+    window.setTimeout(run, 245);
+    return;
+  }
+  run();
+}
+
 function switchFriendsTab(tab) {
+  if (tab === 'find') tab = 'friends';
   if (tab === 'activity') {
     activeActivitySubTab = 'feed';
   }
@@ -656,18 +688,24 @@ function switchFriendsTab(tab) {
     bindFriendsActivitySwipeNavigation();
     updateActivitySubtabUi();
     initFeedComposer();
-    if (isWatchActivitySubTab()) {
-      renderActiveWatchActivitySubTab();
-    } else {
-      friendActivityStorySeenAtSnapshot = getFriendActivitySeenAt();
-      loadActivityTabFeed();
-      markFriendActivitySeen();
-    }
+    runFriendsTabWorkWhenSmooth(() => {
+      if (activeFriendsTab !== 'activity') return;
+      if (isWatchActivitySubTab()) {
+        renderActiveWatchActivitySubTab();
+      } else {
+        friendActivityStorySeenAtSnapshot = getFriendActivitySeenAt();
+        loadActivityTabFeed();
+        markFriendActivitySeen();
+      }
+    });
   }
-  if (tab === 'friends') renderFriendsList();
-  if (tab === 'requests') renderRequestsList();
-  if (tab === 'messages') renderDirectMessagesView();
-  if (tab === 'find') initFindPeopleSearchView();
+  if (tab === 'friends') {
+    resetInlineFriendSearch();
+    runFriendsTabWorkWhenSmooth(() => { if (activeFriendsTab === 'friends') renderFriendsList(); });
+  }
+  if (tab === 'requests') runFriendsTabWorkWhenSmooth(() => { if (activeFriendsTab === 'requests') renderRequestsList(); });
+  if (tab === 'messages') runFriendsTabWorkWhenSmooth(() => { if (activeFriendsTab === 'messages') renderDirectMessagesView(); });
+  if (tab === 'find') runFriendsTabWorkWhenSmooth(() => { if (activeFriendsTab === 'find') initFindPeopleSearchView(); });
   persistUiState();
 }
 
@@ -791,25 +829,100 @@ function updateActivitySubtabUi() {
 function renderCurrentActivitySubTab() {
   updateActivitySubtabUi();
   if (activeActivitySubTab === 'friendWatch') {
-    renderFriendWatchRequestsActivity();
+    return renderFriendWatchRequestsActivity();
   } else if (activeActivitySubTab === 'sharedWatch') {
-    renderSharedWatchActivity();
+    return renderSharedWatchActivity();
   } else {
     friendActivityStorySeenAtSnapshot = getFriendActivitySeenAt();
     loadActivityTabFeed();
     markFriendActivitySeen();
   }
   persistUiState();
+  return null;
 }
 
-function switchActivitySubTab(tab = 'feed') {
+function getActivitySubTabPane(tab = activeActivitySubTab) {
+  return tab === 'feed'
+    ? document.getElementById('friend-activity-feed')
+    : document.getElementById('shared-watch-feed');
+}
+
+function getActivitySubTabSpatialOrder(tab = activeActivitySubTab) {
+  if (tab === 'friendWatch') return 0;
+  if (tab === 'sharedWatch') return 2;
+  return 1;
+}
+
+function clearActivitySubTabSpatialClasses(pane) {
+  if (!pane) return;
+  pane.classList.remove(
+    'activity-subtab-entering',
+    'activity-subtab-leaving',
+    'activity-subtab-from-left',
+    'activity-subtab-from-right',
+    'activity-subtab-to-left',
+    'activity-subtab-to-right',
+    'activity-subtab-run'
+  );
+}
+
+function runActivitySubTabSpatialTransition(previousSubTab = 'feed', nextSubTab = 'feed', previousPane = null, nextPane = null) {
+  const root = document.getElementById('activity-tab-view');
+  if (!root || !previousPane || !nextPane || previousPane === nextPane) return;
+
+  const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (prefersReducedMotion) return;
+
+  const previousHeight = previousPane.offsetHeight || 0;
+  const nextHeight = nextPane.offsetHeight || 0;
+  const holdHeight = Math.max(previousHeight, nextHeight, 120);
+  const forward = getActivitySubTabSpatialOrder(nextSubTab) > getActivitySubTabSpatialOrder(previousSubTab);
+
+  root.style.setProperty('--activity-subtab-transition-height', `${holdHeight}px`);
+  root.classList.add('activity-subtab-transitioning');
+  clearActivitySubTabSpatialClasses(previousPane);
+  clearActivitySubTabSpatialClasses(nextPane);
+
+  previousPane.style.display = 'block';
+  nextPane.style.display = 'block';
+  previousPane.classList.add('activity-subtab-leaving', forward ? 'activity-subtab-to-left' : 'activity-subtab-to-right');
+  nextPane.classList.add('activity-subtab-entering', forward ? 'activity-subtab-from-right' : 'activity-subtab-from-left');
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      previousPane.classList.add('activity-subtab-run');
+      nextPane.classList.add('activity-subtab-run');
+    });
+  });
+
+  window.setTimeout(() => {
+    clearActivitySubTabSpatialClasses(previousPane);
+    clearActivitySubTabSpatialClasses(nextPane);
+    root.classList.remove('activity-subtab-transitioning');
+    root.style.removeProperty('--activity-subtab-transition-height');
+    updateActivitySubtabUi();
+  }, 330);
+}
+
+async function switchActivitySubTab(tab = 'feed') {
   const requestedSubTab = tab === 'friendWatch' ? 'friendWatch' : (tab === 'sharedWatch' ? 'sharedWatch' : 'feed');
   if (activeActivitySubTab === requestedSubTab) {
     updateActivitySubtabUi();
     return;
   }
+
+  const previousSubTab = activeActivitySubTab === 'friendWatch' || activeActivitySubTab === 'sharedWatch' ? activeActivitySubTab : 'feed';
+  const previousPane = getActivitySubTabPane(previousSubTab);
   activeActivitySubTab = requestedSubTab;
-  renderCurrentActivitySubTab();
+
+  const renderResult = renderCurrentActivitySubTab();
+  if (renderResult && typeof renderResult.then === 'function') {
+    try { await renderResult; } catch (error) { console.error('Activity subtab render failed:', error); }
+  }
+
+  const nextPane = getActivitySubTabPane(requestedSubTab);
+  runActivitySubTabSpatialTransition(previousSubTab, requestedSubTab, previousPane, nextPane);
+  persistUiState();
 }
 
 function getNextActivitySubTabFromSwipe(current = activeActivitySubTab, dx = 0) {
@@ -822,67 +935,10 @@ function getNextActivitySubTabFromSwipe(current = activeActivitySubTab, dx = 0) 
 
 function bindFriendsActivitySwipeNavigation() {
   const view = document.getElementById('activity-tab-view');
-  if (!view || view.dataset.friendsActivitySwipeBound === 'true') return;
-  view.dataset.friendsActivitySwipeBound = 'true';
-  let startX = 0;
-  let startY = 0;
-  let tracking = false;
-  let locked = false;
-  let pointerId = null;
-  let startedWithTouch = false;
-  const canStartFromTarget = target => !target?.closest?.('button, a, input, textarea, select, label, [contenteditable="true"], [role="button"], .friend-action-btn, .dm-thread-row, .dm-message-row, .media-share-choice, .activity-refresh-btn');
-  const reset = () => { tracking = false; locked = false; pointerId = null; startedWithTouch = false; };
-  const readPoint = event => event.touches?.[0] || event.changedTouches?.[0] || event;
-  const start = event => {
-    if (activeFriendsTab !== 'activity') return;
-    if (event.type === 'pointerdown' && startedWithTouch) return;
-    const point = readPoint(event);
-    if (!point || !canStartFromTarget(event.target)) return;
-    if (event.pointerType === 'mouse' && event.button !== 0) return;
-    if (event.touches && event.touches.length !== 1) return;
-    startX = point.clientX;
-    startY = point.clientY;
-    tracking = true;
-    locked = false;
-    pointerId = event.pointerId ?? null;
-    startedWithTouch = event.type.indexOf('touch') === 0;
-  };
-  const move = event => {
-    if (!tracking) return;
-    const point = readPoint(event);
-    if (!point) return;
-    if (pointerId !== null && event.pointerId !== undefined && event.pointerId !== pointerId) return;
-    const dx = point.clientX - startX;
-    const dy = point.clientY - startY;
-    const absDx = Math.abs(dx);
-    const absDy = Math.abs(dy);
-    if (!locked) {
-      if (absDy > 16 && absDy > absDx * 1.12) { reset(); return; }
-      if (absDx >= 18 && absDx > absDy * 1.35) locked = true;
-    }
-    if (locked && event.cancelable) event.preventDefault();
-  };
-  const end = event => {
-    if (!tracking) return;
-    const point = readPoint(event);
-    const dx = point ? point.clientX - startX : 0;
-    const dy = point ? point.clientY - startY : 0;
-    const shouldSwitch = locked && Math.abs(dx) >= 48 && Math.abs(dx) > Math.abs(dy) * 1.2;
-    const next = shouldSwitch ? getNextActivitySubTabFromSwipe(activeActivitySubTab, dx) : activeActivitySubTab;
-    reset();
-    if (shouldSwitch && next !== activeActivitySubTab) switchActivitySubTab(next);
-  };
-  view.addEventListener('touchstart', start, { passive: true });
-  view.addEventListener('touchmove', move, { passive: false });
-  view.addEventListener('touchend', end, { passive: true });
-  view.addEventListener('touchcancel', reset, { passive: true });
-  if (window.PointerEvent) {
-    view.addEventListener('pointerdown', start, { passive: true });
-    view.addEventListener('pointermove', move, { passive: false });
-    view.addEventListener('pointerup', end, { passive: true });
-    view.addEventListener('pointercancel', reset, { passive: true });
-  }
+  if (!view) return;
+  view.dataset.friendsActivitySwipeBound = 'disabled';
 }
+
 
 async function renderFriendWatchRequestsActivity(skipHydrate = false) {
   const feed = document.getElementById('shared-watch-feed');
@@ -1158,10 +1214,60 @@ async function renderFriendsList() {
   }
 }
 
+
+let peopleSearchGridOverrideId = '';
+
+function getPeopleSearchGrid() {
+  const override = String(peopleSearchGridOverrideId || '').trim();
+  if (override) {
+    const customGrid = document.getElementById(override);
+    if (customGrid) return customGrid;
+  }
+  return document.getElementById('all-users-grid');
+}
+
+function resetInlineFriendSearch() {
+  const input = document.getElementById('friends-inline-search-input');
+  const resultsGrid = document.getElementById('inline-friend-search-grid');
+  const friendsGrid = document.getElementById('friends-grid');
+  peopleSearchGridOverrideId = '';
+  if (input && !input.value.trim()) {
+    if (resultsGrid) {
+      resultsGrid.style.display = 'none';
+      resultsGrid.innerHTML = '';
+    }
+    if (friendsGrid) friendsGrid.style.display = '';
+  }
+}
+
+function filterInlineFriendSearch(query = '') {
+  const q = String(query || '').trim();
+  const resultsGrid = document.getElementById('inline-friend-search-grid');
+  const friendsGrid = document.getElementById('friends-grid');
+  if (!resultsGrid || !friendsGrid) return;
+
+  if (!q) {
+    peopleSearchGridOverrideId = '';
+    clearTimeout(filterInlineFriendSearch._timer);
+    resultsGrid.style.display = 'none';
+    resultsGrid.innerHTML = '';
+    friendsGrid.style.display = '';
+    return;
+  }
+
+  peopleSearchGridOverrideId = 'inline-friend-search-grid';
+  resultsGrid.style.display = 'grid';
+  friendsGrid.style.display = 'none';
+  clearTimeout(filterInlineFriendSearch._timer);
+  filterInlineFriendSearch._timer = setTimeout(() => {
+    searchUsersByUsername(q);
+  }, 180);
+}
+
 async function loadAllUsers() {
   initFindPeopleSearchView();
   return;
-  const grid = document.getElementById('all-users-grid');
+  const grid = getPeopleSearchGrid();
   if (!grid) return;
   grid.innerHTML = `<div class="friends-empty" style="grid-column:1/-1;">
     <div class="friends-empty-icon">👥</div>
@@ -1191,7 +1297,7 @@ async function loadAllUsers() {
 }
 
 async function initFindPeopleSearchView() {
-  const grid = document.getElementById('all-users-grid');
+  const grid = getPeopleSearchGrid();
   if (!grid) return;
   if (isPreviewMode()) {
     grid.innerHTML = `<div class="friends-empty" style="grid-column:1/-1;">
@@ -1254,7 +1360,7 @@ async function searchUsersByUsername(query) {
     return;
   }
 
-  const grid = document.getElementById('all-users-grid');
+  const grid = getPeopleSearchGrid();
   if (!grid) return;
   if (isPreviewMode()) {
     const previewMatches = PREVIEW_COMMUNITY_USERS.filter(user => userMatchesPeopleSearch(user, normalized));
@@ -1314,12 +1420,11 @@ async function searchUsersByUsername(query) {
 }
 
 function renderAllUsers(users, query = '') {
-  const grid = document.getElementById('all-users-grid');
+  const grid = getPeopleSearchGrid();
   if (!grid) return;
   if (isPreviewMode()) {
     if (!users || users.length === 0) {
-      grid.innerHTML = `<div class="friends-empty" style="grid-column:1/-1;">
-        <div class="friends-empty-icon">🔍</div>
+      grid.innerHTML = `<div class="friends-empty no-search-icon" style="grid-column:1/-1;">
         <p>No preview users found for "${escHtml((query || '').trim())}"</p>
         <p class="friends-empty-sub">Try a different name or sign in to search the live community.</p>
       </div>`;
@@ -1353,7 +1458,7 @@ function renderAllUsers(users, query = '') {
   }
 
   if (!users || users.length === 0) {
-    grid.innerHTML = '<div class="friends-empty" style="grid-column:1/-1;"><div class="friends-empty-icon">🔍</div><p>No other users found</p><p class="friends-empty-sub">Try a different name or spelling.</p></div>';
+    grid.innerHTML = '<div class="friends-empty no-search-icon" style="grid-column:1/-1;"><p>No other users found</p><p class="friends-empty-sub">Try a different name or spelling.</p></div>';
     return;
   }
 
@@ -1436,7 +1541,7 @@ function closeSignOutModal() {
 
 function legacyFilterPeople(query) {
   const q = (query || '').toLowerCase().trim();
-  const grid = document.getElementById('all-users-grid');
+  const grid = getPeopleSearchGrid();
   if (!grid) return;
   if (!q) {
     renderAllUsers(allUsersCache);
@@ -1445,7 +1550,6 @@ function legacyFilterPeople(query) {
   const filtered = allUsersCache.filter(u => (u.name || '').toLowerCase().includes(q));
   if (filtered.length === 0) {
     grid.innerHTML = `<div class="friends-empty" style="grid-column:1/-1;">
-      <div class="friends-empty-icon">🤷</div>
       <p style="color:#7a6f99;font-size:14px;">No one found matching "${escHtml(query)}"</p>
       <p class="friends-empty-sub">Try a shorter name or different spelling.</p>
     </div>`;
@@ -1455,8 +1559,9 @@ function legacyFilterPeople(query) {
 }
 
 function filterPeople(query) {
+  peopleSearchGridOverrideId = '';
   const q = (query || '').trim();
-  const grid = document.getElementById('all-users-grid');
+  const grid = getPeopleSearchGrid();
   if (!grid) return;
   if (!q) {
     allUsersCache = [];
@@ -1471,6 +1576,12 @@ function filterPeople(query) {
 
 // Re-run the current search (used after add/remove actions to refresh button states)
 function refilterPeople() {
+  const inlineInput = document.getElementById('friends-inline-search-input');
+  const inlineGrid = document.getElementById('inline-friend-search-grid');
+  if (inlineInput && inlineGrid && inlineGrid.style.display !== 'none') {
+    filterInlineFriendSearch(inlineInput.value || '');
+    return;
+  }
   const input = document.querySelector('#find-people-view .find-search');
   filterPeople(input ? input.value : '');
 }

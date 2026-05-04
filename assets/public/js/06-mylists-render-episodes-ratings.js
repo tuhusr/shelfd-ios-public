@@ -222,6 +222,502 @@ function renderStars(rating, itemId, prefix, size) {
   return buildRatingStarsMarkup(rating, itemId, prefix, size, section, !viewingUser);
 }
 
+
+const SCREENLIST_GAME_PLATFORM_OPTIONS = [
+  'PC',
+  'Steam',
+  'Steam Deck',
+  'PS5',
+  'PS4',
+  'Xbox Series X|S',
+  'Xbox One',
+  'Nintendo Switch',
+  'Mobile',
+  'Other'
+];
+const SCREENLIST_STEAM_LIBRARY_STATS_URL = 'https://steamcommunity.com/my/games/?tab=all';
+let screenlistGameDetailsOpenState = {};
+let screenlistGameDetailsEditState = {};
+let screenlistGameDetailsDraftState = {};
+let screenlistGameDetailsPlatformMenuState = {};
+
+function syncScreenListGameDetailGlobals() {
+  if (typeof window === 'undefined') return;
+  window.screenlistGameDetailsOpenState = screenlistGameDetailsOpenState;
+  window.screenlistGameDetailsEditState = screenlistGameDetailsEditState;
+  window.screenlistGameDetailsDraftState = screenlistGameDetailsDraftState;
+  window.screenlistGameDetailsPlatformMenuState = screenlistGameDetailsPlatformMenuState;
+  if (!('__lastGameDetailsSaveDebug' in window)) window.__lastGameDetailsSaveDebug = null;
+}
+syncScreenListGameDetailGlobals();
+
+function clampScreenListGameHoursText(value = '') {
+  let clean = String(value ?? '').replace(/[^0-9.]/g, '');
+  const dotIndex = clean.indexOf('.');
+  if (dotIndex !== -1) {
+    clean = clean.slice(0, dotIndex + 1) + clean.slice(dotIndex + 1).replace(/\./g, '');
+  }
+  if (clean.startsWith('.')) clean = '0' + clean;
+  return clean.slice(0, 5);
+}
+
+function normalizeScreenListGameHours(value) {
+  const raw = clampScreenListGameHoursText(value).trim();
+  if (!raw) return '';
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return '';
+  if (n === 0) return '0';
+  return String(Math.round(n * 10) / 10);
+}
+
+function normalizeScreenListGameTrackerUrl(value = '') {
+  const clean = String(value || '').trim();
+  if (!clean) return '';
+  if (/^(https?:|mailto:)/i.test(clean)) return clean;
+  return `https://${clean}`;
+}
+
+function normalizeScreenListGamePlatform(value = '') {
+  const clean = String(value || '').trim();
+  return SCREENLIST_GAME_PLATFORM_OPTIONS.includes(clean) ? clean : '';
+}
+
+function getScreenListGameTrackerIconSvg() {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 18.5h16"/><path d="M7 16V9"/><path d="M12 16V5.5"/><path d="M17 16v-3.5"/></svg>`;
+}
+
+function getScreenListSteamIconSvg() {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.5 14.2 8.1 15.7"/><path d="M8.1 15.7a2.8 2.8 0 1 0 2.2-2.3"/><path d="M14.4 8.9a3.3 3.3 0 1 0 3.3-3.3 3.3 3.3 0 0 0-3.3 3.3Z"/><path d="M10.4 13.5 15.2 10"/><path d="M3 10.8a9 9 0 1 0 2.2-5.9"/></svg>`;
+}
+
+function getScreenListGamePencilSvg() {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.5 19.5l4.2-.9L18.8 8.5 15.5 5.2 5.4 15.3l-.9 4.2Z"/><path d="M14.4 6.3l3.3 3.3"/></svg>`;
+}
+
+function getScreenListGameDetailValuesFromItem(item = {}) {
+  return {
+    platform: normalizeScreenListGamePlatform(
+      item.gamePlatform ||
+      item.gamePlayedPlatform ||
+      item.playedPlatform ||
+      item.platformPlayed ||
+      item.userPlatform ||
+      ''
+    ),
+    hours: normalizeScreenListGameHours(
+      item.gameHoursPlayed ??
+      item.gameHours ??
+      item.hoursPlayed ??
+      item.playtimeHours ??
+      item.currentHours ??
+      ''
+    ),
+    tracker: normalizeScreenListGameTrackerUrl(
+      item.gameTrackerUrl ||
+      item.gameStatsUrl ||
+      item.trackerStatsUrl ||
+      item.trackerUrl ||
+      item.statsUrl ||
+      ''
+    )
+  };
+}
+
+function getScreenListGameStableKey(item = {}) {
+  return String(
+    item?.id ||
+    item?.rawgId ||
+    item?.metacriticSlug ||
+    item?.rawgSlug ||
+    item?.backloggdSlug ||
+    item?.title ||
+    ''
+  ).trim();
+}
+
+function getScreenListGameById(id = '') {
+  const key = String(id || '').trim();
+  if (!key || !Array.isArray(data?.games)) return { item: null, index: -1 };
+  const index = data.games.findIndex(entry =>
+    String(entry?.id || '') === key ||
+    getScreenListGameStableKey(entry) === key
+  );
+  return { item: index >= 0 ? data.games[index] : null, index };
+}
+
+function getGameDetailsDraftValues(id = '', item = {}) {
+  const key = String(id || '').trim();
+  const fallback = getScreenListGameDetailValuesFromItem(item || {});
+  const draft = key ? screenlistGameDetailsDraftState[key] : null;
+  return {
+    platform: normalizeScreenListGamePlatform(draft?.platform ?? fallback.platform),
+    hours: normalizeScreenListGameHours(draft?.hours ?? fallback.hours),
+    tracker: normalizeScreenListGameTrackerUrl(draft?.tracker ?? fallback.tracker)
+  };
+}
+
+function setGameDetailsDraft(id = '', field = '', value = '') {
+  const key = String(id || '').trim();
+  const cleanField = String(field || '').trim();
+  if (!key || !cleanField) return;
+  const { item } = getScreenListGameById(key);
+  const base = getGameDetailsDraftValues(key, item || {});
+  const next = { ...base };
+  if (cleanField === 'platform') next.platform = normalizeScreenListGamePlatform(value);
+  if (cleanField === 'hours') next.hours = normalizeScreenListGameHours(value);
+  if (cleanField === 'tracker') next.tracker = normalizeScreenListGameTrackerUrl(value);
+  screenlistGameDetailsDraftState[key] = next;
+  syncScreenListGameDetailGlobals();
+  return next;
+}
+
+function handleGameDetailsHoursInput(id = '', inputEl = null) {
+  if (!inputEl) return;
+  const clean = clampScreenListGameHoursText(inputEl.value);
+  if (inputEl.value !== clean) inputEl.value = clean;
+  setGameDetailsDraft(id, 'hours', clean);
+}
+
+function toggleGameDetailsPlatformMenu(id = '', event = null) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const key = String(id || '').trim();
+  if (!key) return;
+  const next = !screenlistGameDetailsPlatformMenuState[key];
+  screenlistGameDetailsPlatformMenuState = {};
+  screenlistGameDetailsPlatformMenuState[key] = next;
+  syncScreenListGameDetailGlobals();
+  document.querySelectorAll('.game-platform-options.open').forEach(el => {
+    const optionKey = String(el.dataset.gameDetailsId || '').trim();
+    if (optionKey !== key) el.classList.remove('open');
+  });
+  const menu = document.getElementById(`game-platform-options-${key}`);
+  const trigger = document.getElementById(`game-platform-trigger-${key}`);
+  if (menu) menu.classList.toggle('open', next);
+  if (trigger) trigger.setAttribute('aria-expanded', next ? 'true' : 'false');
+}
+
+function selectGameDetailsPlatform(id = '', value = '', event = null) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const key = String(id || '').trim();
+  if (!key) return;
+  const clean = normalizeScreenListGamePlatform(value);
+  setGameDetailsDraft(key, 'platform', clean);
+  screenlistGameDetailsPlatformMenuState[key] = false;
+  syncScreenListGameDetailGlobals();
+  const box = document.getElementById(`game-platform-select-${key}`);
+  const label = document.getElementById(`game-platform-label-${key}`);
+  const menu = document.getElementById(`game-platform-options-${key}`);
+  const trigger = document.getElementById(`game-platform-trigger-${key}`);
+  if (box) box.dataset.value = clean;
+  if (label) {
+    label.textContent = clean || 'Select platform';
+    label.classList.toggle('placeholder', !clean);
+  }
+  if (menu) {
+    menu.classList.remove('open');
+    menu.querySelectorAll('.game-platform-option').forEach(btn => {
+      btn.classList.toggle('selected', String(btn.dataset.value || '') === clean);
+    });
+  }
+  if (trigger) trigger.setAttribute('aria-expanded', 'false');
+}
+
+function getGameDetailsSelectorById(id = '', field = '') {
+  const key = String(id || '').trim();
+  const cleanField = String(field || '').trim();
+  if (!key || !cleanField) return null;
+  const direct = document.getElementById(`game-${cleanField === 'tracker' ? 'tracker' : cleanField}-${key}`) ||
+    document.getElementById(`game-platform-select-${key}`);
+  if (direct && (cleanField !== 'platform' || direct.dataset?.gameDetailField === 'platform')) return direct;
+  const matches = Array.from(document.querySelectorAll(`[data-game-detail-field="${cleanField}"]`));
+  return matches.find(el =>
+    String(el?.dataset?.gameDetailsId || el?.closest?.('.game-details-panel')?.dataset?.gameDetailsId || '').trim() === key
+  ) || null;
+}
+
+function collectGameDetailsInputValues(id = '', panel = null) {
+  const key = String(id || panel?.dataset?.gameDetailsId || '').trim();
+  const { item } = getScreenListGameById(key);
+  const draft = getGameDetailsDraftValues(key, item || {});
+  const root = panel || document.getElementById(`game-details-${key}`);
+  const platformBox = root?.querySelector?.('[data-game-detail-field="platform"]') || getGameDetailsSelectorById(key, 'platform');
+  const hoursEl = root?.querySelector?.('[data-game-detail-field="hours"]') || getGameDetailsSelectorById(key, 'hours');
+  const trackerEl = root?.querySelector?.('[data-game-detail-field="tracker"]') || getGameDetailsSelectorById(key, 'tracker');
+  const values = {
+    platform: normalizeScreenListGamePlatform(platformBox?.dataset?.value || draft.platform),
+    hours: normalizeScreenListGameHours((hoursEl && 'value' in hoursEl) ? hoursEl.value : draft.hours),
+    tracker: normalizeScreenListGameTrackerUrl((trackerEl && 'value' in trackerEl) ? trackerEl.value : draft.tracker)
+  };
+  screenlistGameDetailsDraftState[key] = values;
+  syncScreenListGameDetailGlobals();
+  return values;
+}
+
+async function persistOwnListDataImmediate(nextData = null) {
+  const safeData = cloneListData(nextData || data);
+  data = cloneListData(safeData);
+  ownDataCache = cloneListData(safeData);
+  if (saveTimeout) {
+    clearTimeout(saveTimeout);
+    saveTimeout = null;
+  }
+  if (currentUser) localStorage.setItem('screenlist-own-data-backup-' + currentUser.uid, JSON.stringify(safeData));
+  localStorage.setItem('watchlist-tracker-data', JSON.stringify(safeData));
+  if (typeof writeOwnDataDirect === 'function') {
+    await writeOwnDataDirect(safeData);
+  } else if (DOC_REF) {
+    await DOC_REF.set({
+      shows: JSON.stringify(safeData.shows || []),
+      movies: JSON.stringify(safeData.movies || []),
+      anime: JSON.stringify(safeData.anime || []),
+      games: JSON.stringify(safeData.games || []),
+      manga: JSON.stringify(safeData.manga || []),
+      books: JSON.stringify(safeData.books || []),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  } else {
+    save();
+  }
+  return safeData;
+}
+
+function renderGameDetailsExpandButton(item = {}) {
+  const id = String(item.id || '');
+  const isOpen = !!screenlistGameDetailsOpenState[id] || !!screenlistGameDetailsEditState[id];
+  return `<button id="game-details-toggle-${escAttr(id)}" class="game-details-expand-btn${isOpen ? ' open' : ''}" type="button" onclick="event.stopPropagation();toggleGameDetailsPanel('${escAttr(id)}')" aria-expanded="${isOpen ? 'true' : 'false'}">
+    <span>${isOpen ? 'Hide Info' : 'Expand Info'}</span>
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M5 7.5 10 12l5-4.5"/></svg>
+  </button>`;
+}
+
+function renderGamePlatformOptionButtons(id = '', selected = '') {
+  return SCREENLIST_GAME_PLATFORM_OPTIONS.map(option => `
+    <button class="game-platform-option${option === selected ? ' selected' : ''}" type="button" data-value="${escAttr(option)}" onclick="selectGameDetailsPlatform('${escAttr(id)}','${escAttr(option)}',event)">${escHtml(option)}</button>
+  `).join('');
+}
+
+function renderGameDetailsPanel(item = {}) {
+  const id = String(item.id || '');
+  const isOpen = !!screenlistGameDetailsOpenState[id] || !!screenlistGameDetailsEditState[id];
+  const isEditing = !!screenlistGameDetailsEditState[id] && !viewingUser;
+  const saved = getScreenListGameDetailValuesFromItem(item);
+  const draft = getGameDetailsDraftValues(id, item);
+  const values = isEditing ? draft : saved;
+  const platform = values.platform;
+  const hours = values.hours;
+  const trackerUrl = values.tracker;
+  const platformText = platform || 'Platform not added';
+  const hoursText = hours !== '' ? `${hours}h played` : 'Hours not added';
+  const trackerDisplay = trackerUrl
+    ? `<a class="game-details-tracker-link" href="${escAttr(trackerUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${getScreenListGameTrackerIconSvg()}<span>Tracker/Stats</span></a>`
+    : `<span class="game-details-muted">Tracker/Stats not added</span>`;
+
+  const readHtml = `
+    <div class="game-details-read-row">
+      <span class="game-details-label">Platform</span>
+      <strong>${escHtml(platformText)}</strong>
+    </div>
+    <div class="game-details-read-row">
+      <span class="game-details-label">Hours</span>
+      <strong>${escHtml(hoursText)}</strong>
+    </div>
+    <div class="game-details-read-row">
+      <span class="game-details-label">Export</span>
+      ${trackerDisplay}
+    </div>`;
+
+  const menuOpen = !!screenlistGameDetailsPlatformMenuState[id];
+  const editHtml = `
+    <div class="game-details-edit-grid">
+      <div class="game-details-field game-details-platform-field">
+        <span>Platform</span>
+        <div id="game-platform-select-${escAttr(id)}" class="game-platform-select" data-game-details-id="${escAttr(id)}" data-game-detail-field="platform" data-value="${escAttr(platform)}">
+          <button id="game-platform-trigger-${escAttr(id)}" class="game-platform-select-btn" type="button" aria-expanded="${menuOpen ? 'true' : 'false'}" onclick="toggleGameDetailsPlatformMenu('${escAttr(id)}',event)">
+            <span id="game-platform-label-${escAttr(id)}" class="${platform ? '' : 'placeholder'}">${escHtml(platform || 'Select platform')}</span>
+            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M5 7.5 10 12l5-4.5"/></svg>
+          </button>
+          <div id="game-platform-options-${escAttr(id)}" class="game-platform-options${menuOpen ? ' open' : ''}" data-game-details-id="${escAttr(id)}">
+            ${renderGamePlatformOptionButtons(id, platform)}
+          </div>
+        </div>
+      </div>
+      <label class="game-details-field"><span class="game-details-field-head"><span>Hours played</span><a class="game-details-steam-link" href="${SCREENLIST_STEAM_LIBRARY_STATS_URL}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${getScreenListSteamIconSvg()}<span>Steam export</span></a></span><input id="game-hours-${escAttr(id)}" data-game-details-id="${escAttr(id)}" data-game-detail-field="hours" type="text" inputmode="decimal" maxlength="5" value="${escAttr(hours)}" placeholder="0" oninput="handleGameDetailsHoursInput('${escAttr(id)}',this)" onchange="handleGameDetailsHoursInput('${escAttr(id)}',this)" onblur="handleGameDetailsHoursInput('${escAttr(id)}',this)"></label>
+      <label class="game-details-field game-details-field-wide"><span>Tracker / Stats URL</span><input id="game-tracker-${escAttr(id)}" data-game-details-id="${escAttr(id)}" data-game-detail-field="tracker" type="url" value="${escAttr(trackerUrl)}" placeholder="https://..." oninput="setGameDetailsDraft('${escAttr(id)}','tracker',this.value)" onchange="setGameDetailsDraft('${escAttr(id)}','tracker',this.value)" onblur="setGameDetailsDraft('${escAttr(id)}','tracker',this.value)"></label>
+    </div>
+    <div class="game-details-edit-actions">
+      <button class="game-details-cancel-btn" type="button" onclick="event.stopPropagation();cancelGameDetailsEdit('${escAttr(id)}')">Cancel</button>
+      <button class="game-details-save-btn" type="button" data-game-details-id="${escAttr(id)}" onclick="event.preventDefault();event.stopPropagation();saveGameDetailsEdit(this.dataset.gameDetailsId || '${escAttr(id)}', this, event)">Save</button>
+    </div>`;
+
+  return `<div class="game-details-panel${isOpen ? ' open' : ''}${isEditing ? ' editing' : ''}" id="game-details-${escAttr(id)}" data-game-details-id="${escAttr(id)}">
+    <div class="game-details-inner">
+      ${isEditing ? editHtml : readHtml}
+    </div>
+  </div>`;
+}
+
+function syncGameDetailsPanelDomState(id = '') {
+  const key = String(id || '').trim();
+  if (!key) return false;
+  const panel = document.getElementById(`game-details-${key}`);
+  const toggle = document.getElementById(`game-details-toggle-${key}`);
+  if (!panel || !toggle) return false;
+  const isOpen = !!screenlistGameDetailsOpenState[key] || !!screenlistGameDetailsEditState[key];
+  panel.classList.toggle('open', isOpen);
+  panel.classList.toggle('editing', !!screenlistGameDetailsEditState[key] && !viewingUser);
+  toggle.classList.toggle('open', isOpen);
+  toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  const label = toggle.querySelector('span');
+  if (label) label.textContent = isOpen ? 'Hide Info' : 'Expand Info';
+  return true;
+}
+
+function toggleGameDetailsPanel(id = '') {
+  if (activeSection !== 'games') return;
+  const key = String(id || '').trim();
+  if (!key) return;
+  const wasEditing = !!screenlistGameDetailsEditState[key];
+  const next = !(screenlistGameDetailsOpenState[key] || screenlistGameDetailsEditState[key]);
+  screenlistGameDetailsOpenState[key] = next;
+  if (!next) {
+    screenlistGameDetailsEditState[key] = false;
+    screenlistGameDetailsPlatformMenuState[key] = false;
+    delete screenlistGameDetailsDraftState[key];
+  }
+  syncScreenListGameDetailGlobals();
+  if (wasEditing || !syncGameDetailsPanelDomState(key)) render();
+}
+
+function openGameDetailsEdit(id = '') {
+  if (activeSection !== 'games' || viewingUser) return;
+  const key = String(id || '').trim();
+  if (!key) return;
+  const { item } = getScreenListGameById(key);
+  screenlistGameDetailsDraftState[key] = getScreenListGameDetailValuesFromItem(item || {});
+  screenlistGameDetailsOpenState[key] = true;
+  screenlistGameDetailsEditState[key] = true;
+  screenlistGameDetailsPlatformMenuState[key] = false;
+  syncScreenListGameDetailGlobals();
+  render();
+}
+
+function cancelGameDetailsEdit(id = '') {
+  const key = String(id || '').trim();
+  if (!key) return;
+  delete screenlistGameDetailsDraftState[key];
+  screenlistGameDetailsPlatformMenuState[key] = false;
+  screenlistGameDetailsEditState[key] = false;
+  screenlistGameDetailsOpenState[key] = true;
+  syncScreenListGameDetailGlobals();
+  render();
+}
+
+async function saveGameDetailsEdit(id = '', triggerEl = null, event = null) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  if (viewingUser) return;
+
+  const panelFromButton = triggerEl?.closest?.('.game-details-panel') || null;
+  const key = String(id || panelFromButton?.dataset?.gameDetailsId || '').trim();
+  if (!key) return;
+  const button = triggerEl && typeof triggerEl === 'object' ? triggerEl : null;
+  const panel = panelFromButton || document.getElementById(`game-details-${key}`);
+  const values = collectGameDetailsInputValues(key, panel);
+  const itemLookup = getScreenListGameById(key);
+
+  if (typeof window !== 'undefined') {
+    window.__lastGameDetailsSaveDebug = {
+      at: Date.now(),
+      key,
+      panelFound: !!panel,
+      values: { ...values },
+      draft: { ...(screenlistGameDetailsDraftState[key] || {}) },
+      itemFound: itemLookup.index >= 0,
+      itemIndex: itemLookup.index
+    };
+  }
+
+  if (itemLookup.index < 0) {
+    if (typeof showToast === 'function') showToast('Could not save game details. Try again.');
+    return;
+  }
+
+  if (button) {
+    button.disabled = true;
+    button.dataset.originalText = button.dataset.originalText || button.textContent || 'Save';
+    button.textContent = 'Saving';
+  }
+
+  const nextData = cloneListData(data);
+  const nextIndex = (nextData.games || []).findIndex(entry =>
+    String(entry?.id || '') === key ||
+    getScreenListGameStableKey(entry) === key
+  );
+  if (nextIndex < 0) {
+    if (button) {
+      button.disabled = false;
+      button.textContent = button.dataset.originalText || 'Save';
+    }
+    if (typeof showToast === 'function') showToast('Could not save game details. Try again.');
+    return;
+  }
+
+  const modifiedAt = new Date().toISOString();
+  const patchedItem = {
+    ...nextData.games[nextIndex],
+    gamePlatform: values.platform,
+    gamePlayedPlatform: values.platform,
+    playedPlatform: values.platform,
+    platformPlayed: values.platform,
+    userPlatform: values.platform,
+    gameHoursPlayed: values.hours,
+    gameHours: values.hours,
+    hoursPlayed: values.hours,
+    playtimeHours: values.hours,
+    currentHours: values.hours,
+    gameTrackerUrl: values.tracker,
+    gameStatsUrl: values.tracker,
+    trackerStatsUrl: values.tracker,
+    trackerUrl: values.tracker,
+    statsUrl: values.tracker,
+    dateModified: modifiedAt
+  };
+  nextData.games[nextIndex] = patchedItem;
+
+  data = cloneListData(nextData);
+  ownDataCache = cloneListData(nextData);
+  if (typeof window !== 'undefined' && window.__lastGameDetailsSaveDebug) {
+    window.__lastGameDetailsSaveDebug.afterPatch = getScreenListGameDetailValuesFromItem(data.games?.find(entry => String(entry?.id || '') === key) || {});
+  }
+
+  screenlistGameDetailsOpenState[key] = true;
+  screenlistGameDetailsEditState[key] = false;
+  screenlistGameDetailsPlatformMenuState[key] = false;
+  delete screenlistGameDetailsDraftState[key];
+  syncScreenListGameDetailGlobals();
+
+  try {
+    await persistOwnListDataImmediate(data);
+    render();
+    if (typeof showToast === 'function') showToast('Game details saved');
+  } catch (error) {
+    console.error('Game details save failed:', error);
+    screenlistGameDetailsDraftState[key] = values;
+    screenlistGameDetailsOpenState[key] = true;
+    screenlistGameDetailsEditState[key] = true;
+    syncScreenListGameDetailGlobals();
+    render();
+    if (typeof showToast === 'function') showToast('Could not save game details. Try again.');
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = button.dataset.originalText || 'Save';
+    }
+  }
+}
+
 function renderCard(item, isDraggable) {
   const type = isShowSection(activeSection) ? "show" : activeSection === "movies" ? "movie" : activeSection === "games" ? "game" : "reading";
   const mediaKey = getMediaKey(item);
@@ -302,7 +798,7 @@ function renderCard(item, isDraggable) {
     ? `draggable="true" ondragstart="onCardDragStart(event,'${item.id}')" ondragover="onCardDragOver(event)" ondragleave="onCardDragLeave(event)" ondrop="onCardDrop(event,'${item.id}')"`
     : '';
   return `
-    <div class="card ${type === "show" ? "show-card" : ""} ${viewingUser ? "friend-view-card" : ""}${isDraggable ? ' card-draggable' : ''}" id="card-${item.id}" ${dragAttrs}>
+    <div class="card ${type === "show" ? "show-card" : ""}${isGameCard ? " game-library-card" : ""} ${viewingUser ? "friend-view-card" : ""}${isDraggable ? ' card-draggable' : ''}" id="card-${item.id}" ${dragAttrs}>
       <div class="card-header">
         <div class="${coverClass}${coverProfileClass}" style="${coverStyle}" ${coverProfileAttrs}>
           ${!item.cover ? emoji : ''}
@@ -341,11 +837,14 @@ function renderCard(item, isDraggable) {
           <button class="comments-btn" onclick="event.stopPropagation();openCommentsPage('${item.id}', this)">
             <span class="comments-btn-label">Comments (<span class="comment-count" data-media-key="${escAttr(mediaKey)}">${commentCount}</span>)</span>
           </button>
+          ${isGameCard ? renderGameDetailsExpandButton(item) : ''}
           ${episodeToggleButton}
         </div>
         ${renderWatchTogetherCardControl(item, activeSection)}
       </div>
+      ${isGameCard ? renderGameDetailsPanel(item) : ''}
       ${episodeSection}
+      ${isGameCard && !viewingUser ? `<button class="game-card-edit-btn" type="button" onclick="event.stopPropagation();openGameDetailsEdit('${itemIdAttr}')" aria-label="Edit game details">${getScreenListGamePencilSvg()}</button>` : ''}
     </div>
   `;
 }
@@ -732,14 +1231,10 @@ function markSeasonEps(itemId, sNum, val) {
   preserveViewport(() => {
     preserveEpisodeScroll(itemId, () => {
       item.episodes.forEach(e => { if (e.seasonNum === sNum) e.watched = val; });
-      const allWatched = item.episodes.every(e => e.watched);
-      const anyWatched = item.episodes.some(e => e.watched);
-      if (allWatched) item.status = "watched";
-      else if (anyWatched) item.status = "watching";
-      else item.status = "planned";
+      const statusChangedNow = applyScreenListEpisodeStatusOrDefer(item);
       touchItem(item);
       save();
-      if (!itemMatchesCurrentView(item)) {
+      if (statusChangedNow && !itemMatchesCurrentView(item)) {
         render();
         return;
       }
@@ -3006,6 +3501,69 @@ function setEpisodesExpanded(list, shouldOpen, immediate) {
   list.addEventListener('transitionend', onTransitionEnd);
 }
 
+const screenListPendingEpisodeStatusByKey = {};
+
+function getScreenListEpisodeEditKey(itemId, section = activeSection) {
+  return `${section}:${itemId}`;
+}
+
+function getScreenListEpisodeDerivedStatus(item = {}) {
+  const episodes = Array.isArray(item.episodes) ? item.episodes : [];
+  if (!episodes.length) return item.status || 'planned';
+  const allWatched = episodes.every(e => e && e.watched);
+  const anyWatched = episodes.some(e => e && e.watched);
+  if (allWatched) return 'watched';
+  if (anyWatched) return 'watching';
+  return 'planned';
+}
+
+function syncScreenListEpisodeProgressFields(item = {}) {
+  const episodes = Array.isArray(item.episodes) ? item.episodes : [];
+  if (!episodes.length) return;
+  item.currentEp = episodes.filter(e => e && e.watched).length;
+  item.totalEpisodes = episodes.length;
+  item.totalEps = episodes.length;
+}
+
+function isScreenListEpisodeEditorOpen(itemId = '') {
+  const list = document.getElementById('ep-list-' + itemId);
+  return !!(list && list.classList.contains('open'));
+}
+
+function applyScreenListEpisodeStatusOrDefer(item = {}, section = activeSection) {
+  if (!item || !item.id) return false;
+  syncScreenListEpisodeProgressFields(item);
+  const nextStatus = getScreenListEpisodeDerivedStatus(item);
+  const key = getScreenListEpisodeEditKey(item.id, section);
+  if (isScreenListEpisodeEditorOpen(item.id)) {
+    if (nextStatus === item.status) delete screenListPendingEpisodeStatusByKey[key];
+    else screenListPendingEpisodeStatusByKey[key] = nextStatus;
+    return false;
+  }
+  delete screenListPendingEpisodeStatusByKey[key];
+  if (nextStatus === item.status) return false;
+  item.status = nextStatus;
+  return true;
+}
+
+function flushScreenListDeferredEpisodeStatus(itemId = '', section = activeSection) {
+  const item = (data[section] || []).find(i => i.id === itemId);
+  if (!item) return;
+  const key = getScreenListEpisodeEditKey(itemId, section);
+  if (!Object.prototype.hasOwnProperty.call(screenListPendingEpisodeStatusByKey, key)) return;
+  const nextStatus = screenListPendingEpisodeStatusByKey[key] || getScreenListEpisodeDerivedStatus(item);
+  delete screenListPendingEpisodeStatusByKey[key];
+  syncScreenListEpisodeProgressFields(item);
+  if (nextStatus !== item.status) {
+    item.status = nextStatus;
+    touchItem(item);
+    save();
+    render();
+    return;
+  }
+  updateStatusPillsUI(item);
+}
+
 function toggleEpisodes(id) {
   const list = document.getElementById('ep-list-' + id);
   const arrow = document.getElementById('ep-arrow-' + id);
@@ -3017,6 +3575,10 @@ function toggleEpisodes(id) {
   label.textContent = open ? 'Show Episodes' : 'Hide Episodes';
   openStates['ep-' + id] = !open;
   if (!open) hydrateMissingSeasonPosters(id, activeSection);
+  if (open) {
+    const section = activeSection;
+    window.setTimeout(() => flushScreenListDeferredEpisodeStatus(id, section), 380);
+  }
 }
 
 function preserveEpisodeScroll(itemId, action) {
@@ -3168,19 +3730,13 @@ function toggleEp(itemId, epId) {
   const ep = item.episodes.find(e => e.id === epId);
   if (!ep) return;
   let becameWatched = false;
-  let shouldRerender = false;
   preserveEpisodeScroll(itemId, () => {
     ep.watched = !ep.watched;
     becameWatched = ep.watched;
-    const allWatched = item.episodes.every(e => e.watched);
-    const anyWatched = item.episodes.some(e => e.watched);
-    if (allWatched) item.status = "watched";
-    else if (anyWatched) item.status = "watching";
-    else item.status = "planned";
+    const statusChangedNow = applyScreenListEpisodeStatusOrDefer(item);
     touchItem(item);
     save();
-    shouldRerender = !itemMatchesCurrentView(item);
-    if (shouldRerender) {
+    if (statusChangedNow && !itemMatchesCurrentView(item)) {
       render();
       return;
     }
@@ -3198,10 +3754,10 @@ function markAllEps(id, val) {
   preserveViewport(() => {
     preserveEpisodeScroll(id, () => {
       item.episodes.forEach(e => e.watched = val);
-      item.status = val ? "watched" : "planned";
+      const statusChangedNow = applyScreenListEpisodeStatusOrDefer(item);
       touchItem(item);
       save();
-      if (!itemMatchesCurrentView(item)) {
+      if (statusChangedNow && !itemMatchesCurrentView(item)) {
         render();
         return;
       }

@@ -697,6 +697,13 @@ function signOut() {
   openSignOutModal();
 }
 
+
+function markScreenListAppReadyForSplash() {
+  window.__shelfdAppReady = true;
+  try { window.dispatchEvent(new CustomEvent('shelfd:app-ready')); }
+  catch (error) { window.dispatchEvent(new Event('shelfd:app-ready')); }
+}
+
 // Auth state listener
 auth.onAuthStateChanged(async (user) => {
   const mediaRoute = parseScreenListMediaRoute();
@@ -722,11 +729,13 @@ auth.onAuthStateChanged(async (user) => {
     startFriendsDataListener(); // live Friends/Requests badge + request list updates
     startWatchTogetherListener();
     if (mediaRoute) {
-      openSharedMediaProfileRoute(mediaRoute);
+      await openSharedMediaProfileRoute(mediaRoute);
+      markScreenListAppReadyForSplash();
       return;
     }
     setDefaultMyListsWatchingView();
     render();
+    markScreenListAppReadyForSplash();
   } else {
     stopFriendsDataListener();
     stopWatchTogetherListener();
@@ -742,12 +751,13 @@ auth.onAuthStateChanged(async (user) => {
     profileViewingProfile = null;
     profileViewingData = null;
     syncSignedOutRoute();
+    markScreenListAppReadyForSplash();
   }
 });
 
 window.addEventListener('hashchange', syncSignedOutRoute);
 window.addEventListener('beforeunload', persistUiState);
 bindMobileBottomDockSwipe();
-// Shelfd split runtime guard v273-source-split-phase4.
+// Shelfd split runtime guard v302-splash-until-app-ready.
 window.__shelfdSplitScriptsLoaded = true;
 window.__shelfdSplitScriptsLoading = false;

@@ -664,9 +664,65 @@ function resolveShowSection(item, fallbackSection = "shows") {
   return detectAnimeFromMetadata(item) ? 'anime' : 'shows';
 }
 
+
+function normalizeScreenListGameDetailHoursValue(value) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  const n = Number(raw.replace(/[^0-9.]/g, ''));
+  if (!Number.isFinite(n) || n < 0) return '';
+  if (n === 0) return '0';
+  return String(Math.round(n * 10) / 10);
+}
+
+function normalizeScreenListGameDetailUrlValue(value = '') {
+  const clean = String(value || '').trim();
+  if (!clean) return '';
+  if (/^(https?:|mailto:)/i.test(clean)) return clean;
+  return `https://${clean}`;
+}
+
+function normalizeGameDetailFieldsForStorage(item = {}) {
+  const next = { ...item };
+  const platform = String(
+    next.gamePlatform ||
+    next.gamePlayedPlatform ||
+    next.playedPlatform ||
+    next.platformPlayed ||
+    next.userPlatform ||
+    ''
+  ).trim();
+  const hours = normalizeScreenListGameDetailHoursValue(
+    next.gameHoursPlayed ??
+    next.gameHours ??
+    next.hoursPlayed ??
+    next.playtimeHours ??
+    next.currentHours ??
+    ''
+  );
+  const tracker = normalizeScreenListGameDetailUrlValue(
+    next.gameTrackerUrl ||
+    next.gameStatsUrl ||
+    next.trackerStatsUrl ||
+    next.trackerUrl ||
+    next.statsUrl ||
+    ''
+  );
+
+  next.gamePlatform = platform;
+  next.gamePlayedPlatform = platform;
+  next.gameHoursPlayed = hours;
+  next.gameHours = hours;
+  next.hoursPlayed = hours;
+  next.playtimeHours = hours;
+  next.gameTrackerUrl = tracker;
+  next.gameStatsUrl = tracker;
+  next.trackerStatsUrl = tracker;
+  return next;
+}
+
 function normalizeListEntry(item, fallbackSection) {
   if (!item || typeof item !== 'object') return null;
-  const next = { ...item };
+  let next = { ...item };
   if (isShowSection(fallbackSection)) {
     const resolvedSection = resolveShowSection(next, fallbackSection);
     next.mediaCategory = resolvedSection;
@@ -674,6 +730,9 @@ function normalizeListEntry(item, fallbackSection) {
     next.isAnime = resolvedSection === 'anime';
   } else {
     next.librarySection = fallbackSection;
+    if (fallbackSection === 'games') {
+      next = normalizeGameDetailFieldsForStorage(next);
+    }
   }
   return next;
 }

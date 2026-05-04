@@ -299,8 +299,8 @@ async function restoreUiState() {
 const MAIN_NAV_TRANSITION_ORDER = ['discover', 'community', 'mylist'];
 const MAIN_NAV_MOBILE_LOCKED_FPS = 120;
 const MAIN_NAV_MOBILE_FRAME_MS = 1000 / MAIN_NAV_MOBILE_LOCKED_FPS;
-const MAIN_NAV_MOBILE_TOTAL_MS = 300;
-const MAIN_NAV_MOBILE_SWAP_AT_MS = 154;
+const MAIN_NAV_MOBILE_TOTAL_MS = 210;
+const MAIN_NAV_MOBILE_SWAP_AT_MS = 72;
 
 function getMainNavTransitionDelta(fromTab = 'mylist', toTab = 'mylist') {
   const fromIndex = MAIN_NAV_TRANSITION_ORDER.indexOf(normalizeMainNavTab(fromTab));
@@ -309,27 +309,29 @@ function getMainNavTransitionDelta(fromTab = 'mylist', toTab = 'mylist') {
   return toIndex - fromIndex;
 }
 
-function getMainNavTransitionDirection() {
-  // All main bottom-nav tab swaps intentionally share one visual path.
-  // This keeps Discovery ⇄ Friends ⇄ My Lists perfectly consistent.
-  return 1;
+function getMainNavTransitionDirection(fromTab = 'mylist', toTab = 'mylist') {
+  const delta = getMainNavTransitionDelta(fromTab, toTab);
+  return delta === 0 ? 1 : Math.sign(delta);
 }
 
 function getMainNavTransitionDistance(fromTab = 'mylist', toTab = 'mylist', isMobile = false) {
-  return isMobile ? 22 : 18;
+  if (!isMobile) return 18;
+  const delta = Math.abs(getMainNavTransitionDelta(fromTab, toTab));
+  return delta > 1 ? 34 : 28;
 }
 
 function getMainNavTransitionFrames(phase = 'enter', direction = 1, distance = 18, isMobile = false) {
   if (isMobile) {
+    const x = Math.max(18, Number(distance) || 28) * Math.sign(direction || 1);
     if (phase === 'exit') {
       return [
-        { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1)', filter: 'blur(0px) brightness(1)' },
-        { opacity: 0.08, transform: 'translate3d(0, 22px, 0) scale(0.985)', filter: 'blur(7px) brightness(0.82)' }
+        { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1)' },
+        { opacity: 0.001, transform: `translate3d(${-x}px, 0, 0) scale(0.996)` }
       ];
     }
     return [
-      { opacity: 0.08, transform: 'translate3d(0, -22px, 0) scale(0.985)', filter: 'blur(7px) brightness(0.86)' },
-      { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1)', filter: 'blur(0px) brightness(1)' }
+      { opacity: 0.001, transform: `translate3d(${x}px, 0, 0) scale(0.996)` },
+      { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1)' }
     ];
   }
 
@@ -367,7 +369,7 @@ function getVisibleMainNavPanels(elements) {
 function prepareMainNavTransitionElements(elements) {
   elements.forEach(el => {
     if (!el) return;
-    el.style.willChange = 'opacity, transform, filter';
+    el.style.willChange = 'opacity, transform';
     el.style.backfaceVisibility = 'hidden';
     el.style.transformOrigin = 'center top';
     el.style.pointerEvents = 'none';
@@ -392,30 +394,24 @@ function mixMainNavValue(from, to, t) {
   return from + (to - from) * t;
 }
 
-function applyMainNavMobileFrame(elements, phase = 'enter', progress = 1) {
+function applyMainNavMobileFrame(elements, phase = 'enter', progress = 1, direction = 1, distance = 28) {
   const eased = phase === 'exit' ? easeMainNavOut(progress) : easeMainNavIn(progress);
+  const signedDistance = Math.max(18, Number(distance) || 28) * Math.sign(direction || 1);
   const opacity = phase === 'exit'
-    ? mixMainNavValue(1, 0.08, eased)
-    : mixMainNavValue(0.08, 1, eased);
-  const y = phase === 'exit'
-    ? mixMainNavValue(0, 22, eased)
-    : mixMainNavValue(-22, 0, eased);
+    ? mixMainNavValue(1, 0.001, eased)
+    : mixMainNavValue(0.001, 1, eased);
+  const x = phase === 'exit'
+    ? mixMainNavValue(0, -signedDistance, eased)
+    : mixMainNavValue(signedDistance, 0, eased);
   const scale = phase === 'exit'
-    ? mixMainNavValue(1, 0.985, eased)
-    : mixMainNavValue(0.985, 1, eased);
-  const blur = phase === 'exit'
-    ? mixMainNavValue(0, 7, eased)
-    : mixMainNavValue(7, 0, eased);
-  const brightness = phase === 'exit'
-    ? mixMainNavValue(1, 0.82, eased)
-    : mixMainNavValue(0.86, 1, eased);
-  const transform = `translate3d(0, ${y.toFixed(3)}px, 0) scale(${scale.toFixed(5)})`;
-  const filter = `blur(${blur.toFixed(3)}px) brightness(${brightness.toFixed(4)})`;
+    ? mixMainNavValue(1, 0.996, eased)
+    : mixMainNavValue(0.996, 1, eased);
+  const transform = `translate3d(${x.toFixed(3)}px, 0, 0) scale(${scale.toFixed(5)})`;
   elements.forEach(el => {
     if (!el) return;
     el.style.opacity = opacity.toFixed(4);
     el.style.transform = transform;
-    el.style.filter = filter;
+    el.style.filter = '';
   });
 }
 
@@ -468,6 +464,9 @@ async function animateMainNav120HzTabSwap(fromTab = 'mylist', toTab = 'mylist', 
   prepareMainNavTransitionElements(outgoing);
   document.body.classList.add('main-nav-switching');
 
+  const direction = getMainNavTransitionDirection(fromTab, toTab);
+  const distance = getMainNavTransitionDistance(fromTab, toTab, true);
+
   return new Promise(resolve => {
     const start = performance.now();
     const totalMs = MAIN_NAV_MOBILE_TOTAL_MS;
@@ -489,7 +488,7 @@ async function animateMainNav120HzTabSwap(fromTab = 'mylist', toTab = 'mylist', 
       }
       incoming = getVisibleMainNavPanels(getMainNavPanels(toTab));
       prepareMainNavTransitionElements(incoming);
-      applyMainNavMobileFrame(incoming, 'enter', 0);
+      applyMainNavMobileFrame(incoming, 'enter', 0, direction, distance);
     };
 
     function tick(now) {
@@ -498,10 +497,10 @@ async function animateMainNav120HzTabSwap(fromTab = 'mylist', toTab = 'mylist', 
       if (frame !== lastFrame) {
         lastFrame = frame;
         if (elapsed <= swapAtMs) {
-          applyMainNavMobileFrame(outgoing, 'exit', elapsed / swapAtMs);
+          applyMainNavMobileFrame(outgoing, 'exit', elapsed / swapAtMs, direction, distance);
         } else {
           doReveal();
-          applyMainNavMobileFrame(incoming, 'enter', (elapsed - swapAtMs) / (totalMs - swapAtMs));
+          applyMainNavMobileFrame(incoming, 'enter', (elapsed - swapAtMs) / (totalMs - swapAtMs), direction, distance);
         }
       }
 
@@ -509,7 +508,7 @@ async function animateMainNav120HzTabSwap(fromTab = 'mylist', toTab = 'mylist', 
         requestAnimationFrame(tick);
       } else {
         doReveal();
-        applyMainNavMobileFrame(incoming, 'enter', 1);
+        applyMainNavMobileFrame(incoming, 'enter', 1, direction, distance);
         resetPanelStyles([...outgoing, ...incoming]);
         document.body.classList.remove('main-nav-switching');
         resolve();
@@ -601,11 +600,9 @@ async function switchMainNav(tab) {
 
   syncMainNavButtons(normalizedTab);
   setBottomNavVisibility(normalizedTab !== 'profile');
-  if (normalizedTab === 'discover') loadActiveDiscoveryHub();
   if (normalizedTab === 'community') {
     activeFriendsTab = 'activity';
     activeActivitySubTab = 'feed';
-    loadFriendActivity();
   }
 
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -619,8 +616,16 @@ async function switchMainNav(tab) {
       if (normalizedTab === 'community') {
         activeFriendsTab = 'activity';
         activeActivitySubTab = 'feed';
-        loadCommunity(true);
-        loadFriendActivity();
+        if (typeof switchFriendsTab === 'function') switchFriendsTab('activity');
+        const hydrateCommunity = () => {
+          loadCommunity(true);
+          if (typeof loadFriendActivity === 'function') loadFriendActivity();
+        };
+        if (isMobileMainNav) {
+          setTimeout(() => requestAnimationFrame(hydrateCommunity), MAIN_NAV_MOBILE_TOTAL_MS + 36);
+        } else {
+          requestAnimationFrame(hydrateCommunity);
+        }
       }
       if (normalizedTab === 'discover') loadActiveDiscoveryHub();
       if (normalizedTab === 'mylist' && viewingUser) await backToMyList();

@@ -1,7 +1,7 @@
-// Shelfd split runtime guard v283-discovery-search-results-polish.
+// Shelfd split runtime guard v302-splash-until-app-ready.
 // Direct chunk loads set this flag so compatibility /script.js never double-loads them.
 window.__shelfdSplitScriptsLoading = true;
-window.__shelfdSplitChunkVersion = '283-discovery-search-results-polish';
+window.__shelfdSplitChunkVersion = '302-splash-until-app-ready';
 
 // ScreenList deploy auto-refresh: all browser + PWA clients show a clear update screen before reloading.
 (function initScreenListDeployAutoRefresh() {
@@ -17,7 +17,8 @@ window.__shelfdSplitChunkVersion = '283-discovery-search-results-polish';
   const LIVE_UPDATE_SPLASH_KEY = 'screenlist-live-update-splash-v3';
   const LIVE_UPDATE_RELOAD_DELAY_MS = 3000;
   const LIVE_UPDATE_AFTER_LOAD_HOLD_MS = 700;
-  const LIVE_UPDATE_LOGO_SRC = '/live_update_splash_logo.png?v=283-discovery-search-results-polish';
+  const LIVE_UPDATE_APP_READY_TIMEOUT_MS = 10000;
+  const LIVE_UPDATE_LOGO_SRC = '/live_update_splash_logo.png?v=302-splash-until-app-ready';
   const LIVE_UPDATE_MESSAGE = 'the developer has just sent out a live update, please wait for refresh';
 
   function readVersionFromHtml(html) {
@@ -97,7 +98,31 @@ window.__shelfdSplitChunkVersion = '283-discovery-search-results-polish';
     if (!splash) return;
     splash.classList.remove('show');
     document.body.classList.remove('screenlist-live-update-active');
+    document.documentElement.classList.remove('screenlist-boot-hold');
+    const bootHoldStyle = document.getElementById('screenlist-boot-hold-style');
+    if (bootHoldStyle) bootHoldStyle.remove();
     setTimeout(() => splash.remove(), 260);
+  }
+
+  function waitForScreenListAppReadyThenHide(startedAt = Date.now(), minHoldMs = LIVE_UPDATE_AFTER_LOAD_HOLD_MS) {
+    const hideAfterReady = () => {
+      const elapsed = Date.now() - startedAt;
+      const delay = Math.max(0, minHoldMs - elapsed);
+      setTimeout(hideLiveUpdateSplash, delay);
+    };
+    if (window.__shelfdAppReady) {
+      hideAfterReady();
+      return;
+    }
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      window.removeEventListener('shelfd:app-ready', finish);
+      hideAfterReady();
+    };
+    window.addEventListener('shelfd:app-ready', finish, { once: true });
+    setTimeout(finish, LIVE_UPDATE_APP_READY_TIMEOUT_MS);
   }
 
   function finishReloadSplashIfNeeded() {
@@ -114,10 +139,9 @@ window.__shelfdSplitChunkVersion = '283-discovery-search-results-polish';
     } catch (e) {}
     if (!shouldShow) return;
     const run = () => {
+      const startedAt = Date.now();
       showLiveUpdateSplash();
-      const hide = () => setTimeout(hideLiveUpdateSplash, LIVE_UPDATE_AFTER_LOAD_HOLD_MS);
-      if (document.readyState === 'complete') hide();
-      else window.addEventListener('load', hide, { once: true });
+      waitForScreenListAppReadyThenHide(startedAt, LIVE_UPDATE_AFTER_LOAD_HOLD_MS);
     };
     if (document.body) run();
     else window.addEventListener('DOMContentLoaded', run, { once: true });
@@ -164,10 +188,7 @@ window.__shelfdSplitChunkVersion = '283-discovery-search-results-polish';
     const pageStartMs = Date.now();
     const run = () => {
       showLiveUpdateSplash();
-      const hideAfter = Math.max(0, 1200 - (Date.now() - pageStartMs));
-      const hide = () => setTimeout(hideLiveUpdateSplash, hideAfter);
-      if (document.readyState === 'complete') hide();
-      else window.addEventListener('load', hide, { once: true });
+      waitForScreenListAppReadyThenHide(pageStartMs, 1200);
     };
     if (document.body) run();
     else window.addEventListener('DOMContentLoaded', run, { once: true });

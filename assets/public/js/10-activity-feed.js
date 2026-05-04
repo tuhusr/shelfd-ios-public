@@ -434,6 +434,101 @@ function closeScreenListActivityPostPrompt() {
   screenlistActivityPostPromptState = null;
 }
 
+
+function handleScreenListActivityCardOpen(activityId = '', kind = 'activity') {
+  const cleanId = String(activityId || '').trim();
+  if (!cleanId) return;
+  const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const opener = kind === 'feed' ? () => openFeedPostPage(cleanId) : () => openActivityReplyPage(cleanId);
+  if (reduceMotion) {
+    opener();
+    return;
+  }
+  requestAnimationFrame(() => opener());
+}
+
+function setFeedPostPageDeleteButton(postId = '', collection = 'feed', visible = false) {
+  const btn = document.getElementById('feed-post-delete-top-btn');
+  if (!btn) return;
+  const cleanPostId = String(postId || '').trim();
+  const cleanCollection = collection === 'activities' ? 'activities' : 'feed';
+  btn.dataset.postId = visible ? cleanPostId : '';
+  btn.dataset.collection = cleanCollection;
+  btn.style.display = visible && cleanPostId ? 'inline-flex' : 'none';
+  btn.classList.toggle('is-visible', !!(visible && cleanPostId));
+}
+
+function deleteCurrentFeedPostPagePost() {
+  const btn = document.getElementById('feed-post-delete-top-btn');
+  const postId = String(btn?.dataset?.postId || currentFeedPostId || '').trim();
+  const collection = String(btn?.dataset?.collection || currentFeedPostCollection || 'feed').trim();
+  if (!postId) return;
+  openScreenListDeletePostPrompt(postId, collection);
+}
+
+function closeScreenListDeletePostPrompt() {
+  const modal = document.getElementById('screenlist-delete-post-modal');
+  if (!modal) return;
+  modal.classList.remove('open');
+  window.setTimeout(() => modal.remove(), 220);
+}
+
+function openScreenListDeletePostPrompt(postId = '', collection = 'feed') {
+  const cleanPostId = String(postId || '').trim();
+  const cleanCollection = collection === 'activities' ? 'activities' : 'feed';
+  if (!cleanPostId || !currentUser) return;
+  closeScreenListDeletePostPrompt();
+  const modal = document.createElement('div');
+  modal.id = 'screenlist-delete-post-modal';
+  modal.className = 'screenlist-completion-modal screenlist-delete-post-modal';
+  modal.innerHTML = `
+    <div class="screenlist-completion-card screenlist-delete-post-card" role="dialog" aria-modal="true" aria-label="Confirm delete post">
+      <div class="screenlist-delete-post-copy">
+        <p>Delete this post? This removes it from the Activity Feed.</p>
+      </div>
+      <div class="screenlist-completion-actions screenlist-delete-post-actions">
+        <button class="btn-secondary screenlist-delete-post-cancel" type="button" onclick="closeScreenListDeletePostPrompt()">Cancel</button>
+        <button class="btn-primary screenlist-delete-post-confirm" type="button" onclick="confirmScreenListDeletePost('${escAttr(cleanPostId)}','${escAttr(cleanCollection)}')">Delete Post</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  requestAnimationFrame(() => modal.classList.add('open'));
+}
+
+async function confirmScreenListDeletePost(postId = '', collection = 'feed') {
+  const cleanPostId = String(postId || '').trim();
+  const cleanCollection = collection === 'activities' ? 'activities' : 'feed';
+  if (!currentUser || !cleanPostId) return;
+  const modal = document.getElementById('screenlist-delete-post-modal');
+  const card = modal?.querySelector?.('.screenlist-delete-post-card');
+  const confirmBtn = modal?.querySelector?.('.screenlist-delete-post-confirm');
+  const cancelBtn = modal?.querySelector?.('.screenlist-delete-post-cancel');
+  if (card) card.classList.add('saving');
+  if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'Deleting...'; }
+  if (cancelBtn) cancelBtn.disabled = true;
+  try {
+    await db.collection(cleanCollection).doc(cleanPostId).delete();
+    friendActivityCache = null;
+    friendActivityPromise = null;
+    if (Array.isArray(window.feedPosts)) {
+      window.feedPosts = window.feedPosts.filter(post => String(post.postId || post.id || '') !== cleanPostId);
+    }
+    if (currentFeedPostId === cleanPostId || document.getElementById('feed-post-page')?.style.display !== 'none') {
+      try { closeFeedPostPage(); } catch (error) {}
+    }
+    if (typeof loadActivityTabFeed === 'function') loadActivityTabFeed();
+    closeScreenListDeletePostPrompt();
+    if (typeof showToast === 'function') showToast('Post deleted');
+  } catch (err) {
+    console.error('Error deleting post:', err);
+    if (typeof showToast === 'function') showToast('Could not delete post. Try again.');
+    if (card) card.classList.remove('saving');
+    if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = 'Delete Post'; }
+    if (cancelBtn) cancelBtn.disabled = false;
+  }
+}
+
 function openScreenListActivityPostPrompt(options = {}) {
   if (!currentUser || !isScreenListCompletedStatus(options.status || 'watched')) return;
   const item = options.item || {};
@@ -537,29 +632,8 @@ async function unlikeFeedPost(postId) {
   });
 }
 
-async function deleteFeedPost(postId) {
-  if (!currentUser) return;
-  
-  // Confirm deletion
-  if (!confirm('Delete this post? This cannot be undone.')) {
-    return;
-  }
-  
-  try {
-    await db.collection('feed').doc(postId).delete();
-    
-    // Clear cache and reload feed
-    friendActivityCache = null;
-    friendActivityPromise = null;
-    loadActivityTabFeed();
-    
-    if (typeof showToast === 'function') {
-      showToast('Post deleted');
-    }
-  } catch(err) {
-    console.error('Error deleting post:', err);
-    alert('Failed to delete post');
-  }
+async function deleteFeedPost(postId, collection = 'feed') {
+  openScreenListDeletePostPrompt(postId, collection);
 }
 
 async function fetchFeedPosts(limit = 50) {
@@ -913,22 +987,12 @@ function buildFeedPostCardHTML(a, activityId, options = {}) {
   const avatarSrc = actor.photo || a.photo || '';
   const initial = getDisplayName(actor, 'F').charAt(0).toUpperCase();
   const meta = ACTIVITY_TYPE_META[a.type] || ACTIVITY_TYPE_META.post;
-  const isOwnPost = currentUser && a.uid === currentUser.uid;
   
   const avatarHtml = avatarSrc
     ? `<img class="activity-card-avatar ${meta.ringClass}" src="${escAttr(avatarSrc)}" alt="" loading="lazy" onclick="event.stopPropagation(); openActivityUserList('${escAttr(a.uid)}','','',event.currentTarget)" style="cursor:pointer;" title="View list" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="activity-card-avatar-placeholder ${meta.ringClass}" style="display:none;cursor:pointer;" onclick="event.stopPropagation(); openActivityUserList('${escAttr(a.uid)}','','',event.currentTarget)" title="View list">${initial}</div>`
     : `<div class="activity-card-avatar-placeholder ${meta.ringClass}" style="cursor:pointer;" onclick="event.stopPropagation(); openActivityUserList('${escAttr(a.uid)}','','',event.currentTarget)" title="View list">${initial}</div>`;
   
   const nameHtml = `<span class="activity-card-name" style="cursor:pointer;" onclick="event.stopPropagation(); viewUserFromMap('${escAttr(a.uid)}')">${renderDisplayNameHTML(actor, 'Friend', '')}</span>`;
-  
-  // Delete button (only for own posts)
-  const deleteBtn = isOwnPost 
-    ? `<button class="feed-post-delete-btn" onclick="event.stopPropagation(); deleteFeedPost('${escAttr(a.postId || a.id)}')" title="Delete post">
-         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-           <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
-         </svg>
-       </button>`
-    : '';
   
   let postContentHtml = '';
   
@@ -985,13 +1049,12 @@ function buildFeedPostCardHTML(a, activityId, options = {}) {
     </div>
   `;
   
-  return `<div class="activity-card feed-post ${meta.topClass}" data-activity-card-id="${escAttr(activityId)}" data-post-id="${escAttr(a.postId || a.id || '')}">
+  return `<div class="activity-card feed-post ${meta.topClass}" data-activity-card-id="${escAttr(activityId)}" data-post-id="${escAttr(a.postId || a.id || '')}" onclick="handleScreenListActivityCardOpen('${escAttr(a.postId || a.id || activityId)}','feed')">
     <div class="activity-avatar-wrap">${avatarHtml}</div>
     <div class="activity-content-col">
       <div class="activity-who-row">
         ${nameHtml}
         <span class="activity-card-time" style="margin-left:auto;">${timeStr}</span>
-        ${deleteBtn}
       </div>
       ${postContentHtml}
       <div class="activity-card-bottom">
@@ -1088,6 +1151,9 @@ async function openActivityReplyPage(activityId) {
     pointer-events: auto !important;
   `;
   document.body.style.overflow = 'hidden';
+  setFeedPostPageDeleteButton('', 'feed', false);
+  clearFeedReplyParent(false);
+  prepareFeedPostPageForOpen(page);
 
   const inner = page.querySelector('.overlay-page-inner');
   if (inner) inner.scrollTop = 0;
@@ -1113,6 +1179,8 @@ async function openActivityReplyPage(activityId) {
     currentFeedPostId = target.id;
     currentFeedPostCollection = target.collection || 'activities';
     const activity = { ...target.activity, id: target.id, _collection: target.collection };
+    const canDeleteDetailPost = !!(currentUser && activity.uid === currentUser.uid && (currentFeedPostCollection === 'feed' || activity.type === 'activity_post' || activity.type === 'post' || activity.type === 'trailer'));
+    setFeedPostPageDeleteButton(target.id, currentFeedPostCollection, canDeleteDetailPost);
     console.log('Activity loaded:', activity);
 
     if (detailContainer) {
@@ -1138,18 +1206,27 @@ async function openActivityReplyPage(activityId) {
   }
 }
 
-function buildFeedReplyItemHTML(reply, index = 0, total = 1) {
+function getFeedReplyParentId(reply = {}) {
+  return String(reply.parentReplyId || reply.replyToId || reply.inReplyToId || '').trim();
+}
+
+function getFeedReplyStableId(reply = {}, index = 0) {
+  return String(reply.id || reply.replyId || `reply-${reply.uid || 'user'}-${reply.timestamp || index}-${index}`).trim();
+}
+
+function buildFeedReplyItemHTML(reply, index = 0, total = 1, depth = 0, childHtml = '') {
+  const replyId = getFeedReplyStableId(reply, index);
   const user = usersMap[reply.uid] || { uid: reply.uid, name: 'User' };
   const avatarSrc = user.photo || user.photoURL || '';
   const name = getDisplayName(user, user.displayName || user.name || 'User');
   const initial = String(name || 'U').charAt(0).toUpperCase();
   const timeStr = relativeTime(reply.timestamp);
-  const showLine = index < total - 1;
+  const showLine = index < total - 1 || !!childHtml;
   const avatarHtml = avatarSrc
     ? `<img class="feed-reply-avatar-img" src="${escAttr(avatarSrc)}" alt="" loading="lazy">`
     : `<div class="feed-reply-avatar-img feed-reply-avatar-placeholder">${escHtml(initial)}</div>`;
 
-  return `<article class="feed-reply-item x-reply-item">
+  return `<article class="feed-reply-item x-reply-item ${depth ? 'feed-reply-nested' : ''}" data-reply-id="${escAttr(replyId)}" style="--reply-depth:${Math.min(3, depth)}">
     <div class="feed-reply-avatar-col">
       ${avatarHtml}
       ${showLine ? '<div class="feed-reply-thread-line"></div>' : ''}
@@ -1160,13 +1237,38 @@ function buildFeedReplyItemHTML(reply, index = 0, total = 1) {
         <span class="feed-reply-time">${timeStr}</span>
       </div>
       <div class="feed-reply-text">${escHtml(reply.text || '')}</div>
+      <button class="feed-reply-inline-reply" type="button" onclick="event.stopPropagation(); startFeedReplyTo('${escAttr(replyId)}','${escAttr(reply.uid || '')}')">Reply</button>
+      ${childHtml ? `<div class="feed-reply-children">${childHtml}</div>` : ''}
     </div>
   </article>`;
 }
 
 function renderFeedRepliesList(replies = []) {
-  const sortedReplies = [...replies].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-  return sortedReplies.map((reply, index) => buildFeedReplyItemHTML(reply, index, sortedReplies.length)).join('');
+  const normalized = [...replies]
+    .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
+    .map((reply, index) => ({ ...reply, id: getFeedReplyStableId(reply, index) }));
+  const byId = new Map(normalized.map(reply => [String(reply.id), reply]));
+  const byParent = new Map();
+
+  normalized.forEach(reply => {
+    const parentId = getFeedReplyParentId(reply);
+    const key = parentId && byId.has(parentId) ? parentId : '';
+    if (!byParent.has(key)) byParent.set(key, []);
+    byParent.get(key).push(reply);
+  });
+
+  const seen = new Set();
+  const renderBranch = (parentId = '', depth = 0) => {
+    const children = byParent.get(parentId) || [];
+    return children.map((reply, index) => {
+      if (seen.has(reply.id)) return '';
+      seen.add(reply.id);
+      const childHtml = depth >= 3 ? '' : renderBranch(reply.id, depth + 1);
+      return buildFeedReplyItemHTML(reply, index, children.length, depth, childHtml);
+    }).join('');
+  };
+
+  return renderBranch('', 0);
 }
 
 function updateActivityReplyCountBadge(postId, count) {
@@ -1532,6 +1634,165 @@ async function openMediaProfileFromTrailer(content, triggerEl = null) {
 // Feed Post Detail Page
 let currentFeedPostId = null;
 let currentFeedPostCollection = 'feed';
+let currentFeedReplyParentId = '';
+let feedPostSwipeBackReady = false;
+let feedPostSwipeBackState = null;
+
+function isFeedPostSwipeBlockedTarget(target) {
+  return !!(target && target.closest && target.closest('textarea, input, select, button, a, [contenteditable="true"], .x-post-media-poster'));
+}
+
+function resetFeedPostSwipeState(page = document.getElementById('feed-post-page')) {
+  if (!page) return;
+  page.classList.remove('feed-post-swipe-dragging', 'feed-post-swipe-closing', 'feed-post-swipe-restoring');
+  page.style.removeProperty('--feed-post-swipe-x');
+  page.style.removeProperty('--feed-post-swipe-rotate');
+  page.style.transform = '';
+  page.style.transition = '';
+  feedPostSwipeBackState = null;
+}
+
+function prepareFeedPostPageForOpen(page = document.getElementById('feed-post-page')) {
+  if (!page) return;
+  resetFeedPostSwipeState(page);
+  installFeedPostSwipeBack(page);
+}
+
+function installFeedPostSwipeBack(page = document.getElementById('feed-post-page')) {
+  if (!page || feedPostSwipeBackReady) return;
+  feedPostSwipeBackReady = true;
+
+  page.addEventListener('touchstart', event => {
+    if (!event.touches || event.touches.length !== 1 || isFeedPostSwipeBlockedTarget(event.target)) return;
+    const touch = event.touches[0];
+    feedPostSwipeBackState = {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      lastX: touch.clientX,
+      startedAt: Date.now(),
+      dragging: false
+    };
+  }, { passive: true });
+
+  page.addEventListener('touchmove', event => {
+    const state = feedPostSwipeBackState;
+    if (!state || !event.touches || event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    const dx = Math.max(0, touch.clientX - state.startX);
+    const dy = touch.clientY - state.startY;
+    if (!state.dragging) {
+      if (dx < 14) return;
+      if (Math.abs(dy) > dx * 0.72) {
+        feedPostSwipeBackState = null;
+        return;
+      }
+      state.dragging = true;
+      page.classList.add('feed-post-swipe-dragging');
+      page.style.transition = 'none';
+    }
+    event.preventDefault();
+    state.lastX = touch.clientX;
+    const width = Math.max(1, window.innerWidth || page.offsetWidth || 390);
+    const progress = Math.min(1, dx / width);
+    const rotate = Math.min(9, progress * 9);
+    page.style.setProperty('--feed-post-swipe-x', `${dx}px`);
+    page.style.setProperty('--feed-post-swipe-rotate', `${rotate}deg`);
+    page.style.transform = `translate3d(${dx}px, 0, 0) rotate(${rotate}deg)`;
+  }, { passive: false });
+
+  const finishSwipe = () => {
+    const state = feedPostSwipeBackState;
+    if (!state) return;
+    if (!state.dragging) {
+      feedPostSwipeBackState = null;
+      return;
+    }
+    const pageWidth = Math.max(1, window.innerWidth || page.offsetWidth || 390);
+    const dx = Math.max(0, (state.lastX || state.startX) - state.startX);
+    const elapsed = Math.max(1, Date.now() - state.startedAt);
+    const velocity = dx / elapsed;
+    const shouldClose = dx > pageWidth * 0.34 || (dx > 72 && velocity > 0.55);
+    page.classList.remove('feed-post-swipe-dragging');
+    page.style.transition = '';
+    if (shouldClose) {
+      page.classList.add('feed-post-swipe-closing');
+      page.style.transform = 'translate3d(104vw, 0, 0) rotate(9deg)';
+      window.setTimeout(() => closeFeedPostPage(), 260);
+    } else {
+      page.classList.add('feed-post-swipe-restoring');
+      page.style.transform = 'translate3d(0, 0, 0) rotate(0deg)';
+      window.setTimeout(() => resetFeedPostSwipeState(page), 260);
+    }
+    feedPostSwipeBackState = null;
+  };
+
+  page.addEventListener('touchend', finishSwipe, { passive: true });
+  page.addEventListener('touchcancel', () => {
+    if (feedPostSwipeBackState?.dragging) {
+      page.classList.remove('feed-post-swipe-dragging');
+      page.classList.add('feed-post-swipe-restoring');
+      page.style.transition = '';
+      page.style.transform = 'translate3d(0, 0, 0) rotate(0deg)';
+      window.setTimeout(() => resetFeedPostSwipeState(page), 260);
+    }
+    feedPostSwipeBackState = null;
+  }, { passive: true });
+}
+
+function updateFeedReplyContext() {
+  const composer = document.getElementById('feed-post-replies-composer');
+  if (!composer) return;
+  let context = composer.querySelector('.feed-reply-context');
+  if (!context) {
+    context = document.createElement('div');
+    context.className = 'feed-reply-context';
+    const target = composer.querySelector('.feed-reply-composer') || composer.firstChild;
+    composer.insertBefore(context, target || null);
+  }
+  const parentId = String(currentFeedReplyParentId || '').trim();
+  if (!parentId) {
+    context.style.display = 'none';
+    context.innerHTML = '';
+    return;
+  }
+  const author = context.dataset.replyAuthor || 'comment';
+  context.style.display = 'flex';
+  context.innerHTML = `<span>Replying to ${escHtml(author)}</span><button type="button" onclick="clearFeedReplyParent()" aria-label="Cancel threaded reply">×</button>`;
+}
+
+function clearFeedReplyParent(focusInput = false) {
+  currentFeedReplyParentId = '';
+  const composer = document.getElementById('feed-post-replies-composer');
+  const context = composer?.querySelector?.('.feed-reply-context');
+  if (context) {
+    context.dataset.replyAuthor = '';
+    context.style.display = 'none';
+    context.innerHTML = '';
+  }
+  const input = document.getElementById('feed-reply-input');
+  if (input) {
+    input.placeholder = 'Post your reply';
+    if (focusInput) input.focus();
+  }
+}
+
+function startFeedReplyTo(replyId = '', uid = '') {
+  const cleanReplyId = String(replyId || '').trim();
+  if (!cleanReplyId) return;
+  currentFeedReplyParentId = cleanReplyId;
+  const user = usersMap[uid] || { uid, name: 'comment' };
+  const name = getDisplayName(user, user.displayName || user.name || 'comment');
+  const composer = document.getElementById('feed-post-replies-composer');
+  const context = composer?.querySelector?.('.feed-reply-context');
+  if (context) context.dataset.replyAuthor = name || 'comment';
+  const input = document.getElementById('feed-reply-input');
+  if (input) {
+    input.placeholder = `Reply to ${name || 'comment'}`;
+    input.focus();
+    input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  updateFeedReplyContext();
+}
 
 async function openFeedPostPage(postId) {
   console.log('=== openFeedPostPage called ===');
@@ -1582,6 +1843,9 @@ async function openFeedPostPage(postId) {
     pointer-events: auto !important;
   `;
   document.body.style.overflow = 'hidden';
+  setFeedPostPageDeleteButton('', 'feed', false);
+  clearFeedReplyParent(false);
+  prepareFeedPostPageForOpen(page);
   
   // Add visual confirmation
   console.log('Page computed styles:', {
@@ -1620,6 +1884,7 @@ async function openFeedPostPage(postId) {
     }
     
     const post = { ...doc.data(), id: doc.id };
+    setFeedPostPageDeleteButton(postId, 'feed', !!(currentUser && post.uid === currentUser.uid));
     console.log('Post data:', post);
     
     // Render post using simplified version
@@ -1790,7 +2055,12 @@ function focusFeedReplyInput() {
 
 function closeFeedPostPage() {
   const page = document.getElementById('feed-post-page');
-  if (page) page.style.display = 'none';
+  if (page) {
+    page.style.display = 'none';
+    resetFeedPostSwipeState(page);
+  }
+  setFeedPostPageDeleteButton('', 'feed', false);
+  clearFeedReplyParent(false);
   document.body.style.overflow = '';
   currentFeedPostId = null;
   currentFeedPostCollection = 'feed';
@@ -1802,6 +2072,8 @@ function initReplyComposer() {
   const btn = document.getElementById('feed-reply-btn');
   
   if (!avatar || !input || !btn || !currentUser) return;
+  clearFeedReplyParent(false);
+  updateFeedReplyContext();
   
   const user = usersMap[currentUser.uid] || currentUser;
   const photo = user.photo || user.photoURL || '';
@@ -1839,11 +2111,13 @@ async function submitFeedReply() {
   
   try {
     const replyId = crypto.randomUUID ? crypto.randomUUID() : `reply-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const parentReplyId = String(currentFeedReplyParentId || '').trim();
     const reply = {
       id: replyId,
       uid: currentUser.uid,
       text,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      ...(parentReplyId ? { parentReplyId } : {})
     };
 
     const collection = currentFeedPostCollection || 'feed';
@@ -1859,6 +2133,7 @@ async function submitFeedReply() {
 
     input.value = '';
     input.style.height = 'auto';
+    clearFeedReplyParent(false);
     btn.textContent = 'Reply';
     btn.disabled = true;
 
@@ -2074,7 +2349,7 @@ function buildActivityCardHTML(a, activityId, options = {}) {
     ? `<span class="sl-activity-name-spacer" aria-hidden="true"></span>`
     : `<button class="sl-activity-name" type="button" onclick="event.stopPropagation(); openActivityUserList('${escAttr(a.uid)}','${escAttr(actor.name || actor.customName || a.name || '')}','${escAttr(avatarSrc)}',event.currentTarget)">${actorName}</button>`;
 
-  return `<article class="shelfd-social-card ${meta.topClass}" data-activity-card-id="${escAttr(activityId)}" data-activity-id="${escAttr(activityId)}" data-shelfd-activity-card="v4">
+  return `<article class="shelfd-social-card ${meta.topClass}" data-activity-card-id="${escAttr(activityId)}" data-activity-id="${escAttr(activityId)}" data-shelfd-activity-card="v4" onclick="handleScreenListActivityCardOpen('${escAttr(activityId)}','activity')">
     <div class="sl-activity-main">
       <div class="sl-activity-avatar-zone">${avatarHtml}</div>
       <div class="sl-activity-copy-zone">
@@ -2141,7 +2416,7 @@ function buildActivityFeedHeaderHTML(heading = 'Activity Feed', options = {}) {
     const sharedWatchActive = activeActivitySubTab === 'sharedWatch';
     actionButtons.push(`<button type="button" class="activity-shared-watch-pill friend-watch-pill ${friendWatchActive ? 'active' : 'secondary'}" aria-current="${friendWatchActive ? 'true' : 'false'}" onclick="switchActivitySubTab('friendWatch')">Watch Together ${buildSharedWatchCountBubbleHTML()}</button>`);
     actionButtons.push(`<button type="button" class="activity-shared-watch-pill activity-feed-pill ${feedActive ? 'active' : 'secondary'}" aria-current="${feedActive ? 'true' : 'false'}" onclick="switchActivitySubTab('feed')">Activity</button>`);
-    actionButtons.push(`<button type="button" class="activity-shared-watch-pill ${sharedWatchActive ? 'active' : 'secondary'}" aria-current="${sharedWatchActive ? 'true' : 'false'}" onclick="switchActivitySubTab('sharedWatch')">Shared Watch</button>`);
+    actionButtons.push(`<button type="button" class="activity-shared-watch-pill shared-watch-tab-pill ${sharedWatchActive ? 'active' : 'secondary'}" aria-current="${sharedWatchActive ? 'true' : 'false'}" onclick="switchActivitySubTab('sharedWatch')">Shared Watch</button>`);
   }
   if (options.hideHeading && !actionButtons.length) return '';
   return `<div class="activity-feed-header"><span class="activity-feed-heading">${options.hideHeading ? '' : escHtml(heading)}</span><div class="activity-feed-actions">${actionButtons.join('')}</div></div>`;

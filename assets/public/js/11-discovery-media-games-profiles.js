@@ -1356,7 +1356,7 @@ async function fetchTmdbSearchResults(query) {
     return json.results || [];
   }));
   const seen = new Set();
-  return settled
+  const items = settled
     .filter(result => result.status === 'fulfilled')
     .flatMap(result => result.value)
     .filter(item => {
@@ -1365,11 +1365,12 @@ async function fetchTmdbSearchResults(query) {
       if ((type !== 'movie' && type !== 'tv') || !item.poster_path || seen.has(key)) return false;
       seen.add(key);
       return true;
-    })
+    });
+  return preferDiscoverUniversalPrefixMatches(items, query)
     .sort((a, b) => {
-      const scoreA = (Number(a.popularity || 0) * 1.4) + (Number(a.vote_count || 0) * 0.06) + (Number(a.vote_average || 0) * 5);
-      const scoreB = (Number(b.popularity || 0) * 1.4) + (Number(b.vote_count || 0) * 0.06) + (Number(b.vote_average || 0) * 5);
-      return scoreB - scoreA;
+      const scoreCompare = scoreDiscoverUniversalTmdbResult(b, query) - scoreDiscoverUniversalTmdbResult(a, query);
+      if (scoreCompare) return scoreCompare;
+      return String((a.title || a.name || '')).localeCompare(String(b.title || b.name || ''), undefined, { sensitivity: 'base' });
     })
     .slice(0, DISCOVER_LIMIT);
 }
@@ -1418,9 +1419,42 @@ async function searchAnimeDiscoverDatabase() {
   }
 }
 
+function mergeDiscoverUniversalSearchItems(groups = []) {
+  const seen = new Set();
+  return groups.flat().filter(item => {
+    const key = String(item?.id || item?.slug || item?.name || '').trim();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 async function fetchRawgSearchResults(query) {
-  const pool = await fetchRawgPages({ search: query, ordering: '-added' }, DISCOVER_PAGE_COUNT, DISCOVER_LIMIT);
-  return rankGames(pool, 'popular');
+  const cleanQuery = String(query || '').trim();
+  if (!cleanQuery) return [];
+  const settled = await Promise.allSettled([
+    fetchRawgPages({ search: cleanQuery }, DISCOVER_PAGE_COUNT, 90),
+    fetchRawgPages({ search: cleanQuery, search_precise: 'true' }, 2, 60),
+    fetchRawgPages({ search: cleanQuery, search_exact: 'true' }, 1, 40),
+    fetchRawgPages({ search: cleanQuery, ordering: '-added' }, 2, 60)
+  ]);
+  const pool = mergeDiscoverUniversalSearchItems(
+    settled.filter(result => result.status === 'fulfilled').map(result => result.value || [])
+  );
+  const rankedPool = pool
+    .map(item => ({
+      ...item,
+      calculatedScore: scoreDiscoverUniversalGameResult(item, cleanQuery),
+      discoverContext: buildGameDiscoverContext(item)
+    }))
+    .sort((a, b) => {
+      const scoreCompare = Number(b.calculatedScore || 0) - Number(a.calculatedScore || 0);
+      if (scoreCompare) return scoreCompare;
+      const addedCompare = gameAddedCount(b) - gameAddedCount(a);
+      if (addedCompare) return addedCompare;
+      return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' });
+    });
+  return preferDiscoverUniversalPrefixMatches(rankedPool, cleanQuery).slice(0, DISCOVER_LIMIT);
 }
 
 async function searchGamesDiscoverDatabase() {
@@ -1450,7 +1484,7 @@ async function searchGamesDiscoverDatabase() {
 let discoverUniversalSearchSource = 'tmdb';
 let discoverUniversalSearchTimer = null;
 let discoverUniversalSearchToken = 0;
-const DISCOVER_UNIVERSAL_SEARCH_DEBOUNCE_MS = 180;
+const DISCOVER_UNIVERSAL_SEARCH_DEBOUNCE_MS = 90;
 
 function normalizeDiscoverUniversalSearchSource(source = '') {
   const key = String(source || '').trim().toLowerCase();
@@ -1669,19 +1703,69 @@ function normalizeDiscoverUniversalRankText(value = '') {
     .trim();
 }
 
+function getDiscoverUniversalCompactTitleKey(value = '') {
+  return normalizeDiscoverUniversalRankText(value).replace(/[^a-z0-9]/g, '');
+}
+
+function getDiscoverUniversalTitleCandidates(item = {}) {
+  return [
+    item.title,
+    item.name,
+    item.original_title,
+    item.original_name,
+    item.slug ? String(item.slug).replace(/-/g, ' ') : ''
+  ].map(value => String(value || '').trim()).filter(Boolean);
+}
+
 function getDiscoverUniversalTitleMatchScore(query = '', title = '') {
   const q = normalizeDiscoverUniversalRankText(query);
   const t = normalizeDiscoverUniversalRankText(title);
-  if (!q || !t) return 0;
+  const compactQ = getDiscoverUniversalCompactTitleKey(query);
+  const compactT = getDiscoverUniversalCompactTitleKey(title);
+  if (!q || !t || !compactQ || !compactT) return 0;
+
   const tokens = q.split(' ').filter(Boolean);
+  const titleTokens = t.split(' ').filter(Boolean);
   let score = 0;
-  if (t === q) score += 1800;
-  else if (t.startsWith(q)) score += 1400;
-  else if (t.includes(q)) score += 950;
-  const matchedTokens = tokens.filter(token => t.includes(token)).length;
-  if (tokens.length) score += (matchedTokens / tokens.length) * 650;
-  if (tokens.length > 1 && matchedTokens === tokens.length) score += 420;
+
+  if (compactT === compactQ) score += 1000000;
+  else if (compactT.startsWith(compactQ)) score += 900000 + (compactQ.length * 9000);
+  else if (t === q) score += 820000;
+  else if (t.startsWith(q)) score += 760000 + (q.length * 5500);
+  else if (t.includes(q)) score += 260000 + (q.length * 1800);
+
+  if (tokens.length) {
+    const leadingMatches = tokens.reduce((count, token, index) => {
+      return count + (titleTokens[index] && titleTokens[index].startsWith(token) ? 1 : 0);
+    }, 0);
+    const matchedTokens = tokens.filter(token => titleTokens.some(titleToken => titleToken.startsWith(token) || titleToken.includes(token))).length;
+    score += (leadingMatches / tokens.length) * 145000;
+    score += (matchedTokens / tokens.length) * 50000;
+    if (tokens.length > 1 && leadingMatches === tokens.length) score += 125000;
+    if (tokens.length > 1 && matchedTokens === tokens.length) score += 45000;
+  }
+
   return score;
+}
+
+function getDiscoverUniversalBestTitleMatchScore(query = '', item = {}) {
+  return Math.max(0, ...getDiscoverUniversalTitleCandidates(item).map(title => getDiscoverUniversalTitleMatchScore(query, title)));
+}
+
+function isDiscoverUniversalPrefixTitleMatch(query = '', item = {}) {
+  const compactQ = getDiscoverUniversalCompactTitleKey(query);
+  const spacedQ = normalizeDiscoverUniversalRankText(query);
+  if (!compactQ || !spacedQ) return false;
+  return getDiscoverUniversalTitleCandidates(item).some(title => {
+    const compactT = getDiscoverUniversalCompactTitleKey(title);
+    const spacedT = normalizeDiscoverUniversalRankText(title);
+    return compactT.startsWith(compactQ) || spacedT.startsWith(spacedQ);
+  });
+}
+
+function preferDiscoverUniversalPrefixMatches(rows = [], query = '') {
+  const prefixRows = rows.filter(row => isDiscoverUniversalPrefixTitleMatch(query, row.item || row));
+  return prefixRows.length ? prefixRows : rows;
 }
 
 function scoreDiscoverUniversalTmdbResult(item = {}, query = '') {
@@ -1692,8 +1776,8 @@ function scoreDiscoverUniversalTmdbResult(item = {}, query = '') {
   const releaseDate = item.release_date || item.first_air_date || '';
   const year = Number(String(releaseDate).slice(0, 4));
   const recency = Number.isFinite(year) && year > 0 ? Math.max(0, Math.min(120, year - 1980)) : 0;
-  return getDiscoverUniversalTitleMatchScore(query, title)
-    + (popularity * 26)
+  return getDiscoverUniversalBestTitleMatchScore(query, item)
+    + (popularity * 18)
     + (Math.log10(votes + 1) * 520)
     + (rating * 42)
     + recency;
@@ -1707,8 +1791,8 @@ function scoreDiscoverUniversalGameResult(item = {}, query = '') {
   const metacritic = Number(item.metacritic || 0);
   const releasedYear = Number(String(item.released || '').slice(0, 4));
   const recency = Number.isFinite(releasedYear) && releasedYear > 0 ? Math.max(0, Math.min(80, releasedYear - 1990)) : 0;
-  return getDiscoverUniversalTitleMatchScore(query, title)
-    + (Math.log10(added + 1) * 650)
+  return getDiscoverUniversalBestTitleMatchScore(query, item)
+    + (Math.log10(added + 1) * 420)
     + (Math.log10(ratings + 1) * 420)
     + (rating * 120)
     + (metacritic * 4)
@@ -1831,10 +1915,12 @@ async function runDiscoverUniversalAllMediaSearch(query = '', grid = null, token
   if (token !== discoverUniversalSearchToken) return;
   const mediaItems = tmdbItems.status === 'fulfilled' ? tmdbItems.value : [];
   const gameItems = rawgItems.status === 'fulfilled' ? rawgItems.value : [];
-  const rows = [
+  const rows = preferDiscoverUniversalPrefixMatches([
     ...mediaItems.map(item => ({ kind: 'tmdb', item, score: scoreDiscoverUniversalTmdbResult(item, query) })),
     ...gameItems.map(item => ({ kind: 'game', item, score: scoreDiscoverUniversalGameResult(item, query) }))
-  ].sort((a, b) => Number(b.score || 0) - Number(a.score || 0)).slice(0, Math.max(DISCOVER_LIMIT, 18));
+  ].filter(row => Number(row.score || 0) > 0), query)
+    .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
+    .slice(0, Math.max(DISCOVER_LIMIT, 18));
   renderDiscoverUniversalSearchRows(rows, grid);
 }
 
