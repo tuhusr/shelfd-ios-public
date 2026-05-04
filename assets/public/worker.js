@@ -2,13 +2,16 @@ const TMDB_ORIGIN = "https://api.themoviedb.org/3/";
 const RAWG_ORIGIN = "https://api.rawg.io/api/";
 const TRAKT_ORIGIN = "https://api.trakt.tv";
 const OMDB_ORIGIN = "https://www.omdbapi.com/";
+const TAVILY_ORIGIN = "https://api.tavily.com/";
 const SCREENLIST_AI_MODEL = "@cf/meta/llama-3.1-8b-instruct";
 const SCREENLIST_AI_CACHE_TTL_SECONDS = 60 * 60 * 24 * 30;
 const SCREENLIST_API_CACHE_TTL_SECONDS = 60 * 60 * 6;
 const SCREENLIST_RANK_CACHE_TTL_SECONDS = 60 * 60 * 24;
 const SCREENLIST_IMDB_RATING_CACHE_TTL_SECONDS = 60 * 60 * 24 * 7;
+const SCREENLIST_TAVILY_RATING_CACHE_TTL_SECONDS = 60 * 60 * 24 * 30;
 const TRAKT_ENV_NAMES = ["TRAKT_CLIENT_ID", "TRAKT_API_KEY", "TRAKT_KEY", "TRAKT_CLIENT_KEY"];
 const OMDB_ENV_NAMES = ["OMDB_API_KEY", "OMDB_KEY", "IMDB_RATINGS_KEY", "IMDB_KEY"];
+const TAVILY_ENV_NAMES = ["TAVILY_API_KEY", "TAVILY_KEY"];
 
 function getEnvString(env, name) {
   const value = env && env[name];
@@ -59,6 +62,38 @@ function getOmdbConfigError(env) {
   const status = getOmdbPublicStatus(env);
   if (status.configured) return "";
   return `IMDb rating lookup is not configured. Add an OMDb API key as a Cloudflare Worker secret named ${OMDB_ENV_NAMES[0]}. Also accepted: ${OMDB_ENV_NAMES.slice(1).join(", ")}.`;
+}
+
+function getTavilyClientConfig(env) {
+  for (const name of TAVILY_ENV_NAMES) {
+    const value = getEnvString(env, name);
+    if (value) return { name, value };
+  }
+  return { name: "", value: "" };
+}
+
+function getTavilyPublicStatus(env) {
+  const config = getTavilyClientConfig(env);
+  return {
+    configured: !!config.value,
+    envName: config.name || "",
+    acceptedEnvNames: TAVILY_ENV_NAMES
+  };
+}
+
+function getTavilyConfigError(env) {
+  const status = getTavilyPublicStatus(env);
+  if (status.configured) return "";
+  return `Tavily search is not configured. Add your Tavily API key as a Cloudflare Worker secret named ${TAVILY_ENV_NAMES[0]}. Also accepted: ${TAVILY_ENV_NAMES.slice(1).join(", ")}.`;
+}
+
+function getRatingResolveSources(env) {
+  return {
+    tmdb: { configured: !!env.TMDB_KEY },
+    imdb: getOmdbPublicStatus(env),
+    ai: { configured: !!env.myscreenlistAi },
+    tavily: getTavilyPublicStatus(env)
+  };
 }
 
 function normalizeImdbTitleId(value = "") {
@@ -126,6 +161,661 @@ async function fetchOmdbImdbRating(env, imdbId = "", timeoutMs = 6500) {
     provider: "OMDb",
     omdb: getOmdbPublicStatus(env)
   };
+}
+
+
+async function fetchOmdbTitleRating(env, title = "", type = "tv", year = "", timeoutMs = 6500) {
+  const config = getOmdbClientConfig(env);
+  const cleanTitle = String(title || "").trim();
+  const cleanType = normalizeImdbMediaType(type) === "movie" ? "movie" : "series";
+  const cleanYear = String(year || "").trim().match(/^(18|19|20)\d{2}$/)?.[0] || "";
+
+  if (!config.value) {
+    return { ok: false, status: 500, error: getOmdbConfigError(env), omdb: getOmdbPublicStatus(env) };
+  }
+  if (!cleanTitle) {
+    return { ok: false, status: 400, error: "Missing title for IMDb rating lookup.", omdb: getOmdbPublicStatus(env) };
+  }
+
+  const url = new URL(OMDB_ORIGIN);
+  url.searchParams.set("t", cleanTitle);
+  url.searchParams.set("type", cleanType);
+  if (cleanYear) url.searchParams.set("y", cleanYear);
+  url.searchParams.set("apikey", config.value);
+  url.searchParams.set("plot", "short");
+  url.searchParams.set("r", "json");
+
+  const result = await fetchJsonWithTimeout(url, {}, timeoutMs);
+  const data = result.data && typeof result.data === "object" ? result.data : {};
+  const rating = normalizeOmdbRating(data.imdbRating);
+
+  if (!result.ok || data.Response === "False" || !rating) {
+    return {
+      ok: false,
+      status: result.status || 502,
+      error: data.Error || result.error || "IMDb title rating was not found.",
+      title: cleanTitle,
+      year: cleanYear,
+      omdb: getOmdbPublicStatus(env)
+    };
+  }
+
+  return {
+    ok: true,
+    status: result.status,
+    imdbId: normalizeImdbTitleId(data.imdbID || ""),
+    imdbRating: rating,
+    imdbVotes: data.imdbVotes || "",
+    title: data.Title || cleanTitle,
+    year: data.Year || cleanYear,
+    source: "IMDb",
+    provider: "OMDb",
+    lookup: "title",
+    omdb: getOmdbPublicStatus(env)
+  };
+}
+
+function normalizeAiRatingConfidence(value = "") {
+  const clean = String(value || "").trim().toLowerCase();
+  return ["high", "medium", "low"].includes(clean) ? clean : "low";
+}
+
+function parseAiRatingResult(body = {}, fallback = {}) {
+  const source = body && typeof body === "object" ? body : {};
+  const rawRating = source.rating ?? source.imdbRating ?? source.score ?? source.value ?? "";
+  const rating = normalizeOmdbRating(rawRating);
+  if (!rating) {
+    return {
+      ok: false,
+      source: "ai_fallback",
+      error: "AI did not return a usable 0-10 rating.",
+      title: String(source.title || fallback.title || "").trim(),
+      type: normalizeImdbMediaType(source.type || fallback.type || "tv"),
+      year: String(source.year || fallback.year || "").trim(),
+      confidence: normalizeAiRatingConfidence(source.confidence)
+    };
+  }
+  return {
+    ok: true,
+    source: "ai_fallback",
+    provider: "Cloudflare Workers AI",
+    imdbRating: rating,
+    aiRating: rating,
+    rating,
+    title: String(source.title || fallback.title || "").trim(),
+    type: normalizeImdbMediaType(source.type || fallback.type || "tv"),
+    year: String(source.year || fallback.year || "").trim(),
+    confidence: normalizeAiRatingConfidence(source.confidence),
+    note: String(source.note || source.reason || "AI fallback estimate; verify against IMDb/OMDb when available.").trim()
+  };
+}
+
+async function fetchAiRatingFallback(env, payload = {}) {
+  if (!env.myscreenlistAi || typeof env.myscreenlistAi.run !== "function") {
+    return {
+      ok: false,
+      source: "ai_fallback",
+      error: "Workers AI binding missing. Add binding name: myscreenlistAi."
+    };
+  }
+
+  const title = String(payload.title || "").trim();
+  const type = normalizeImdbMediaType(payload.type || "tv");
+  const year = String(payload.year || "").trim().match(/^(18|19|20)\d{2}$/)?.[0] || "";
+  if (!title) return { ok: false, source: "ai_fallback", error: "Missing title for AI rating fallback." };
+
+  const systemPrompt = [
+    "You are a fallback media-rating resolver for Shelfd.",
+    "Return valid JSON only. No markdown.",
+    "Estimate the current IMDb-style 0-10 rating for the requested movie or TV series.",
+    "Prefer the series/movie rating, not an episode rating, season rating, critic rating, or article/list rating.",
+    "If you are uncertain, still return your best estimate and set confidence to low.",
+    "JSON shape: {\"ok\":true,\"title\":string,\"type\":\"movie\"|\"tv\",\"year\":string,\"rating\":number,\"confidence\":\"high\"|\"medium\"|\"low\",\"note\":string}."
+  ].join(" ");
+  const userPrompt = JSON.stringify({ title, type, year, requestedSource: "IMDb rating", fallbackMode: true });
+
+  try {
+    const aiResult = await runWorkersAi(env, SCREENLIST_AI_MODEL, systemPrompt, userPrompt, 0.15, 300);
+    const text = cleanAiJsonText(extractAiText(aiResult));
+    let parsed = {};
+    try { parsed = JSON.parse(text); }
+    catch (error) { parsed = { rating: text, note: "AI returned non-JSON text." }; }
+    return parseAiRatingResult(parsed, { title, type, year });
+  } catch (error) {
+    return {
+      ok: false,
+      source: "ai_fallback",
+      error: errorMessage(error),
+      title,
+      type,
+      year,
+      confidence: "low"
+    };
+  }
+}
+
+async function resolveScreenListRating(payload = {}, env, ctx, options = {}) {
+  const type = normalizeImdbMediaType(payload.type || "tv");
+  const tmdbId = String(payload.tmdbId || payload.id || "").trim();
+  let imdbId = normalizeImdbTitleId(payload.imdbId || "");
+  const title = String(payload.title || payload.name || "").trim();
+  const year = String(payload.year || "").trim().match(/^(18|19|20)\d{2}$/)?.[0] || "";
+  const attempts = [];
+
+  let triedTavilySearchAi = false;
+  if (options.preferAi && options.allowAi !== false && title) {
+    triedTavilySearchAi = true;
+    const tavilyAi = await fetchTavilySearchAiRating(env, { title, type, year });
+    attempts.push({
+      step: "tavily_search_ai_primary",
+      ok: !!tavilyAi.ok,
+      confidence: tavilyAi.confidence || "low",
+      evidenceIndex: tavilyAi.evidenceIndex ?? null,
+      sourceUrl: tavilyAi.sourceUrl || "",
+      error: tavilyAi.error || ""
+    });
+    if (tavilyAi.ok) {
+      return {
+        ...tavilyAi,
+        ok: true,
+        type,
+        tmdbId,
+        imdbId,
+        requestedTitle: title,
+        requestedYear: year,
+        ratingSource: "tavily_search_ai",
+        attempts,
+        sources: getRatingResolveSources(env)
+      };
+    }
+  }
+
+  if (!imdbId && tmdbId) {
+    try {
+      imdbId = await fetchTmdbExternalImdbId(env, type, tmdbId, 6500);
+      attempts.push({ step: "tmdb_external_ids", ok: !!imdbId, imdbId });
+    } catch (error) {
+      attempts.push({ step: "tmdb_external_ids", ok: false, error: errorMessage(error) });
+    }
+  }
+
+  if (imdbId) {
+    const imdb = await fetchOmdbImdbRating(env, imdbId, 6500);
+    attempts.push({ step: "omdb_imdb_id", ok: !!imdb.ok, imdbId, error: imdb.error || "" });
+    if (imdb.ok) {
+      return {
+        ...imdb,
+        ok: true,
+        type,
+        tmdbId,
+        requestedTitle: title,
+        requestedYear: year,
+        ratingSource: "omdb_imdb_id",
+        attempts,
+        sources: getRatingResolveSources(env)
+      };
+    }
+  }
+
+  if (title) {
+    const titleLookup = await fetchOmdbTitleRating(env, title, type, year, 6500);
+    attempts.push({ step: "omdb_title_year", ok: !!titleLookup.ok, error: titleLookup.error || "" });
+    if (titleLookup.ok) {
+      return {
+        ...titleLookup,
+        ok: true,
+        type,
+        tmdbId,
+        requestedTitle: title,
+        requestedYear: year,
+        ratingSource: "omdb_title_year",
+        attempts,
+        sources: getRatingResolveSources(env)
+      };
+    }
+  }
+
+  if (options.allowAi !== false && title) {
+    if (!triedTavilySearchAi) {
+      const tavilyAi = await fetchTavilySearchAiRating(env, { title, type, year });
+      attempts.push({
+        step: "tavily_search_ai_fallback",
+        ok: !!tavilyAi.ok,
+        confidence: tavilyAi.confidence || "low",
+        evidenceIndex: tavilyAi.evidenceIndex ?? null,
+        sourceUrl: tavilyAi.sourceUrl || "",
+        error: tavilyAi.error || ""
+      });
+      if (tavilyAi.ok) {
+        return {
+          ...tavilyAi,
+          ok: true,
+          type,
+          tmdbId,
+          imdbId,
+          requestedTitle: title,
+          requestedYear: year,
+          ratingSource: "tavily_search_ai",
+          attempts,
+          sources: getRatingResolveSources(env)
+        };
+      }
+    }
+
+    const ai = await fetchAiRatingFallback(env, { title, type, year });
+    attempts.push({ step: "ai_memory_fallback", ok: !!ai.ok, confidence: ai.confidence || "low", error: ai.error || "" });
+    if (ai.ok) {
+      return {
+        ...ai,
+        ok: true,
+        type,
+        tmdbId,
+        imdbId,
+        requestedTitle: title,
+        requestedYear: year,
+        ratingSource: "ai_memory_fallback",
+        attempts,
+        sources: getRatingResolveSources(env)
+      };
+    }
+  }
+
+  return {
+    ok: false,
+    type,
+    tmdbId,
+    imdbId,
+    requestedTitle: title,
+    requestedYear: year,
+    error: "Rating could not be resolved through Tavily search AI, TMDB/OMDb, or AI memory fallback.",
+    attempts,
+    sources: getRatingResolveSources(env)
+  };
+}
+
+async function readRatingResolvePayload(request) {
+  const url = new URL(request.url);
+  if (request.method === "POST") {
+    try {
+      const body = await request.json();
+      if (body && typeof body === "object") return body;
+    } catch (error) {}
+  }
+  return {
+    type: url.searchParams.get("type"),
+    tmdbId: url.searchParams.get("tmdbId") || url.searchParams.get("id"),
+    imdbId: url.searchParams.get("imdbId"),
+    title: url.searchParams.get("title") || url.searchParams.get("name"),
+    year: url.searchParams.get("year"),
+    preferAi: url.searchParams.get("preferAi") === "1" || url.searchParams.get("displaySource") === "ai_first"
+  };
+}
+
+async function runRatingResolveEndpoint(request, env, ctx) {
+  const payload = await readRatingResolvePayload(request);
+  const type = normalizeImdbMediaType(payload.type || "tv");
+  const tmdbId = String(payload.tmdbId || payload.id || "").trim();
+  const imdbId = normalizeImdbTitleId(payload.imdbId || "");
+  const title = String(payload.title || payload.name || "").trim();
+  const year = String(payload.year || "").trim().match(/^(18|19|20)\d{2}$/)?.[0] || "";
+  const preferAi = payload.preferAi === true || payload.preferAi === "1" || String(payload.displaySource || "").trim() === "ai_first";
+  if (!tmdbId && !imdbId && !title) {
+    return jsonResponse({ ok: false, error: "Missing tmdbId, imdbId, or title." }, 400);
+  }
+
+  const url = new URL(request.url);
+  const cacheKey = new Request(`${url.origin}/__screenlist_rating_resolve/v4/${preferAi ? "ai-first" : "api-first"}/${type}/${tmdbId || "no-tmdb"}/${imdbId || "no-imdb"}/${encodeURIComponent(title || "no-title")}/${year || "no-year"}`, { method: "GET" });
+  const cached = await caches.default.match(cacheKey);
+  if (cached) {
+    const headers = new Headers(cached.headers);
+    headers.set("x-screenlist-rating-cache", "HIT");
+    return new Response(cached.body, { status: cached.status, statusText: cached.statusText, headers });
+  }
+
+  const result = await resolveScreenListRating({ type, tmdbId, imdbId, title, year }, env, ctx, { allowAi: true, preferAi });
+  const status = result.ok ? 200 : 502;
+  const ttl = String(result.ratingSource || "") === "tavily_search_ai" ? SCREENLIST_TAVILY_RATING_CACHE_TTL_SECONDS : SCREENLIST_IMDB_RATING_CACHE_TTL_SECONDS;
+  const response = jsonResponse(result, status, {
+    "Cache-Control": `public, max-age=${ttl}`,
+    "x-screenlist-rating-cache": "MISS"
+  });
+  if (result.ok && ctx?.waitUntil) ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+  return response;
+}
+
+async function runAiRatingTestEndpoint(request, env, ctx) {
+  const payload = await readRatingResolvePayload(request);
+  const title = String(payload.title || payload.name || "").trim();
+  const type = normalizeImdbMediaType(payload.type || "tv");
+  const year = String(payload.year || "").trim().match(/^(18|19|20)\d{2}$/)?.[0] || "";
+  if (!title) return jsonResponse({ ok: false, error: "Missing title." }, 400);
+  const result = await fetchAiRatingFallback(env, { title, type, year });
+  return jsonResponse({ ...result, testMode: true }, result.ok ? 200 : 502, {
+    "Cache-Control": "no-store"
+  });
+}
+
+function normalizeTavilyEvidenceText(value = "") {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 600);
+}
+
+function isTavilyImdbTitleEvidence(item = {}) {
+  return /imdb\.com\/title\/tt\d+/i.test(String(item.url || ""));
+}
+
+function isTavilyEpisodeEvidence(item = {}) {
+  const text = [item.title, item.url, item.content].map(value => String(value || "")).join(" ");
+  return /\bTV Episode\b/i.test(text) || /episode\s+\d+/i.test(text);
+}
+
+function isTavilyRatingsPageEvidence(item = {}) {
+  return /imdb\.com\/title\/tt\d+\/ratings\/?/i.test(String(item.url || ""));
+}
+
+function selectPreferredTavilyRatingEvidence(evidence = [], type = "tv") {
+  const mediaType = normalizeImdbMediaType(type);
+  const items = Array.isArray(evidence) ? evidence.filter(isTavilyImdbTitleEvidence) : [];
+  const nonEpisode = items.filter(item => !isTavilyEpisodeEvidence(item));
+  if (!nonEpisode.length) return null;
+
+  if (mediaType === "tv") {
+    return nonEpisode.find(item => isTavilyRatingsPageEvidence(item) && /\bTV Series\b/i.test(String(item.title || "")))
+      || nonEpisode.find(item => /\bTV Series\b/i.test(String(item.title || "")))
+      || nonEpisode.find(isTavilyRatingsPageEvidence)
+      || nonEpisode[0]
+      || null;
+  }
+
+  return nonEpisode.find(item => isTavilyRatingsPageEvidence(item) && !/\bTV Series\b/i.test(String(item.title || "")))
+    || nonEpisode.find(item => !/\bTV Series\b/i.test(String(item.title || "")))
+    || nonEpisode.find(isTavilyRatingsPageEvidence)
+    || nonEpisode[0]
+    || null;
+}
+
+function buildTavilyRatingSearchQuery(title = "", type = "tv", year = "") {
+  const cleanTitle = String(title || "").trim();
+  const cleanYear = String(year || "").trim();
+  const mediaLabel = normalizeImdbMediaType(type) === "movie" ? "movie" : "TV series";
+  return [`"${cleanTitle}"`, cleanYear, mediaLabel, "IMDb rating"].filter(Boolean).join(" ");
+}
+
+async function fetchTavilyRatingEvidence(env, payload = {}, timeoutMs = 9000) {
+  const config = getTavilyClientConfig(env);
+  const title = String(payload.title || "").trim();
+  const type = normalizeImdbMediaType(payload.type || "tv");
+  const year = String(payload.year || "").trim().match(/^(18|19|20)\d{2}$/)?.[0] || "";
+
+  if (!config.value) {
+    return { ok: false, error: getTavilyConfigError(env), tavily: getTavilyPublicStatus(env) };
+  }
+  if (!title) {
+    return { ok: false, error: "Missing title for Tavily rating search.", tavily: getTavilyPublicStatus(env) };
+  }
+
+  const query = buildTavilyRatingSearchQuery(title, type, year);
+  const result = await fetchJsonWithTimeout(new URL("search", TAVILY_ORIGIN), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${config.value}`
+    },
+    body: JSON.stringify({
+      query,
+      search_depth: "basic",
+      topic: "general",
+      include_answer: true,
+      include_raw_content: false,
+      max_results: 6
+    })
+  }, timeoutMs);
+
+  const data = result.data && typeof result.data === "object" ? result.data : {};
+  const evidence = Array.isArray(data.results) ? data.results.slice(0, 6).map((item, index) => ({
+    index,
+    title: String(item?.title || "").trim(),
+    url: String(item?.url || "").trim(),
+    content: normalizeTavilyEvidenceText(item?.content || item?.raw_content || ""),
+    score: Number.isFinite(Number(item?.score)) ? Number(item.score) : null
+  })).filter(item => item.title || item.url || item.content) : [];
+  const answer = normalizeTavilyEvidenceText(data.answer || "");
+
+  if (!result.ok || (!answer && !evidence.length)) {
+    return {
+      ok: false,
+      status: result.status || 502,
+      error: result.error || data.error || "Tavily search returned no usable rating evidence.",
+      query,
+      answer,
+      evidence,
+      tavily: getTavilyPublicStatus(env)
+    };
+  }
+
+  return {
+    ok: true,
+    status: result.status || 200,
+    query,
+    answer,
+    evidence,
+    responseTime: data.response_time || null,
+    tavily: getTavilyPublicStatus(env)
+  };
+}
+
+function parseTavilyAiRatingResult(body = {}, fallback = {}) {
+  const source = body && typeof body === "object" ? body : {};
+  const explicitlyOk = source.ok === true || String(source.ok || "").toLowerCase() === "true";
+  const rating = normalizeOmdbRating(source.rating ?? source.imdbRating ?? source.score ?? source.value ?? "");
+  const type = normalizeImdbMediaType(source.type || fallback.type || "tv");
+  const evidenceIndex = Number.isFinite(Number(source.evidenceIndex)) ? Number(source.evidenceIndex) : null;
+  const evidence = Array.isArray(fallback.evidence) ? fallback.evidence : [];
+  const matchedEvidence = evidenceIndex !== null ? evidence.find(item => Number(item.index) === evidenceIndex) : null;
+  const preferredEvidence = selectPreferredTavilyRatingEvidence(evidence, type);
+  const pickedEvidence = matchedEvidence || evidence.find(item => String(item.url || "").trim() === String(source.sourceUrl || source.url || "").trim()) || null;
+  const pickedEpisode = !!pickedEvidence && isTavilyEpisodeEvidence(pickedEvidence);
+
+  let finalEvidence = pickedEvidence;
+  if (preferredEvidence && (!finalEvidence || pickedEpisode || type === "tv")) {
+    finalEvidence = preferredEvidence;
+  }
+  if (type === "tv" && pickedEpisode && !preferredEvidence) {
+    return {
+      ok: false,
+      source: "tavily_search_ai",
+      error: "AI selected an episode rating, not the overall TV series IMDb rating.",
+      title: String(source.title || fallback.title || "").trim(),
+      type,
+      year: String(fallback.year || source.year || "").trim(),
+      confidence: "low"
+    };
+  }
+
+  const sourceUrl = String(finalEvidence?.url || source.sourceUrl || source.url || "").trim();
+  const finalEvidenceIndex = Number.isFinite(Number(finalEvidence?.index)) ? Number(finalEvidence.index) : evidenceIndex;
+
+  if (!explicitlyOk || !rating) {
+    return {
+      ok: false,
+      source: "tavily_search_ai",
+      error: String(source.error || source.note || "AI could not extract a verified IMDb rating from Tavily evidence.").trim(),
+      title: String(source.title || fallback.title || "").trim(),
+      type,
+      year: String(fallback.year || source.year || "").trim(),
+      confidence: normalizeAiRatingConfidence(source.confidence)
+    };
+  }
+
+  if (!sourceUrl || (type === "tv" && finalEvidence && isTavilyEpisodeEvidence(finalEvidence))) {
+    return {
+      ok: false,
+      source: "tavily_search_ai",
+      error: "No acceptable overall IMDb title evidence was found for this rating.",
+      title: String(source.title || fallback.title || "").trim(),
+      type,
+      year: String(fallback.year || source.year || "").trim(),
+      confidence: "low"
+    };
+  }
+
+  return {
+    ok: true,
+    source: "tavily_search_ai",
+    provider: "Tavily Search + Cloudflare Workers AI",
+    imdbRating: rating,
+    aiRating: rating,
+    rating,
+    title: String(source.title || fallback.title || "").trim(),
+    type,
+    year: String(fallback.year || source.year || "").trim(),
+    confidence: normalizeAiRatingConfidence(source.confidence),
+    sourceUrl,
+    evidenceIndex: finalEvidenceIndex,
+    evidenceTitle: String(finalEvidence?.title || "").trim(),
+    note: String(source.note || "AI extracted this rating from Tavily search evidence.").trim()
+  };
+}
+
+async function extractRatingFromTavilyEvidence(env, payload = {}, tavilyResult = {}) {
+  if (!env.myscreenlistAi || typeof env.myscreenlistAi.run !== "function") {
+    return { ok: false, source: "tavily_search_ai", error: "Workers AI binding missing. Add binding name: myscreenlistAi." };
+  }
+
+  const title = String(payload.title || "").trim();
+  const type = normalizeImdbMediaType(payload.type || "tv");
+  const year = String(payload.year || "").trim().match(/^(18|19|20)\d{2}$/)?.[0] || "";
+  const evidence = Array.isArray(tavilyResult.evidence) ? tavilyResult.evidence : [];
+  const preferredEvidence = selectPreferredTavilyRatingEvidence(evidence, type);
+  const evidenceText = evidence.map(item => [
+    `Evidence ${item.index}:`,
+    `title=${item.title}`,
+    `url=${item.url}`,
+    `snippet=${item.content}`
+  ].join("\n")).join("\n\n");
+
+  const systemPrompt = [
+    "You extract IMDb ratings from live search evidence for Shelfd.",
+    "Return valid JSON only. No markdown.",
+    "Use ONLY the provided Tavily answer and evidence snippets.",
+    "Do not use your model memory and do not guess.",
+    "Return the overall movie or TV series IMDb rating only, not an episode rating, critic score, Rotten Tomatoes score, TMDB score, Metacritic score, or list ranking.",
+    "For TV series, do not select evidence whose title says TV Episode. Prefer the IMDb TV Series ratings page when available.",
+    "If a preferredEvidenceIndex is provided, use that sourceUrl/evidenceIndex unless it clearly conflicts with the rating evidence.",
+    "If the evidence does not clearly support an IMDb-style 0-10 rating for the requested title/type/year, return ok:false.",
+    "JSON shape: {\"ok\":boolean,\"title\":string,\"type\":\"movie\"|\"tv\",\"year\":string,\"rating\":number|null,\"confidence\":\"high\"|\"medium\"|\"low\",\"sourceUrl\":string,\"evidenceIndex\":number|null,\"note\":string}."
+  ].join(" ");
+  const userPrompt = JSON.stringify({
+    requestedTitle: title,
+    requestedType: type,
+    requestedYear: year,
+    requestedRating: "IMDb 0-10 title rating",
+    tavilyQuery: tavilyResult.query || "",
+    tavilyAnswer: tavilyResult.answer || "",
+    preferredEvidenceIndex: Number.isFinite(Number(preferredEvidence?.index)) ? Number(preferredEvidence.index) : null,
+    preferredEvidenceUrl: preferredEvidence?.url || "",
+    evidence: evidenceText
+  });
+
+  try {
+    const aiResult = await runWorkersAi(env, SCREENLIST_AI_MODEL, systemPrompt, userPrompt, 0.05, 420);
+    const text = cleanAiJsonText(extractAiText(aiResult));
+    let parsed = {};
+    try { parsed = JSON.parse(text); }
+    catch (error) { parsed = { ok: false, note: "AI returned non-JSON text.", rawText: text }; }
+    return parseTavilyAiRatingResult(parsed, { title, type, year, evidence });
+  } catch (error) {
+    return {
+      ok: false,
+      source: "tavily_search_ai",
+      error: errorMessage(error),
+      title,
+      type,
+      year,
+      confidence: "low"
+    };
+  }
+}
+
+async function fetchTavilySearchAiRating(env, payload = {}) {
+  const title = String(payload.title || payload.name || "").trim();
+  const type = normalizeImdbMediaType(payload.type || "tv");
+  const year = String(payload.year || "").trim().match(/^(18|19|20)\d{2}$/)?.[0] || "";
+  if (!title) {
+    return { ok: false, source: "tavily_search_ai", error: "Missing title for Tavily rating search.", title, type, year, confidence: "low" };
+  }
+
+  const tavily = await fetchTavilyRatingEvidence(env, { title, type, year });
+  if (!tavily.ok) {
+    return {
+      ok: false,
+      source: "tavily_search_ai",
+      error: tavily.error || "Tavily search failed.",
+      title,
+      type,
+      year,
+      confidence: "low",
+      tavily: tavily.tavily || getTavilyPublicStatus(env),
+      query: tavily.query || ""
+    };
+  }
+
+  const ai = await extractRatingFromTavilyEvidence(env, { title, type, year }, tavily);
+  return {
+    ...ai,
+    ok: !!ai.ok,
+    ratingSource: ai.ok ? "tavily_search_ai" : "tavily_search_no_verified_rating",
+    title: ai.title || title,
+    type,
+    year,
+    query: tavily.query,
+    tavilyAnswer: tavily.answer,
+    tavily: tavily.tavily
+  };
+}
+
+async function runAiRatingSearchTestEndpoint(request, env, ctx) {
+  const payload = await readRatingResolvePayload(request);
+  const title = String(payload.title || payload.name || "").trim();
+  const type = normalizeImdbMediaType(payload.type || "tv");
+  const year = String(payload.year || "").trim().match(/^(18|19|20)\d{2}$/)?.[0] || "";
+  if (!title) return jsonResponse({ ok: false, error: "Missing title." }, 400);
+
+  const tavily = await fetchTavilyRatingEvidence(env, { title, type, year });
+  if (!tavily.ok) {
+    return jsonResponse({
+      ok: false,
+      source: "tavily_search_ai",
+      error: tavily.error,
+      title,
+      type,
+      year,
+      tavily: tavily.tavily || getTavilyPublicStatus(env),
+      evidence: tavily.evidence || [],
+      testMode: true
+    }, tavily.status && tavily.status >= 400 && tavily.status < 600 ? tavily.status : 502, {
+      "Cache-Control": "no-store"
+    });
+  }
+
+  const ai = await extractRatingFromTavilyEvidence(env, { title, type, year }, tavily);
+  return jsonResponse({
+    ...ai,
+    ok: !!ai.ok,
+    ratingSource: ai.ok ? "tavily_search_ai" : "tavily_search_no_verified_rating",
+    requestedTitle: title,
+    requestedType: type,
+    requestedYear: year,
+    tavily: tavily.tavily,
+    query: tavily.query,
+    tavilyAnswer: tavily.answer,
+    evidence: tavily.evidence,
+    testMode: true
+  }, ai.ok ? 200 : 502, {
+    "Cache-Control": "no-store"
+  });
 }
 
 async function runImdbRatingEndpoint(request, env, ctx) {
@@ -973,24 +1663,459 @@ async function rankTmdbCandidatePool(env, section, movieParams, tvParams, option
   }).sort((a, b) => Number(b.rankScore || 0) - Number(a.rankScore || 0)).slice(0, 10);
 }
 
-function normalizeMediaRankSection(value = "") {
-  const section = String(value || "trending_shows").trim().toLowerCase();
+
+function normalizeTavilyCategorySection(value = "") {
+  const raw = String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  const aliases = {
+    trending_movies: "movie_trending",
+    popular_movies: "movie_popular",
+    top_rated_movies: "movie_top_rated",
+    in_theaters: "movie_in_theaters",
+    movie_theaters: "movie_in_theaters",
+    movie_new_releases_month: "movie_new_releases_month",
+    movie_new_releases_week: "movie_new_releases_week",
+    tv_new_releases_month: "tv_new_releases_month",
+    tv_new_releases_week: "tv_new_releases_week",
+    trending_shows: "tv_trending",
+    popular_shows: "tv_popular",
+    top_rated_shows: "tv_top_rated",
+    highly_rated_classics: "movie_top_rated",
+    years_best: "movie_years_best",
+    releasing_soon: "movie_releasing_soon",
+    hidden_gems: "movie_hidden_gems"
+  };
+  const section = aliases[raw] || raw;
   const allowed = new Set([
-    "trending_movies", "trending_shows", "new_releases_week", "new_releases_month", "years_best",
-    "releasing_soon", "hidden_gems", "highly_rated_classics"
+    "movie_new_releases_week", "movie_new_releases_month", "movie_in_theaters", "movie_years_best",
+    "movie_popular", "movie_top_rated", "movie_trending", "movie_releasing_soon", "movie_hidden_gems",
+    "tv_new_releases_week", "tv_new_releases_month", "tv_trending", "tv_popular", "tv_releasing_soon", "tv_top_rated"
   ]);
-  return allowed.has(section) ? section : "trending_shows";
+  return allowed.has(section) ? section : "";
+}
+
+function getScreenListMonthYearLabel(date = new Date()) {
+  try {
+    return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  } catch (error) {
+    return `${date.getFullYear()}`;
+  }
+}
+
+function isTvCurrentActivityRankSection(section = "") {
+  const normalized = normalizeTavilyCategorySection(section);
+  return normalized === "tv_trending" || normalized === "tv_popular";
+}
+
+function getTavilyCategoryRankConfig(section = "") {
+  const normalized = normalizeTavilyCategorySection(section);
+  const today = new Date();
+  const year = today.getFullYear();
+  const monthYear = getScreenListMonthYearLabel(today);
+  const tvCurrentGuidance = "Prioritize current real-world TV activity: currently airing seasons, weekly new episodes, season premieres/finales, final seasons, major streaming releases, IMDb popularity, search/news/social evidence, and recent audience momentum. Penalize static all-time legacy shows unless current evidence says they are active now. Return TV series only, not episodes.";
+  const configs = {
+    movie_new_releases_week: {
+      type: "movie",
+      label: "Movie newest releases this week",
+      query: `IMDb most popular new movie releases this week ${monthYear} ranked list ratings current audience interest`,
+      guidance: "Rank newly released movies from this week by current real-world relevance, IMDb/search evidence, audience activity, and release recency. Return movies only."
+    },
+    movie_new_releases_month: {
+      type: "movie",
+      label: "Movie newest releases this month",
+      query: `IMDb most popular new movie releases this month ${monthYear} ranked list ratings current audience interest`,
+      guidance: "Rank newly released movies from this month by current real-world relevance, IMDb/search evidence, audience activity, and release recency. Return movies only."
+    },
+    movie_in_theaters: {
+      type: "movie",
+      label: "Movies in theaters",
+      query: `top movies in theaters now box office IMDb popular movies ${monthYear} ranked list currently playing`,
+      guidance: "Rank movies currently in theaters by current-theater relevance, box office/search evidence, IMDb evidence, and audience activity. Avoid old movies unless they are actually in current release. Return movies only."
+    },
+    movie_years_best: {
+      type: "movie",
+      label: "Best movies this year",
+      query: `best movies of ${year} IMDb ratings ranked list highest rated audience votes`,
+      guidance: "Rank this year's best movies by IMDb rating, review/vote confidence, and credible year-best evidence. Return movies only."
+    },
+    movie_popular: {
+      type: "movie",
+      label: "Popular movies",
+      query: `IMDb most popular movies today ${monthYear} ranked list current audience activity`,
+      guidance: "Rank broadly popular movies right now by IMDb popularity/search evidence, current audience activity, and major release conversation. Return movies only."
+    },
+    movie_top_rated: {
+      type: "movie",
+      label: "Top rated movies all time",
+      query: "IMDb top rated movies all time ranked list IMDb Top 250",
+      guidance: "Rank all-time top rated movies using IMDb top-rated style evidence. Return movies only."
+    },
+    movie_trending: {
+      type: "movie",
+      label: "Trending movies",
+      query: `IMDb trending movies today most popular movies ${monthYear} ranked list current search activity`,
+      guidance: "Rank movies with the strongest current momentum, search/trending evidence, audience conversation, and current release relevance. Return movies only."
+    },
+    movie_releasing_soon: {
+      type: "movie",
+      label: "Movies releasing soon",
+      query: `most anticipated upcoming movies releasing soon ${year} IMDb ranked list release dates audience anticipation`,
+      guidance: "Rank upcoming movies by release proximity, anticipation, and credible search evidence. Return movies only."
+    },
+    movie_hidden_gems: {
+      type: "movie",
+      label: "Movie hidden gems",
+      query: `best underrated hidden gem movies ${year} IMDb high rated list`,
+      guidance: "Rank strong lesser-known movies by quality evidence while avoiding obvious all-time mainstream titles. Return movies only."
+    },
+    tv_new_releases_week: {
+      type: "tv",
+      label: "TV newest releases this week",
+      query: `new TV shows released this week ${monthYear} IMDb most popular ranked current streaming premieres`,
+      guidance: "Rank newly released TV series from this week by release recency, current relevance, IMDb/search evidence, and audience activity. Return TV series only, not episodes."
+    },
+    tv_new_releases_month: {
+      type: "tv",
+      label: "TV newest releases this month",
+      query: `new TV shows released this month ${monthYear} IMDb most popular ranked current streaming premieres`,
+      guidance: "Rank newly released TV series from this month by release recency, current relevance, IMDb/search evidence, and audience activity. Return TV series only, not episodes."
+    },
+    tv_trending: {
+      type: "tv",
+      label: "Trending TV shows",
+      query: `currently airing trending TV shows ${monthYear} weekly episodes new seasons IMDb most popular ranked streaming series`,
+      guidance: tvCurrentGuidance
+    },
+    tv_popular: {
+      type: "tv",
+      label: "Popular TV shows",
+      query: `most popular TV shows right now ${monthYear} currently airing new episodes IMDb ranked streaming series`,
+      guidance: tvCurrentGuidance
+    },
+    tv_releasing_soon: {
+      type: "tv",
+      label: "TV shows releasing soon",
+      query: `most anticipated upcoming TV shows releasing soon ${year} IMDb ranked list new series new seasons`,
+      guidance: "Rank upcoming TV series by release proximity, anticipation, and credible search evidence. Return TV series only, not episodes."
+    },
+    tv_top_rated: {
+      type: "tv",
+      label: "Top rated TV shows all time",
+      query: "IMDb top rated TV shows all time ranked list",
+      guidance: "Rank all-time top rated TV shows using IMDb top-rated style evidence. Return TV series only, not episodes."
+    }
+  };
+  return configs[normalized] ? { key: normalized, monthYear, ...configs[normalized] } : null;
+}
+
+async function fetchTavilyCategoryRankEvidence(env, config = {}, timeoutMs = 9000) {
+  const tavilyConfig = getTavilyClientConfig(env);
+  if (!tavilyConfig.value) return { ok: false, error: getTavilyConfigError(env), tavily: getTavilyPublicStatus(env) };
+  if (!config.query) return { ok: false, error: "Missing Tavily category ranking query.", tavily: getTavilyPublicStatus(env) };
+
+  const result = await fetchJsonWithTimeout(new URL("search", TAVILY_ORIGIN), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${tavilyConfig.value}`
+    },
+    body: JSON.stringify({
+      query: config.query,
+      search_depth: "basic",
+      topic: "general",
+      include_answer: true,
+      include_raw_content: false,
+      max_results: 8
+    })
+  }, timeoutMs);
+
+  const data = result.data && typeof result.data === "object" ? result.data : {};
+  const evidence = Array.isArray(data.results) ? data.results.slice(0, 8).map((item, index) => ({
+    index,
+    title: String(item?.title || "").trim(),
+    url: String(item?.url || "").trim(),
+    content: normalizeTavilyEvidenceText(item?.content || item?.raw_content || ""),
+    score: Number.isFinite(Number(item?.score)) ? Number(item.score) : null
+  })).filter(item => item.title || item.url || item.content) : [];
+  const answer = normalizeTavilyEvidenceText(data.answer || "");
+
+  if (!result.ok || (!answer && !evidence.length)) {
+    return {
+      ok: false,
+      status: result.status || 502,
+      error: result.error || data.error || "Tavily category ranking search returned no usable evidence.",
+      query: config.query,
+      answer,
+      evidence,
+      tavily: getTavilyPublicStatus(env)
+    };
+  }
+
+  return { ok: true, query: config.query, answer, evidence, tavily: getTavilyPublicStatus(env), responseTime: data.response_time || null };
+}
+
+function parseTavilyCategoryAiRankings(body = {}, fallbackType = "movie") {
+  const rows = Array.isArray(body.rankings) ? body.rankings : Array.isArray(body.titles) ? body.titles : [];
+  const seen = new Set();
+  return rows.map((row, index) => {
+    const title = String(row.title || row.name || "").trim();
+    if (!title) return null;
+    const key = normalizeRankTitle(title);
+    if (!key || seen.has(key)) return null;
+    seen.add(key);
+    const year = String(row.year || "").match(/^(18|19|20)\d{2}$/)?.[0] || "";
+    return {
+      rank: Number(row.rank || index + 1),
+      title,
+      year,
+      type: normalizeImdbMediaType(row.type || fallbackType),
+      reason: String(row.reason || row.evidence || "").trim().slice(0, 220)
+    };
+  }).filter(Boolean).slice(0, 15);
+}
+
+async function extractCategoryRankingsFromTavilyEvidence(env, config = {}, tavilyResult = {}) {
+  if (!env.myscreenlistAi || typeof env.myscreenlistAi.run !== "function") {
+    return { ok: false, error: "Workers AI binding missing. Add binding name: myscreenlistAi." };
+  }
+  const evidence = Array.isArray(tavilyResult.evidence) ? tavilyResult.evidence : [];
+  const evidenceText = evidence.map(item => [
+    `Evidence ${item.index}:`,
+    `title=${item.title}`,
+    `url=${item.url}`,
+    `snippet=${item.content}`
+  ].join("\n")).join("\n\n");
+  const systemPrompt = [
+    "You extract a ranked media list for Shelfd from live Tavily search evidence.",
+    "Return valid JSON only. No markdown.",
+    "Use only the provided Tavily answer and evidence snippets; do not use model memory and do not invent titles.",
+    "Prefer IMDb/current ranking/list/box-office evidence depending on the category guidance.",
+    "For current TV trending/popular categories, prioritize currently airing seasons, weekly episode drops, current season premieres/finales, and major active streaming shows over static all-time legacy popularity.",
+    "Return up to 15 unique titles in ranked order. Exclude people, articles, episodes, and duplicate titles unless the category explicitly needs episodes, which it does not.",
+    "Every reason must explain the ranking signal, such as current airing, weekly episodes, IMDb popularity, box office, audience activity, top-rated evidence, or release recency.",
+    "JSON shape: {\"ok\":true,\"confidence\":\"high\"|\"medium\"|\"low\",\"rankings\":[{\"rank\":number,\"title\":string,\"year\":string,\"type\":\"movie\"|\"tv\",\"reason\":string}]}"
+  ].join(" ");
+  const userPrompt = JSON.stringify({
+    category: config.label || config.key || "Discover category",
+    mediaType: config.type || "movie",
+    guidance: config.guidance || "Extract a ranked list from the evidence.",
+    tavilyQuery: tavilyResult.query || config.query || "",
+    tavilyAnswer: tavilyResult.answer || "",
+    evidence: evidenceText
+  });
+  try {
+    const aiResult = await runWorkersAi(env, SCREENLIST_AI_MODEL, systemPrompt, userPrompt, 0.05, 900);
+    const text = cleanAiJsonText(extractAiText(aiResult));
+    let parsed = {};
+    try { parsed = JSON.parse(text); }
+    catch (error) { parsed = { ok: false, error: "AI returned non-JSON category rankings.", rawText: text }; }
+    const rankings = parseTavilyCategoryAiRankings(parsed, config.type || "movie");
+    if (!parsed.ok || !rankings.length) return { ok: false, error: parsed.error || parsed.note || "AI could not extract a ranked list from Tavily evidence.", rawText: parsed.rawText || "" };
+    return { ok: true, confidence: String(parsed.confidence || "medium"), rankings };
+  } catch (error) {
+    return { ok: false, error: errorMessage(error) };
+  }
+}
+
+function getTavilyTvCurrentActivityBoost(row = {}) {
+  const text = `${row.title || ""} ${row.reason || ""}`.toLowerCase();
+  let boost = 0;
+  const reasons = [];
+  const checks = [
+    [/currently\s+airing|airing\s+now|weekly\s+episodes|new\s+episodes?/, 80, "current airing/new episodes"],
+    [/new\s+season|season\s+premiere|season\s+finale|final\s+season/, 65, "active season momentum"],
+    [/streaming\s+now|prime\s+video|netflix|hbo|max|hulu|disney\+|apple\s+tv|paramount\+|peacock/, 30, "active streaming signal"],
+    [/imdb\s+popular|most\s+popular|trending|audience\s+activity|search\s+activity/, 25, "current popularity signal"]
+  ];
+  for (const [pattern, value, reason] of checks) {
+    if (pattern.test(text)) {
+      boost += value;
+      reasons.push(reason);
+    }
+  }
+  return { boost, reasons };
+}
+
+function applyTavilyCategoryCurrentActivityBoost(config = {}, rankings = []) {
+  if (!isTvCurrentActivityRankSection(config.key)) return Array.isArray(rankings) ? rankings : [];
+  return (Array.isArray(rankings) ? rankings : [])
+    .map((row, index) => {
+      const current = getTavilyTvCurrentActivityBoost(row);
+      const score = (1000 - index * 10) + current.boost;
+      const suffix = current.reasons.length ? `Current activity boost: ${current.reasons.join(', ')}` : '';
+      const reason = [row.reason || '', suffix].filter(Boolean).join(' · ');
+      return { ...row, reason, currentAiringBoost: current.boost, currentAiringSignals: current.reasons, currentActivityRankScore: score };
+    })
+    .sort((a, b) => Number(b.currentActivityRankScore || 0) - Number(a.currentActivityRankScore || 0))
+    .map((row, index) => ({ ...row, rank: index + 1 }));
+}
+
+async function hydrateTavilyCategoryRankingToTmdb(env, config = {}, rankings = [], limit = 15) {
+  const type = config.type === "movie" ? "movie" : "tv";
+  const out = [];
+  const seen = new Set();
+  for (const ranked of rankings.slice(0, Math.max(limit * 2, limit))) {
+    if (out.length >= limit) break;
+    const title = String(ranked.title || "").trim();
+    if (!title) continue;
+    const params = {
+      language: "en-US",
+      query: title
+    };
+    if (ranked.year) {
+      if (type === "movie") params.year = ranked.year;
+      else params.first_air_date_year = ranked.year;
+    }
+    const search = await fetchTmdbJson(env, type === "movie" ? "search/movie" : "search/tv", params, 6500);
+    const results = search.ok && Array.isArray(search.data?.results) ? search.data.results : [];
+    let match = results.find(item => item?.id && item.poster_path && normalizeRankTitle(getTmdbTitle(item, type)) === normalizeRankTitle(title));
+    if (!match) match = results.find(item => item?.id && item.poster_path);
+    if (!match?.id || !match.poster_path) continue;
+    const key = `${type}:${match.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const reason = ranked.reason || `${config.label || "Daily Tavily ranking"} #${out.length + 1}`;
+    out.push({
+      ...match,
+      media_type: type,
+      sourceLabel: `Daily Tavily ranking #${out.length + 1}${reason ? ` · ${reason}` : ""}`,
+      discoverContext: `Daily Tavily ranking #${out.length + 1}${reason ? ` · ${reason}` : ""}`,
+      tavilyCategoryRank: out.length + 1,
+      tavilyCategoryReason: reason,
+      currentAiringBoost: Number(ranked.currentAiringBoost || 0),
+      currentAiringSignals: Array.isArray(ranked.currentAiringSignals) ? ranked.currentAiringSignals : [],
+      rankDebug: {
+        aiRank: Number(ranked.rank || out.length + 1),
+        aiReason: reason,
+        currentAiringBoost: Number(ranked.currentAiringBoost || 0),
+        currentAiringSignals: Array.isArray(ranked.currentAiringSignals) ? ranked.currentAiringSignals : [],
+        rankingSource: "tavily_search_ai_daily"
+      },
+      rankScore: Math.max(1, 1000 - out.length)
+    });
+  }
+  return out;
+}
+
+async function buildTavilyCategoryRankings(env, section = "", limit = 15) {
+  const config = getTavilyCategoryRankConfig(section);
+  if (!config) return { ok: false, error: "Unsupported Tavily category ranking section." };
+  const tavily = await fetchTavilyCategoryRankEvidence(env, config);
+  if (!tavily.ok) return { ok: false, error: tavily.error || "Tavily category ranking search failed.", section: config.key, tavily };
+  const ai = await extractCategoryRankingsFromTavilyEvidence(env, config, tavily);
+  if (!ai.ok) return { ok: false, error: ai.error || "AI category ranking extraction failed.", section: config.key, tavily };
+  const boostedRankings = applyTavilyCategoryCurrentActivityBoost(config, ai.rankings);
+  const rankings = await hydrateTavilyCategoryRankingToTmdb(env, config, boostedRankings, limit);
+  if (!rankings.length) return { ok: false, error: "Tavily category rankings could not be matched to TMDB display titles.", section: config.key, tavily, ai };
+  return {
+    ok: true,
+    section: config.key,
+    rankBasis: `${config.label}: daily Tavily live search evidence + Cloudflare AI extraction, then matched to TMDB for posters/cards.`,
+    rankings,
+    confidence: ai.confidence || "medium",
+    query: tavily.query,
+    guidance: config.guidance || "",
+    tavilyAnswer: tavily.answer,
+    tavily: tavily.tavily,
+    evidence: tavily.evidence.slice(0, 4),
+    debug: {
+      rankingSource: "tavily_search_ai_daily",
+      currentActivityBoostEnabled: isTvCurrentActivityRankSection(config.key),
+      evidenceCount: Array.isArray(tavily.evidence) ? tavily.evidence.length : 0,
+      generatedAt: new Date().toISOString()
+    },
+    sources: {
+      tavily: tavily.tavily,
+      ai: { configured: !!env.myscreenlistAi },
+      tmdb: { configured: !!env.TMDB_KEY }
+    }
+  };
+}
+
+function buildMediaRankSectionFromTypeCategory(type = "", category = "", period = "") {
+  const cleanType = String(type || "").trim().toLowerCase() === "movie" ? "movie" : "tv";
+  const cleanCategory = String(category || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  const range = String(period || "").trim().toLowerCase() === "month" ? "month" : "week";
+  const prefix = cleanType === "movie" ? "movie" : "tv";
+  const map = {
+    trending: `${prefix}_trending`,
+    popular: `${prefix}_popular`,
+    top_rated: `${prefix}_top_rated`,
+    toprated: `${prefix}_top_rated`,
+    releasing_soon: `${prefix}_releasing_soon`,
+    upcoming: `${prefix}_releasing_soon`,
+    newest: `${prefix}_new_releases_${range}`,
+    newest_releases: `${prefix}_new_releases_${range}`,
+    new_releases: `${prefix}_new_releases_${range}`,
+    in_theaters: cleanType === "movie" ? "movie_in_theaters" : "tv_trending",
+    theaters: cleanType === "movie" ? "movie_in_theaters" : "tv_trending",
+    years_best: cleanType === "movie" ? "movie_years_best" : "tv_trending",
+    this_years_best: cleanType === "movie" ? "movie_years_best" : "tv_trending"
+  };
+  return map[cleanCategory] || "";
+}
+
+function normalizeMediaRankSection(value = "") {
+  const raw = String(value || "trending_shows").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  const tavilySection = normalizeTavilyCategorySection(raw);
+  if (tavilySection) return tavilySection;
+  const aliases = {
+    trending_movies: "movie_trending",
+    trending_shows: "tv_trending",
+    new_releases_week: "movie_new_releases_week",
+    new_releases_month: "movie_new_releases_month",
+    years_best: "movie_years_best",
+    releasing_soon: "movie_releasing_soon",
+    hidden_gems: "movie_hidden_gems",
+    highly_rated_classics: "movie_top_rated"
+  };
+  return aliases[raw] || "tv_trending";
 }
 
 async function runMediaRankEndpoint(request, env, ctx) {
   const url = new URL(request.url);
-  const section = normalizeMediaRankSection(url.searchParams.get("section"));
-  const cacheKey = new Request(`${url.origin}/__screenlist_rank_media/v135/${section}`, { method: "GET" });
+  const explicitSection = url.searchParams.get("section") || "";
+  const sectionFromTypeCategory = buildMediaRankSectionFromTypeCategory(url.searchParams.get("type"), url.searchParams.get("category"), url.searchParams.get("period"));
+  const section = normalizeMediaRankSection(explicitSection || sectionFromTypeCategory);
+  const limit = Math.min(15, Math.max(1, Number(url.searchParams.get("limit") || 15)));
+  const cacheKey = new Request(`${url.origin}/__screenlist_rank_media/v244/${section}/daily-tavily/${limit}`, { method: "GET" });
   const cached = await caches.default.match(cacheKey);
   if (cached) {
     const headers = new Headers(cached.headers);
     headers.set("x-screenlist-rank-cache", "HIT");
     return new Response(cached.body, { status: cached.status, statusText: cached.statusText, headers });
+  }
+
+  const tavilyDailyRank = await buildTavilyCategoryRankings(env, section, limit);
+  if (tavilyDailyRank.ok && Array.isArray(tavilyDailyRank.rankings) && tavilyDailyRank.rankings.length) {
+    const body = {
+      ok: true,
+      section,
+      rankBasis: tavilyDailyRank.rankBasis,
+      rankings: tavilyDailyRank.rankings.slice(0, limit),
+      confidence: tavilyDailyRank.confidence || "medium",
+      query: tavilyDailyRank.query || "",
+      guidance: tavilyDailyRank.guidance || "",
+      tavilyAnswer: tavilyDailyRank.tavilyAnswer || "",
+      evidence: tavilyDailyRank.evidence || [],
+      debug: tavilyDailyRank.debug || { rankingSource: "tavily_search_ai_daily", cacheStatus: "MISS" },
+      sources: tavilyDailyRank.sources || { tavily: getTavilyPublicStatus(env), ai: { configured: !!env.myscreenlistAi }, tmdb: { configured: !!env.TMDB_KEY } }
+    };
+    const response = jsonResponse(body, 200, {
+      "Cache-Control": `public, max-age=${SCREENLIST_RANK_CACHE_TTL_SECONDS}`,
+      "x-screenlist-rank-cache": "MISS",
+      "x-screenlist-rank-source": "tavily-daily"
+    });
+    if (ctx?.waitUntil) ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+    return response;
+  }
+
+  if (getTavilyCategoryRankConfig(section)) {
+    return jsonResponse({
+      ok: false,
+      section,
+      error: tavilyDailyRank.error || "Daily Tavily category ranking could not load.",
+      sources: { tavily: getTavilyPublicStatus(env), ai: { configured: !!env.myscreenlistAi }, tmdb: { configured: !!env.TMDB_KEY } }
+    }, 502);
   }
 
   const today = new Date();
@@ -1011,7 +2136,7 @@ async function runMediaRankEndpoint(request, env, ctx) {
         sources: { trakt: { ...getTraktPublicStatus(env), errors: candidates.traktErrors || [] }, tmdb: { configured: !!env.TMDB_KEY } }
       }, 502);
     }
-    rankings = await hydrateTraktCandidates(env, "movie", candidates, { limit: 10 });
+    rankings = await hydrateTraktCandidates(env, "movie", candidates, { limit });
     rankBasis = "Trakt /movies/trending ranking, matched to TMDB for display.";
   } else if (section === "trending_shows") {
     const candidates = await buildTraktActivityCandidates(env, "tv", ["trending"]);
@@ -1024,7 +2149,7 @@ async function runMediaRankEndpoint(request, env, ctx) {
         sources: { trakt: { ...getTraktPublicStatus(env), errors: candidates.traktErrors || [] }, tmdb: { configured: !!env.TMDB_KEY } }
       }, 502);
     }
-    rankings = await hydrateTraktCandidates(env, "tv", candidates, { limit: 10 });
+    rankings = await hydrateTraktCandidates(env, "tv", candidates, { limit });
     rankBasis = "Trakt /shows/trending ranking, matched to TMDB for display.";
   } else if (section === "releasing_soon") {
     const upcomingMovie = { "primary_release_date.gte": iso(addDays(today, 1)), "primary_release_date.lte": iso(addDays(today, 90)), sort_by: "primary_release_date.asc", region: "US" };
@@ -1043,7 +2168,7 @@ async function runMediaRankEndpoint(request, env, ctx) {
         return getTmdbTitle(a, a.media_type).localeCompare(getTmdbTitle(b, b.media_type), undefined, { sensitivity: "base" });
       })
       .map(item => ({ ...item, sourceLabel: `Releases ${getTmdbDate(item)}`, discoverContext: `Releases ${getTmdbDate(item)}` }))
-      .slice(0, 10);
+      .slice(0, limit);
     rankBasis = "Raw TMDB upcoming release dates only; closest upcoming first, with popularity only as same-date tie-breaker.";
   } else {
     const days = section === "new_releases_month" ? 30 : 7;
@@ -1065,7 +2190,7 @@ async function runMediaRankEndpoint(request, env, ctx) {
           return getTmdbTitle(a, a.media_type).localeCompare(getTmdbTitle(b, b.media_type), undefined, { sensitivity: "base" });
         })
         .map(item => ({ ...item, sourceLabel: `Released ${getTmdbDate(item)}`, discoverContext: `Released ${getTmdbDate(item)}` }))
-        .slice(0, 10);
+        .slice(0, limit);
       rankBasis = "Raw TMDB release dates only; newest releases first, with popularity only as same-date tie-breaker.";
     } else if (section === "years_best") {
       rankings = await buildThisYearsBestRankings(env, year, iso(today));
@@ -1078,7 +2203,7 @@ async function runMediaRankEndpoint(request, env, ctx) {
       tvParams = { "vote_count.gte": "500", "vote_average.gte": "7.5", sort_by: "vote_average.desc" };
     }
     if (!rankings.length && !section.startsWith("new_releases") && section !== "years_best") {
-      rankings = await rankTmdbCandidatePool(env, section, movieParams, tvParams, { moviePages: 2, tvPages: 2 });
+      rankings = await rankTmdbCandidatePool(env, section, movieParams, tvParams, { moviePages: 2, tvPages: 2, limit });
       rankBasis = "Existing ScreenList section rules, boosted by Trakt weekly watched/trending activity when matched.";
     }
   }
@@ -1087,7 +2212,7 @@ async function runMediaRankEndpoint(request, env, ctx) {
     return jsonResponse({ ok: false, error: "No ranked titles found.", section, rankings: [] }, 500);
   }
 
-  const body = { ok: true, section, rankBasis, rankings: rankings.slice(0, 10), sources: { trakt: getTraktPublicStatus(env), tmdb: { configured: !!env.TMDB_KEY } } };
+  const body = { ok: true, section, rankBasis, rankings: rankings.slice(0, limit), sources: { trakt: getTraktPublicStatus(env), tmdb: { configured: !!env.TMDB_KEY } } };
   const response = jsonResponse(body, 200, {
     "Cache-Control": `public, max-age=${SCREENLIST_RANK_CACHE_TTL_SECONDS}`,
     "x-screenlist-rank-cache": "MISS"
@@ -1257,6 +2382,18 @@ export default {
       return runRankHealthCheck(env);
     }
 
+    if (url.pathname === "/api/rating/resolve") {
+      return runRatingResolveEndpoint(request, env, ctx);
+    }
+
+    if (url.pathname === "/api/ai/rating-test") {
+      return runAiRatingTestEndpoint(request, env, ctx);
+    }
+
+    if (url.pathname === "/api/ai/rating-search-test") {
+      return runAiRatingSearchTestEndpoint(request, env, ctx);
+    }
+
     if (url.pathname === "/api/imdb/rating") {
       return runImdbRatingEndpoint(request, env, ctx);
     }
@@ -1279,6 +2416,16 @@ export default {
         keyEnv: "RAWG_KEY",
         label: "RAWG"
       }, ctx);
+    }
+
+    if (url.pathname.startsWith("/api/")) {
+      return jsonResponse({
+        ok: false,
+        error: "Unknown Shelfd API route.",
+        path: url.pathname
+      }, 404, {
+        "x-shelfd-api-router": "worker-v240"
+      });
     }
 
     const shouldRegister = isHtmlNavigationRequest(request, url);

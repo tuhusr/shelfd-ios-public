@@ -1,18 +1,6 @@
-# Secrets — never commit these
-.dev.vars
-
-# Wrangler
-.wrangler/
-
-# Node
 node_modules/
-
-# iOS build output
-ios/
-
-# Android build output
-android/
-
-# OS files
-.DS_Store
-Thumbs.db
+.dev.vars
+.env
+*.log
+.wrangler/
+dist/

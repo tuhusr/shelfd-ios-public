@@ -1,0 +1,20 @@
+Shelfd v227 — Activity Card Poster/Text Tune
+
+Edited file:
+- index.html
+
+Changes made:
+1. Enlarged the Friends → Activity card poster on mobile to a more normal vertical poster ratio.
+2. Rounded the poster corners while keeping the poster shape clean and media-card-like.
+3. Lowered and shifted the poster slightly left so it sits better inside the activity card.
+4. Enlarged the username, activity action text, and media title text for better mobile readability.
+5. Moved the activity date/time to the bottom-right corner of the card.
+6. Preserved the v226 cleanup that removed internal divider lines between the activity metadata and reply/heart actions.
+
+Packaging:
+- Edited file included at ZIP root.
+- Edited file copied into assets/public/.
+- Only edited files were copied into assets/public/.
+
+Notes:
+- This remains a surgical index.html-only patch because the uploaded bundle still does not include the external style.css source referenced by the page.

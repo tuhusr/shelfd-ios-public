@@ -10,7 +10,7 @@
   const MIN_CHECK_GAP_MS = 15000;
   const CHECK_INTERVAL_MS = 60000;
   const LIVE_UPDATE_SPLASH_KEY = 'screenlist-live-update-splash-v2';
-  const LIVE_UPDATE_RELOAD_DELAY_MS = 1350;
+  const LIVE_UPDATE_RELOAD_DELAY_MS = 3000;
   const LIVE_UPDATE_AFTER_LOAD_HOLD_MS = 700;
 
   function readVersionFromHtml(html) {
@@ -59,7 +59,7 @@
     splash.setAttribute('aria-live', 'polite');
     splash.innerHTML = `
       <div class="screenlist-live-update-card">
-        <img class="screenlist-live-update-brand" src="/live_update_splash_logo.png?v=258-live-update-splash-image" alt="Shelfd" decoding="async">
+        <img class="screenlist-live-update-brand" src="/live_update_splash_logo.png?v=263-live-update-splash-brand-hold" alt="Shelfd" decoding="async">
         <div class="screenlist-live-update-loader" aria-hidden="true"><span></span><span></span><span></span></div>
         <div class="screenlist-live-update-copy">Developer has sent out a live update, please wait for refresh.</div>
       </div>`;
@@ -134,7 +134,24 @@
     }
   }
 
+  function showStartupSplashIfNeeded() {
+    if (!window.matchMedia || !window.matchMedia('(display-mode: standalone)').matches) return;
+    if (window.matchMedia('(max-width: 700px)').matches) return;
+    try { if (sessionStorage.getItem(LIVE_UPDATE_SPLASH_KEY) === '1') return; } catch (e) {}
+    const run = () => {
+      showLiveUpdateSplash();
+      const hideAfter = Math.max(0, 2200 - (Date.now() - pageStartMs));
+      const hide = () => setTimeout(hideLiveUpdateSplash, hideAfter);
+      if (document.readyState === 'complete') hide();
+      else window.addEventListener('load', hide, { once: true });
+    };
+    if (document.body) run();
+    else window.addEventListener('DOMContentLoaded', run, { once: true });
+  }
+
+  const pageStartMs = Date.now();
   finishReloadSplashIfNeeded();
+  showStartupSplashIfNeeded();
   window.checkScreenListDeployUpdate = () => checkForScreenListDeployUpdate(true);
   setInterval(() => checkForScreenListDeployUpdate(false), CHECK_INTERVAL_MS);
   window.addEventListener('focus', () => checkForScreenListDeployUpdate(true));
@@ -1383,11 +1400,11 @@ function renderWatchTogetherCardControl(item = {}, section = activeSection) {
   const pendingGroups = getPendingWatchTogetherGroupsForItem(item, section);
   const pendingCount = pendingGroups.reduce((sum, group) => sum + (Array.isArray(group.pendingUids) ? group.pendingUids.length : 0), 0);
   const visible = members.slice(0, 3);
-  const stack = members.length ? `<button class="watch-together-stack" type="button" onclick="openWatchTogetherInfoModal(event, '${itemId}', '${sectionAttr}')" aria-label="View people tagged on this title">
+  const stack = members.length ? `<button class="watch-together-stack" type="button" data-mylist-watch-info-id="${itemId}" data-mylist-watch-section="${sectionAttr}" onclick="openWatchTogetherInfoModal(event, '${itemId}', '${sectionAttr}')" aria-label="View people tagged on this title">
     ${visible.map(profile => `<img class="${profile.watchTogetherPending ? 'watch-together-avatar-pending' : ''}" src="${escAttr(getWatchTogetherAvatar(profile))}" alt="${escAttr(profile.name)}" loading="lazy" title="${profile.watchTogetherPending ? 'Waiting for approval' : 'Approved'}">`).join('')}
     ${members.length > 3 ? `<span class="watch-together-more">+${members.length - 3}</span>` : ''}
   </button>` : '';
-  const add = (!members.length && !viewingUser && currentUser) ? `<button class="watch-together-add" type="button" onclick="openWatchTogetherTagModal(event, '${itemId}', '${sectionAttr}')" aria-label="Tag people to watch together">＋</button>` : '';
+  const add = (!members.length && !viewingUser && currentUser) ? `<button class="watch-together-add" type="button" data-mylist-watch-add-id="${itemId}" data-mylist-watch-section="${sectionAttr}" onclick="openWatchTogetherTagModal(event, '${itemId}', '${sectionAttr}')" aria-label="Tag people to watch together">＋</button>` : '';
   const pending = pendingCount ? `<span class="watch-together-pending" title="Waiting for approval">${pendingCount} pending</span>` : '';
   if (!stack && !add && !pending) return '';
   return `<div class="watch-together-slot">${stack}${pending}${add}</div>`;
@@ -2597,10 +2614,10 @@ function buildRatingStarsMarkup(rating, itemId, prefix, size, section, interacti
       const leftVal = star * 2 - 1;
       const rightVal = star * 2;
       if (interactive) {
-        html += `<button class="star-btn half-step left ${leftVal <= currentRating ? 'lit' : ''}" style="font-size:${size}px"
+        html += `<button class="star-btn half-step left ${leftVal <= currentRating ? 'lit' : ''}" style="font-size:${size}px" data-mylist-rate-item-id="${escAttr(itemId)}" data-mylist-rate-prefix="${escAttr(prefix)}" data-mylist-rate-score="${leftVal}"
           onclick="event.stopPropagation();rate('${itemId}','${prefix}',${leftVal})"
           onmouseenter="hoverStars(this,${leftVal})" onmouseleave="unhoverStars(this,${currentRating})">★</button>`;
-        html += `<button class="star-btn half-step right ${rightVal <= currentRating ? 'lit' : ''}" style="font-size:${size}px"
+        html += `<button class="star-btn half-step right ${rightVal <= currentRating ? 'lit' : ''}" style="font-size:${size}px" data-mylist-rate-item-id="${escAttr(itemId)}" data-mylist-rate-prefix="${escAttr(prefix)}" data-mylist-rate-score="${rightVal}"
           onclick="event.stopPropagation();rate('${itemId}','${prefix}',${rightVal})"
           onmouseenter="hoverStars(this,${rightVal})" onmouseleave="unhoverStars(this,${currentRating})">★</button>`;
       } else {
@@ -2611,7 +2628,7 @@ function buildRatingStarsMarkup(rating, itemId, prefix, size, section, interacti
   } else {
     for (let s = 1; s <= 10; s++) {
       if (interactive) {
-        html += `<button class="star-btn ${s <= currentRating ? 'lit' : ''}" style="font-size:${size}px"
+        html += `<button class="star-btn ${s <= currentRating ? 'lit' : ''}" style="font-size:${size}px" data-mylist-rate-item-id="${escAttr(itemId)}" data-mylist-rate-prefix="${escAttr(prefix)}" data-mylist-rate-score="${s}"
           onclick="event.stopPropagation();rate('${itemId}','${prefix}',${s})"
           onmouseenter="hoverStars(this,${s})" onmouseleave="unhoverStars(this,${currentRating})">★</button>`;
       } else {
@@ -2928,6 +2945,7 @@ const DEFAULT_SORT = 'recently-added';
 const WATCHED_RATING_DEFAULT_SECTIONS = new Set(['movies', 'shows', 'anime']);
 const SORT_OPTIONS = [
   { key: 'recently-added',    label: 'Recently Added' },
+  { key: 'recently-edited',   label: 'Recently Edited' },
   { key: 'title-az',          label: 'Title A–Z' },
   { key: 'rating-high',       label: 'Highest Rated' },
   { key: 'rating-low',        label: 'Lowest Rated' },
@@ -2938,9 +2956,9 @@ const SORT_OPTIONS = [
 
 function getSortStateKey(section = activeSection, tab = activeTab) { return section + ':' + tab; }
 function getDefaultSortKeyFor(section = activeSection, tab = activeTab) {
-  return tab === 'watched' && WATCHED_RATING_DEFAULT_SECTIONS.has(section)
-    ? 'rating-high'
-    : DEFAULT_SORT;
+  if (tab === 'watching' && (section === 'shows' || section === 'anime')) return 'recently-edited';
+  if (tab === 'watched' && WATCHED_RATING_DEFAULT_SECTIONS.has(section)) return 'rating-high';
+  return DEFAULT_SORT;
 }
 function getActiveSortKey() { return sessionSortState[getSortStateKey()] || getDefaultSortKeyFor(); }
 
@@ -2962,6 +2980,9 @@ function applySortOrder(items, sortKey, stateKey) {
     case 'recently-added':
       return arr.sort((a, b) =>
         new Date(b.dateAdded || 0) - new Date(a.dateAdded || 0));
+    case 'recently-edited':
+      return arr.sort((a, b) =>
+        new Date(b.dateModified || b.dateAdded || 0) - new Date(a.dateModified || a.dateAdded || 0));
     case 'title-az':
       return arr.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
     case 'rating-high':
@@ -3980,7 +4001,7 @@ function renderCard(item, isDraggable) {
   const statusPill = (s, label) => {
     let cls = "status-pill";
     if (item.status === s) cls += ` ${s}-active`;
-    return `<button class="${cls}" data-status="${s}" onclick="changeStatus('${item.id}','${s}')">${label}</button>`;
+    return `<button type="button" class="${cls}" data-status="${escAttr(s)}" data-mylist-status-id="${itemIdAttr}">${label}</button>`;
   };
   const statusButtons = getMyListStatusButtonConfigs(activeSection)
     .map(({ status, label }) => statusPill(status, label))
@@ -3991,7 +4012,7 @@ function renderCard(item, isDraggable) {
   const hasFullEpisodeRows = type === "show" && Array.isArray(item.episodes) && item.episodes.length > 0;
   if (hasFullEpisodeRows) {
     episodeToggleButton = `
-      <button class="ep-toggle-bar card-footer-btn" onclick="toggleEpisodes('${item.id}')">
+      <button class="ep-toggle-bar card-footer-btn" type="button" data-mylist-toggle-episodes-id="${escAttr(item.id)}" onclick="toggleEpisodes('${item.id}')">
         <span id="ep-label-${item.id}">Show Episodes</span>
         <span class="ep-arrow" id="ep-arrow-${item.id}">&#9662;</span>
       </button>
@@ -4001,8 +4022,8 @@ function renderCard(item, isDraggable) {
         <div class="ep-list-inner">
         ${!viewingUser ? `<div class="ep-actions">
           <div style="display:flex;gap:8px;">
-            <button class="btn-secondary btn-sm" onclick="markAllEps('${item.id}',true)">Mark All Watched</button>
-            <button class="btn-secondary btn-sm" onclick="markAllEps('${item.id}',false)">Clear All</button>
+            <button class="btn-secondary btn-sm" type="button" data-mylist-mark-all-id="${escAttr(item.id)}" data-mylist-mark-all-value="true" onclick="markAllEps('${item.id}',true)">Mark All Watched</button>
+            <button class="btn-secondary btn-sm" type="button" data-mylist-mark-all-id="${escAttr(item.id)}" data-mylist-mark-all-value="false" onclick="markAllEps('${item.id}',false)">Clear All</button>
           </div>
         </div>` : ''}
         <div class="ep-scroll">
@@ -4026,7 +4047,7 @@ function renderCard(item, isDraggable) {
           <div class="card-title-row">
             <div class="card-title">${gameTitleMarkup}${item.imdbId ? ` <a href="https://www.imdb.com/title/${item.imdbId}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;text-decoration:none;vertical-align:middle;">
             <span class="media-link-badge">IMDb</span>
-          </a>` : ''}${activeSection === 'movies' ? `<button class="letterboxd-badge-btn" onclick="event.stopPropagation();openLetterboxd('${item.id}')" title="Letterboxd">
+          </a>` : ''}${activeSection === 'movies' ? `<button class="letterboxd-badge-btn" type="button" data-mylist-letterboxd-id="${itemIdAttr}" onclick="event.stopPropagation();openLetterboxd('${item.id}')" title="Letterboxd">
             <span class="letterboxd-badge">
               <svg viewBox="0 0 24 10" aria-hidden="true" fill="none">
                 <circle cx="6" cy="5" r="4" fill="#FF8000"></circle>
@@ -4035,7 +4056,7 @@ function renderCard(item, isDraggable) {
               </svg>
             </span>
           </button>` : ''}${activeSection === 'games' ? renderMetacriticGameIcon(item, 'game-card-metacritic-icon') : ''}</div>
-            ${!viewingUser ? `<button class="delete-btn" onclick="deleteItem(event,'${item.id}')" title="Delete">×</button>` : (currentUser ? `<button class="friend-card-add-btn${friendAlreadyAdded ? ' added' : ''}" data-friend-item-id="${escHtml(item.id)}" onclick="event.stopPropagation();openFriendAddModal(this.dataset.friendItemId, this)" title="Add to my list">+</button>` : '')}
+            ${!viewingUser ? `<button class="delete-btn" type="button" data-mylist-delete-id="${itemIdAttr}" onclick="deleteItem(event,'${item.id}')" title="Delete">×</button>` : (currentUser ? `<button class="friend-card-add-btn${friendAlreadyAdded ? ' added' : ''}" type="button" data-friend-item-id="${escAttr(item.id)}" onclick="event.stopPropagation();openFriendAddModal(this.dataset.friendItemId, this)" title="Add to my list">+</button>` : '')}
           </div>
           ${item.genre ? `<div class="card-genre">${escHtml(item.genre)}</div>` : ''}
           ${!viewingUser ? `<div class="status-pills" id="status-pills-${item.id}">${statusButtons}</div>` : ''}
@@ -4053,7 +4074,7 @@ function renderCard(item, isDraggable) {
       </div>
       <div class="card-action-row">
         <div class="card-footer-actions">
-          <button class="comments-btn" onclick="event.stopPropagation();openCommentsPage('${item.id}', this)">
+          <button class="comments-btn" type="button" data-mylist-comments-id="${itemIdAttr}" onclick="event.stopPropagation();openCommentsPage('${item.id}', this)">
             <span class="comments-btn-label">Comments (<span class="comment-count" data-media-key="${escAttr(mediaKey)}">${commentCount}</span>)</span>
           </button>
           ${episodeToggleButton}
@@ -4309,7 +4330,7 @@ function renderEpisodeList(item) {
       ? `<div class="season-poster" style="background-image:url('${escAttr(seasonInfo.cover)}')"></div>`
       : `<div class="season-poster season-poster-empty" aria-hidden="true"></div>`;
     return `<div class="season-block">
-      <div class="season-header" role="button" tabindex="0" onclick="toggleSeason('${item.id}',${sNum})" ontouchend="toggleSeasonTouch(event,'${item.id}',${sNum})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSeason('${item.id}',${sNum})}">
+      <div class="season-header" role="button" tabindex="0" data-mylist-season-toggle-id="${escAttr(item.id)}" data-mylist-season-num="${escAttr(sNum)}" onclick="toggleSeason('${item.id}',${sNum})" ontouchend="toggleSeasonTouch(event,'${item.id}',${sNum})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSeason('${item.id}',${sNum})}">
         ${seasonPoster}
         <div class="season-header-left">
           <div class="season-title-line">
@@ -4324,7 +4345,7 @@ function renderEpisodeList(item) {
             <span>Season ${sNum}</span>
             <span class="season-arrow" id="s-arrow-${item.id}-${sNum}">▼</span>
           </div>
-          ${!viewingUser ? `<button class="edit-ep-link season-mark-btn" onclick="event.stopPropagation();markSeasonEps('${item.id}',${sNum},${sWatched < sEps.length})">
+          ${!viewingUser ? `<button class="edit-ep-link season-mark-btn" type="button" data-mylist-season-mark-id="${escAttr(item.id)}" data-mylist-season-num="${escAttr(sNum)}" data-mylist-season-mark-value="${sWatched < sEps.length ? 'true' : 'false'}" onclick="event.stopPropagation();markSeasonEps('${item.id}',${sNum},${sWatched < sEps.length})">
             ${sWatched < sEps.length ? 'Mark all' : 'Clear all'}
           </button>` : ''}
         </div>
@@ -4365,7 +4386,7 @@ function renderSingleEp(itemId, ep) {
   }
   return `<div class="ep-row ${ep.watched ? 'watched-ep' : ''}" id="ep-row-${ep.id}">
     <div class="ep-left">
-      <button class="ep-check ${ep.watched ? 'checked' : ''}" onclick="toggleEp('${itemId}','${ep.id}')">
+      <button type="button" class="ep-check ${ep.watched ? 'checked' : ''}" data-ep-toggle-item-id="${escAttr(itemId)}" data-ep-toggle-ep-id="${escAttr(ep.id)}">
         ${ep.watched ? '✓' : ''}
       </button>
       <span class="ep-title-wrap">
@@ -4374,7 +4395,7 @@ function renderSingleEp(itemId, ep) {
       </span>
     </div>
     <div class="ep-right">
-      <button class="ep-rating-btn ${r ? 'has-rating' : ''}" onclick="event.stopPropagation();openEpRating('${itemId}','${ep.id}')">
+      <button class="ep-rating-btn ${r ? 'has-rating' : ''}" type="button" data-mylist-ep-rating-item-id="${escAttr(itemId)}" data-mylist-ep-rating-ep-id="${escAttr(ep.id)}" onclick="event.stopPropagation();openEpRating('${itemId}','${ep.id}')">
         ★${r ? ' ' + formatRatingValueForSection(r, activeSection) : ''}
       </button>
     </div>
@@ -6134,16 +6155,19 @@ function getMyListSwipeSurface() {
 }
 
 function getMyListSwipeContentTop() {
+  // Always anchor to toolbar bottom so the swipe only covers content below "Add to Shelf".
+  // Using toolbar.getBoundingClientRect().bottom is scroll-position–independent.
+  const toolbar = document.getElementById('mylist-toolbar');
+  if (toolbar) {
+    const rect = toolbar.getBoundingClientRect();
+    if (rect && Number.isFinite(rect.bottom) && rect.bottom > 0) return rect.bottom;
+  }
+  // Fallback: use cards-grid top if visible in viewport
   const candidates = [document.getElementById('cards-grid'), document.getElementById('empty-state')];
   for (const node of candidates) {
     if (!node || node.style.display === 'none') continue;
     const rect = node.getBoundingClientRect();
-    if (rect && Number.isFinite(rect.top)) return Math.max(0, rect.top);
-  }
-  const toolbar = document.getElementById('mylist-toolbar');
-  if (toolbar) {
-    const rect = toolbar.getBoundingClientRect();
-    if (rect && Number.isFinite(rect.bottom)) return Math.max(0, rect.bottom + 12);
+    if (rect && Number.isFinite(rect.top) && rect.top > 0) return rect.top;
   }
   return 0;
 }
@@ -6385,12 +6409,11 @@ let _swPillLock = false; // prevents updateSlidingPills from interfering mid-swi
 
 function initMyListSwipe() {
   const view = document.getElementById('mylist-view');
-  if (!view || view._swipeReady) return;
+  if (!view) return;
+  // v269: My Lists is click-only again. Do not bind touch swipe handlers.
+  // Category/status buttons still use the smooth internal click transition.
   view._swipeReady = true;
-  view.addEventListener('touchstart',  _swStart,  { passive: true });
-  view.addEventListener('touchmove',   _swMove,   { passive: false });
-  view.addEventListener('touchend',    _swEnd,    { passive: true });
-  view.addEventListener('touchcancel', _swCancel, { passive: true });
+  if (_sw) _swCancel();
 }
 
 function _swVisibleTabs() {
@@ -6407,23 +6430,15 @@ function _swAdjacentTab(dir) {
   return null;
 }
 
+function getMyListSwipeTouchZone(target) {
+  if (!target || !target.closest) return null;
+  return target.closest('#mylist-view #cards-grid, #mylist-view #empty-state');
+}
+
 function _swStart(e) {
-  if (_sw) return;
-  const touch = e.touches && e.touches[0];
-  if (!touch) return;
-  const toolbar = document.getElementById('mylist-toolbar');
-  if (!toolbar) return;
-  if (touch.clientY < toolbar.getBoundingClientRect().bottom) return;
-  _sw = {
-    x0: touch.clientX,
-    y0: touch.clientY,
-    t0: Date.now(),
-    dx: 0,
-    live: false,
-    canceled: false,
-    raf: 0,
-    frameX: 0
-  };
+  // v269: gesture-based My Lists status swiping was removed.
+  // Status/category changes now happen only through button taps.
+  return;
 }
 
 function startMyListFingerSwipe(dir, next) {
@@ -6452,8 +6467,6 @@ function startMyListFingerSwipe(dir, next) {
   const toX = toBtn ? toBtn.offsetLeft : fromX;
   const toW = toBtn ? toBtn.offsetWidth : fromW;
 
-  activeTab = origTab;
-  render();
   forceMyListSwipeLayoutFlush();
 
   const pillEl = tabsEl && tabsEl.querySelector('.tab-sliding-pill');
@@ -6540,7 +6553,12 @@ function _swMove(e) {
     if (Math.abs(dy) >= Math.abs(dx) * 0.86) { _sw.canceled = true; return; }
     const dir = dx < 0 ? 'left' : 'right';
     const next = _swAdjacentTab(dir);
-    if (!next) { _sw.canceled = true; return; }
+    if (!next) {
+      // Consume horizontal edge swipes inside My Lists content so Safari/app shell does not create a full-page swipe effect.
+      if (Math.abs(dx) > 14 && Math.abs(dx) > Math.abs(dy) * 1.15) e.preventDefault();
+      _sw.canceled = true;
+      return;
+    }
     startMyListFingerSwipe(dir, next);
   }
 
@@ -6555,8 +6573,10 @@ function finishMyListFingerSwipe(nextTab, callback) {
   requestAnimationFrame(() => {
     callback?.();
     forceMyListSwipeLayoutFlush();
-    setMyListSwipeLiveContentHidden(false);
-    requestAnimationFrame(() => updateSlidingPills());
+    requestAnimationFrame(() => {
+      setMyListSwipeLiveContentHidden(false);
+      updateSlidingPills();
+    });
   });
 }
 
@@ -6573,7 +6593,7 @@ function _swEnd() {
   const vel = Math.abs(dx) / Math.max(1, Date.now() - state.t0);
   const threshold = Math.min(sw * 0.28, 92);
   const commit = Math.abs(dx) > threshold || vel > 0.48;
-  const ease = 'transform 220ms cubic-bezier(0.22,1,0.36,1)';
+  const ease = 'transform 260ms cubic-bezier(0.22,1,0.36,1)';
   const endX = state.dir === 'left' ? -sw : 0;
   const cancelX = state.startX || 0;
 
@@ -6596,7 +6616,7 @@ function _swEnd() {
       if (state.pillEl) state.pillEl.style.transition = '';
       persistUiState();
     });
-  }, 225);
+  }, 265);
 }
 
 function _swCancel() {
@@ -6721,6 +6741,124 @@ function changeStatus(id, status) {
   }
   save(); render();
 }
+
+function initMyListCardActionDelegates() {
+  if (window.__shelfdMyListCardActionDelegatesReady) return;
+  window.__shelfdMyListCardActionDelegatesReady = true;
+
+  const handled = event => {
+    event.preventDefault?.();
+    event.stopPropagation?.();
+    event.stopImmediatePropagation?.();
+  };
+
+  document.addEventListener('click', event => {
+    const target = event.target;
+    if (!target?.closest || viewingUser) {
+      const friendAddButton = target?.closest?.('#mylist-view .friend-card-add-btn[data-friend-item-id]');
+      if (friendAddButton) {
+        handled(event);
+        openFriendAddModal(friendAddButton.dataset.friendItemId || '', friendAddButton);
+      }
+      return;
+    }
+
+    const statusButton = target.closest('#mylist-view .status-pill[data-mylist-status-id][data-status]');
+    if (statusButton) {
+      handled(event);
+      const itemId = statusButton.dataset.mylistStatusId || '';
+      const nextStatus = statusButton.dataset.status || '';
+      if (itemId && nextStatus) changeStatus(itemId, nextStatus);
+      return;
+    }
+
+    // Let star ratings use their original inline/touch handlers.
+    // Capturing them here blocks the target-phase star behavior on mobile and breaks scrub/tap rating.
+    if (target.closest('#mylist-view .star-btn[data-mylist-rate-item-id][data-mylist-rate-prefix][data-mylist-rate-score]')) {
+      return;
+    }
+
+    const deleteButton = target.closest('#mylist-view .delete-btn[data-mylist-delete-id]');
+    if (deleteButton) {
+      handled(event);
+      deleteItem(event, deleteButton.dataset.mylistDeleteId || '');
+      return;
+    }
+
+    const commentsButton = target.closest('#mylist-view .comments-btn[data-mylist-comments-id]');
+    if (commentsButton) {
+      handled(event);
+      openCommentsPage(commentsButton.dataset.mylistCommentsId || '', commentsButton);
+      return;
+    }
+
+    const letterboxdButton = target.closest('#mylist-view .letterboxd-badge-btn[data-mylist-letterboxd-id]');
+    if (letterboxdButton) {
+      handled(event);
+      openLetterboxd(letterboxdButton.dataset.mylistLetterboxdId || '');
+      return;
+    }
+
+    const watchInfoButton = target.closest('#mylist-view .watch-together-stack[data-mylist-watch-info-id]');
+    if (watchInfoButton) {
+      handled(event);
+      openWatchTogetherInfoModal(event, watchInfoButton.dataset.mylistWatchInfoId || '', watchInfoButton.dataset.mylistWatchSection || activeSection);
+      return;
+    }
+
+    const watchAddButton = target.closest('#mylist-view .watch-together-add[data-mylist-watch-add-id]');
+    if (watchAddButton) {
+      handled(event);
+      openWatchTogetherTagModal(event, watchAddButton.dataset.mylistWatchAddId || '', watchAddButton.dataset.mylistWatchSection || activeSection);
+      return;
+    }
+
+    const episodeToggleButton = target.closest('#mylist-view .ep-toggle-bar[data-mylist-toggle-episodes-id]');
+    if (episodeToggleButton) {
+      handled(event);
+      toggleEpisodes(episodeToggleButton.dataset.mylistToggleEpisodesId || '');
+      return;
+    }
+
+    const markAllButton = target.closest('#mylist-view [data-mylist-mark-all-id][data-mylist-mark-all-value]');
+    if (markAllButton) {
+      handled(event);
+      markAllEps(markAllButton.dataset.mylistMarkAllId || '', markAllButton.dataset.mylistMarkAllValue === 'true');
+      return;
+    }
+
+    const seasonMarkButton = target.closest('#mylist-view .season-mark-btn[data-mylist-season-mark-id][data-mylist-season-num]');
+    if (seasonMarkButton) {
+      handled(event);
+      markSeasonEps(seasonMarkButton.dataset.mylistSeasonMarkId || '', Number(seasonMarkButton.dataset.mylistSeasonNum || 0), seasonMarkButton.dataset.mylistSeasonMarkValue === 'true');
+      return;
+    }
+
+    const episodeButton = target.closest('#mylist-view .ep-check[data-ep-toggle-item-id][data-ep-toggle-ep-id]');
+    if (episodeButton) {
+      handled(event);
+      const itemId = episodeButton.dataset.epToggleItemId || '';
+      const epId = episodeButton.dataset.epToggleEpId || '';
+      if (itemId && epId) toggleEp(itemId, epId);
+      return;
+    }
+
+    const episodeRatingButton = target.closest('#mylist-view .ep-rating-btn[data-mylist-ep-rating-item-id][data-mylist-ep-rating-ep-id]');
+    if (episodeRatingButton) {
+      handled(event);
+      openEpRating(episodeRatingButton.dataset.mylistEpRatingItemId || '', episodeRatingButton.dataset.mylistEpRatingEpId || '');
+      return;
+    }
+
+    const seasonHeader = target.closest('#mylist-view .season-header[data-mylist-season-toggle-id][data-mylist-season-num]');
+    if (seasonHeader && !target.closest('button, a, input, textarea, select')) {
+      handled(event);
+      toggleSeason(seasonHeader.dataset.mylistSeasonToggleId || '', Number(seasonHeader.dataset.mylistSeasonNum || 0));
+    }
+  }, true);
+}
+
+initMyListCardActionDelegates();
 
 function removeWatchTogetherGroupFromLocalState(groupId = '') {
   if (!groupId) return;
@@ -8772,20 +8910,20 @@ let friendActivityPromise = null;
 const FRIEND_ACTIVITY_CACHE_MS = 30000;
 const FRIEND_ACTIVITY_LIVE_MAX = 140;
 const DISCOVER_PAGE_COUNT = 3;
-const DISCOVER_LIMIT = 20;
+const DISCOVER_LIMIT = 6;
+const DISCOVER_FULL_CATEGORY_LIMIT = 15;
+const DISCOVER_FULL_CATEGORY_PAGE_COUNT = 3;
 const DISCOVER_STREAMING_REGION = 'US';
 const DISCOVER_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-const DISCOVER_CACHE_PREFIX = 'screenlist-discover-cache-v42:';
+const DISCOVER_CACHE_PREFIX = 'screenlist-discover-cache-v46:';
 
 function getDiscoverGrids() {
   return [
     document.getElementById('discover-tv-new-releases-grid'),
-    document.getElementById('discover-tv-years-best-grid'),
-    document.getElementById('discover-tv-popular-grid'),
-    document.getElementById('discover-tv-top-rated-grid'),
     document.getElementById('discover-tv-trending-grid'),
+    document.getElementById('discover-tv-popular-grid'),
     document.getElementById('discover-tv-releasing-soon-grid'),
-    document.getElementById('discover-tv-hidden-gems-grid'),
+    document.getElementById('discover-tv-top-rated-grid'),
     document.getElementById('discover-friends-watching-grid'),
     document.getElementById('discover-movie-new-releases-grid'),
     document.getElementById('discover-movie-in-theaters-grid'),
@@ -11219,6 +11357,73 @@ function initFeedComposer() {
   }
 }
 
+function shouldIgnoreActivitySurfaceOpen(event) {
+  const target = event && event.target;
+  if (!target || !(target instanceof Element)) return false;
+  const blockedSelector = [
+    'button',
+    'a',
+    'input',
+    'textarea',
+    'select',
+    'label',
+    '[role="button"]',
+    '[data-activity-click-exempt]',
+    '.activity-card-name',
+    '.activity-action-text',
+    '.activity-card-title-inline',
+    '.activity-card-bottom',
+    '.activity-event-label',
+    '.activity-card-section',
+    '.activity-card-time',
+    '.activity-stars-row',
+    '.activity-comment-preview',
+    '.feed-post-text',
+    '.feed-post-trailer',
+    '.activity-poster-col',
+    '.activity-poster-placeholder',
+    '.activity-interactions'
+  ].join(',');
+  return !!target.closest(blockedSelector);
+}
+
+function openActivityCardSurface(activityId, event) {
+  if (!activityId || shouldIgnoreActivitySurfaceOpen(event)) return;
+  if (event) event.stopPropagation();
+  openActivityReplyPage(activityId);
+}
+
+function openFeedPostCardSurface(postId, event) {
+  if (!postId || shouldIgnoreActivitySurfaceOpen(event)) return;
+  if (event) event.stopPropagation();
+  openFeedPostPage(postId);
+}
+
+function getActivityItemYear(item = {}) {
+  const rawYear = item.year || item.releaseYear || item.firstAirYear || item.airYear || '';
+  if (rawYear) return String(rawYear).slice(0, 4);
+  const rawDate = item.releaseDate || item.release_date || item.firstAirDate || item.first_air_date || item.released || item.airDate || item.date || '';
+  const match = String(rawDate || '').match(/\d{4}/);
+  return match ? match[0] : '';
+}
+
+function getActivityStatusLabelForSection(statusValue = '', section = '') {
+  const normalized = String(statusValue || '').toLowerCase();
+  if (section === 'games') {
+    if (normalized === 'live') return 'Live Games';
+    if (normalized === 'watching') return 'Playing';
+    if (normalized === 'planned') return 'Backlog';
+    if (normalized === 'watched') return 'Played';
+  } else {
+    if (normalized === 'watching') return 'Watching';
+    if (normalized === 'planned') return 'Watchlist';
+    if (normalized === 'watched') return 'Watched';
+  }
+  if (normalized === 'paused') return 'Paused';
+  if (normalized === 'dropped') return 'Dropped';
+  return 'Library';
+}
+
 const ACTIVITY_TYPE_META = {
   rated:     { label: 'Rated',    labelClass: 'el-rated',     ringClass: 'ring-rated',     storyRingClass: 'story-ring-rated',     topClass: 'card-top-rated'     },
   added:     { label: 'Added',    labelClass: 'el-added',     ringClass: 'ring-added',     storyRingClass: 'story-ring-added',     topClass: 'card-top-added'     },
@@ -11313,7 +11518,7 @@ function buildFeedPostCardHTML(a, activityId, options = {}) {
     </div>
   `;
   
-  return `<div class="activity-card feed-post ${meta.topClass}" data-activity-card-id="${escAttr(activityId)}" data-post-id="${escAttr(a.postId || a.id || '')}">
+  return `<div class="activity-card feed-post ${meta.topClass}" data-activity-card-id="${escAttr(activityId)}" data-post-id="${escAttr(a.postId || a.id || '')}" onclick="openFeedPostCardSurface('${escAttr(a.postId || a.id || '')}', event)">
     <div class="activity-avatar-wrap">${avatarHtml}</div>
     <div class="activity-content-col">
       <div class="activity-who-row">
@@ -12044,60 +12249,49 @@ function buildActivityPostDetailHTML(activity, activityId, collection = 'activit
   const sectionLabel = getSectionLabel2(section);
   const timeStr = relativeTime(activity.timestamp || item.dateAdded);
   const title = item.title || item.name || 'Untitled';
+  const year = getActivityItemYear(item);
   const avatarSrc = actor.photo || activity.photo || '';
   const initial = getDisplayName(actor, 'F').charAt(0).toUpperCase();
   const likes = Array.isArray(activity.likes) ? activity.likes : [];
   const replies = Array.isArray(activity.replies) ? activity.replies : [];
   const isLiked = currentUser && likes.includes(currentUser.uid);
   const meta = ACTIVITY_TYPE_META[eventType] || ACTIVITY_TYPE_META.added;
+  const rating = Number(item.rating || activity.rating || 0);
+  const statusLabel = getActivityStatusLabelForSection(item.status, section);
+  const addedTime = relativeTime(item.dateAdded || activity.timestamp);
+  const commentText = String(activity.commentText || activity.content?.text || item.commentText || item.comment || '').trim();
 
   const avatarHtml = avatarSrc
     ? `<img class="x-post-avatar ${meta.ringClass}" src="${escAttr(avatarSrc)}" alt="" loading="lazy" onclick="openUserProfile('${escAttr(activity.uid)}')">`
     : `<div class="x-post-avatar x-post-avatar-placeholder ${meta.ringClass}" onclick="openUserProfile('${escAttr(activity.uid)}')">${initial}</div>`;
 
-  const itemCover = String(item.cover || '').trim();
-  const actorPhoto = String(avatarSrc || '').trim();
-  const mediaCover = itemCover && itemCover !== actorPhoto ? itemCover : '';
-  const posterHtml = mediaCover
-    ? `<button type="button" class="x-post-media-poster" onclick="handleActivityMediaClick('${escAttr(activityId)}', this)"><img src="${escAttr(mediaCover)}" alt="" loading="lazy"></button>`
+  const ratingHtml = rating > 0
+    ? `<div class="lb-activity-rating" aria-label="User rating"><span class="lb-activity-rating-star">★</span><span>${escHtml(formatRatingValueForSection(rating, section, true))}</span></div>`
     : '';
 
-  let actionText = getActivityVerbPhrase(eventType, item);
-  let ratingHtml = '';
-  if (eventType === 'rated') {
-    const rating = Number(item.rating || 0);
-    actionText = `rated ${formatRatingValueForSection(rating, section, true)}`;
-    const filledStars = Math.round(rating / 2);
-    let stars = '';
-    for (let i = 1; i <= 5; i += 1) stars += `<span class="activity-star ${i <= filledStars ? 'lit' : 'dim'}">★</span>`;
-    ratingHtml = `<div class="x-post-stars">${stars}</div>`;
-  }
-
-  if (eventType === 'added') actionText = `added to ${section === 'games' ? 'library' : 'shelf'}`;
-  if (eventType === 'completed') actionText = section === 'games' ? 'completed' : 'finished watching';
-  if (eventType === 'started') actionText = section === 'games' ? 'started playing' : 'started watching';
-
-  const commentHtml = activity.commentText ? `<div class="x-post-text">${escHtml(String(activity.commentText))}</div>` : '';
-  const detailLabel = [meta.label, sectionLabel].filter(Boolean).join(' · ');
+  const listLine = `${eventType === 'rated' ? 'Rated' : 'Added'} ${statusLabel ? `in ${statusLabel}` : 'in Library'}${addedTime ? ` · ${addedTime}` : ''}`;
+  const sectionLine = [sectionLabel, ACTIVITY_TYPE_META[eventType]?.label].filter(Boolean).join(' · ');
+  const commentHtml = commentText
+    ? `<div class="lb-activity-comment">${escHtml(commentText)}</div>`
+    : '';
 
   return `
-    <article class="x-post-detail-card activity-detail-post ${meta.topClass}" data-activity-card-id="${escAttr(activityId)}" data-activity-id="${escAttr(activityId)}">
-      <div class="x-post-main-row">
+    <article class="x-post-detail-card activity-detail-post lb-activity-detail-post ${meta.topClass}" data-activity-card-id="${escAttr(activityId)}" data-activity-id="${escAttr(activityId)}">
+      <div class="lb-activity-actor-row">
         ${avatarHtml}
-        <div class="x-post-body">
-          <div class="x-post-header-row">
-            <span class="x-post-author" onclick="viewUserFromMap('${escAttr(activity.uid)}')">${renderDisplayNameHTML(actor, 'Friend', '')}</span>
-            <span class="x-post-time">${timeStr}</span>
-          </div>
-          <div class="x-post-action-text">${escHtml(actionText)}</div>
-          <div class="x-post-title">${escHtml(title)}</div>
-          ${ratingHtml}
-          ${commentHtml}
-          <div class="x-post-meta-line"><span class="activity-event-label ${meta.labelClass}">${escHtml(detailLabel)}</span></div>
-        </div>
-        ${posterHtml}
+        <button type="button" class="lb-activity-author" onclick="viewUserFromMap('${escAttr(activity.uid)}')">${renderDisplayNameHTML(actor, 'Friend', '')}</button>
       </div>
-      <div class="x-post-actions-row" data-activity-interactions>
+      <div class="lb-activity-body">
+        <div class="lb-activity-title-row">
+          <span class="lb-activity-title">${escHtml(title)}</span>
+          ${year ? `<span class="lb-activity-year">(${escHtml(year)})</span>` : ''}
+        </div>
+        ${ratingHtml}
+        <div class="lb-activity-list-line">${escHtml(listLine)}</div>
+        ${sectionLine ? `<div class="lb-activity-section-line">${escHtml(sectionLine)}</div>` : ''}
+        ${commentHtml}
+      </div>
+      <div class="x-post-actions-row lb-activity-actions-row" data-activity-interactions>
         <button class="x-post-action-btn" data-activity-action="reply" type="button" onclick="focusFeedReplyInput()">
           ${getScreenListReplyIconSvg()}<span data-activity-reply-count>${replies.length}</span>
         </button>
@@ -12375,7 +12569,7 @@ function buildActivityCardHTML(a, activityId, options = {}) {
     </div>
   `;
 
-  return `<div class="activity-card ${meta.topClass}" data-activity-card-id="${escAttr(activityId)}" data-activity-id="${escAttr(activityId)}">
+  return `<div class="activity-card ${meta.topClass}" data-activity-card-id="${escAttr(activityId)}" data-activity-id="${escAttr(activityId)}" onclick="openActivityCardSurface('${escAttr(activityId)}', event)">
     <div class="activity-avatar-wrap">${avatarHtml}</div>
     <div class="activity-content-col">
       <div class="${whoRowClass}">${nameHtml}</div>
@@ -12439,10 +12633,9 @@ function buildActivityFeedHeaderHTML(heading = 'Activity Feed', options = {}) {
   const showSectionNav = options.showSharedWatch !== false;
   const actionButtons = [];
   if (showSectionNav) {
-    const friendWatchActive = activeActivitySubTab === 'friendWatch';
+    if (activeActivitySubTab === 'friendWatch') activeActivitySubTab = 'feed';
     const feedActive = activeActivitySubTab === 'feed';
     const sharedWatchActive = activeActivitySubTab === 'sharedWatch';
-    actionButtons.push(`<button type="button" class="activity-shared-watch-pill friend-watch-pill ${friendWatchActive ? 'active' : 'secondary'}" aria-current="${friendWatchActive ? 'true' : 'false'}" onclick="switchActivitySubTab('friendWatch')">Watch Together ${buildSharedWatchCountBubbleHTML()}</button>`);
     actionButtons.push(`<button type="button" class="activity-shared-watch-pill activity-feed-pill ${feedActive ? 'active' : 'secondary'}" aria-current="${feedActive ? 'true' : 'false'}" onclick="switchActivitySubTab('feed')">Activity</button>`);
     actionButtons.push(`<button type="button" class="activity-shared-watch-pill ${sharedWatchActive ? 'active' : 'secondary'}" aria-current="${sharedWatchActive ? 'true' : 'false'}" onclick="switchActivitySubTab('sharedWatch')">Shared Watch</button>`);
   }
@@ -13090,15 +13283,10 @@ async function renderDiscoverCachedRow({ cacheKey, fetcher, render, force = fals
 }
 
 async function fetchDiscoverMediaRank(section, fallbackFetcher = null) {
-  const res = await fetch(`/api/rank/media?section=${encodeURIComponent(section)}&period=week`, { cache: 'no-store' });
-  let payload = null;
-  try { payload = await res.json(); } catch (e) { payload = null; }
-  if (res.ok && payload?.ok && Array.isArray(payload.rankings)) return payload.rankings;
-  if (fallbackFetcher) {
-    console.warn(`Trakt-first Discover ranking failed for ${section}; using existing fallback.`, payload?.error || res.status);
-    return fallbackFetcher();
-  }
-  throw new Error(payload?.error || `Discover ranking request failed (${res.status})`);
+  // v246: Pull Tavily/AI back from Discover ordering. Keep AI/Tavily for IMDb rating hydration only,
+  // and use the original TMDB/Trakt-style category fetchers for section order/ranking.
+  if (fallbackFetcher) return fallbackFetcher();
+  throw new Error(`Discover fallback fetcher missing for ${section}`);
 }
 
 async function loadDiscover(force = false) {
@@ -13121,38 +13309,8 @@ async function loadDiscover(force = false) {
         gridId: 'discover-tv-new-releases-grid',
         run: () => renderDiscoverCachedRow({
           cacheKey: `media:tv-date-new-releases:${DISCOVER_RANKING_CACHE_VERSION}:${discoverNewReleaseRange}:${DISCOVER_RELEASE_REGION}:all`,
-          fetcher: () => fetchNewReleasesByDate(discoverNewReleaseRange, DISCOVER_LIMIT, DISCOVER_PAGE_COUNT, 'tv'),
+          fetcher: () => fetchDiscoverMediaRank(`tv_new_releases_${discoverNewReleaseRange}`, () => fetchNewReleasesByDate(discoverNewReleaseRange, DISCOVER_LIMIT, DISCOVER_PAGE_COUNT, 'tv')),
           render: items => renderRankedDiscoverCards('tv', items, 'discover-tv-new-releases-grid'),
-          force
-        })
-      },
-      {
-        label: "TV This Year's Best",
-        gridId: 'discover-tv-years-best-grid',
-        run: () => renderDiscoverCachedRow({
-          cacheKey: `media:tv-years-best:${DISCOVER_RANKING_CACHE_VERSION}`,
-          fetcher: () => fetchAndRankThisYearsBest('tv'),
-          render: items => renderRankedDiscoverCards('tv', items, 'discover-tv-years-best-grid'),
-          force
-        })
-      },
-      {
-        label: 'Popular TV Shows',
-        gridId: 'discover-tv-popular-grid',
-        run: () => renderDiscoverCachedRow({
-          cacheKey: `media:tv-popular:${DISCOVER_RANKING_CACHE_VERSION}`,
-          fetcher: () => fetchDiscoverPopularMedia('tv'),
-          render: items => renderRankedDiscoverCards('tv', items, 'discover-tv-popular-grid'),
-          force
-        })
-      },
-      {
-        label: 'Top Rated TV Shows',
-        gridId: 'discover-tv-top-rated-grid',
-        run: () => renderDiscoverCachedRow({
-          cacheKey: `media:tv-top-rated:${DISCOVER_RANKING_CACHE_VERSION}`,
-          fetcher: () => fetchDiscoverTopRatedMedia('tv'),
-          render: items => renderRankedDiscoverCards('tv', items, 'discover-tv-top-rated-grid'),
           force
         })
       },
@@ -13161,8 +13319,18 @@ async function loadDiscover(force = false) {
         gridId: 'discover-tv-trending-grid',
         run: () => renderDiscoverCachedRow({
           cacheKey: `media:tmdb-weekly-trending-tv:${DISCOVER_RANKING_CACHE_VERSION}`,
-          fetcher: () => fetchTmdbWeeklyTrendingMedia('tv'),
+          fetcher: () => fetchDiscoverMediaRank('tv_trending', () => fetchTmdbWeeklyTrendingMedia('tv')),
           render: items => renderRankedDiscoverCards('tv', items, 'discover-tv-trending-grid'),
+          force
+        })
+      },
+      {
+        label: 'Popular TV Shows',
+        gridId: 'discover-tv-popular-grid',
+        run: () => renderDiscoverCachedRow({
+          cacheKey: `media:tv-popular:${DISCOVER_RANKING_CACHE_VERSION}`,
+          fetcher: () => fetchDiscoverMediaRank('tv_popular', () => fetchDiscoverPopularMedia('tv')),
+          render: items => renderRankedDiscoverCards('tv', items, 'discover-tv-popular-grid'),
           force
         })
       },
@@ -13171,18 +13339,18 @@ async function loadDiscover(force = false) {
         gridId: 'discover-tv-releasing-soon-grid',
         run: () => renderDiscoverCachedRow({
           cacheKey: `media:tv-date-releasing-soon:${DISCOVER_RANKING_CACHE_VERSION}`,
-          fetcher: () => fetchReleasingSoonByDate(DISCOVER_LIMIT, DISCOVER_PAGE_COUNT, 'tv'),
+          fetcher: () => fetchDiscoverMediaRank('tv_releasing_soon', () => fetchReleasingSoonByDate(DISCOVER_LIMIT, DISCOVER_PAGE_COUNT, 'tv')),
           render: items => renderRankedDiscoverCards('tv', items, 'discover-tv-releasing-soon-grid'),
           force
         })
       },
       {
-        label: 'TV Hidden Gems',
-        gridId: 'discover-tv-hidden-gems-grid',
+        label: 'Top Rated TV Shows',
+        gridId: 'discover-tv-top-rated-grid',
         run: () => renderDiscoverCachedRow({
-          cacheKey: `media:tv-hidden-gems:${DISCOVER_RANKING_CACHE_VERSION}`,
-          fetcher: () => fetchAndRankHiddenGems('tv'),
-          render: items => renderRankedDiscoverCards('tv', items, 'discover-tv-hidden-gems-grid'),
+          cacheKey: `media:tv-top-rated-all-time:${DISCOVER_RANKING_CACHE_VERSION}`,
+          fetcher: () => fetchDiscoverMediaRank('tv_top_rated', () => fetchDiscoverTopRatedMedia('tv')),
+          render: items => renderRankedDiscoverCards('tv', items, 'discover-tv-top-rated-grid'),
           force
         })
       },
@@ -13196,7 +13364,7 @@ async function loadDiscover(force = false) {
         gridId: 'discover-movie-new-releases-grid',
         run: () => renderDiscoverCachedRow({
           cacheKey: `media:movie-date-new-releases:${DISCOVER_RANKING_CACHE_VERSION}:${discoverNewReleaseRange}:${DISCOVER_RELEASE_REGION}:all`,
-          fetcher: () => fetchNewReleasesByDate(discoverNewReleaseRange, DISCOVER_LIMIT, DISCOVER_PAGE_COUNT, 'movie'),
+          fetcher: () => fetchDiscoverMediaRank(`movie_new_releases_${discoverNewReleaseRange}`, () => fetchNewReleasesByDate(discoverNewReleaseRange, DISCOVER_LIMIT, DISCOVER_PAGE_COUNT, 'movie')),
           render: items => renderRankedDiscoverCards('movie', items, 'discover-movie-new-releases-grid'),
           force
         })
@@ -13206,7 +13374,7 @@ async function loadDiscover(force = false) {
         gridId: 'discover-movie-in-theaters-grid',
         run: () => renderDiscoverCachedRow({
           cacheKey: `media:movie-in-theaters:${DISCOVER_RANKING_CACHE_VERSION}`,
-          fetcher: () => fetchInTheatersMovies(DISCOVER_LIMIT),
+          fetcher: () => fetchDiscoverMediaRank('movie_in_theaters', () => fetchInTheatersMovies(DISCOVER_LIMIT)),
           render: items => renderRankedDiscoverCards('movie', items, 'discover-movie-in-theaters-grid'),
           force
         })
@@ -13216,7 +13384,7 @@ async function loadDiscover(force = false) {
         gridId: 'discover-movie-years-best-grid',
         run: () => renderDiscoverCachedRow({
           cacheKey: `media:movie-years-best:${DISCOVER_RANKING_CACHE_VERSION}`,
-          fetcher: () => fetchAndRankThisYearsBest('movie'),
+          fetcher: () => fetchDiscoverMediaRank('movie_years_best', () => fetchAndRankThisYearsBest('movie')),
           render: items => renderRankedDiscoverCards('movie', items, 'discover-movie-years-best-grid'),
           force
         })
@@ -13226,7 +13394,7 @@ async function loadDiscover(force = false) {
         gridId: 'discover-movie-popular-grid',
         run: () => renderDiscoverCachedRow({
           cacheKey: `media:movie-popular:${DISCOVER_RANKING_CACHE_VERSION}`,
-          fetcher: () => fetchDiscoverPopularMedia('movie'),
+          fetcher: () => fetchDiscoverMediaRank('movie_popular', () => fetchDiscoverPopularMedia('movie')),
           render: items => renderRankedDiscoverCards('movie', items, 'discover-movie-popular-grid'),
           force
         })
@@ -13236,7 +13404,7 @@ async function loadDiscover(force = false) {
         gridId: 'discover-movie-top-rated-grid',
         run: () => renderDiscoverCachedRow({
           cacheKey: `media:movie-top-rated:${DISCOVER_RANKING_CACHE_VERSION}`,
-          fetcher: () => fetchDiscoverTopRatedMedia('movie'),
+          fetcher: () => fetchDiscoverMediaRank('movie_top_rated', () => fetchDiscoverTopRatedMedia('movie')),
           render: items => renderRankedDiscoverCards('movie', items, 'discover-movie-top-rated-grid'),
           force
         })
@@ -13246,7 +13414,7 @@ async function loadDiscover(force = false) {
         gridId: 'discover-movie-trending-grid',
         run: () => renderDiscoverCachedRow({
           cacheKey: `media:tmdb-weekly-trending-movies:${DISCOVER_RANKING_CACHE_VERSION}`,
-          fetcher: () => fetchTmdbWeeklyTrendingMedia('movie'),
+          fetcher: () => fetchDiscoverMediaRank('movie_trending', () => fetchTmdbWeeklyTrendingMedia('movie')),
           render: items => renderRankedDiscoverCards('movie', items, 'discover-movie-trending-grid'),
           force
         })
@@ -13256,7 +13424,7 @@ async function loadDiscover(force = false) {
         gridId: 'discover-movie-releasing-soon-grid',
         run: () => renderDiscoverCachedRow({
           cacheKey: `media:movie-date-releasing-soon:${DISCOVER_RANKING_CACHE_VERSION}`,
-          fetcher: () => fetchReleasingSoonByDate(DISCOVER_LIMIT, DISCOVER_PAGE_COUNT, 'movie'),
+          fetcher: () => fetchDiscoverMediaRank('movie_releasing_soon', () => fetchReleasingSoonByDate(DISCOVER_LIMIT, DISCOVER_PAGE_COUNT, 'movie')),
           render: items => renderRankedDiscoverCards('movie', items, 'discover-movie-releasing-soon-grid'),
           force
         })
@@ -13266,7 +13434,7 @@ async function loadDiscover(force = false) {
         gridId: 'discover-movie-hidden-gems-grid',
         run: () => renderDiscoverCachedRow({
           cacheKey: `media:movie-hidden-gems:${DISCOVER_RANKING_CACHE_VERSION}`,
-          fetcher: () => fetchAndRankHiddenGems('movie'),
+          fetcher: () => fetchDiscoverMediaRank('movie_hidden_gems', () => fetchAndRankHiddenGems('movie')),
           render: items => renderRankedDiscoverCards('movie', items, 'discover-movie-hidden-gems-grid'),
           force
         })
@@ -13350,10 +13518,10 @@ async function fetchTmdbPages(path, params = {}, pageCount = DISCOVER_PAGE_COUNT
   return filtered;
 }
 
-async function fetchTmdbWeeklyTrendingMedia(type = 'tv') {
+async function fetchTmdbWeeklyTrendingMedia(type = 'tv', limit = DISCOVER_LIMIT, pageCount = DISCOVER_PAGE_COUNT) {
   const mediaType = type === 'movie' ? 'movie' : 'tv';
   const path = mediaType === 'movie' ? 'trending/movie/week' : 'trending/tv/week';
-  const results = await fetchTmdbPages(path, {}, DISCOVER_PAGE_COUNT);
+  const results = await fetchTmdbPages(path, {}, pageCount);
   const filtered = results
     .filter(item => {
       const title = mediaType === 'movie' ? (item.title || item.original_title || '') : (item.name || item.original_name || '');
@@ -13365,7 +13533,7 @@ async function fetchTmdbWeeklyTrendingMedia(type = 'tv') {
       ...item,
       media_type: mediaType
     }))
-    .slice(0, Math.max(DISCOVER_LIMIT * 2, 24));
+    .slice(0, Math.max(limit * 2, 24));
   return filtered
     .map((item, index) => ({
       ...item,
@@ -13373,7 +13541,7 @@ async function fetchTmdbWeeklyTrendingMedia(type = 'tv') {
       discoverContext: buildDiscoverTmdbContext('TMDB weekly trending', item)
     }))
     .sort(compareDiscoverCalculatedScoreDesc)
-    .slice(0, DISCOVER_LIMIT);
+    .slice(0, limit);
 }
 
 async function fetchAndRankTrendingMovies() {
@@ -13540,7 +13708,7 @@ async function changeDiscoverReleaseRange(range) {
     try {
       await renderDiscoverCachedRow({
         cacheKey: `media:${config.type}-date-new-releases:${DISCOVER_RANKING_CACHE_VERSION}:${discoverNewReleaseRange}:${DISCOVER_RELEASE_REGION}:all`,
-        fetcher: () => fetchNewReleasesByDate(discoverNewReleaseRange, DISCOVER_LIMIT, DISCOVER_PAGE_COUNT, config.type),
+        fetcher: () => fetchDiscoverMediaRank(`${config.type === 'movie' ? 'movie' : 'tv'}_new_releases_${discoverNewReleaseRange}`, () => fetchNewReleasesByDate(discoverNewReleaseRange, DISCOVER_LIMIT, DISCOVER_PAGE_COUNT, config.type)),
         render: items => renderRankedDiscoverCards(config.type === 'movie' ? 'movie' : 'tv', items, config.gridId),
         force: true
       });
@@ -13609,7 +13777,7 @@ function compareDiscoverReleaseDateAsc(a = {}, b = {}) {
   return compareDiscoverTitleAsc(a, b);
 }
 
-const DISCOVER_RANKING_CACHE_VERSION = 'v217';
+const DISCOVER_RANKING_CACHE_VERSION = 'v246-original-discover-ranking';
 
 function clampDiscoverUnit(value) {
   const num = Number(value);
@@ -13946,7 +14114,7 @@ function compareDiscoverThisYearBest(a = {}, b = {}) {
   return compareDiscoverTitleAsc(a, b);
 }
 
-async function fetchAndRankThisYearsBest(mediaType = 'mixed') {
+async function fetchAndRankThisYearsBest(mediaType = 'mixed', limit = DISCOVER_LIMIT, pageCount = DISCOVER_PAGE_COUNT) {
   const type = getDiscoverMediaQueryType(mediaType);
   const year = new Date().getFullYear();
   const start = `${year}-01-01`;
@@ -13960,7 +14128,7 @@ async function fetchAndRankThisYearsBest(mediaType = 'mixed') {
       'vote_count.gte': '75',
       sort_by: 'vote_count.desc',
       region: 'US'
-    }, DISCOVER_PAGE_COUNT).then(items => items.map(item => markDiscoverMediaType(item, 'movie'))));
+    }, pageCount).then(items => items.map(item => markDiscoverMediaType(item, 'movie'))));
   }
   if (type === 'tv' || type === 'mixed' || type === 'anime') {
     const params = {
@@ -13970,7 +14138,7 @@ async function fetchAndRankThisYearsBest(mediaType = 'mixed') {
       sort_by: 'vote_count.desc'
     };
     if (type === 'anime') params.with_genres = '16';
-    requests.push(fetchTmdbPages('discover/tv', params, type === 'anime' ? 2 : DISCOVER_PAGE_COUNT).then(items => items.map(item => markDiscoverMediaType(item, 'tv'))));
+    requests.push(fetchTmdbPages('discover/tv', params, type === 'anime' ? Math.min(3, pageCount) : pageCount).then(items => items.map(item => markDiscoverMediaType(item, 'tv'))));
   }
 
   const combined = normalizeDiscoverTypedItems((await Promise.all(requests)).flat(), type);
@@ -13989,10 +14157,10 @@ async function fetchAndRankThisYearsBest(mediaType = 'mixed') {
   })
     .filter(item => Number(item.vote_average || 0) >= 6.5)
     .sort(compareDiscoverCalculatedScoreDesc)
-    .slice(0, DISCOVER_LIMIT);
+    .slice(0, limit);
 }
 
-async function fetchDiscoverPopularMedia(mediaType = 'tv') {
+async function fetchDiscoverPopularMedia(mediaType = 'tv', limit = DISCOVER_LIMIT, pageCount = DISCOVER_PAGE_COUNT) {
   const type = getDiscoverMediaQueryType(mediaType);
   const isMovie = type === 'movie';
   const path = isMovie ? 'discover/movie' : 'discover/tv';
@@ -14001,7 +14169,7 @@ async function fetchDiscoverPopularMedia(mediaType = 'tv') {
     include_adult: 'false'
   };
   if (type === 'anime') params.with_genres = '16';
-  const items = await fetchTmdbPages(path, params, DISCOVER_PAGE_COUNT);
+  const items = await fetchTmdbPages(path, params, pageCount);
   const candidates = normalizeDiscoverTypedItems(items, isMovie ? 'movie' : 'tv')
     .filter(item => hasUsableDiscoverReleaseItem(item) && (type !== 'anime' || isAnimeDiscoverCandidate(item)));
   return candidates
@@ -14011,10 +14179,10 @@ async function fetchDiscoverPopularMedia(mediaType = 'tv') {
       discoverContext: buildDiscoverTmdbContext('TMDB popularity', item)
     }))
     .sort(compareDiscoverCalculatedScoreDesc)
-    .slice(0, DISCOVER_LIMIT);
+    .slice(0, limit);
 }
 
-async function fetchDiscoverTopRatedMedia(mediaType = 'tv') {
+async function fetchDiscoverTopRatedMedia(mediaType = 'tv', limit = DISCOVER_LIMIT, pageCount = DISCOVER_PAGE_COUNT) {
   const type = getDiscoverMediaQueryType(mediaType);
   const isMovie = type === 'movie';
   const path = isMovie ? 'discover/movie' : 'discover/tv';
@@ -14025,7 +14193,7 @@ async function fetchDiscoverTopRatedMedia(mediaType = 'tv') {
     include_adult: 'false'
   };
   if (type === 'anime') params.with_genres = '16';
-  const items = await fetchTmdbPages(path, params, DISCOVER_PAGE_COUNT);
+  const items = await fetchTmdbPages(path, params, pageCount);
   const candidates = normalizeDiscoverTypedItems(items, isMovie ? 'movie' : 'tv')
     .filter(item => item.poster_path && getDiscoverSortTitle(item) && item.overview && (type !== 'anime' || isAnimeDiscoverCandidate(item)));
   return candidates
@@ -14039,18 +14207,18 @@ async function fetchDiscoverTopRatedMedia(mediaType = 'tv') {
       };
     })
     .sort(compareDiscoverCalculatedScoreDesc)
-    .slice(0, DISCOVER_LIMIT);
+    .slice(0, limit);
 }
 
 function scoreDiscoverInTheaters(items = [], item = {}) {
   return scoreDiscoverTmdbItem(items, item, 'inTheaters', 'movie');
 }
 
-async function fetchInTheatersMovies(limit = DISCOVER_LIMIT) {
+async function fetchInTheatersMovies(limit = DISCOVER_LIMIT, pageCount = DISCOVER_PAGE_COUNT) {
   const items = await fetchTmdbPages('movie/now_playing', {
     region: 'US',
     language: 'en-US'
-  }, DISCOVER_PAGE_COUNT);
+  }, pageCount);
   const candidates = normalizeDiscoverTypedItems(items, 'movie')
     .filter(item => hasUsableDiscoverReleaseItem(item));
   return candidates.map(item => ({
@@ -14068,7 +14236,7 @@ async function fetchInTheatersMovies(limit = DISCOVER_LIMIT) {
     .slice(0, limit);
 }
 
-async function fetchAndRankHiddenGems(mediaType = 'mixed') {
+async function fetchAndRankHiddenGems(mediaType = 'mixed', limit = DISCOVER_LIMIT, pageCount = DISCOVER_PAGE_COUNT) {
   const type = getDiscoverMediaQueryType(mediaType);
   const requests = [];
   if (type === 'movie' || type === 'mixed') {
@@ -14077,7 +14245,7 @@ async function fetchAndRankHiddenGems(mediaType = 'mixed') {
       'vote_count.gte': '100',
       'vote_count.lte': '2000',
       sort_by: 'vote_average.desc'
-    }, DISCOVER_PAGE_COUNT).then(items => items.map(item => markDiscoverMediaType(item, 'movie'))));
+    }, pageCount).then(items => items.map(item => markDiscoverMediaType(item, 'movie'))));
   }
   if (type === 'tv' || type === 'mixed') {
     requests.push(fetchTmdbPages('discover/tv', {
@@ -14085,7 +14253,7 @@ async function fetchAndRankHiddenGems(mediaType = 'mixed') {
       'vote_count.gte': '50',
       'vote_count.lte': '1000',
       sort_by: 'vote_average.desc'
-    }, DISCOVER_PAGE_COUNT).then(items => items.map(item => markDiscoverMediaType(item, 'tv'))));
+    }, pageCount).then(items => items.map(item => markDiscoverMediaType(item, 'tv'))));
   }
   const allGems = normalizeDiscoverTypedItems((await Promise.all(requests)).flat(), type);
   return allGems
@@ -14096,7 +14264,7 @@ async function fetchAndRankHiddenGems(mediaType = 'mixed') {
     }))
     .filter(item => item.poster_path && getDiscoverSortTitle(item) && item.overview)
     .sort(compareDiscoverCalculatedScoreDesc)
-    .slice(0, DISCOVER_LIMIT);
+    .slice(0, limit);
 }
 
 function parseDiscoverFriendWatchlistDoc(docData = {}) {
@@ -14355,10 +14523,30 @@ function clearDiscoverDatabaseSearch(source) {
   setDiscoverSearchSection(source, false);
 }
 
-async function fetchTmdbSearchResults(query) {
-  const pages = Array.from({ length: DISCOVER_PAGE_COUNT }, (_, i) => i + 1);
+function getDiscoverSearchPopularityScore(item = {}) {
+  const popularity = Number(item.popularity || 0);
+  const votes = Number(item.vote_count || 0);
+  const rating = Number(item.vote_average || 0);
+  const posterBoost = item.poster_path ? 18 : 0;
+  const date = item.release_date || item.first_air_date || '';
+  const year = Number(String(date).slice(0, 4));
+  const currentYear = new Date().getFullYear();
+  const recencyBoost = Number.isFinite(year) && year >= currentYear - 2 ? 18 : 0;
+  return (popularity * 1.8) + (Math.log10(votes + 1) * 22) + (rating * 5) + posterBoost + recencyBoost;
+}
+
+function normalizeDiscoverSearchTitle(value = '') {
+  return String(value || '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+async function fetchTmdbSearchResults(query, options = {}) {
+  const searchPath = options.path || 'search/multi';
+  const pageCount = Math.max(1, Number(options.pageCount || DISCOVER_PAGE_COUNT));
+  const limit = Math.max(1, Number(options.limit || DISCOVER_LIMIT));
+  const forcedMediaType = options.mediaType || '';
+  const pages = Array.from({ length: pageCount }, (_, i) => i + 1);
   const settled = await Promise.allSettled(pages.map(async page => {
-    const res = await fetchTmdbProxy('search/multi', { query, page: String(page) });
+    const res = await fetchTmdbProxy(searchPath, { query, include_adult: false, page: String(page) });
     if (!res.ok) throw new Error(`TMDB search request failed: ${res.status}`);
     const json = await res.json();
     return json.results || [];
@@ -14367,6 +14555,7 @@ async function fetchTmdbSearchResults(query) {
   return settled
     .filter(result => result.status === 'fulfilled')
     .flatMap(result => result.value)
+    .map(item => ({ ...item, media_type: forcedMediaType || item.media_type || (searchPath.includes('/movie') ? 'movie' : searchPath.includes('/tv') ? 'tv' : item.media_type) }))
     .filter(item => {
       const type = item.media_type;
       const key = `${type}:${item.id}`;
@@ -14374,12 +14563,78 @@ async function fetchTmdbSearchResults(query) {
       seen.add(key);
       return true;
     })
-    .sort((a, b) => {
-      const scoreA = (Number(a.popularity || 0) * 1.4) + (Number(a.vote_count || 0) * 0.06) + (Number(a.vote_average || 0) * 5);
-      const scoreB = (Number(b.popularity || 0) * 1.4) + (Number(b.vote_count || 0) * 0.06) + (Number(b.vote_average || 0) * 5);
-      return scoreB - scoreA;
-    })
-    .slice(0, DISCOVER_LIMIT);
+    .sort((a, b) => getDiscoverSearchPopularityScore(b) - getDiscoverSearchPopularityScore(a))
+    .slice(0, limit);
+}
+
+async function fetchTvMazeTmdbSearchMatches(query) {
+  const cleanQuery = String(query || '').trim();
+  if (!cleanQuery) return [];
+  try {
+    const res = await fetch(`https://api.tvmaze.com/search/shows?q=${encodeURIComponent(cleanQuery)}`);
+    if (!res.ok) return [];
+    const rows = await res.json();
+    const shows = (Array.isArray(rows) ? rows : [])
+      .map(row => ({ score: Number(row?.score || 0), show: row?.show || {} }))
+      .filter(row => row.show?.name)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, DISCOVER_TVMAZE_MATCH_LIMIT);
+    const settled = await Promise.allSettled(shows.map(async row => {
+      const title = row.show.name || '';
+      const year = String(row.show.premiered || '').slice(0, 4);
+      const params = { query: title, include_adult: false, page: '1' };
+      if (/^(18|19|20)\d{2}$/.test(year)) params.first_air_date_year = year;
+      const tmdbRes = await fetchTmdbProxy('search/tv', params);
+      if (!tmdbRes.ok) return null;
+      const json = await tmdbRes.json();
+      const results = (json.results || []).filter(item => item.poster_path);
+      if (!results.length) return null;
+      const wanted = normalizeDiscoverSearchTitle(title);
+      const picked = results.find(item => normalizeDiscoverSearchTitle(item.name || item.title || '') === wanted) || results[0];
+      return {
+        ...picked,
+        media_type: 'tv',
+        tvmaze_score: row.score,
+        tvmaze_id: row.show.id || ''
+      };
+    }));
+    return settled
+      .filter(result => result.status === 'fulfilled' && result.value)
+      .map(result => result.value);
+  } catch (error) {
+    console.warn('TVMaze search bridge failed:', error);
+    return [];
+  }
+}
+
+function mergeDiscoverSearchResults(...groups) {
+  const seen = new Set();
+  return groups.flat().filter(item => {
+    const type = item.media_type || 'tv';
+    const key = `${type}:${item.id}`;
+    if (!item || !item.id || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).sort((a, b) => getDiscoverSearchPopularityScore(b) - getDiscoverSearchPopularityScore(a));
+}
+
+async function fetchDiscoverUniversalMediaSearchResults(query, tab = 'tv') {
+  const mode = normalizeDiscoveryHub(tab);
+  if (mode === 'movies') {
+    return fetchTmdbSearchResults(query, { path: 'search/movie', mediaType: 'movie', pageCount: 3, limit: DISCOVER_UNIVERSAL_SEARCH_LIMIT });
+  }
+  if (mode === 'anime') {
+    const tv = await fetchTmdbSearchResults(query, { path: 'search/tv', mediaType: 'tv', pageCount: 3, limit: DISCOVER_UNIVERSAL_SEARCH_LIMIT * 2 });
+    return tv.filter(isAnimeDiscoverCandidate).slice(0, DISCOVER_UNIVERSAL_SEARCH_LIMIT);
+  }
+  if (mode === 'tv') {
+    const [tmdb, tvmaze] = await Promise.all([
+      fetchTmdbSearchResults(query, { path: 'search/tv', mediaType: 'tv', pageCount: 3, limit: DISCOVER_UNIVERSAL_SEARCH_LIMIT }),
+      fetchTvMazeTmdbSearchMatches(query)
+    ]);
+    return mergeDiscoverSearchResults(tmdb, tvmaze).slice(0, DISCOVER_UNIVERSAL_SEARCH_LIMIT);
+  }
+  return fetchTmdbSearchResults(query, { path: 'search/multi', pageCount: 3, limit: DISCOVER_UNIVERSAL_SEARCH_LIMIT });
 }
 
 async function searchDiscoverDatabase() {
@@ -14453,6 +14708,176 @@ async function searchGamesDiscoverDatabase() {
   }
 }
 
+
+// Universal Discovery Search Overlay
+let discoverUniversalSearchActiveTab = 'tv';
+let discoverUniversalSearchToken = 0;
+let discoverUniversalSearchTimer = null;
+const DISCOVER_UNIVERSAL_SEARCH_DEBOUNCE_MS = 140;
+const DISCOVER_UNIVERSAL_SEARCH_LIMIT = 24;
+const DISCOVER_TVMAZE_MATCH_LIMIT = 6;
+
+function getOrCreateDiscoverUniversalSearch() {
+  let overlay = document.getElementById('discover-universal-search-overlay');
+  if (overlay) return overlay;
+  overlay = document.createElement('div');
+  overlay.id = 'discover-universal-search-overlay';
+  overlay.className = 'discover-universal-search-overlay';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', 'Search Discovery');
+  overlay.innerHTML = `
+    <div class="discover-universal-search-panel">
+      <div class="discover-universal-search-header">
+        <button class="discover-universal-search-back" type="button" aria-label="Close search" onclick="closeDiscoverUniversalSearch()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 5l-7 7 7 7"/></svg>
+        </button>
+        <input
+          class="discover-universal-search-input"
+          id="discover-universal-search-input"
+          type="search"
+          placeholder="Search TV shows..."
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          oninput="handleDiscoverUniversalSearchInput(this.value)"
+          onkeydown="if(event.key==='Escape')closeDiscoverUniversalSearch()"
+        >
+        <button class="discover-universal-search-clear" type="button" aria-label="Clear" id="discover-universal-search-clear" onclick="clearDiscoverUniversalSearchInput()" style="display:none">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="discover-universal-search-tabs" id="discover-universal-search-tabs">
+        <button class="discover-universal-search-tab active" type="button" data-search-tab="tv" onclick="setDiscoverUniversalSearchTab('tv')">TV Shows</button>
+        <button class="discover-universal-search-tab" type="button" data-search-tab="movies" onclick="setDiscoverUniversalSearchTab('movies')">Movies</button>
+        <button class="discover-universal-search-tab" type="button" data-search-tab="anime" onclick="setDiscoverUniversalSearchTab('anime')">Anime</button>
+        <button class="discover-universal-search-tab" type="button" data-search-tab="gaming" onclick="setDiscoverUniversalSearchTab('gaming')">Games</button>
+      </div>
+      <div class="discover-universal-search-divider"></div>
+      <div class="discover-universal-search-body" id="discover-universal-search-body">
+        <div class="discover-universal-search-empty" id="discover-universal-search-empty">
+          <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="rgba(167,139,250,0.36)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <span>Search TV, TMDB movies,<br>anime, and games</span>
+        </div>
+        <div class="discover-grid" id="discover-universal-search-grid" style="display:none"></div>
+      </div>
+    </div>`;
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) closeDiscoverUniversalSearch();
+  });
+  document.body.appendChild(overlay);
+  return overlay;
+}
+
+function openDiscoverUniversalSearch(defaultTab) {
+  const tab = normalizeDiscoveryHub(defaultTab || activeDiscoveryHub);
+  const overlay = getOrCreateDiscoverUniversalSearch();
+  setDiscoverUniversalSearchTabUI(tab);
+  overlay.style.display = 'flex';
+  document.body.classList.add('discover-universal-search-open');
+  requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('open')));
+  setTimeout(() => {
+    const input = document.getElementById('discover-universal-search-input');
+    if (input) input.focus();
+  }, 80);
+}
+
+function closeDiscoverUniversalSearch() {
+  const overlay = document.getElementById('discover-universal-search-overlay');
+  if (!overlay) return;
+  overlay.classList.remove('open');
+  document.body.classList.remove('discover-universal-search-open');
+  const input = document.getElementById('discover-universal-search-input');
+  if (input) input.blur();
+  setTimeout(() => {
+    if (!overlay.classList.contains('open')) overlay.style.display = 'none';
+  }, 280);
+}
+
+function setDiscoverUniversalSearchTabUI(tab) {
+  discoverUniversalSearchActiveTab = normalizeDiscoveryHub(tab);
+  const tabs = document.getElementById('discover-universal-search-tabs');
+  if (tabs) {
+    tabs.querySelectorAll('.discover-universal-search-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.searchTab === discoverUniversalSearchActiveTab);
+    });
+  }
+  const input = document.getElementById('discover-universal-search-input');
+  if (input) {
+    const placeholders = { tv: 'Search TV shows...', movies: 'Search movies...', anime: 'Search anime...', gaming: 'Search games...' };
+    input.placeholder = placeholders[discoverUniversalSearchActiveTab] || 'Search...';
+  }
+}
+
+function setDiscoverUniversalSearchTab(tab) {
+  setDiscoverUniversalSearchTabUI(tab);
+  const input = document.getElementById('discover-universal-search-input');
+  const query = input ? input.value.trim() : '';
+  if (query) runDiscoverUniversalSearch(query);
+}
+
+function clearDiscoverUniversalSearchInput() {
+  const input = document.getElementById('discover-universal-search-input');
+  const clearBtn = document.getElementById('discover-universal-search-clear');
+  const grid = document.getElementById('discover-universal-search-grid');
+  const empty = document.getElementById('discover-universal-search-empty');
+  if (input) { input.value = ''; input.focus(); }
+  if (clearBtn) clearBtn.style.display = 'none';
+  if (grid) { grid.innerHTML = ''; grid.style.display = 'none'; }
+  if (empty) empty.style.display = 'flex';
+  discoverUniversalSearchToken++;
+  if (discoverUniversalSearchTimer) { clearTimeout(discoverUniversalSearchTimer); discoverUniversalSearchTimer = null; }
+}
+
+function handleDiscoverUniversalSearchInput(value) {
+  const clearBtn = document.getElementById('discover-universal-search-clear');
+  if (clearBtn) clearBtn.style.display = value.trim() ? 'flex' : 'none';
+  if (discoverUniversalSearchTimer) { clearTimeout(discoverUniversalSearchTimer); discoverUniversalSearchTimer = null; }
+  const query = value.trim();
+  if (!query) {
+    discoverUniversalSearchToken++;
+    const grid = document.getElementById('discover-universal-search-grid');
+    const empty = document.getElementById('discover-universal-search-empty');
+    if (grid) { grid.innerHTML = ''; grid.style.display = 'none'; }
+    if (empty) empty.style.display = 'flex';
+    return;
+  }
+  discoverUniversalSearchTimer = setTimeout(() => {
+    discoverUniversalSearchTimer = null;
+    runDiscoverUniversalSearch(query);
+  }, DISCOVER_UNIVERSAL_SEARCH_DEBOUNCE_MS);
+}
+
+async function runDiscoverUniversalSearch(query) {
+  const grid = document.getElementById('discover-universal-search-grid');
+  const empty = document.getElementById('discover-universal-search-empty');
+  if (!grid || !query) return;
+  const token = ++discoverUniversalSearchToken;
+  const tab = discoverUniversalSearchActiveTab;
+  if (empty) empty.style.display = 'none';
+  grid.style.display = '';
+  const loadingMsgs = { gaming: 'Searching games...', anime: 'Searching anime...', movies: 'Searching movies...', tv: 'Searching TV shows...' };
+  grid.innerHTML = `<div class="discover-message">${loadingMsgs[tab] || 'Searching...'}</div>`;
+  try {
+    let items = [];
+    if (tab === 'gaming') {
+      items = await fetchRawgSearchResults(query);
+      if (token !== discoverUniversalSearchToken) return;
+      renderGamesDiscoverCards(items, 'discover-universal-search-grid');
+    } else {
+      items = await fetchDiscoverUniversalMediaSearchResults(query, tab);
+      if (token !== discoverUniversalSearchToken) return;
+      const renderType = tab === 'movies' ? 'movie' : 'tv';
+      renderDiscoverCards(renderType, items, 'discover-universal-search-grid');
+    }
+    if (token !== discoverUniversalSearchToken) return;
+    if (!items.length) grid.innerHTML = '<div class="discover-message">No results found.</div>';
+  } catch (e) {
+    if (token !== discoverUniversalSearchToken) return;
+    grid.innerHTML = '<div class="discover-message">Search failed. Try again.</div>';
+  }
+}
 
 function getRawgDateString(date) {
   return date.toISOString().slice(0, 10);
@@ -15284,6 +15709,52 @@ function handleDiscoverPosterClick(event, poster, type, id) {
   }
   openDiscoverMediaProfile(event, type, id, poster);
 }
+
+
+function getDiscoverPosterFromEvent(event) {
+  const path = typeof event?.composedPath === 'function' ? event.composedPath() : [];
+  const fromPath = path.find(node => node?.classList?.contains?.('discover-poster'));
+  if (fromPath) return fromPath;
+  return event?.target?.closest?.('.discover-poster') || null;
+}
+
+function openDiscoverCategoryPosterProfile(event, poster) {
+  if (!poster) return false;
+  const type = String(poster.dataset.mediaType || '').trim();
+  const id = String(poster.dataset.mediaId || '').trim();
+  if (!id) return false;
+  if (poster.dataset.longPressTriggered === '1') {
+    poster.dataset.longPressTriggered = '0';
+    return true;
+  }
+  if (type === 'movie' || type === 'tv') {
+    openDiscoverMediaProfile(event, type, id, poster);
+    return true;
+  }
+  if (type === 'game') {
+    openGameMediaProfile(event, id, getGameMediaProfileSeed(id), poster);
+    return true;
+  }
+  return false;
+}
+
+function handleDiscoverCategoryFullPosterDelegatedClick(event) {
+  const page = document.getElementById('discover-category-full-page');
+  if (!page || page.style.display === 'none' || !page.contains(event.target)) return;
+  const grid = page.querySelector('#discover-category-full-grid');
+  const poster = getDiscoverPosterFromEvent(event);
+  if (!poster || !grid?.contains(poster)) return;
+  if (event.target?.closest?.('.discover-friend-stack, .discover-expand-icon, iframe')) return;
+  event.preventDefault();
+  event.stopPropagation();
+  openDiscoverCategoryPosterProfile(event, poster);
+}
+
+(function initDiscoverCategoryFullPosterDelegatedClick() {
+  // Bubble-phase fallback only. Inline poster handlers remain the primary path; this catches
+  // View All cards whose poster tap does not reach the inline handler without blocking it.
+  document.addEventListener('click', handleDiscoverCategoryFullPosterDelegatedClick);
+})();
 
 function handleDiscoverCardClick(event, card, type, id) {
   if (!card || (type !== 'movie' && type !== 'tv')) return;
@@ -16904,6 +17375,7 @@ function backToDiscoverTitleProfile() {
   overlay.scrollTop = 0;
   overlay.innerHTML = renderDiscoverMediaProfileDetails(previousState.type, previousState.details, previousState.id);
   bindDiscoverMediaProfileActions(overlay);
+  hydrateDiscoverCardImdbRatings(overlay);
   hydrateDeepSeekMoreLikeThis(previousState.type, previousState.details);
   hydrateDiscoverProviderLogoFallbacks();
 }
@@ -16938,7 +17410,17 @@ function renderDiscoverMediaProfileDetails(type, details, id) {
   const year = getDiscoverMediaDate(details, type).slice(0, 4);
   const genres = (details.genres || []).map(g => g.name).filter(Boolean).slice(0, 4);
   const facts = getDiscoverMediaFacts(type, details);
-  const score = details.vote_average ? Number(details.vote_average).toFixed(1) : 'N/A';
+  const imdbId = normalizeDiscoverImdbTitleId(details.imdb_id || details.external_ids?.imdb_id || '');
+  const resolvedRatingMarkup = renderDiscoverCardRatingMarkup({
+    ...details,
+    id,
+    tmdbId: id,
+    imdbId,
+    title,
+    name: title,
+    release_date: details.release_date || '',
+    first_air_date: details.first_air_date || ''
+  }, type);
   const tagline = String(details.tagline || '').trim();
   const overview = details.overview || 'No overview is available yet.';
   const cast = (details.credits?.cast || []).filter(person => person?.name).slice(0, 8);
@@ -16963,7 +17445,7 @@ function renderDiscoverMediaProfileDetails(type, details, id) {
             <div class="discover-media-kicker">${type === 'tv' ? 'Series Profile' : 'Movie Profile'}${year ? ` · ${escHtml(year)}` : ''}</div>
             <h2>${escHtml(title)}</h2>
             ${tagline ? `<div class="discover-media-tagline">${escHtml(tagline)}</div>` : ''}
-            <div class="discover-media-score discover-media-score-hero"><span class="discover-media-score-star" aria-hidden="true">★</span><span class="discover-media-score-value">${escHtml(score)}</span></div>
+            <div class="discover-media-profile-rating">${resolvedRatingMarkup}</div>
           </div>
         </div>
         <p>${escHtml(overview)}</p>
@@ -17042,6 +17524,7 @@ async function openDiscoverMediaProfile(event, type, id, transitionOrigin = null
     };
     overlay.innerHTML = renderDiscoverMediaProfileDetails(type, mergedDetails, id);
     bindDiscoverMediaProfileActions(overlay);
+    hydrateDiscoverCardImdbRatings(overlay);
     hydrateDeepSeekMoreLikeThis(type, mergedDetails);
     hydrateDiscoverProviderLogoFallbacks();
   } catch (e) {
@@ -17094,12 +17577,10 @@ async function loadGamesDiscover(force = false) {
 
 const DISCOVER_FULL_CATEGORY_GRID_IDS = [
   'discover-tv-new-releases-grid',
-  'discover-tv-years-best-grid',
-  'discover-tv-popular-grid',
-  'discover-tv-top-rated-grid',
   'discover-tv-trending-grid',
+  'discover-tv-popular-grid',
   'discover-tv-releasing-soon-grid',
-  'discover-tv-hidden-gems-grid',
+  'discover-tv-top-rated-grid',
   'discover-movie-new-releases-grid',
   'discover-movie-in-theaters-grid',
   'discover-movie-years-best-grid',
@@ -17127,6 +17608,9 @@ const DISCOVER_FULL_CATEGORY_GRID_IDS = [
 const discoverCategoryDataStore = {};
 let discoverCategoryFullState = null;
 let discoverCategoryFullHistoryActive = false;
+const DISCOVER_FILTER_DECADES = [
+  2020, 2010, 2000, 1990, 1980, 1970, 1960, 1950, 1940, 1930, 1920, 1910, 1900, 1890, 1880, 1870
+];
 
 function storeDiscoverCategoryData(gridId, type, items, renderer) {
   if (!gridId || !DISCOVER_FULL_CATEGORY_GRID_IDS.includes(gridId)) return;
@@ -17285,49 +17769,863 @@ function getOrCreateDiscoverCategoryFullPage() {
   page.style.display = 'none';
   page.innerHTML = `
     <div class="discover-category-full-shell">
-      <button class="discover-category-full-back" type="button" onclick="closeDiscoverCategoryFullPage()">Back</button>
+      <div class="discover-category-full-topbar">
+        <button class="discover-category-full-back" type="button" onclick="closeDiscoverCategoryFullPage()" aria-label="Back">←</button>
+        <button class="discover-category-filter-btn" id="discover-category-filter-btn" type="button" onclick="openDiscoverCategoryFilterSheet()" aria-label="Filter category">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h10m3 0h3M4 12h3m3 0h10M4 17h12m3 0h1"/><circle cx="16" cy="7" r="1.8"/><circle cx="9" cy="12" r="1.8"/><circle cx="18" cy="17" r="1.8"/></svg>
+        </button>
+      </div>
       <div class="discover-category-full-head">
         <div class="discover-title" id="discover-category-full-title">Discover</div>
         <div class="discover-subtitle" id="discover-category-full-subtitle">Full category view</div>
       </div>
-      <div class="discover-category-sort-row" id="discover-category-sort-row" aria-label="Sort category"></div>
-      <div class="discover-category-sort-row discover-category-release-row" id="discover-category-release-row" aria-label="Release range"></div>
-      <div class="discover-category-sort-row discover-category-country-row" id="discover-category-country-row" aria-label="Country new releases"></div>
       <div class="discover-grid discover-category-full-grid" id="discover-category-full-grid"><div class="discover-message">Loading...</div></div>
     </div>`;
   document.body.appendChild(page);
   return page;
 }
 
-function renderDiscoverCategorySortControls() {
-  const sortRow = document.getElementById('discover-category-sort-row');
-  const releaseRow = document.getElementById('discover-category-release-row');
-  const countryRow = document.getElementById('discover-category-country-row');
-  if (!sortRow || !discoverCategoryFullState) return;
-  const options = getDiscoverFullPageSortOptions(discoverCategoryFullState.gridId);
-  sortRow.innerHTML = options.map(option => `<button class="discover-category-sort-btn${option.key === discoverCategoryFullState.sortKey ? ' active' : ''}" type="button" onclick="setDiscoverCategorySort('${escAttr(option.key)}')">${escHtml(option.label)}</button>`).join('');
-  const isNewRelease = isDiscoverGridCountryFilterableNewRelease(discoverCategoryFullState.gridId);
-  if (releaseRow) {
-    releaseRow.style.display = isNewRelease ? '' : 'none';
-    releaseRow.innerHTML = isNewRelease
-      ? ['week', 'month'].map(range => `<button class="discover-category-sort-btn${range === (discoverCategoryFullState.newReleaseRange || discoverNewReleaseRange) ? ' active' : ''}" type="button" onclick="setDiscoverFullNewReleaseRange('${range}')">Show This ${range === 'week' ? 'Week' : 'Month'}</button>`).join('')
-      : '';
+function normalizeDiscoverFilterValue(value = '') {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[+]/g, ' plus ')
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+const DISCOVER_FILTER_GENRE_OPTIONS = [
+  'Any', 'Action', 'Adventure', 'Animation', 'Biography', 'Comedy', 'Crime', 'Documentary', 'Drama', 'Family', 'Fantasy', 'History', 'Horror', 'Music', 'Musical', 'Mystery', 'Romance', 'Sci-Fi', 'Sport', 'Thriller', 'War', 'Western'
+];
+
+const DISCOVER_FILTER_SERVICE_OPTIONS = [
+  'Any', 'Apple TV', 'Crunchyroll', 'Disney+', 'HBO Max', 'Hulu', 'Netflix', 'Paramount+', 'Peacock', 'Plex', 'Pluto TV', 'Prime Video', 'Starz', 'TNT', 'Tubi', 'VIX'
+];
+
+const DISCOVER_FILTER_WATCH_OPTION_OPTIONS = [
+  { key: '', label: 'Any' },
+  { key: 'theaters', label: 'In theaters' },
+  { key: 'rentbuy', label: 'Rent / Buy' },
+  { key: 'streaming', label: 'Streaming' }
+];
+
+const DISCOVER_FILTER_LANGUAGE_OPTIONS = [
+  { code: '', label: 'Any' },
+  { code: 'ar', label: 'Arabic' },
+  { code: 'bn', label: 'Bengali' },
+  { code: 'zh', label: 'Chinese' },
+  { code: 'da', label: 'Danish' },
+  { code: 'nl', label: 'Dutch' },
+  { code: 'en', label: 'English' },
+  { code: 'fr', label: 'French' },
+  { code: 'de', label: 'German' },
+  { code: 'hi', label: 'Hindi' },
+  { code: 'it', label: 'Italian' },
+  { code: 'ja', label: 'Japanese' },
+  { code: 'ko', label: 'Korean' },
+  { code: 'pt', label: 'Portuguese' },
+  { code: 'ru', label: 'Russian' },
+  { code: 'es', label: 'Spanish' },
+  { code: 'sv', label: 'Swedish' },
+  { code: 'ta', label: 'Tamil' },
+  { code: 'te', label: 'Telugu' },
+  { code: 'th', label: 'Thai' },
+  { code: 'tr', label: 'Turkish' }
+];
+
+const DISCOVER_FILTER_COUNTRY_OPTIONS = [
+  { code: '', label: 'Any' },
+  { code: 'US', label: 'United States' },
+  { code: 'GB', label: 'United Kingdom' },
+  { code: 'JP', label: 'Japan' },
+  { code: 'KR', label: 'South Korea' },
+  { code: 'FR', label: 'France' },
+  { code: 'DE', label: 'Germany' },
+  { code: 'ES', label: 'Spain' },
+  { code: 'IT', label: 'Italy' },
+  { code: 'IN', label: 'India' },
+  { code: 'CN', label: 'China' },
+  { code: 'CA', label: 'Canada' },
+  { code: 'AU', label: 'Australia' },
+  { code: 'BR', label: 'Brazil' },
+  { code: 'MX', label: 'Mexico' },
+  { code: 'SE', label: 'Sweden' },
+  { code: 'DK', label: 'Denmark' },
+  { code: 'NO', label: 'Norway' },
+  { code: 'TR', label: 'Turkey' }
+];
+
+const DISCOVER_SERVICE_PROVIDER_ALIASES = {
+  'apple tv': ['apple tv', 'apple tv plus', 'apple tvplus', 'itunes', 'apple itunes'],
+  'crunchyroll': ['crunchyroll'],
+  'disney plus': ['disney plus', 'disney'],
+  'hbo max': ['hbo max', 'max'],
+  'hulu': ['hulu'],
+  'netflix': ['netflix'],
+  'paramount plus': ['paramount plus', 'paramount'],
+  'peacock': ['peacock'],
+  'plex': ['plex'],
+  'pluto tv': ['pluto tv', 'pluto'],
+  'prime video': ['prime video', 'amazon prime video', 'amazon video'],
+  'starz': ['starz'],
+  'tnt': ['tnt'],
+  'tubi': ['tubi'],
+  'vix': ['vix']
+};
+
+const discoverCategoryWatchProviderCache = new Map();
+let discoverCategoryProviderHydrateToken = 0;
+
+function getDefaultDiscoverCategoryFilters() {
+  return { year: '', genre: '', language: '', country: '', service: '', watchOption: '' };
+}
+
+function getDiscoverCategoryFilters() {
+  return { ...getDefaultDiscoverCategoryFilters(), ...(discoverCategoryFullState?.filters || {}) };
+}
+
+function hasActiveDiscoverCategoryFilters() {
+  const filters = getDiscoverCategoryFilters();
+  return !!(filters.year || filters.genre || filters.language || filters.country || filters.service || filters.watchOption);
+}
+
+function getDiscoverCategoryItemType(item = {}) {
+  const raw = String(item.media_type || item.mediaType || item.type || discoverCategoryFullState?.overrideType || '').toLowerCase();
+  if (raw === 'movie') return 'movie';
+  if (raw === 'game' || raw === 'games') return 'game';
+  if (raw === 'tv' || raw === 'show' || raw === 'shows' || raw === 'anime') return 'tv';
+  const gridId = String(discoverCategoryFullState?.gridId || '');
+  if (gridId.startsWith('discover-movie-')) return 'movie';
+  if (gridId.startsWith('discover-games-')) return 'game';
+  return 'tv';
+}
+
+function getDiscoverCategoryItemYear(item = {}) {
+  const raw = item.release_date || item.first_air_date || item.released || item.date || item.year || '';
+  const match = String(raw || '').match(/(18|19|20)\d{2}/);
+  return match ? match[0] : '';
+}
+
+function getDiscoverCategoryGenreNames(item = {}) {
+  const itemType = getDiscoverCategoryItemType(item);
+  if (itemType === 'game') {
+    return (Array.isArray(item.genres) ? item.genres : [])
+      .map(genre => genre?.name || genre)
+      .map(name => String(name || '').trim())
+      .filter(Boolean);
   }
-  if (countryRow) {
-    countryRow.style.display = isNewRelease ? '' : 'none';
-    countryRow.innerHTML = isNewRelease
-      ? getDiscoverNewReleaseCountryOptions().map(option => `<button class="discover-category-sort-btn${option.code === (discoverCategoryFullState.newReleaseCountryCode || '') ? ' active' : ''}" type="button" onclick="setDiscoverNewReleaseCountry('${escAttr(option.code)}')">${escHtml(option.label)}</button>`).join('')
-      : '';
+  return getDiscoverGenreNames(item, itemType === 'movie' ? 'movie' : 'tv');
+}
+
+function discoverCategoryItemMatchesGenre(item = {}, selectedGenre = '') {
+  const genre = normalizeDiscoverFilterValue(selectedGenre);
+  if (!genre) return true;
+  const names = getDiscoverCategoryGenreNames(item).map(normalizeDiscoverFilterValue);
+  if (genre === 'sci fi') return names.some(name => name === 'sci fi' || name.includes('science fiction'));
+  if (genre === 'sport') return names.some(name => name === 'sport' || name === 'sports');
+  if (genre === 'biography') return names.some(name => name === 'biography' || name === 'documentary' || name.includes('biographical'));
+  if (genre === 'musical') return names.some(name => name === 'musical' || name === 'music');
+  return names.some(name => name === genre || name.includes(genre));
+}
+
+function discoverCategoryItemMatchesLanguage(item = {}, selectedLanguage = '') {
+  const language = String(selectedLanguage || '').trim().toLowerCase();
+  if (!language) return true;
+  const itemType = getDiscoverCategoryItemType(item);
+  if (itemType === 'game') return true;
+  const codes = [item.original_language, item.language, item.originalLanguage]
+    .map(value => String(value || '').trim().toLowerCase())
+    .filter(Boolean);
+  if (!codes.length) return true;
+  return codes.includes(language);
+}
+
+function getDiscoverCategoryProviderCacheKey(item = {}) {
+  const type = getDiscoverCategoryItemType(item);
+  const id = String(item.id || item.tmdbId || item.tmdb_id || '').trim();
+  return type && id ? `${type}:${id}` : '';
+}
+
+function normalizeDiscoverProviderRows(payload = {}) {
+  const region = payload?.results?.US || payload?.US || payload?.results?.['US'] || {};
+  const flatrate = Array.isArray(region.flatrate) ? region.flatrate : [];
+  const rent = Array.isArray(region.rent) ? region.rent : [];
+  const buy = Array.isArray(region.buy) ? region.buy : [];
+  return { flatrate, rent, buy };
+}
+
+async function getDiscoverCategoryProviderData(item = {}) {
+  const type = getDiscoverCategoryItemType(item);
+  if (type !== 'movie' && type !== 'tv') return null;
+  const id = String(item.id || item.tmdbId || item.tmdb_id || '').trim();
+  if (!id) return null;
+  const cacheKey = getDiscoverCategoryProviderCacheKey(item);
+  if (discoverCategoryWatchProviderCache.has(cacheKey)) return discoverCategoryWatchProviderCache.get(cacheKey);
+  try {
+    const res = await fetchTmdbProxy(`${type}/${id}/watch/providers`);
+    if (!res.ok) throw new Error(`Provider lookup failed: ${res.status}`);
+    const data = normalizeDiscoverProviderRows(await res.json());
+    discoverCategoryWatchProviderCache.set(cacheKey, data);
+    return data;
+  } catch (error) {
+    console.warn('Discover filter provider lookup failed:', type, id, error);
+    discoverCategoryWatchProviderCache.set(cacheKey, null);
+    return null;
   }
 }
 
-function renderDiscoverCategoryFullGrid() {
+function getDiscoverCategoryProviderNames(providerData = null) {
+  if (!providerData) return [];
+  return [...(providerData.flatrate || []), ...(providerData.rent || []), ...(providerData.buy || [])]
+    .map(provider => provider?.provider_name || provider?.name || '')
+    .filter(Boolean);
+}
+
+function discoverCategoryProviderNameMatches(providerName = '', service = '') {
+  const selected = normalizeDiscoverFilterValue(service);
+  if (!selected) return true;
+  const name = normalizeDiscoverFilterValue(providerName);
+  const aliases = DISCOVER_SERVICE_PROVIDER_ALIASES[selected] || [selected];
+  return aliases.some(alias => {
+    const cleanAlias = normalizeDiscoverFilterValue(alias);
+    return name === cleanAlias || name.includes(cleanAlias) || cleanAlias.includes(name);
+  });
+}
+
+function discoverCategoryItemMatchesService(item = {}, selectedService = '') {
+  const service = String(selectedService || '').trim();
+  if (!service) return true;
+  const providerData = item.__discoverProviderData || null;
+  const providerNames = getDiscoverCategoryProviderNames(providerData);
+  if (!providerNames.length) return false;
+  return providerNames.some(name => discoverCategoryProviderNameMatches(name, service));
+}
+
+function discoverCategoryItemMatchesWatchOption(item = {}, selectedOption = '') {
+  const option = String(selectedOption || '').trim();
+  if (!option) return true;
+  const itemType = getDiscoverCategoryItemType(item);
+  if (option === 'theaters') {
+    if (itemType !== 'movie') return false;
+    const gridId = String(discoverCategoryFullState?.gridId || '');
+    if (gridId.includes('in-theaters')) return true;
+    const releaseDate = Date.parse(`${item.release_date || ''}T00:00:00`);
+    if (!Number.isFinite(releaseDate)) return false;
+    const now = Date.now();
+    const seventyFiveDays = 75 * 24 * 60 * 60 * 1000;
+    return releaseDate <= now && releaseDate >= now - seventyFiveDays;
+  }
+  const providerData = item.__discoverProviderData || null;
+  if (!providerData) return false;
+  if (option === 'streaming') return Array.isArray(providerData.flatrate) && providerData.flatrate.length > 0;
+  if (option === 'rentbuy') return (Array.isArray(providerData.rent) && providerData.rent.length > 0) || (Array.isArray(providerData.buy) && providerData.buy.length > 0);
+  return true;
+}
+
+function getDiscoverCategoryNeedsProviderHydration() {
+  const filters = getDiscoverCategoryFilters();
+  return !!(filters.service || filters.watchOption === 'streaming' || filters.watchOption === 'rentbuy');
+}
+
+async function hydrateDiscoverCategoryProviderDataIfNeeded(items = []) {
+  if (!getDiscoverCategoryNeedsProviderHydration()) return items;
+  const token = ++discoverCategoryProviderHydrateToken;
+  const mediaItems = (Array.isArray(items) ? items : []).filter(item => {
+    const type = getDiscoverCategoryItemType(item);
+    return (type === 'movie' || type === 'tv') && String(item.id || item.tmdbId || item.tmdb_id || '').trim();
+  });
+  const queue = mediaItems.slice();
+  const workers = Array.from({ length: Math.min(6, queue.length) }, async () => {
+    while (queue.length && token === discoverCategoryProviderHydrateToken) {
+      const item = queue.shift();
+      item.__discoverProviderData = await getDiscoverCategoryProviderData(item);
+    }
+  });
+  await Promise.all(workers);
+  return items;
+}
+
+function discoverCategoryItemMatchesCountry(item = {}, country = '') {
+  if (!country) return true;
+  const countryUpper = country.toUpperCase();
+  const countries = Array.isArray(item.origin_country)
+    ? item.origin_country.map(c => String(c || '').toUpperCase())
+    : Array.isArray(item.originCountries)
+      ? item.originCountries.map(c => String(c || '').toUpperCase())
+      : [];
+  return countries.includes(countryUpper);
+}
+
+function applyDiscoverCategoryFilters(items = []) {
+  const filters = getDiscoverCategoryFilters();
+  const year = String(filters.year || '').trim();
+  const sourceItems = Array.isArray(items) ? items : [];
+  return sourceItems.filter(item => {
+    if (year && getDiscoverCategoryItemYear(item) !== year) return false;
+    if (!discoverCategoryItemMatchesGenre(item, filters.genre)) return false;
+    if (!discoverCategoryItemMatchesLanguage(item, filters.language)) return false;
+    if (!discoverCategoryItemMatchesCountry(item, filters.country)) return false;
+    if (!discoverCategoryItemMatchesService(item, filters.service)) return false;
+    if (!discoverCategoryItemMatchesWatchOption(item, filters.watchOption)) return false;
+    return true;
+  });
+}
+
+function getDiscoverFullCategoryMediaType(gridId = '') {
+  const id = String(gridId || '');
+  if (id.startsWith('discover-movie-')) return 'movie';
+  if (id.startsWith('anime-discover-')) return 'anime';
+  if (id.startsWith('discover-tv-')) return 'tv';
+  if (id.startsWith('discover-games-')) return 'game';
+  return 'mixed';
+}
+
+function getDiscoverFullCategoryRenderer(gridId = '', fallback = 'ranked') {
+  if (String(gridId || '').startsWith('discover-games-')) return 'games';
+  if (String(gridId || '').startsWith('anime-discover-')) return 'cards';
+  return fallback || 'ranked';
+}
+
+function getDiscoverFilterGenreId(genre = '', mediaType = 'movie') {
+  const clean = normalizeDiscoverFilterValue(genre);
+  if (!clean) return '';
+  const map = mediaType === 'movie' ? DISCOVER_MOVIE_GENRE_MAP : DISCOVER_TV_GENRE_MAP;
+  const aliases = {
+    action: mediaType === 'movie' ? 'action' : 'action',
+    adventure: mediaType === 'movie' ? 'adventure' : 'action',
+    animation: 'animation',
+    biography: mediaType === 'movie' ? 'documentary' : 'documentary',
+    comedy: 'comedy',
+    crime: 'crime',
+    documentary: 'documentary',
+    drama: 'drama',
+    family: 'family',
+    fantasy: mediaType === 'movie' ? 'fantasy' : 'sci fi',
+    history: mediaType === 'movie' ? 'history' : 'documentary',
+    horror: mediaType === 'movie' ? 'horror' : '',
+    music: mediaType === 'movie' ? 'music' : '',
+    musical: mediaType === 'movie' ? 'music' : '',
+    mystery: 'mystery',
+    romance: mediaType === 'movie' ? 'romance' : 'soap',
+    'sci fi': mediaType === 'movie' ? 'sci fi' : 'sci fi',
+    sport: '',
+    thriller: mediaType === 'movie' ? 'thriller' : 'crime',
+    war: 'war',
+    western: mediaType === 'movie' ? 'western' : ''
+  };
+  const target = aliases[clean] || clean;
+  if (!target) return '';
+  const match = Object.entries(map || {}).find(([, name]) => normalizeDiscoverFilterValue(name) === target);
+  return match ? match[0] : '';
+}
+
+function getDiscoverFullCategoryBaseKind(gridId = '') {
+  const id = String(gridId || '');
+  if (id.includes('new-releases') || id.includes('new-grid')) return 'new';
+  if (id.includes('trending')) return 'trending';
+  if (id.includes('popular')) return 'popular';
+  if (id.includes('releasing-soon') || id.includes('anticipated')) return 'upcoming';
+  if (id.includes('top-rated') || id.includes('rated')) return 'topRated';
+  if (id.includes('years-best')) return 'yearsBest';
+  if (id.includes('in-theaters')) return 'inTheaters';
+  if (id.includes('hidden')) return 'hiddenGems';
+  return 'popular';
+}
+
+function buildDiscoverFilteredTmdbParams(gridId = '', filters = {}) {
+  const mediaGroup = getDiscoverFullCategoryMediaType(gridId);
+  if (mediaGroup !== 'movie' && mediaGroup !== 'tv' && mediaGroup !== 'anime') return null;
+  const isMovie = mediaGroup === 'movie';
+  const mediaType = isMovie ? 'movie' : 'tv';
+  const path = `discover/${mediaType}`;
+  const kind = getDiscoverFullCategoryBaseKind(gridId);
+  const params = { include_adult: 'false' };
+  const today = toDiscoverIsoDate(new Date());
+  const tomorrow = toDiscoverIsoDate(addDiscoverDays(new Date(), 1));
+  const future = toDiscoverIsoDate(addDiscoverDays(new Date(), 365));
+  const year = String(filters.year || '').trim();
+
+  if (isMovie) params.region = 'US';
+  if (mediaGroup === 'anime') params.with_genres = '16';
+
+  if (kind === 'new') {
+    params.sort_by = isMovie ? 'primary_release_date.desc' : 'first_air_date.desc';
+    if (year) {
+      if (isMovie) params.primary_release_year = year;
+      else params.first_air_date_year = year;
+    } else {
+      const start = toDiscoverIsoDate(addDiscoverDays(new Date(), -45));
+      params[isMovie ? 'primary_release_date.gte' : 'first_air_date.gte'] = start;
+      params[isMovie ? 'primary_release_date.lte' : 'first_air_date.lte'] = today;
+    }
+  } else if (kind === 'upcoming') {
+    params.sort_by = isMovie ? 'primary_release_date.asc' : 'first_air_date.asc';
+    params[isMovie ? 'primary_release_date.gte' : 'first_air_date.gte'] = year ? `${year}-01-01` : tomorrow;
+    params[isMovie ? 'primary_release_date.lte' : 'first_air_date.lte'] = year ? `${year}-12-31` : future;
+  } else if (kind === 'topRated') {
+    params.sort_by = 'vote_average.desc';
+    params['vote_count.gte'] = isMovie ? '125' : (mediaGroup === 'anime' ? '40' : '75');
+    if (year) {
+      if (isMovie) params.primary_release_year = year;
+      else params.first_air_date_year = year;
+    }
+  } else if (kind === 'yearsBest') {
+    const activeYear = year || String(new Date().getFullYear());
+    params.sort_by = 'vote_count.desc';
+    params['vote_count.gte'] = isMovie ? '50' : (mediaGroup === 'anime' ? '25' : '40');
+    if (isMovie) params.primary_release_year = activeYear;
+    else params.first_air_date_year = activeYear;
+  } else if (kind === 'inTheaters') {
+    params.sort_by = 'popularity.desc';
+    params.with_release_type = '2|3';
+    params['primary_release_date.gte'] = year ? `${year}-01-01` : toDiscoverIsoDate(addDiscoverDays(new Date(), -90));
+    params['primary_release_date.lte'] = year ? `${year}-12-31` : today;
+  } else if (kind === 'hiddenGems') {
+    params.sort_by = 'vote_average.desc';
+    params['vote_average.gte'] = isMovie ? '7.2' : '7.5';
+    params['vote_count.gte'] = isMovie ? '75' : '40';
+    params['vote_count.lte'] = isMovie ? '3500' : '1800';
+    if (year) {
+      if (isMovie) params.primary_release_year = year;
+      else params.first_air_date_year = year;
+    }
+  } else {
+    params.sort_by = kind === 'trending' ? 'popularity.desc' : 'popularity.desc';
+    if (year) {
+      if (isMovie) params.primary_release_year = year;
+      else params.first_air_date_year = year;
+    }
+  }
+
+  const genreId = getDiscoverFilterGenreId(filters.genre, isMovie ? 'movie' : 'tv');
+  if (genreId) params.with_genres = params.with_genres ? `${params.with_genres},${genreId}` : genreId;
+  if (filters.language) params.with_original_language = String(filters.language || '').trim().toLowerCase();
+
+  if (filters.service || filters.watchOption === 'streaming' || filters.watchOption === 'rentbuy') {
+    params.watch_region = DISCOVER_STREAMING_REGION;
+    params.with_watch_monetization_types = filters.watchOption === 'rentbuy'
+      ? 'rent|buy'
+      : filters.watchOption === 'streaming'
+        ? 'flatrate|free|ads'
+        : 'flatrate|free|ads|rent|buy';
+  }
+
+  return { path, params, mediaType, mediaGroup, kind };
+}
+
+async function fetchDiscoverFilteredCategoryItems(gridId = '', filters = {}) {
+  const plan = buildDiscoverFilteredTmdbParams(gridId, filters);
+  if (!plan) return null;
+  const raw = await fetchTmdbPages(plan.path, plan.params, DISCOVER_FULL_CATEGORY_PAGE_COUNT);
+  const normalizedType = plan.mediaGroup === 'anime' ? 'anime' : plan.mediaType;
+  const candidates = normalizeDiscoverTypedItems(raw.map(item => markDiscoverMediaType(item, plan.mediaType)), normalizedType)
+    .filter(item => item.poster_path && getDiscoverSortTitle(item) && (plan.mediaGroup !== 'anime' || isAnimeDiscoverCandidate(item)));
+  return candidates.map((item, index) => ({
+    ...item,
+    calculatedScore: scoreDiscoverTmdbItem(candidates, item, plan.kind, normalizedType, index, candidates.length),
+    discoverContext: buildDiscoverTmdbContext(plan.kind === 'topRated' ? 'Filtered top rated' : 'Filtered results', item)
+  })).sort(compareDiscoverCalculatedScoreDesc);
+}
+
+function getDiscoverFilteredCategoryCacheKey(gridId = '', filters = {}) {
+  return `full-filtered:${DISCOVER_RANKING_CACHE_VERSION}:${gridId}:${JSON.stringify(filters || {})}`;
+}
+
+async function loadDiscoverFilteredCategoryItemsIfNeeded(force = false) {
+  if (!discoverCategoryFullState) return;
+  const filters = getDiscoverCategoryFilters();
+  if (!hasActiveDiscoverCategoryFilters()) {
+    discoverCategoryFullState.filteredOverrideItems = null;
+    discoverCategoryFullState.filteredCacheKey = '';
+    return;
+  }
+  const cacheKey = getDiscoverFilteredCategoryCacheKey(discoverCategoryFullState.gridId, filters);
+  if (!force && discoverCategoryFullState.filteredCacheKey === cacheKey && Array.isArray(discoverCategoryFullState.filteredOverrideItems)) return;
+  const plan = buildDiscoverFilteredTmdbParams(discoverCategoryFullState.gridId, filters);
+  if (!plan) return;
+  try {
+    const items = await loadDiscoverCachedData(cacheKey, () => fetchDiscoverFilteredCategoryItems(discoverCategoryFullState.gridId, filters), force);
+    if (Array.isArray(items)) {
+      discoverCategoryFullState.filteredOverrideItems = items;
+      discoverCategoryFullState.filteredCacheKey = cacheKey;
+      discoverCategoryFullState.overrideRenderer = getDiscoverFullCategoryRenderer(discoverCategoryFullState.gridId, discoverCategoryFullState.overrideRenderer || 'ranked');
+      discoverCategoryFullState.overrideType = plan.mediaGroup === 'movie' ? 'movie' : 'tv';
+    }
+  } catch (error) {
+    console.warn('Discover filtered full-category fetch failed; using local full pool.', error);
+    discoverCategoryFullState.filteredOverrideItems = null;
+    discoverCategoryFullState.filteredCacheKey = '';
+  }
+}
+
+function getDiscoverFullCategoryFetchPlan(gridId = '') {
+  const mediaGroup = getDiscoverFullCategoryMediaType(gridId);
+  const renderer = getDiscoverFullCategoryRenderer(gridId, 'ranked');
+  if (gridId === 'discover-tv-new-releases-grid') return { key: `tv-new-releases-${discoverNewReleaseRange}`, type: 'tv', renderer, fetcher: () => fetchDiscoverMediaRank(`tv_new_releases_${discoverNewReleaseRange}`, () => fetchNewReleasesByDate(discoverNewReleaseRange, DISCOVER_FULL_CATEGORY_LIMIT, DISCOVER_FULL_CATEGORY_PAGE_COUNT, 'tv')) };
+  if (gridId === 'discover-tv-trending-grid') return { key: 'tv-trending', type: 'tv', renderer, fetcher: () => fetchDiscoverMediaRank('tv_trending', () => fetchTmdbWeeklyTrendingMedia('tv', DISCOVER_FULL_CATEGORY_LIMIT, DISCOVER_FULL_CATEGORY_PAGE_COUNT)) };
+  if (gridId === 'discover-tv-popular-grid') return { key: 'tv-popular', type: 'tv', renderer, fetcher: () => fetchDiscoverMediaRank('tv_popular', () => fetchDiscoverPopularMedia('tv', DISCOVER_FULL_CATEGORY_LIMIT, DISCOVER_FULL_CATEGORY_PAGE_COUNT)) };
+  if (gridId === 'discover-tv-releasing-soon-grid') return { key: 'tv-releasing-soon', type: 'tv', renderer, fetcher: () => fetchDiscoverMediaRank('tv_releasing_soon', () => fetchReleasingSoonByDate(DISCOVER_FULL_CATEGORY_LIMIT, DISCOVER_FULL_CATEGORY_PAGE_COUNT, 'tv')) };
+  if (gridId === 'discover-tv-top-rated-grid') return { key: 'tv-top-rated-all-time', type: 'tv', renderer, fetcher: () => fetchDiscoverMediaRank('tv_top_rated', () => fetchDiscoverTopRatedMedia('tv', DISCOVER_FULL_CATEGORY_LIMIT, DISCOVER_FULL_CATEGORY_PAGE_COUNT)) };
+  if (gridId === 'discover-movie-new-releases-grid') return { key: `movie-new-releases-${discoverNewReleaseRange}`, type: 'movie', renderer, fetcher: () => fetchDiscoverMediaRank(`movie_new_releases_${discoverNewReleaseRange}`, () => fetchNewReleasesByDate(discoverNewReleaseRange, DISCOVER_FULL_CATEGORY_LIMIT, DISCOVER_FULL_CATEGORY_PAGE_COUNT, 'movie')) };
+  if (gridId === 'discover-movie-in-theaters-grid') return { key: 'movie-in-theaters', type: 'movie', renderer, fetcher: () => fetchDiscoverMediaRank('movie_in_theaters', () => fetchInTheatersMovies(DISCOVER_FULL_CATEGORY_LIMIT, DISCOVER_FULL_CATEGORY_PAGE_COUNT)) };
+  if (gridId === 'discover-movie-years-best-grid') return { key: 'movie-years-best', type: 'movie', renderer, fetcher: () => fetchDiscoverMediaRank('movie_years_best', () => fetchAndRankThisYearsBest('movie', DISCOVER_FULL_CATEGORY_LIMIT, DISCOVER_FULL_CATEGORY_PAGE_COUNT)) };
+  if (gridId === 'discover-movie-popular-grid') return { key: 'movie-popular', type: 'movie', renderer, fetcher: () => fetchDiscoverMediaRank('movie_popular', () => fetchDiscoverPopularMedia('movie', DISCOVER_FULL_CATEGORY_LIMIT, DISCOVER_FULL_CATEGORY_PAGE_COUNT)) };
+  if (gridId === 'discover-movie-top-rated-grid') return { key: 'movie-top-rated', type: 'movie', renderer, fetcher: () => fetchDiscoverMediaRank('movie_top_rated', () => fetchDiscoverTopRatedMedia('movie', DISCOVER_FULL_CATEGORY_LIMIT, DISCOVER_FULL_CATEGORY_PAGE_COUNT)) };
+  if (gridId === 'discover-movie-trending-grid') return { key: 'movie-trending', type: 'movie', renderer, fetcher: () => fetchDiscoverMediaRank('movie_trending', () => fetchTmdbWeeklyTrendingMedia('movie', DISCOVER_FULL_CATEGORY_LIMIT, DISCOVER_FULL_CATEGORY_PAGE_COUNT)) };
+  if (gridId === 'discover-movie-releasing-soon-grid') return { key: 'movie-releasing-soon', type: 'movie', renderer, fetcher: () => fetchDiscoverMediaRank('movie_releasing_soon', () => fetchReleasingSoonByDate(DISCOVER_FULL_CATEGORY_LIMIT, DISCOVER_FULL_CATEGORY_PAGE_COUNT, 'movie')) };
+  if (gridId === 'discover-movie-hidden-gems-grid') return { key: 'movie-hidden-gems', type: 'movie', renderer, fetcher: () => fetchDiscoverMediaRank('movie_hidden_gems', () => fetchAndRankHiddenGems('movie', DISCOVER_FULL_CATEGORY_LIMIT, DISCOVER_FULL_CATEGORY_PAGE_COUNT)) };
+  if (gridId === 'anime-discover-new-grid') return { key: 'anime-new', type: 'tv', renderer: 'cards', fetcher: () => fetchNewReleasesByDate(discoverNewReleaseRange, DISCOVER_FULL_CATEGORY_LIMIT, DISCOVER_FULL_CATEGORY_PAGE_COUNT, 'anime') };
+  if (gridId === 'anime-discover-years-best-grid') return { key: 'anime-years-best', type: 'tv', renderer: 'cards', fetcher: () => fetchAndRankThisYearsBest('anime', DISCOVER_FULL_CATEGORY_LIMIT, DISCOVER_FULL_CATEGORY_PAGE_COUNT) };
+  if (gridId === 'anime-discover-popular-grid') return { key: 'anime-popular', type: 'tv', renderer: 'cards', fetcher: () => fetchDiscoverPopularMedia('anime', DISCOVER_FULL_CATEGORY_LIMIT, DISCOVER_FULL_CATEGORY_PAGE_COUNT) };
+  if (gridId === 'anime-discover-rated-grid') return { key: 'anime-rated', type: 'tv', renderer: 'cards', fetcher: () => fetchDiscoverTopRatedMedia('anime', DISCOVER_FULL_CATEGORY_LIMIT, DISCOVER_FULL_CATEGORY_PAGE_COUNT) };
+  if (gridId === 'anime-discover-trending-grid') return { key: 'anime-trending', type: 'tv', renderer: 'cards', fetcher: () => fetchTmdbWeeklyTrendingMedia('anime', DISCOVER_FULL_CATEGORY_LIMIT, DISCOVER_FULL_CATEGORY_PAGE_COUNT) };
+  return null;
+}
+
+async function loadDiscoverFullCategoryItems(force = false, options = {}) {
+  if (!discoverCategoryFullState) return;
+  const plan = getDiscoverFullCategoryFetchPlan(discoverCategoryFullState.gridId);
+  if (!plan) {
+    if (options.render !== false) await renderDiscoverCategoryFullGrid();
+    return;
+  }
+  const grid = document.getElementById('discover-category-full-grid');
+  if (grid && options.loadingMessage !== false) grid.innerHTML = '<div class="discover-message">Loading full category...</div>';
+  const cacheKey = `full-category:${DISCOVER_RANKING_CACHE_VERSION}:${plan.key}`;
+  const items = await loadDiscoverCachedData(cacheKey, plan.fetcher, force);
+  discoverCategoryFullState.overrideItems = Array.isArray(items) ? items : [];
+  discoverCategoryFullState.overrideRenderer = plan.renderer;
+  discoverCategoryFullState.overrideType = plan.type;
+  discoverCategoryFullState.filteredOverrideItems = null;
+  discoverCategoryFullState.filteredCacheKey = '';
+  if (options.render !== false) await renderDiscoverCategoryFullGrid();
+}
+
+function updateDiscoverCategoryFilterButtonState() {
+  const btn = document.getElementById('discover-category-filter-btn');
+  if (!btn) return;
+  btn.classList.toggle('has-active-filter', hasActiveDiscoverCategoryFilters());
+}
+
+function getDiscoverFilterDecadeYears(decade = 2020) {
+  const start = Number(decade || 2020);
+  return Array.from({ length: 10 }, (_, index) => String(start + index));
+}
+
+function getDiscoverLanguageLabel(code = '') {
+  const match = DISCOVER_FILTER_LANGUAGE_OPTIONS.find(item => item.code === code);
+  return match ? match.label : 'Any';
+}
+
+function getDiscoverCountryLabel(code = '') {
+  const match = DISCOVER_FILTER_COUNTRY_OPTIONS.find(item => item.code === code);
+  return match ? match.label : 'Any';
+}
+
+function getDiscoverWatchOptionLabel(key = '') {
+  const match = DISCOVER_FILTER_WATCH_OPTION_OPTIONS.find(item => item.key === key);
+  return match ? match.label : 'Any';
+}
+
+function getDiscoverFilterValueLabel(key = '') {
+  const filters = getDiscoverCategoryFilters();
+  if (key === 'year') return filters.year || 'Any';
+  if (key === 'genre') return filters.genre || 'Any';
+  if (key === 'language') return getDiscoverLanguageLabel(filters.language);
+  if (key === 'country') return getDiscoverCountryLabel(filters.country);
+  if (key === 'service') return filters.service || 'Any';
+  if (key === 'watchOption') return getDiscoverWatchOptionLabel(filters.watchOption);
+  return 'Any';
+}
+
+function renderDiscoverFilterOptionRows(options = [], activeValue = '', setterName = '') {
+  return options.map(option => {
+    const value = typeof option === 'string' ? (option === 'Any' ? '' : option) : (option.code ?? option.key ?? '');
+    const label = typeof option === 'string' ? option : option.label;
+    const isSelected = String(activeValue || '') === String(value || '');
+    return `<button class="discover-category-filter-row discover-category-filter-option${isSelected ? ' selected' : ''}" type="button" onclick="${setterName}('${escAttr(value)}')"><span>${escHtml(label)}</span>${isSelected ? '<strong>Selected</strong>' : ''}</button>`;
+  }).join('');
+}
+
+function getOrCreateDiscoverCategoryFilterSheet() {
+  let sheet = document.getElementById('discover-category-filter-sheet');
+  if (sheet) return sheet;
+  sheet = document.createElement('div');
+  sheet.id = 'discover-category-filter-sheet';
+  sheet.className = 'discover-category-filter-sheet';
+  sheet.setAttribute('aria-hidden', 'true');
+  sheet.innerHTML = `
+    <button class="discover-category-filter-scrim" type="button" aria-label="Close filters" onclick="closeDiscoverCategoryFilterSheet()"></button>
+    <div class="discover-category-filter-drawer" role="dialog" aria-modal="true" aria-label="Discover filters">
+      <div class="discover-category-filter-track" id="discover-category-filter-track">
+        <section class="discover-category-filter-panel" data-filter-panel="content">
+          <div class="discover-category-filter-handle" aria-hidden="true"></div>
+          <div class="discover-category-filter-header">
+            <div>
+              <div class="discover-category-filter-kicker">Filters</div>
+              <h3>Content</h3>
+            </div>
+            <button class="discover-category-filter-close" type="button" onclick="closeDiscoverCategoryFilterSheet()" aria-label="Close filters">×</button>
+          </div>
+          <div class="discover-category-filter-rule"></div>
+          <div class="discover-category-filter-list">
+            <button class="discover-category-filter-row" type="button" onclick="showDiscoverCategoryFilterYearPanel()"><span>Year</span><strong id="discover-category-filter-year-value">Any</strong><em>›</em></button>
+            <button class="discover-category-filter-row" type="button" onclick="showDiscoverCategorySimpleFilterPanel('genre')"><span>Genre</span><strong id="discover-category-filter-genre-value">Any</strong><em>›</em></button>
+            <button class="discover-category-filter-row" type="button" onclick="showDiscoverCategorySimpleFilterPanel('country')"><span>Country</span><strong id="discover-category-filter-country-value">Any</strong><em>›</em></button>
+            <button class="discover-category-filter-row" type="button" onclick="showDiscoverCategorySimpleFilterPanel('language')"><span>Language</span><strong id="discover-category-filter-language-value">Any</strong><em>›</em></button>
+            <button class="discover-category-filter-row" type="button" onclick="showDiscoverCategorySimpleFilterPanel('service')"><span>Service</span><strong id="discover-category-filter-service-value">Any</strong><em>›</em></button>
+            <button class="discover-category-filter-row" type="button" onclick="showDiscoverCategorySimpleFilterPanel('watchOption')"><span>Watch Options</span><strong id="discover-category-filter-watch-option-value">Any</strong><em>›</em></button>
+          </div>
+          <div class="discover-category-filter-actions">
+            <button class="discover-category-filter-clear" type="button" onclick="clearDiscoverCategoryFilters()">Clear filters</button>
+          </div>
+        </section>
+        <section class="discover-category-filter-panel" data-filter-panel="year">
+          <div class="discover-category-filter-panel-top">
+            <button class="discover-category-filter-back" type="button" onclick="showDiscoverCategoryFilterMainPanel()">←</button>
+            <h3>Year</h3>
+          </div>
+          <div class="discover-category-filter-rule"></div>
+          <div class="discover-category-filter-list" id="discover-category-filter-decade-list"></div>
+        </section>
+        <section class="discover-category-filter-panel" data-filter-panel="years">
+          <div class="discover-category-filter-panel-top">
+            <button class="discover-category-filter-back" type="button" onclick="showDiscoverCategoryFilterYearPanel()">←</button>
+            <h3 id="discover-category-filter-years-title">Years</h3>
+          </div>
+          <div class="discover-category-filter-rule"></div>
+          <div class="discover-category-filter-list" id="discover-category-filter-year-list"></div>
+        </section>
+        <section class="discover-category-filter-panel" data-filter-panel="simple">
+          <div class="discover-category-filter-panel-top">
+            <button class="discover-category-filter-back" type="button" onclick="showDiscoverCategoryFilterMainPanel()">←</button>
+            <h3 id="discover-category-filter-simple-title">Filter</h3>
+          </div>
+          <div class="discover-category-filter-rule"></div>
+          <div class="discover-category-filter-list" id="discover-category-filter-simple-list"></div>
+        </section>
+      </div>
+    </div>`;
+  document.body.appendChild(sheet);
+  return sheet;
+}
+
+function setDiscoverCategoryFilterPanel(panel = 'content') {
+  const track = document.getElementById('discover-category-filter-track');
+  if (!track) return;
+  const indexes = { content: 0, year: 1, years: 2, simple: 3 };
+  const index = Object.prototype.hasOwnProperty.call(indexes, panel) ? indexes[panel] : 0;
+  track.style.transform = `translate3d(-${index * 100}%, 0, 0)`;
+  track.dataset.activePanel = panel;
+}
+
+function renderDiscoverCategoryFilterMainState() {
+  const valueMap = {
+    'discover-category-filter-year-value': getDiscoverFilterValueLabel('year'),
+    'discover-category-filter-genre-value': getDiscoverFilterValueLabel('genre'),
+    'discover-category-filter-language-value': getDiscoverFilterValueLabel('language'),
+    'discover-category-filter-country-value': getDiscoverFilterValueLabel('country'),
+    'discover-category-filter-service-value': getDiscoverFilterValueLabel('service'),
+    'discover-category-filter-watch-option-value': getDiscoverFilterValueLabel('watchOption')
+  };
+  Object.entries(valueMap).forEach(([id, value]) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value || 'Any';
+  });
+  updateDiscoverCategoryFilterButtonState();
+}
+
+function bindDiscoverFilterDrawerDragToClose(sheet) {
+  const drawer = sheet.querySelector('.discover-category-filter-drawer');
+  if (!drawer || drawer._dragCloseBound) return;
+  drawer._dragCloseBound = true;
+
+  let startY = 0;
+  let currentY = 0;
+  let touchStartedOnHandle = false;
+
+  drawer.addEventListener('touchstart', e => {
+    const touch = e.touches[0];
+    const drawerRect = drawer.getBoundingClientRect();
+    // Only allow drag when the touch begins within the top handle zone (~64px from drawer top)
+    touchStartedOnHandle = (touch.clientY - drawerRect.top) <= 64;
+    if (!touchStartedOnHandle) return;
+    startY = touch.clientY;
+    currentY = touch.clientY;
+    drawer.style.transition = 'none';
+  }, { passive: true });
+
+  drawer.addEventListener('touchmove', e => {
+    if (!touchStartedOnHandle) return; // let native scroll handle it
+    const touch = e.touches[0];
+    const dy = touch.clientY - startY;
+    currentY = touch.clientY;
+    if (dy < 0) return; // don't allow dragging up
+    drawer.style.transform = `translate3d(0, ${dy}px, 0)`;
+  }, { passive: true });
+
+  drawer.addEventListener('touchend', () => {
+    if (!touchStartedOnHandle) return;
+    drawer.style.transition = '';
+    const dy = currentY - startY;
+    if (dy > 80) {
+      drawer.style.transform = '';
+      closeDiscoverCategoryFilterSheet();
+    } else {
+      drawer.style.transform = '';
+    }
+    touchStartedOnHandle = false;
+  }, { passive: true });
+
+  drawer.addEventListener('touchcancel', () => {
+    if (!touchStartedOnHandle) return;
+    drawer.style.transition = '';
+    drawer.style.transform = '';
+    touchStartedOnHandle = false;
+  }, { passive: true });
+}
+
+function openDiscoverCategoryFilterSheet() {
+  if (!discoverCategoryFullState) return;
+  const sheet = getOrCreateDiscoverCategoryFilterSheet();
+  renderDiscoverCategoryFilterMainState();
+  showDiscoverCategoryFilterMainPanel();
+  sheet.style.display = 'block';
+  sheet.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('discover-category-filter-open');
+  requestAnimationFrame(() => {
+    sheet.classList.add('open');
+    bindDiscoverFilterDrawerDragToClose(sheet);
+  });
+}
+
+function closeDiscoverCategoryFilterSheet() {
+  const sheet = document.getElementById('discover-category-filter-sheet');
+  if (!sheet) return;
+  sheet.classList.remove('open');
+  sheet.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('discover-category-filter-open');
+  setTimeout(() => {
+    if (!sheet.classList.contains('open')) sheet.style.display = 'none';
+  }, 300);
+}
+
+function showDiscoverCategoryFilterMainPanel() {
+  renderDiscoverCategoryFilterMainState();
+  setDiscoverCategoryFilterPanel('content');
+}
+
+function showDiscoverCategoryFilterYearPanel() {
+  const list = document.getElementById('discover-category-filter-decade-list');
+  if (list) {
+    list.innerHTML = DISCOVER_FILTER_DECADES.map(decade => `<button class="discover-category-filter-row" type="button" onclick="showDiscoverCategoryFilterYearsForDecade(${decade})"><span>${decade}s</span><em>›</em></button>`).join('');
+  }
+  setDiscoverCategoryFilterPanel('year');
+}
+
+function showDiscoverCategoryFilterYearsForDecade(decade = 2020) {
+  const title = document.getElementById('discover-category-filter-years-title');
+  const list = document.getElementById('discover-category-filter-year-list');
+  const selected = String(discoverCategoryFullState?.filters?.year || '');
+  if (title) title.textContent = `${decade}s`;
+  if (list) {
+    list.innerHTML = getDiscoverFilterDecadeYears(decade).map(year => `<button class="discover-category-filter-row discover-category-filter-year-option${selected === year ? ' selected' : ''}" type="button" onclick="setDiscoverCategoryYearFilter('${year}')"><span>${year}</span>${selected === year ? '<strong>Selected</strong>' : ''}</button>`).join('');
+  }
+  setDiscoverCategoryFilterPanel('years');
+}
+
+function getDiscoverSimpleFilterConfig(filterKey = '') {
+  if (filterKey === 'genre') return { title: 'Genre', active: getDiscoverCategoryFilters().genre, setter: 'setDiscoverCategoryGenreFilter', options: DISCOVER_FILTER_GENRE_OPTIONS };
+  if (filterKey === 'language') return { title: 'Language', active: getDiscoverCategoryFilters().language, setter: 'setDiscoverCategoryLanguageFilter', options: DISCOVER_FILTER_LANGUAGE_OPTIONS };
+  if (filterKey === 'country') return { title: 'Country', active: getDiscoverCategoryFilters().country, setter: 'setDiscoverCategoryCountryFilter', options: DISCOVER_FILTER_COUNTRY_OPTIONS };
+  if (filterKey === 'service') return { title: 'Service', active: getDiscoverCategoryFilters().service, setter: 'setDiscoverCategoryServiceFilter', options: DISCOVER_FILTER_SERVICE_OPTIONS };
+  if (filterKey === 'watchOption') return { title: 'Watch Options', active: getDiscoverCategoryFilters().watchOption, setter: 'setDiscoverCategoryWatchOptionFilter', options: DISCOVER_FILTER_WATCH_OPTION_OPTIONS };
+  return null;
+}
+
+function showDiscoverCategorySimpleFilterPanel(filterKey = '') {
+  const config = getDiscoverSimpleFilterConfig(filterKey);
+  if (!config) return;
+  const title = document.getElementById('discover-category-filter-simple-title');
+  const list = document.getElementById('discover-category-filter-simple-list');
+  if (title) title.textContent = config.title;
+  if (list) list.innerHTML = renderDiscoverFilterOptionRows(config.options, config.active, config.setter);
+  setDiscoverCategoryFilterPanel('simple');
+}
+
+async function applyDiscoverCategoryFilterChange(nextFilters = {}, options = {}) {
+  if (!discoverCategoryFullState) return;
+  discoverCategoryFullState.filters = { ...getDefaultDiscoverCategoryFilters(), ...(discoverCategoryFullState.filters || {}), ...nextFilters };
+  renderDiscoverCategoryFilterMainState();
+  renderDiscoverCategorySortControls();
+  await renderDiscoverCategoryFullGrid({ loadingMessage: options.loadingMessage || 'Applying filters...' });
+  if (options.returnToMain !== false) showDiscoverCategoryFilterMainPanel();
+}
+
+function setDiscoverCategoryYearFilter(year = '') {
+  const cleanYear = String(year || '').match(/(18|19|20)\d{2}/)?.[0] || '';
+  applyDiscoverCategoryFilterChange({ year: cleanYear }, { returnToMain: true });
+}
+
+function setDiscoverCategoryGenreFilter(genre = '') {
+  applyDiscoverCategoryFilterChange({ genre: String(genre || '').trim() }, { returnToMain: true });
+}
+
+function setDiscoverCategoryLanguageFilter(language = '') {
+  applyDiscoverCategoryFilterChange({ language: String(language || '').trim().toLowerCase() }, { returnToMain: true });
+}
+
+function setDiscoverCategoryCountryFilter(country = '') {
+  applyDiscoverCategoryFilterChange({ country: String(country || '').trim().toUpperCase() }, { returnToMain: true });
+}
+
+function setDiscoverCategoryServiceFilter(service = '') {
+  applyDiscoverCategoryFilterChange({ service: String(service || '').trim() }, { returnToMain: true, loadingMessage: 'Checking streaming services...' });
+}
+
+function setDiscoverCategoryWatchOptionFilter(option = '') {
+  const clean = ['theaters', 'rentbuy', 'streaming'].includes(option) ? option : '';
+  applyDiscoverCategoryFilterChange({ watchOption: clean }, { returnToMain: true, loadingMessage: clean && clean !== 'theaters' ? 'Checking watch options...' : 'Applying filters...' });
+}
+
+function clearDiscoverCategoryFilters() {
+  if (!discoverCategoryFullState) return;
+  applyDiscoverCategoryFilterChange(getDefaultDiscoverCategoryFilters(), { returnToMain: true });
+}
+
+function renderDiscoverCategorySortControls() {
+  if (!discoverCategoryFullState) return;
+  updateDiscoverCategoryFilterButtonState();
+}
+
+async function renderDiscoverCategoryFullGrid(options = {}) {
   if (!discoverCategoryFullState) return;
   const stored = discoverCategoryDataStore[discoverCategoryFullState.gridId];
   const grid = document.getElementById('discover-category-full-grid');
   if (!grid || !stored) return;
-  const sourceItems = Array.isArray(discoverCategoryFullState.overrideItems) ? discoverCategoryFullState.overrideItems : stored.items;
-  const items = sortDiscoverFullPageItems(sourceItems, discoverCategoryFullState.sortKey, discoverCategoryFullState.gridId);
+  const loadingMessage = options.loadingMessage || '';
+  if (loadingMessage) {
+    grid.innerHTML = `<div class="discover-message">${escHtml(loadingMessage)}</div>`;
+  }
+  await loadDiscoverFilteredCategoryItemsIfNeeded(false);
+  if (!discoverCategoryFullState || !grid || !stored) return;
+  const sourceItems = Array.isArray(discoverCategoryFullState.filteredOverrideItems)
+    ? discoverCategoryFullState.filteredOverrideItems
+    : Array.isArray(discoverCategoryFullState.overrideItems)
+      ? discoverCategoryFullState.overrideItems
+      : stored.items;
+  await hydrateDiscoverCategoryProviderDataIfNeeded(sourceItems);
+  if (!discoverCategoryFullState || !grid || !stored) return;
+  const filteredItems = applyDiscoverCategoryFilters(sourceItems);
+  const items = sortDiscoverFullPageItems(filteredItems, discoverCategoryFullState.sortKey, discoverCategoryFullState.gridId).slice(0, DISCOVER_FULL_CATEGORY_LIMIT);
+  if (!items.length && hasActiveDiscoverCategoryFilters()) {
+    grid.innerHTML = `<div class="discover-message">No titles match these filters.</div>`;
+    updateDiscoverCategoryFilterButtonState();
+    return;
+  }
   grid.dataset.sourceGridId = discoverCategoryFullState.gridId || '';
   const renderer = discoverCategoryFullState.overrideRenderer || stored.renderer;
   const type = discoverCategoryFullState.overrideType || stored.type || 'mixed';
@@ -17372,7 +18670,7 @@ async function loadDiscoverFullNewReleaseItems(force = false) {
     discoverCategoryFullState.overrideItems = Array.isArray(items) ? items : [];
     discoverCategoryFullState.overrideRenderer = mediaType === 'anime' ? 'cards' : 'ranked';
     discoverCategoryFullState.overrideType = mediaType === 'movie' ? 'movie' : 'tv';
-    renderDiscoverCategoryFullGrid();
+    await renderDiscoverCategoryFullGrid();
   } catch (error) {
     console.error('Discover full new releases failed:', error);
     if (grid) grid.innerHTML = '<div class="discover-message">New releases could not load. It will try again automatically later.</div>';
@@ -17416,16 +18714,16 @@ async function openDiscoverCategoryFullPage(gridId = '') {
   document.body.style.overflow = 'hidden';
   if (titleEl) titleEl.textContent = title;
   if (subtitleEl) subtitleEl.textContent = isDiscoverGridCountryFilterableNewRelease(gridId)
-    ? 'View all US releases or filter by country of origin.'
-    : 'View all and sort this category.';
+    ? 'Use the filter button to narrow this category.'
+    : 'Use the filter button to narrow this category.';
   if (grid) grid.innerHTML = '<div class="discover-message">Loading category...</div>';
-  discoverCategoryFullState = { gridId, sortKey: getDiscoverFullPageDefaultSort(gridId), newReleaseCountryCode: '', newReleaseRange: discoverNewReleaseRange };
+  discoverCategoryFullState = { gridId, sortKey: getDiscoverFullPageDefaultSort(gridId), newReleaseCountryCode: '', newReleaseRange: discoverNewReleaseRange, filters: getDefaultDiscoverCategoryFilters() };
   renderDiscoverCategorySortControls();
   try {
     const stored = await ensureDiscoverCategoryData(gridId);
     if (!stored?.items?.length) throw new Error('No category data loaded');
     if (isDiscoverGridCountryFilterableNewRelease(gridId)) await loadDiscoverFullNewReleaseItems(false);
-    else renderDiscoverCategoryFullGrid();
+    else await loadDiscoverFullCategoryItems(false);
   } catch (e) {
     console.error('Discover category full page failed:', gridId, e);
     if (grid) grid.innerHTML = '<div class="discover-message">This category could not load.</div>';
@@ -17439,6 +18737,7 @@ function closeDiscoverCategoryFullPage(options = {}) {
     window.history.back();
     return;
   }
+  closeDiscoverCategoryFilterSheet();
   const returnScrollY = Number(page?.dataset?.returnScrollY || 0);
   if (page) page.style.display = 'none';
   discoverCategoryFullState = null;
@@ -17493,6 +18792,215 @@ function sanitizeDiscoverCardContextLine(value = '') {
   return /\bTMDB\b/i.test(text) || /\bvotes?\b/i.test(text) ? '' : text;
 }
 
+
+const discoverImdbRatingCache = new Map();
+const discoverImdbRatingInFlight = new Map();
+const DISCOVER_RATING_BROWSER_CACHE_PREFIX = 'screenlist-rating-cache-v242:';
+const DISCOVER_RATING_BROWSER_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+function readDiscoverRatingBrowserCache(key = '') {
+  if (!key) return undefined;
+  try {
+    const raw = localStorage.getItem(DISCOVER_RATING_BROWSER_CACHE_PREFIX + key);
+    if (!raw) return undefined;
+    const entry = JSON.parse(raw);
+    if (!entry || !entry.savedAt || !('data' in entry)) return undefined;
+    if (Date.now() - Number(entry.savedAt) > DISCOVER_RATING_BROWSER_CACHE_TTL_MS) {
+      localStorage.removeItem(DISCOVER_RATING_BROWSER_CACHE_PREFIX + key);
+      return undefined;
+    }
+    return entry.data;
+  } catch (error) {
+    return undefined;
+  }
+}
+
+function writeDiscoverRatingBrowserCache(key = '', data = null) {
+  if (!key) return;
+  try {
+    localStorage.setItem(DISCOVER_RATING_BROWSER_CACHE_PREFIX + key, JSON.stringify({
+      savedAt: Date.now(),
+      data
+    }));
+  } catch (error) {}
+}
+
+function isElementVisibleForRatingHydration(el) {
+  if (!el || typeof el.closest !== 'function') return true;
+  if (el.closest('.discover-category-full-page, .discover-media-profile-overlay')) return true;
+  const grid = el.classList?.contains('discover-grid') ? el : el.closest('.discover-grid');
+  const section = el.closest('.discover-media-tab-section, #anime-discover-view, #games-discover-view, #discover-view');
+  if (section) {
+    const style = window.getComputedStyle(section);
+    if (style.display === 'none' || style.visibility === 'hidden') return false;
+  }
+  if (grid) {
+    const gridStyle = window.getComputedStyle(grid);
+    if (gridStyle.display === 'none' || gridStyle.visibility === 'hidden') return false;
+  }
+  return true;
+}
+
+function hydrateVisibleDiscoverRatings() {
+  document.querySelectorAll('.discover-grid').forEach(grid => {
+    if (isElementVisibleForRatingHydration(grid)) hydrateDiscoverCardImdbRatings(grid);
+  });
+}
+
+function normalizeDiscoverImdbMediaType(type = '') {
+  return String(type || '').trim().toLowerCase() === 'movie' ? 'movie' : 'tv';
+}
+
+function normalizeDiscoverImdbTitleId(value = '') {
+  const match = String(value || '').trim().match(/tt\d{7,10}/i);
+  return match ? match[0].toLowerCase() : '';
+}
+
+function getDiscoverImdbRatingKey(type = 'tv', tmdbId = '', imdbId = '', title = '', year = '') {
+  const cleanType = normalizeDiscoverImdbMediaType(type);
+  const cleanTmdbId = String(tmdbId || '').trim();
+  const cleanImdbId = normalizeDiscoverImdbTitleId(imdbId);
+  const cleanTitle = String(title || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
+  const cleanYear = String(year || '').match(/(18|19|20)\d{2}/)?.[0] || '';
+  return `${cleanType}:${cleanTmdbId || 'no-tmdb'}:${cleanImdbId || 'lookup'}:${cleanTitle || 'no-title'}:${cleanYear || 'no-year'}`;
+}
+
+function formatDiscoverImdbRatingValue(value) {
+  const rating = Number(String(value || '').replace(/[^0-9.]/g, ''));
+  if (!Number.isFinite(rating) || rating <= 0) return '';
+  return rating.toFixed(1).replace(/\.0$/, '.0');
+}
+
+function formatDiscoverGameRatingValue(item = {}) {
+  const metacritic = Number(item.metacritic || 0);
+  if (Number.isFinite(metacritic) && metacritic > 0) return String(Math.round(metacritic));
+  const rating = Number(item.rating || item.score || 0);
+  if (Number.isFinite(rating) && rating > 0) return rating.toFixed(1).replace(/\.0$/, '.0');
+  return '';
+}
+
+function renderDiscoverCardRatingMarkup(item = {}, itemType = 'tv') {
+  const normalizedType = String(itemType || '').trim().toLowerCase();
+  if (normalizedType === 'game' || normalizedType === 'games') {
+    const value = formatDiscoverGameRatingValue(item);
+    const label = Number(item.metacritic || 0) > 0 ? 'MC' : '★';
+    return `<div class="discover-card-rating discover-card-game-rating${value ? ' ready' : ' empty'}" aria-label="Game rating"><span class="discover-card-rating-label">${escHtml(label)}</span><span class="discover-card-rating-value">${escHtml(value || '—')}</span></div>`;
+  }
+
+  const cleanType = normalizeDiscoverImdbMediaType(normalizedType);
+  const tmdbId = String(item.id || item.tmdbId || '').trim();
+  const imdbId = normalizeDiscoverImdbTitleId(item.imdbId || item.imdb_id || item.imdbID || item.external_ids?.imdb_id || '');
+  const title = item.title || item.name || '';
+  const year = (item.release_date || item.first_air_date || item.year || '').slice(0, 4);
+  const key = getDiscoverImdbRatingKey(cleanType, tmdbId, imdbId, title, year);
+  const initial = formatDiscoverImdbRatingValue(item.imdbRating || item.imdb_rating || item.imdb?.rating || item.ratingDisplay || '');
+  return `<div class="discover-card-rating discover-card-imdb-rating${initial ? ' ready' : ' loading'}" data-discover-imdb-key="${escAttr(key)}" data-discover-imdb-type="${escAttr(cleanType)}" data-discover-tmdb-id="${escAttr(tmdbId)}" data-discover-imdb-id="${escAttr(imdbId)}" data-discover-title="${escAttr(title)}" data-discover-year="${escAttr(year)}" aria-label="IMDb rating"><span class="discover-card-rating-label">IMDb</span><span class="discover-card-rating-value">${escHtml(initial || '—')}</span></div>`;
+}
+
+async function fetchDiscoverImdbRating(type = 'tv', tmdbId = '', imdbId = '', title = '', year = '') {
+  const cleanType = normalizeDiscoverImdbMediaType(type);
+  const cleanTmdbId = String(tmdbId || '').trim();
+  const cleanImdbId = normalizeDiscoverImdbTitleId(imdbId);
+  const cleanTitle = String(title || '').trim();
+  const cleanYear = String(year || '').match(/(18|19|20)\d{2}/)?.[0] || '';
+  if (!cleanTmdbId && !cleanImdbId && !cleanTitle) return null;
+  const key = getDiscoverImdbRatingKey(cleanType, cleanTmdbId, cleanImdbId, cleanTitle, cleanYear);
+  if (discoverImdbRatingCache.has(key)) return discoverImdbRatingCache.get(key);
+  const browserCached = readDiscoverRatingBrowserCache(key);
+  if (browserCached !== undefined) {
+    discoverImdbRatingCache.set(key, browserCached);
+    return browserCached;
+  }
+  if (discoverImdbRatingInFlight.has(key)) return discoverImdbRatingInFlight.get(key);
+
+  const params = new URLSearchParams({ type: cleanType });
+  if (cleanTmdbId) params.set('tmdbId', cleanTmdbId);
+  if (cleanImdbId) params.set('imdbId', cleanImdbId);
+  if (cleanTitle) params.set('title', cleanTitle);
+  if (cleanYear) params.set('year', cleanYear);
+  params.set('preferAi', '1');
+  params.set('displaySource', 'ai_first');
+  params.set('v', '246');
+
+  const request = fetch(`/api/rating/resolve?${params.toString()}`, { cache: 'no-store' })
+    .then(async res => {
+      const json = await res.json().catch(() => null);
+      const value = formatDiscoverImdbRatingValue(json?.imdbRating || json?.rating || json?.aiRating || '');
+      const result = res.ok && json?.ok && value ? {
+        value,
+        imdbId: normalizeDiscoverImdbTitleId(json.imdbId || cleanImdbId),
+        source: String(json.ratingSource || json.source || '').trim(),
+        confidence: String(json.confidence || '').trim()
+      } : null;
+      discoverImdbRatingCache.set(key, result);
+      writeDiscoverRatingBrowserCache(key, result);
+      return result;
+    })
+    .catch(error => {
+      console.warn('Discover rating resolve failed:', error);
+      discoverImdbRatingCache.set(key, null);
+      writeDiscoverRatingBrowserCache(key, null);
+      return null;
+    })
+    .finally(() => discoverImdbRatingInFlight.delete(key));
+
+  discoverImdbRatingInFlight.set(key, request);
+  return request;
+}
+
+function updateDiscoverImdbRatingElements(key = '', ratingData = null) {
+  document.querySelectorAll('.discover-card-imdb-rating[data-discover-imdb-key]').forEach(el => {
+    if (el.dataset.discoverImdbKey !== key) return;
+    const valueEl = el.querySelector('.discover-card-rating-value');
+    const value = ratingData?.value || '';
+    if (valueEl) valueEl.textContent = value || '—';
+    el.classList.toggle('ready', !!value);
+    el.classList.toggle('loading', false);
+    el.classList.toggle('empty', !value);
+    el.classList.toggle('ai-fallback', /^ai_/.test(String(ratingData?.source || '')));
+    if (ratingData?.source) el.dataset.discoverRatingSource = ratingData.source;
+    if (ratingData?.confidence) el.dataset.discoverRatingConfidence = ratingData.confidence;
+    el.dataset.discoverImdbHydrated = '1';
+  });
+}
+
+function hydrateDiscoverCardImdbRatings(root = document) {
+  if (root !== document && root instanceof Element && !isElementVisibleForRatingHydration(root)) return;
+  const nodes = Array.from((root || document).querySelectorAll?.('.discover-card-imdb-rating[data-discover-imdb-key]') || [])
+    .filter(node => !node.closest('.discover-hidden') && isElementVisibleForRatingHydration(node));
+  const jobs = [];
+  const seen = new Set();
+  nodes.forEach(node => {
+    const key = node.dataset.discoverImdbKey || '';
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    const cached = discoverImdbRatingCache.has(key) ? discoverImdbRatingCache.get(key) : undefined;
+    if (cached !== undefined) {
+      updateDiscoverImdbRatingElements(key, cached);
+      return;
+    }
+    jobs.push({
+      key,
+      type: node.dataset.discoverImdbType || 'tv',
+      tmdbId: node.dataset.discoverTmdbId || '',
+      imdbId: node.dataset.discoverImdbId || '',
+      title: node.dataset.discoverTitle || '',
+      year: node.dataset.discoverYear || ''
+    });
+  });
+  if (!jobs.length) return;
+  (async () => {
+    const batchSize = 6;
+    for (let i = 0; i < jobs.length; i += batchSize) {
+      const batch = jobs.slice(i, i + batchSize);
+      await Promise.all(batch.map(async job => {
+        const rating = await fetchDiscoverImdbRating(job.type, job.tmdbId, job.imdbId, job.title, job.year);
+        updateDiscoverImdbRatingElements(job.key, rating);
+      }));
+    }
+  })();
+}
+
 function renderDiscoverCards(type, items, gridId) {
   const resolvedGridId = gridId || (type === 'movie' ? 'discover-movie-popular-grid' : 'discover-tv-popular-grid');
   storeDiscoverCategoryData(resolvedGridId, type, items, 'cards');
@@ -17511,10 +19019,10 @@ function renderDiscoverCards(type, items, gridId) {
     const genreLine = getDiscoverGenreNames(item, itemType).slice(0, 2).join(' · ');
     const poster = `https://image.tmdb.org/t/p/w342${item.poster_path}`;
     const overview = item.overview || '';
-    const contextLine = sanitizeDiscoverCardContextLine(item.discoverContext || '');
-    const section = itemType === 'movie' ? 'movies' : 'shows';
+    const section = itemType === 'movie' ? 'movies' : (resolvedGridId.startsWith('anime-discover-') || activeDiscoveryHub === 'anime' ? 'anime' : 'shows');
     const alreadyAdded = isDuplicateTitle(title, section);
     const titleAttr = escAttr(title);
+    const ratingHtml = renderDiscoverCardRatingMarkup(item, itemType);
     const addClick = `openDiscoveryAddModal('${itemType}', ${item.id}, this)`;
     const removeClick = `removeDiscoveryTitle(this)`;
     setDiscoverMediaProfileSeed(itemType, item.id, {
@@ -17528,22 +19036,22 @@ function renderDiscoverCards(type, items, gridId) {
       first_air_date: item.first_air_date || '',
       vote_average: item.vote_average || '',
       vote_count: item.vote_count || '',
-      genreNames: getDiscoverGenreNames(item, itemType)
+      genreNames: getDiscoverGenreNames(item, itemType),
+      mediaCategory: section,
+      librarySection: section,
+      isAnime: section === 'anime'
     });
     return `<div class="discover-card">
       <div class="discover-poster" data-poster="${escAttr(poster)}" data-media-type="${itemType}" data-media-id="${item.id}" data-discover-title="${titleAttr}" data-discover-section="${section}" data-hovering="0" data-pinned="0" data-long-press-triggered="0" onclick="handleDiscoverPosterClick(event, this, '${itemType}', ${item.id})" onpointerdown="startDiscoverPosterPress(event, this, '${itemType}', ${item.id})" onpointermove="moveDiscoverPosterPress(event)" onpointerup="stopDiscoverPosterPress()" onpointercancel="clearDiscoverCardPressTimer()" onpointerleave="clearDiscoverCardPressTimer()">
         ${buildDiscoverPosterMarkup(poster)}${getDiscoverExpandIconMarkup({ dataset: { mediaType: itemType, mediaId: String(item.id) } })}${getDiscoverPosterTooltipMarkup()}${getDiscoverFriendStackMarkup(title, section)}
       </div>
       <div class="discover-card-body" onclick="handleDiscoverCardBodyTap(event, this)">
-        <div class="discover-card-info-row">
-          <div class="discover-card-info-stack">
-            <button class="discover-card-title discover-title-profile-btn" type="button" onclick="openDiscoverMediaProfile(event, '${itemType}', ${item.id})">${escHtml(title)}${year ? ` (${year})` : ''}</button>
-            ${genreLine ? `<div class="discover-card-genre">${escHtml(genreLine)}</div>` : ''}
-            ${contextLine ? `<div class="discover-card-context">${escHtml(contextLine)}</div>` : ''}
-          </div>
+        <div class="discover-card-heading-row discover-card-title-only-row">
+          <button class="discover-card-title discover-title-profile-btn" type="button" onclick="openDiscoverMediaProfile(event, '${itemType}', ${item.id})">${escHtml(title)}${year ? ` (${year})` : ''}</button>
           <button class="discover-close-btn" type="button" onclick="handleDiscoverCloseClick(event, this)">Close</button>
         </div>
-        <div class="discover-card-overview">${overview ? escHtml(overview) : ''}</div>
+        ${ratingHtml}
+        ${genreLine ? `<div class="discover-card-genre">${escHtml(genreLine)}</div>` : `<div class="discover-card-genre discover-card-genre-empty">&nbsp;</div>`}
         <button class="discover-add-btn${alreadyAdded ? ' added' : ''}" data-discover-type="${itemType}" data-discover-id="${item.id}" data-discover-section="${section}" data-discover-title="${titleAttr}" title="${alreadyAdded ? 'Click to remove from your library' : ''}" onclick="${alreadyAdded ? removeClick : addClick}">${alreadyAdded ? getDiscoverLibraryButtonText(title, section) : '+ Add to Library'}</button>
       </div>
     </div>`;
@@ -17551,6 +19059,7 @@ function renderDiscoverCards(type, items, gridId) {
   requestAnimationFrame(() => {
     setupDiscoverSectionLimit(grid);
     refreshDiscoverFriendStacks();
+    hydrateDiscoverCardImdbRatings(grid);
   });
 }
 
@@ -17573,9 +19082,11 @@ function renderCountryDiscoverCards(type, items, gridId) {
     const year = (item.release_date || item.first_air_date || '').slice(0, 4);
     const poster = `https://image.tmdb.org/t/p/w342${item.poster_path}`;
     const overview = item.overview || '';
-    const section = itemType === 'movie' ? 'movies' : 'shows';
+    const section = itemType === 'movie' ? 'movies' : (gridId.startsWith('anime-discover-') || activeDiscoveryHub === 'anime' ? 'anime' : 'shows');
+    const genreLine = getDiscoverGenreNames(item, itemType).slice(0, 2).join(' · ');
     const alreadyAdded = isDuplicateTitle(title, section);
     const titleAttr = escAttr(title);
+    const ratingHtml = renderDiscoverCardRatingMarkup(item, itemType);
     const addClick = `openDiscoveryAddModal('${itemType}', ${item.id}, this)`;
     const removeClick = `removeDiscoveryTitle(this)`;
 
@@ -17590,7 +19101,10 @@ function renderCountryDiscoverCards(type, items, gridId) {
       first_air_date: item.first_air_date || '',
       vote_average: item.vote_average || '',
       vote_count: item.vote_count || '',
-      genreNames: getDiscoverGenreNames(item, itemType)
+      genreNames: getDiscoverGenreNames(item, itemType),
+      mediaCategory: section,
+      librarySection: section,
+      isAnime: section === 'anime'
     });
 
     return `<div class="discover-card discover-country-card">
@@ -17598,8 +19112,12 @@ function renderCountryDiscoverCards(type, items, gridId) {
       <div class="discover-poster" data-poster="${escAttr(poster)}" data-media-type="${itemType}" data-media-id="${item.id}" data-discover-title="${titleAttr}" data-discover-section="${section}" data-hovering="0" data-pinned="0" data-long-press-triggered="0" onclick="handleDiscoverPosterClick(event, this, '${itemType}', ${item.id})" onpointerdown="startDiscoverPosterPress(event, this, '${itemType}', ${item.id})" onpointermove="moveDiscoverPosterPress(event)" onpointerup="stopDiscoverPosterPress()" onpointercancel="clearDiscoverCardPressTimer()" onpointerleave="clearDiscoverCardPressTimer()">
         ${buildDiscoverPosterMarkup(poster)}${getDiscoverExpandIconMarkup({ dataset: { mediaType: itemType, mediaId: String(item.id) } })}${getDiscoverPosterTooltipMarkup()}${getDiscoverFriendStackMarkup(title, section)}
       </div>
-      <div class="discover-card-body discover-country-card-body">
-        <button class="discover-card-title discover-title-profile-btn discover-country-title" type="button" onclick="openDiscoverMediaProfile(event, '${itemType}', ${item.id})">${escHtml(title)}${year ? ` (${year})` : ''}</button>
+      <div class="discover-card-body discover-country-card-body" onclick="handleDiscoverCardBodyTap(event, this)">
+        <div class="discover-card-heading-row discover-card-title-only-row">
+          <button class="discover-card-title discover-title-profile-btn discover-country-title" type="button" onclick="openDiscoverMediaProfile(event, '${itemType}', ${item.id})">${escHtml(title)}${year ? ` (${year})` : ''}</button>
+        </div>
+        ${ratingHtml}
+        ${genreLine ? `<div class="discover-card-genre">${escHtml(genreLine)}</div>` : `<div class="discover-card-genre discover-card-genre-empty">&nbsp;</div>`}
         <button class="discover-add-btn${alreadyAdded ? ' added' : ''}" data-discover-type="${itemType}" data-discover-id="${item.id}" data-discover-section="${section}" data-discover-title="${titleAttr}" title="${alreadyAdded ? 'Click to remove from your library' : ''}" onclick="${alreadyAdded ? removeClick : addClick}">${alreadyAdded ? getDiscoverLibraryButtonText(title, section) : '+ Add to Library'}</button>
       </div>
     </div>`;
@@ -17608,6 +19126,7 @@ function renderCountryDiscoverCards(type, items, gridId) {
   requestAnimationFrame(() => {
     setupDiscoverSectionLimit(grid);
     refreshDiscoverFriendStacks();
+    hydrateDiscoverCardImdbRatings(grid);
   });
 }
 
@@ -17622,8 +19141,7 @@ function renderRankedDiscoverCards(type, items, gridId) {
   }
 
   const sourceGridId = gridId === 'discover-category-full-grid' ? (discoverCategoryFullState?.gridId || grid?.dataset?.sourceGridId || gridId) : gridId;
-  const isNewReleaseGrid = isDiscoverGridNewRelease(sourceGridId);
-  const isDateOnlyGrid = isNewReleaseGrid || isDiscoverGridUpcoming(sourceGridId);
+  const isDateOnlyGrid = isDiscoverGridNewRelease(sourceGridId) || isDiscoverGridUpcoming(sourceGridId);
   grid.dataset.expanded = 'false';
   delete grid.dataset.visibleCount;
   grid.innerHTML = items.map((item, index) => {
@@ -17632,20 +19150,16 @@ function renderRankedDiscoverCards(type, items, gridId) {
     const itemType = item.media_type || type;
     const title = item.title || item.name || '';
     const year = (item.release_date || item.first_air_date || '').slice(0, 4);
-    const genreLine = isNewReleaseGrid ? '' : getDiscoverGenreNames(item, itemType).slice(0, 2).join(' · ');
+    const genreLine = getDiscoverGenreNames(item, itemType).slice(0, 2).join(' · ');
     const poster = `https://image.tmdb.org/t/p/w342${item.poster_path}`;
     const overview = item.overview || '';
-    const contextLine = isNewReleaseGrid ? '' : sanitizeDiscoverCardContextLine(item.discoverContext || item.sourceLabel || '');
-    const section = itemType === 'movie' ? 'movies' : 'shows';
-    const releaseLine = formatDiscoverReleaseCardDate(getDiscoverReleaseDate(item));
+    const section = itemType === 'movie' ? 'movies' : (sourceGridId.startsWith('anime-discover-') || activeDiscoveryHub === 'anime' ? 'anime' : 'shows');
     const alreadyAdded = isDuplicateTitle(title, section);
     const titleAttr = escAttr(title);
+    const ratingHtml = renderDiscoverCardRatingMarkup(item, itemType);
     const addClick = `openDiscoveryAddModal('${itemType}', ${item.id}, this)`;
     const removeClick = `removeDiscoveryTitle(this)`;
-    const cardClass = isNewReleaseGrid ? 'discover-card discover-new-release-card' : 'discover-card';
-    const metaHtml = isNewReleaseGrid
-      ? `<div class="discover-card-meta discover-new-release-date">Released: ${escHtml(releaseLine || formatDiscoverReleaseDate(getDiscoverReleaseDate(item)))}</div>`
-      : '';
+    const cardClass = isDateOnlyGrid ? 'discover-card discover-new-release-card' : 'discover-card';
 
     setDiscoverMediaProfileSeed(itemType, item.id, {
       title,
@@ -17658,7 +19172,10 @@ function renderRankedDiscoverCards(type, items, gridId) {
       first_air_date: item.first_air_date || '',
       vote_average: item.vote_average || '',
       vote_count: item.vote_count || '',
-      genreNames: getDiscoverGenreNames(item, itemType)
+      genreNames: getDiscoverGenreNames(item, itemType),
+      mediaCategory: section,
+      librarySection: section,
+      isAnime: section === 'anime'
     });
 
     return `<div class="${cardClass}">
@@ -17667,16 +19184,12 @@ function renderRankedDiscoverCards(type, items, gridId) {
         ${buildDiscoverPosterMarkup(poster)}${getDiscoverExpandIconMarkup({ dataset: { mediaType: itemType, mediaId: String(item.id) } })}${getDiscoverPosterTooltipMarkup()}${getDiscoverFriendStackMarkup(title, section)}
       </div>
       <div class="discover-card-body" onclick="handleDiscoverCardBodyTap(event, this)">
-        <div class="discover-card-info-row">
-          <div class="discover-card-info-stack">
-            <button class="discover-card-title discover-title-profile-btn" type="button" onclick="openDiscoverMediaProfile(event, '${itemType}', ${item.id})">${escHtml(title)}${year ? ` (${year})` : ''}</button>
-            ${genreLine ? `<div class="discover-card-genre">${escHtml(genreLine)}</div>` : ''}
-            ${metaHtml}
-            ${contextLine ? `<div class="discover-card-context">${escHtml(contextLine)}</div>` : ''}
-          </div>
+        <div class="discover-card-heading-row discover-card-title-only-row">
+          <button class="discover-card-title discover-title-profile-btn" type="button" onclick="openDiscoverMediaProfile(event, '${itemType}', ${item.id})">${escHtml(title)}${year ? ` (${year})` : ''}</button>
           <button class="discover-close-btn" type="button" onclick="handleDiscoverCloseClick(event, this)">Close</button>
         </div>
-        <div class="discover-card-overview">${overview ? escHtml(overview) : ''}</div>
+        ${ratingHtml}
+        ${genreLine ? `<div class="discover-card-genre">${escHtml(genreLine)}</div>` : `<div class="discover-card-genre discover-card-genre-empty">&nbsp;</div>`}
         <button class="discover-add-btn${alreadyAdded ? ' added' : ''}" data-discover-type="${itemType}" data-discover-id="${item.id}" data-discover-section="${section}" data-discover-title="${titleAttr}" title="${alreadyAdded ? 'Click to remove from your library' : ''}" onclick="${alreadyAdded ? removeClick : addClick}">${alreadyAdded ? getDiscoverLibraryButtonText(title, section) : '+ Add to Library'}</button>
       </div>
     </div>`;
@@ -17685,6 +19198,7 @@ function renderRankedDiscoverCards(type, items, gridId) {
   requestAnimationFrame(() => {
     setupDiscoverSectionLimit(grid);
     refreshDiscoverFriendStacks();
+    hydrateDiscoverCardImdbRatings(grid);
   });
 }
 
@@ -17859,9 +19373,8 @@ function renderGamesDiscoverCards(items, gridId) {
     const title = item.name || '';
     const year = (item.released || '').slice(0, 4);
     const poster = item.background_image || '';
-    const genres = (item.genres || []).map(g => g.name).slice(0, 3).join(', ');
+    const genres = (item.genres || []).map(g => g.name).filter(Boolean).slice(0, 2).join(' · ');
     const platforms = (item.platforms || []).map(p => p.platform?.name).filter(Boolean).slice(0, 3).join(', ');
-    const overview = genres || platforms || 'Game';
     const seed = {
       rawgId: String(item.id || ''),
       rawgSlug: item.slug || '',
@@ -17880,16 +19393,17 @@ function renderGamesDiscoverCards(items, gridId) {
     setGameMediaProfileSeed(item.id, seed);
     const alreadyAdded = isDuplicateTitle(title, 'games');
     const titleAttr = escAttr(title);
+    const ratingHtml = renderDiscoverCardRatingMarkup(item, 'game');
     const addClick = `openDiscoveryAddModal('game', ${item.id}, this)`;
     const removeClick = `removeDiscoveryTitle(this)`;
     return `<div class="discover-card games-discover-card">
       <div class="discover-poster" data-poster="${escAttr(poster)}" data-media-type="game" data-media-id="${escAttr(String(item.id || ''))}" data-discover-title="${titleAttr}" data-discover-section="games" style="background-image:url('${escAttr(poster)}')" onclick="openGameMediaProfile(event, '${escAttr(String(item.id || ''))}', getGameMediaProfileSeed('${escAttr(String(item.id || ''))}'), this)">${getDiscoverFriendStackMarkup(title, 'games')}</div>
       <div class="discover-card-body">
-        <div class="discover-card-title-row">
+        <div class="discover-card-heading-row discover-card-title-only-row">
           <button class="discover-card-title discover-title-profile-btn game-title-profile-btn" type="button" onclick="openGameMediaProfile(event, ${item.id}, getGameMediaProfileSeed(${item.id}), this)">${escHtml(title)}${year ? ` (${year})` : ''}</button>
-          ${renderBackloggdGameIcon(seed, 'game-discover-backloggd-icon')}
         </div>
-        <div class="discover-card-overview">${escHtml(overview)}</div>
+        ${ratingHtml}
+        <div class="discover-card-genre">${escHtml(genres || platforms || 'Game')}</div>
         <button class="discover-add-btn${alreadyAdded ? ' added' : ''}" data-discover-type="game" data-discover-id="${item.id}" data-discover-section="games" data-discover-title="${titleAttr}" title="${alreadyAdded ? 'Click to remove from your library' : ''}" onclick="${alreadyAdded ? removeClick : addClick}">${alreadyAdded ? getDiscoverLibraryButtonText(title, 'games') : '+ Add to Library'}</button>
       </div>
     </div>`;
@@ -17901,7 +19415,7 @@ function renderGamesDiscoverCards(items, gridId) {
 }
 
 const DISCOVER_INITIAL_VISIBLE_COUNT = 6;
-const DISCOVER_SHOW_MORE_STEP = 6;
+const DISCOVER_SHOW_MORE_STEP = 9;
 
 function setupDiscoverSectionLimit(grid) {
   if (!grid) return;
@@ -17917,14 +19431,19 @@ function setupDiscoverSectionLimit(grid) {
     card.classList.toggle('discover-hidden', index >= visibleCount);
   });
   button.style.display = cards.length > limit ? '' : 'none';
+  const opensFullPage = DISCOVER_FULL_CATEGORY_GRID_IDS.includes(grid.id);
   const isAtEnd = cards.length > limit && visibleCount >= cards.length;
-  button.textContent = isAtEnd ? 'Show less' : 'Show more';
-  button.classList.toggle('is-collapsing', isAtEnd);
+  button.textContent = opensFullPage ? 'View All' : (isAtEnd ? 'Show less' : 'Show more');
+  button.classList.toggle('is-collapsing', !opensFullPage && isAtEnd);
 }
 
 function toggleDiscoverSection(gridId) {
   if (gridId === 'discover-friends-watching-grid') {
     openDiscoverFriendsWatchingPage();
+    return;
+  }
+  if (DISCOVER_FULL_CATEGORY_GRID_IDS.includes(gridId)) {
+    openDiscoverCategoryFullPage(gridId);
     return;
   }
   if (isDiscoverGridCountryFilterableNewRelease(gridId)) {
@@ -17956,6 +19475,47 @@ let discoverResizeTimer = null;
 
 // Shared Patch Notes page — one central data source for future updates.
 const SCREENLIST_PATCH_NOTES = [
+
+
+  {
+    id: 'v264-friends-spatial-tabs-and-activity-underline',
+    date: '2026-05-03',
+    time: '8:25 PM UTC',
+    title: 'Friends tab motion and Activity Feed tab styling improved',
+    changes: [
+      'Added a clearer spatial tab-strip swipe when switching between Activity Feed, Friends, Requests, and Search in the Friends page.',
+      'Added the same page-out/page-in motion when switching between Watch Together, Activity, and Shared Watch inside the Activity Feed.',
+      'Changed the Watch Together, Activity, and Shared Watch controls from purple capsule buttons to cleaner text tabs with a highlighted underline for the selected page.',
+      'Kept friend requests, Search, activity loading, Watch Together, Shared Watch, direct messages, and saved data behavior unchanged.'
+    ]
+  },
+
+
+  {
+    id: 'v263-live-update-splash-brand-hold',
+    date: '2026-05-03',
+    time: '8:05 PM UTC',
+    title: 'Live update screen branding and timing improved',
+    changes: [
+      'Replaced the live update refresh screen artwork with the updated Shelfd brand image.',
+      'Extended the live update screen so it stays visible for three seconds before the automatic refresh, giving users a clearer explanation that a developer update was sent out.',
+      'Kept the loading animation and refresh message so website and PWA users understand the reload is intentional instead of a random lag or crash.'
+    ]
+  },
+
+
+  {
+    id: 'v262-friends-spatial-tabs-mobile-repair',
+    date: '2026-05-03',
+    time: '7:40 PM UTC',
+    title: 'Friends tab animation repaired for mobile',
+    changes: [
+      'Added spatial tab-strip motion to the Friends top tabs: Activity Feed, Friends, Requests, and Search.',
+      'Added the same lightweight spatial motion to the Activity Feed controls: Watch Together, Activity, and Shared Watch.',
+      'Replaced the heavier v261 approach with a safer mobile-first transition that does not clone the full Friends page while switching tabs.',
+      'Kept Friends data, friend requests, Search, Watch Together, Shared Watch, direct messages, and feed loading behavior unchanged.'
+    ]
+  },
 
 
   {
@@ -20521,6 +22081,7 @@ function syncDiscoverMediaTabSections() {
     const visible = isMediaDiscoveryHub(mediaTab) && section.dataset.discoveryTab === mediaTab;
     section.style.display = visible ? '' : 'none';
   });
+  requestAnimationFrame(hydrateVisibleDiscoverRatings);
 }
 
 function syncDiscoveryHubButtons() {
@@ -20630,6 +22191,18 @@ function getMainNavButtonMap() {
   };
 }
 
+const SHELFD_SECTION_HEADER_ICON_SRC = '/shelfd_header_wordmark.png?v=247-header-wordmark-logo';
+const SHELFD_DEFAULT_HEADER_LOGO_SRC = '/site_header_logo.png?v=207-header-outline-logo-center';
+
+function syncSectionHeaderLogo(activeTab) {
+  const logo = document.querySelector('.header-logo-block > img.site-logo-img');
+  if (!logo) return;
+  const shouldUseSectionIcon = activeTab === 'discover' || activeTab === 'community';
+  const nextSrc = shouldUseSectionIcon ? SHELFD_SECTION_HEADER_ICON_SRC : SHELFD_DEFAULT_HEADER_LOGO_SRC;
+  if (logo.getAttribute('src') !== nextSrc) logo.setAttribute('src', nextSrc);
+  logo.alt = shouldUseSectionIcon ? 'Shelfd' : 'ScreenList';
+}
+
 function syncMainNavButtons(activeTab) {
   const buttonMap = getMainNavButtonMap();
   Object.entries(buttonMap).forEach(([tab, buttons]) => {
@@ -20641,12 +22214,15 @@ function syncMainNavButtons(activeTab) {
   document.body.classList.toggle('main-tab-mylist', activeTab === 'mylist');
   document.body.classList.toggle('main-tab-community', activeTab === 'community');
   document.body.classList.toggle('main-tab-discover', activeTab === 'discover');
+  syncSectionHeaderLogo(activeTab);
 }
 
 function setBottomNavVisibility(isVisible) {
   const mobileNav = document.getElementById('mobile-bottom-nav');
   if (!mobileNav) return;
-  mobileNav.style.display = isVisible ? 'flex' : 'none';
+  // On desktop (>700px) CSS already hides this via display:none — don't override with inline flex.
+  // On mobile the CSS media query uses display:flex !important, so use '' to let CSS decide when visible.
+  mobileNav.style.display = isVisible ? '' : 'none';
 }
 
 function resetPanelStyles(elements) {
@@ -20745,10 +22321,14 @@ async function restoreUiState() {
   } else if (state.activeFriendsTab === 'messages') {
     activeFriendsTab = 'activity';
   }
-  if (state.activeRequestsSubTab === 'friends') {
-    activeRequestsSubTab = 'friends';
+  if (state.activeRequestsSubTab && ['friends', 'watch'].includes(state.activeRequestsSubTab)) {
+    activeRequestsSubTab = state.activeRequestsSubTab;
   }
-  if (state.activeActivitySubTab && ['feed', 'friendWatch', 'sharedWatch'].includes(state.activeActivitySubTab)) {
+  if (state.activeActivitySubTab === 'friendWatch') {
+    activeFriendsTab = 'requests';
+    activeRequestsSubTab = 'watch';
+    activeActivitySubTab = 'feed';
+  } else if (state.activeActivitySubTab && ['feed', 'sharedWatch'].includes(state.activeActivitySubTab)) {
     activeActivitySubTab = state.activeActivitySubTab;
   }
   if (state.activeMessagesSubTab && ['chats', 'requests'].includes(state.activeMessagesSubTab)) {
@@ -20800,7 +22380,7 @@ const MAIN_NAV_TRANSITION_ORDER = ['discover', 'community', 'mylist'];
 const MAIN_NAV_MOBILE_LOCKED_FPS = 120;
 const MAIN_NAV_MOBILE_FRAME_MS = 1000 / MAIN_NAV_MOBILE_LOCKED_FPS;
 const MAIN_NAV_MOBILE_TOTAL_MS = 300;
-const MAIN_NAV_MOBILE_SWAP_AT_MS = 154;
+const MAIN_NAV_MOBILE_SWAP_AT_MS = 150;
 
 function getMainNavTransitionDelta(fromTab = 'mylist', toTab = 'mylist') {
   const fromIndex = MAIN_NAV_TRANSITION_ORDER.indexOf(normalizeMainNavTab(fromTab));
@@ -20809,10 +22389,9 @@ function getMainNavTransitionDelta(fromTab = 'mylist', toTab = 'mylist') {
   return toIndex - fromIndex;
 }
 
-function getMainNavTransitionDirection() {
-  // All main bottom-nav tab swaps intentionally share one visual path.
-  // This keeps Discovery ⇄ Friends ⇄ My Lists perfectly consistent.
-  return 1;
+function getMainNavTransitionDirection(fromTab = 'mylist', toTab = 'mylist') {
+  const delta = getMainNavTransitionDelta(fromTab, toTab);
+  return delta === 0 ? 1 : (delta > 0 ? 1 : -1);
 }
 
 function getMainNavTransitionDistance(fromTab = 'mylist', toTab = 'mylist', isMobile = false) {
@@ -20867,7 +22446,7 @@ function getVisibleMainNavPanels(elements) {
 function prepareMainNavTransitionElements(elements) {
   elements.forEach(el => {
     if (!el) return;
-    el.style.willChange = 'opacity, transform, filter';
+    el.style.willChange = 'opacity, transform';
     el.style.backfaceVisibility = 'hidden';
     el.style.transformOrigin = 'center top';
     el.style.pointerEvents = 'none';
@@ -20879,43 +22458,34 @@ function clampMainNavProgress(value) {
 }
 
 function easeMainNavOut(t) {
-  t = clampMainNavProgress(t);
-  return t * t * t;
+  return clampMainNavProgress(t);
 }
 
 function easeMainNavIn(t) {
-  t = clampMainNavProgress(t);
-  return 1 - Math.pow(1 - t, 4);
+  return clampMainNavProgress(t);
 }
 
 function mixMainNavValue(from, to, t) {
   return from + (to - from) * t;
 }
 
-function applyMainNavMobileFrame(elements, phase = 'enter', progress = 1) {
+function applyMainNavMobileFrame(elements, phase = 'enter', progress = 1, direction = 1) {
   const eased = phase === 'exit' ? easeMainNavOut(progress) : easeMainNavIn(progress);
   const opacity = phase === 'exit'
-    ? mixMainNavValue(1, 0.08, eased)
-    : mixMainNavValue(0.08, 1, eased);
-  const y = phase === 'exit'
-    ? mixMainNavValue(0, 22, eased)
-    : mixMainNavValue(-22, 0, eased);
+    ? mixMainNavValue(1, 0, eased)
+    : mixMainNavValue(0, 1, eased);
+  const x = phase === 'exit'
+    ? mixMainNavValue(0, -18 * direction, eased)
+    : mixMainNavValue(18 * direction, 0, eased);
   const scale = phase === 'exit'
-    ? mixMainNavValue(1, 0.985, eased)
-    : mixMainNavValue(0.985, 1, eased);
-  const blur = phase === 'exit'
-    ? mixMainNavValue(0, 7, eased)
-    : mixMainNavValue(7, 0, eased);
-  const brightness = phase === 'exit'
-    ? mixMainNavValue(1, 0.82, eased)
-    : mixMainNavValue(0.86, 1, eased);
-  const transform = `translate3d(0, ${y.toFixed(3)}px, 0) scale(${scale.toFixed(5)})`;
-  const filter = `blur(${blur.toFixed(3)}px) brightness(${brightness.toFixed(4)})`;
+    ? mixMainNavValue(1, 0.996, eased)
+    : mixMainNavValue(0.996, 1, eased);
+  const transform = `translate3d(${x.toFixed(3)}px, 0, 0) scale(${scale.toFixed(5)})`;
   elements.forEach(el => {
     if (!el) return;
     el.style.opacity = opacity.toFixed(4);
     el.style.transform = transform;
-    el.style.filter = filter;
+    el.style.filter = 'none';
   });
 }
 
@@ -20942,6 +22512,7 @@ function animateMainNavPanelsFrameLocked(elements, keyframes, options = {}) {
   const targetFps = Math.max(1, Number(options.targetFps) || MAIN_NAV_MOBILE_LOCKED_FPS);
   const frameMs = 1000 / targetFps;
   const phase = keyframes?.[0]?.opacity > keyframes?.[1]?.opacity ? 'exit' : 'enter';
+  const direction = Number(options.direction || 1) >= 0 ? 1 : -1;
   return new Promise(resolve => {
     const start = performance.now();
     let lastFrame = -1;
@@ -20950,12 +22521,12 @@ function animateMainNavPanelsFrameLocked(elements, keyframes, options = {}) {
       const frame = Math.min(Math.ceil(duration / frameMs), Math.floor(elapsed / frameMs));
       if (frame !== lastFrame) {
         lastFrame = frame;
-        applyMainNavMobileFrame(elements, phase, elapsed / duration);
+        applyMainNavMobileFrame(elements, phase, elapsed / duration, direction);
       }
       if (elapsed < duration) {
         requestAnimationFrame(tick);
       } else {
-        applyMainNavMobileFrame(elements, phase, 1);
+        applyMainNavMobileFrame(elements, phase, 1, direction);
         resolve();
       }
     }
@@ -20963,7 +22534,7 @@ function animateMainNavPanelsFrameLocked(elements, keyframes, options = {}) {
   });
 }
 
-async function animateMainNav120HzTabSwap(fromTab = 'mylist', toTab = 'mylist', revealNextPanel = () => {}) {
+async function animateMainNav120HzTabSwap(fromTab = 'mylist', toTab = 'mylist', revealNextPanel = () => {}, direction = 1) {
   const outgoing = getVisibleMainNavPanels(getMainNavPanels(fromTab));
   prepareMainNavTransitionElements(outgoing);
   document.body.classList.add('main-nav-switching');
@@ -20989,7 +22560,7 @@ async function animateMainNav120HzTabSwap(fromTab = 'mylist', toTab = 'mylist', 
       }
       incoming = getVisibleMainNavPanels(getMainNavPanels(toTab));
       prepareMainNavTransitionElements(incoming);
-      applyMainNavMobileFrame(incoming, 'enter', 0);
+      applyMainNavMobileFrame(incoming, 'enter', 0, direction);
     };
 
     function tick(now) {
@@ -20998,10 +22569,10 @@ async function animateMainNav120HzTabSwap(fromTab = 'mylist', toTab = 'mylist', 
       if (frame !== lastFrame) {
         lastFrame = frame;
         if (elapsed <= swapAtMs) {
-          applyMainNavMobileFrame(outgoing, 'exit', elapsed / swapAtMs);
+          applyMainNavMobileFrame(outgoing, 'exit', elapsed / swapAtMs, direction);
         } else {
           doReveal();
-          applyMainNavMobileFrame(incoming, 'enter', (elapsed - swapAtMs) / (totalMs - swapAtMs));
+          applyMainNavMobileFrame(incoming, 'enter', (elapsed - swapAtMs) / (totalMs - swapAtMs), direction);
         }
       }
 
@@ -21009,7 +22580,7 @@ async function animateMainNav120HzTabSwap(fromTab = 'mylist', toTab = 'mylist', 
         requestAnimationFrame(tick);
       } else {
         doReveal();
-        applyMainNavMobileFrame(incoming, 'enter', 1);
+        applyMainNavMobileFrame(incoming, 'enter', 1, direction);
         resetPanelStyles([...outgoing, ...incoming]);
         document.body.classList.remove('main-nav-switching');
         resolve();
@@ -21075,6 +22646,26 @@ function bindMobileBottomDockSwipe() {
   }, { passive: true });
 }
 
+function scheduleMainNavPostLoad(tab) {
+  const normalizedTab = normalizeMainNavTab(tab);
+  const run = () => {
+    if (getActiveMainTab() !== normalizedTab) return;
+    if (normalizedTab === 'discover') {
+      loadActiveDiscoveryHub();
+    } else if (normalizedTab === 'community') {
+      activeFriendsTab = 'activity';
+      activeActivitySubTab = 'feed';
+      loadCommunity(true);
+      loadFriendActivity();
+    }
+  };
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(run, { timeout: 450 });
+  } else {
+    window.setTimeout(run, 120);
+  }
+}
+
 async function switchMainNav(tab) {
   if (tab === 'games-discover') {
     activeDiscoveryHub = 'gaming';
@@ -21101,12 +22692,6 @@ async function switchMainNav(tab) {
 
   syncMainNavButtons(normalizedTab);
   setBottomNavVisibility(normalizedTab !== 'profile');
-  if (normalizedTab === 'discover') loadActiveDiscoveryHub();
-  if (normalizedTab === 'community') {
-    activeFriendsTab = 'activity';
-    activeActivitySubTab = 'feed';
-    loadFriendActivity();
-  }
 
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const isMobileMainNav = isMobileMainNavTransitionLayout();
@@ -21115,25 +22700,22 @@ async function switchMainNav(tab) {
   mainNavSwitching = true;
   try {
     const revealNextMainNavPanel = async () => {
-      setMainNavVisibility(normalizedTab);
       if (normalizedTab === 'community') {
         activeFriendsTab = 'activity';
         activeActivitySubTab = 'feed';
-        loadCommunity(true);
-        loadFriendActivity();
       }
-      if (normalizedTab === 'discover') loadActiveDiscoveryHub();
+      setMainNavVisibility(normalizedTab);
       if (normalizedTab === 'mylist' && viewingUser) await backToMyList();
     };
 
     if (!prefersReducedMotion && isMobileMainNav) {
-      await animateMainNav120HzTabSwap(currentTab, normalizedTab, revealNextMainNavPanel);
+      await animateMainNav120HzTabSwap(currentTab, normalizedTab, revealNextMainNavPanel, transitionDirection);
     } else {
       if (!prefersReducedMotion) {
         await animateMainNavPanels(
           getMainNavPanels(currentTab),
           getMainNavTransitionFrames('exit', transitionDirection, transitionDistance, isMobileMainNav),
-          getMainNavTransitionOptions('exit', isMobileMainNav)
+          { ...getMainNavTransitionOptions('exit', isMobileMainNav), direction: transitionDirection }
         );
       }
 
@@ -21143,7 +22725,7 @@ async function switchMainNav(tab) {
         await animateMainNavPanels(
           getMainNavPanels(normalizedTab),
           getMainNavTransitionFrames('enter', transitionDirection, transitionDistance, isMobileMainNav),
-          getMainNavTransitionOptions('enter', isMobileMainNav)
+          { ...getMainNavTransitionOptions('enter', isMobileMainNav), direction: transitionDirection }
         );
         resetPanelStyles(getMainNavPanels(normalizedTab));
       }
@@ -21162,6 +22744,7 @@ async function switchMainNav(tab) {
   } finally {
     document.body.classList.remove('main-nav-switching');
     mainNavSwitching = false;
+    scheduleMainNavPostLoad(normalizedTab);
     persistUiState();
   }
 }
@@ -21379,15 +22962,38 @@ function renderMyListEditControls() {
 
   const profileName = userProfile?.name || currentUser?.displayName || 'Me';
   const profilePhoto = userProfile?.photo || currentUser?.photoURL || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(profileName) + '&background=1c1535&color=a78bfa');
-  const profileShortcut = currentUser ? `
-    <div class="mylist-own-profile-center">
-      <button type="button" class="mylist-own-profile-shortcut" onclick="openProfile()" aria-label="Open my profile" title="Open my profile">
-        <img src="${escAttr(profilePhoto)}" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(profileName).replace(/'/g, '%27')}&background=1c1535&color=a78bfa'">
-      </button>
-      <div class="mylist-own-profile-name">${escHtml(profileName)}</div>
-    </div>` : '';
 
-  if (profileHost) profileHost.innerHTML = profileShortcut;
+  if (profileHost) {
+    if (!currentUser) {
+      profileHost.innerHTML = '';
+      delete profileHost.dataset.myListProfileName;
+      delete profileHost.dataset.myListProfilePhoto;
+    } else {
+      const fallbackUrl = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(profileName) + '&background=1c1535&color=a78bfa';
+      let center = profileHost.querySelector('.mylist-own-profile-center');
+      if (!center) {
+        profileHost.innerHTML = `
+          <div class="mylist-own-profile-center">
+            <button type="button" class="mylist-own-profile-shortcut" onclick="openProfile()" aria-label="Open my profile" title="Open my profile">
+              <img src="${escAttr(profilePhoto)}" alt="" loading="eager" decoding="async" onerror="this.onerror=null;this.src='${escAttr(fallbackUrl)}'">
+            </button>
+            <div class="mylist-own-profile-name">${escHtml(profileName)}</div>
+          </div>`;
+      } else {
+        const img = center.querySelector('.mylist-own-profile-shortcut img');
+        const nameEl = center.querySelector('.mylist-own-profile-name');
+        if (img) {
+          img.loading = 'eager';
+          img.decoding = 'async';
+          img.onerror = function() { this.onerror = null; this.src = fallbackUrl; };
+          if (img.getAttribute('src') !== profilePhoto) img.src = profilePhoto;
+        }
+        if (nameEl && nameEl.textContent !== profileName) nameEl.textContent = profileName;
+      }
+      profileHost.dataset.myListProfileName = profileName;
+      profileHost.dataset.myListProfilePhoto = profilePhoto;
+    }
+  }
   if (editHost) editHost.innerHTML = '';
 }
 
@@ -21396,6 +23002,14 @@ function renderMyListSettingsInner() {
   const sections = [
     { key: 'games', label: 'Games' },
     { key: 'anime', label: 'Anime' },
+    { key: 'manga', label: 'Manga' },
+    { key: 'books', label: 'Books' },
+  ];
+  const allSections = [
+    { key: 'shows', label: 'Shows' },
+    { key: 'movies', label: 'Movies' },
+    { key: 'anime', label: 'Anime' },
+    { key: 'games', label: 'Games' },
     { key: 'manga', label: 'Manga' },
     { key: 'books', label: 'Books' },
   ];
@@ -21409,12 +23023,61 @@ function renderMyListSettingsInner() {
           <span class="mylist-vis-knob"></span>
         </button>
       </div>`).join('')}
+    <button class="mylist-edit-list-toggle" type="button" id="mylist-edit-list-toggle" onclick="event.stopPropagation();toggleMyListEditSection()">
+      Edit My List <span class="mylist-edit-list-arrow" id="mylist-edit-list-arrow">▾</span>
+    </button>
+    <div class="mylist-edit-list-section" id="mylist-edit-list-section" style="display:none">
+      ${allSections.map(s => {
+        const count = Array.isArray(data[s.key]) ? data[s.key].length : 0;
+        return `<div class="mylist-edit-list-row">
+          <span class="mylist-edit-list-row-label">${escHtml(s.label)}<span class="mylist-edit-list-count">${count}</span></span>
+          <button class="mylist-delete-category-btn" type="button" id="mylist-delete-cat-btn-${s.key}" onclick="event.stopPropagation();deleteMyListCategory('${s.key}',this)">Delete Library</button>
+        </div>`;
+      }).join('')}
+    </div>
     <div class="mylist-settings-divider"></div>
     <div class="mylist-settings-section-label">Library</div>
     <div class="mylist-settings-row">
       <span class="mylist-settings-row-label">Import Lists</span>
       <button type="button" class="mylist-settings-action-btn" onclick="event.stopPropagation();closeMyListSettingsModal();setTimeout(openImportPage,180)">Import</button>
     </div>`;
+}
+
+function toggleMyListEditSection() {
+  const section = document.getElementById('mylist-edit-list-section');
+  const arrow = document.getElementById('mylist-edit-list-arrow');
+  const toggle = document.getElementById('mylist-edit-list-toggle');
+  if (!section) return;
+  const isOpen = section.style.display !== 'none';
+  section.style.display = isOpen ? 'none' : 'block';
+  if (arrow) arrow.style.transform = isOpen ? '' : 'rotate(180deg)';
+  if (toggle) toggle.classList.toggle('open', !isOpen);
+}
+
+function deleteMyListCategory(section, btn) {
+  if (!btn || viewingUser) return;
+  if (btn.dataset.confirmSection !== section) {
+    btn.dataset.confirmSection = section;
+    btn.textContent = '⚠ Confirm?';
+    btn.classList.add('confirming');
+    setTimeout(() => {
+      if (btn.isConnected && btn.dataset.confirmSection === section) {
+        btn.dataset.confirmSection = '';
+        btn.textContent = 'Delete Library';
+        btn.classList.remove('confirming');
+      }
+    }, 2500);
+    return;
+  }
+  btn.dataset.confirmSection = '';
+  btn.disabled = true;
+  btn.textContent = 'Deleting…';
+  const count = Array.isArray(data[section]) ? data[section].length : 0;
+  data[section] = [];
+  save();
+  render();
+  closeMyListSettingsModal();
+  showToast(`${escHtml(section.charAt(0).toUpperCase() + section.slice(1))} library cleared — ${count} item${count !== 1 ? 's' : ''} removed.`);
 }
 
 function openMyListSettingsModal(triggerEl) {
@@ -23388,7 +25051,8 @@ function applyProfile() {
   if (!userProfile) return;
   const avatar = document.getElementById("user-avatar");
   if (!avatar) return;
-  avatar.src = userProfile.photo || getProfileFallbackPhoto();
+  const nextSrc = userProfile.photo || getProfileFallbackPhoto();
+  if (avatar.getAttribute('src') !== nextSrc) avatar.src = nextSrc;
   avatar.alt = userProfile.name || 'Profile';
   avatar.style.display = "block";
 }
@@ -24451,20 +26115,54 @@ function setRequestSubtabCount(id, count) {
 
 function updateRequestSubtabBadges() {
   setRequestSubtabCount('request-friends-count', getFriendRequestTotal());
+  setRequestSubtabCount('request-watch-count', getSharedWatchActivityTotal());
 }
 
 function updateRequestSubtabUi() {
-  activeRequestsSubTab = 'friends';
+  if (!['friends', 'watch'].includes(activeRequestsSubTab)) activeRequestsSubTab = 'friends';
   const friendsBtn = document.getElementById('request-subtab-friends');
-  if (friendsBtn) friendsBtn.classList.add('active');
+  const watchBtn = document.getElementById('request-subtab-watch');
+  const incomingSection = document.getElementById('incoming-section');
+  const outgoingSection = document.getElementById('outgoing-section');
+  const watchSection = document.getElementById('watch-requests-section');
+  if (friendsBtn) friendsBtn.classList.toggle('active', activeRequestsSubTab === 'friends');
+  if (watchBtn) watchBtn.classList.toggle('active', activeRequestsSubTab === 'watch');
+  if (watchSection) watchSection.style.display = activeRequestsSubTab === 'watch' ? 'block' : 'none';
+  if (incomingSection) incomingSection.style.display = activeRequestsSubTab === 'friends' ? incomingSection.style.display : 'none';
+  if (outgoingSection) outgoingSection.style.display = activeRequestsSubTab === 'friends' ? outgoingSection.style.display : 'none';
   updateRequestSubtabBadges();
 }
 
+function getRequestsSubTabViewElement(tab = activeRequestsSubTab) {
+  if (tab === 'watch') return document.getElementById('watch-requests-section') || document.getElementById('requests-view');
+  const incomingSection = document.getElementById('incoming-section');
+  const outgoingSection = document.getElementById('outgoing-section');
+  if (incomingSection && incomingSection.style.display !== 'none') return incomingSection;
+  if (outgoingSection && outgoingSection.style.display !== 'none') return outgoingSection;
+  return incomingSection || outgoingSection || document.getElementById('requests-view');
+}
+
 function switchRequestsSubTab(tab = 'friends') {
-  activeRequestsSubTab = 'friends';
-  updateRequestSubtabUi();
-  renderRequestsList(true);
-  persistUiState();
+  const requestedTab = tab === 'watch' ? 'watch' : 'friends';
+  const previousTab = activeRequestsSubTab === 'watch' ? 'watch' : 'friends';
+  if (previousTab === requestedTab) {
+    activeRequestsSubTab = requestedTab;
+    updateRequestSubtabUi();
+    renderRequestsList(true);
+    persistUiState();
+    return;
+  }
+  const delta = getSpatialTabDelta(FRIENDS_SPATIAL_REQUEST_TABS, previousTab, requestedTab);
+  const requestsView = document.getElementById('requests-view');
+  runFriendsSpatialTransition(requestsView, delta, () => {
+    activeRequestsSubTab = requestedTab;
+    updateRequestSubtabUi();
+    renderRequestsList(true);
+    persistUiState();
+  }, {
+    getOutgoingElement: () => getRequestsSubTabViewElement(previousTab),
+    getIncomingElement: () => getRequestsSubTabViewElement(requestedTab)
+  });
 }
 
 function openFriendsActivityDefault() {
@@ -24496,17 +26194,136 @@ async function loadCommunity(forceActivity = false) {
   }
 }
 
-function switchFriendsTab(tab) {
-  if (tab === 'activity') {
-    activeActivitySubTab = 'feed';
-  }
-  if (tab === 'messages') {
-    document.getElementById('community-view')?.classList.remove('friends-activity-active');
-    openDirectMessagesPage();
-    activeFriendsTab = activeFriendsTab && activeFriendsTab !== 'messages' ? activeFriendsTab : 'activity';
-    persistUiState();
+const FRIENDS_SPATIAL_TOP_TABS = ['activity', 'friends', 'requests', 'find'];
+const FRIENDS_SPATIAL_ACTIVITY_TABS = ['feed', 'sharedWatch'];
+const FRIENDS_SPATIAL_REQUEST_TABS = ['friends', 'watch'];
+let friendsSpatialTransitionToken = 0;
+
+function getSpatialTabDelta(order = [], from = '', to = '') {
+  const fromIndex = order.indexOf(from);
+  const toIndex = order.indexOf(to);
+  if (fromIndex < 0 || toIndex < 0) return 0;
+  return toIndex - fromIndex;
+}
+
+function getFriendsTabViewElement(tab = activeFriendsTab) {
+  if (tab === 'friends') return document.getElementById('friends-list-view');
+  if (tab === 'requests') return document.getElementById('requests-view');
+  if (tab === 'find') return document.getElementById('find-people-view');
+  return document.getElementById('activity-tab-view');
+}
+
+function getActivitySubTabViewElement(tab = activeActivitySubTab) {
+  return tab === 'feed' ? document.getElementById('friend-activity-feed') : document.getElementById('shared-watch-feed');
+}
+
+function canRunFriendsSpatialTransition(root) {
+  if (!root || root.dataset.spatialTransitioning === 'true') return false;
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return false;
+  return !!(root.offsetWidth || root.offsetHeight || root.getClientRects().length);
+}
+
+function cleanFriendsSpatialClone(node) {
+  if (!node) return node;
+  node.style.display = 'block';
+  node.style.visibility = 'visible';
+  node.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+  node.querySelectorAll('button, input, textarea, select, a').forEach(el => {
+    el.tabIndex = -1;
+    el.setAttribute('aria-hidden', 'true');
+  });
+  return node;
+}
+
+function getFriendsSpatialSurface() {
+  if (document.body?.classList.contains('light-mode')) return '#f7f4ff';
+  if (document.body?.classList.contains('true-dark-mode')) return '#000';
+  return '#050410';
+}
+
+function buildFriendsSpatialPanel(sourceEl, width) {
+  const panel = document.createElement('div');
+  panel.className = 'friends-spatial-strip-panel';
+  panel.style.width = `${Math.max(1, width)}px`;
+  const clone = cleanFriendsSpatialClone(sourceEl?.cloneNode(true));
+  if (clone) panel.appendChild(clone);
+  return panel;
+}
+
+function setFriendsSpatialLiveVisibility(elements = [], hidden = false) {
+  elements.filter(Boolean).forEach(el => {
+    if (hidden) {
+      if (!el.dataset.friendsSpatialVisibility) el.dataset.friendsSpatialVisibility = el.style.visibility || '__empty__';
+      el.style.visibility = 'hidden';
+    } else if (el.dataset.friendsSpatialVisibility) {
+      el.style.visibility = el.dataset.friendsSpatialVisibility === '__empty__' ? '' : el.dataset.friendsSpatialVisibility;
+      delete el.dataset.friendsSpatialVisibility;
+    }
+  });
+}
+
+function animateFriendsSpatialLiveElement(el, delta = 0, duration = 320) {
+  if (!el || !delta || window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return;
+  el.classList.remove('friends-spatial-live-in', 'from-left', 'from-right');
+  void el.offsetWidth;
+  el.style.setProperty('--friends-spatial-duration', `${Math.max(220, duration)}ms`);
+  el.classList.add('friends-spatial-live-in', delta > 0 ? 'from-right' : 'from-left');
+  window.setTimeout(() => {
+    el.classList.remove('friends-spatial-live-in', 'from-left', 'from-right');
+    el.style.removeProperty('--friends-spatial-duration');
+  }, Math.max(220, duration) + 80);
+}
+
+function runFriendsSpatialTransition(root, delta = 0, applyChange = () => {}, options = {}) {
+  const outgoingEl = options.getOutgoingElement?.() || root;
+  if (!canRunFriendsSpatialTransition(root) || !delta || !outgoingEl) {
+    applyChange();
+    animateFriendsSpatialLiveElement(options.getIncomingElement?.() || root, delta, 320);
     return;
   }
+
+  const token = ++friendsSpatialTransitionToken;
+  root.dataset.spatialTransitioning = 'true';
+  const oldRect = outgoingEl.getBoundingClientRect();
+  const container = document.querySelector('#community-view .container.main-content') || root;
+  const containerRect = container.getBoundingClientRect();
+  const top = Math.max(0, oldRect.top || containerRect.top || 0);
+  const left = Math.max(0, containerRect.left || oldRect.left || 0);
+  const width = Math.max(1, containerRect.width || oldRect.width || window.innerWidth || 390);
+  const duration = Math.min(440, 300 + (Math.abs(delta) - 1) * 45);
+  const track = document.createElement('div');
+  track.className = 'friends-spatial-strip-track';
+  track.style.cssText = `position:fixed;top:${top}px;left:${left}px;width:${width}px;bottom:0;z-index:720;pointer-events:none;overflow:hidden;background:${getFriendsSpatialSurface()};`;
+  const strip = document.createElement('div');
+  strip.className = 'friends-spatial-strip';
+  const oldPanel = buildFriendsSpatialPanel(outgoingEl, width);
+
+  applyChange();
+  const incomingEl = options.getIncomingElement?.() || root;
+  const newPanel = buildFriendsSpatialPanel(incomingEl, width);
+  const panels = delta > 0 ? [oldPanel, newPanel] : [newPanel, oldPanel];
+  panels.forEach(panel => strip.appendChild(panel));
+  track.appendChild(strip);
+  document.body.appendChild(track);
+  animateFriendsSpatialLiveElement(incomingEl, delta, duration);
+
+  const startX = delta > 0 ? 0 : -width;
+  const endX = delta > 0 ? -width : 0;
+  strip.style.transform = `translate3d(${startX}px,0,0)`;
+  requestAnimationFrame(() => {
+    if (token !== friendsSpatialTransitionToken) return;
+    strip.style.transition = `transform ${duration}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+    strip.style.transform = `translate3d(${endX}px,0,0)`;
+  });
+
+  window.setTimeout(() => {
+    if (token !== friendsSpatialTransitionToken) return;
+    track.remove();
+    delete root.dataset.spatialTransitioning;
+  }, duration + 50);
+}
+
+function applyFriendsTabSwitch(tab) {
   activeFriendsTab = tab;
   const activityTabBtn = document.getElementById('ftab-activity');
   const friendsTab = document.getElementById('ftab-friends');
@@ -24553,6 +26370,27 @@ function switchFriendsTab(tab) {
   persistUiState();
 }
 
+function switchFriendsTab(tab) {
+  const previousTab = activeFriendsTab && activeFriendsTab !== 'messages' ? activeFriendsTab : 'activity';
+  if (tab === 'activity') {
+    activeActivitySubTab = 'feed';
+  }
+  if (tab === 'messages') {
+    document.getElementById('community-view')?.classList.remove('friends-activity-active');
+    openDirectMessagesPage();
+    activeFriendsTab = activeFriendsTab && activeFriendsTab !== 'messages' ? activeFriendsTab : 'activity';
+    persistUiState();
+    return;
+  }
+  const apply = () => applyFriendsTabSwitch(tab);
+  const delta = getSpatialTabDelta(FRIENDS_SPATIAL_TOP_TABS, previousTab, tab);
+  const communityView = document.getElementById('community-view');
+  runFriendsSpatialTransition(communityView, previousTab === tab ? 0 : delta, apply, {
+    getOutgoingElement: () => getFriendsTabViewElement(previousTab),
+    getIncomingElement: () => getFriendsTabViewElement(tab)
+  });
+}
+
 function refreshActivityTab() {
   friendActivityCache = null;
   friendActivityPromise = null;
@@ -24570,7 +26408,7 @@ function getSharedWatchActivityTotal() {
 
 function updateSharedWatchActivityBadge() {
   const count = getSharedWatchActivityTotal();
-  const badges = Array.from(document.querySelectorAll('[data-shared-watch-count], #shared-watch-count'));
+  const badges = Array.from(document.querySelectorAll('[data-shared-watch-count], #shared-watch-count, #request-watch-count'));
   badges.forEach(badge => {
     if (count > 0) {
       badge.textContent = String(count);
@@ -24583,11 +26421,10 @@ function updateSharedWatchActivityBadge() {
 }
 
 function isWatchActivitySubTab(tab = activeActivitySubTab) {
-  return tab === 'friendWatch' || tab === 'sharedWatch';
+  return tab === 'sharedWatch';
 }
 
 function renderActiveWatchActivitySubTab(skipHydrate = false) {
-  if (activeActivitySubTab === 'friendWatch') return renderFriendWatchRequestsActivity(skipHydrate);
   if (activeActivitySubTab === 'sharedWatch') return renderSharedWatchActivity(skipHydrate);
 }
 
@@ -24657,25 +26494,24 @@ function buildSharedWatchDashboardCards(groups = []) {
 }
 
 function updateActivitySubtabUi() {
+  if (activeActivitySubTab === 'friendWatch') activeActivitySubTab = 'feed';
   const feed = document.getElementById('friend-activity-feed');
   const shared = document.getElementById('shared-watch-feed');
   const communityView = document.getElementById('community-view');
   if (feed) feed.style.display = activeActivitySubTab === 'feed' ? 'block' : 'none';
-  if (shared) shared.style.display = isWatchActivitySubTab() ? 'block' : 'none';
+  if (shared) shared.style.display = activeActivitySubTab === 'sharedWatch' ? 'block' : 'none';
   if (communityView) {
     communityView.classList.remove('activity-subtab-feed', 'activity-subtab-watch-requests', 'activity-subtab-shared-watch');
-    communityView.classList.add(activeActivitySubTab === 'friendWatch' ? 'activity-subtab-watch-requests' : (activeActivitySubTab === 'sharedWatch' ? 'activity-subtab-shared-watch' : 'activity-subtab-feed'));
+    communityView.classList.add(activeActivitySubTab === 'sharedWatch' ? 'activity-subtab-shared-watch' : 'activity-subtab-feed');
   }
   updateSharedWatchActivityBadge();
 }
 
 
-function renderCurrentActivitySubTab() {
+function renderCurrentActivitySubTab(skipHydrate = false) {
   updateActivitySubtabUi();
-  if (activeActivitySubTab === 'friendWatch') {
-    renderFriendWatchRequestsActivity();
-  } else if (activeActivitySubTab === 'sharedWatch') {
-    renderSharedWatchActivity();
+  if (activeActivitySubTab === 'sharedWatch') {
+    renderSharedWatchActivity(skipHydrate);
   } else {
     friendActivityStorySeenAtSnapshot = getFriendActivitySeenAt();
     loadActivityTabFeed();
@@ -24685,19 +26521,37 @@ function renderCurrentActivitySubTab() {
 }
 
 function switchActivitySubTab(tab = 'feed') {
-  const requestedSubTab = tab === 'friendWatch' ? 'friendWatch' : (tab === 'sharedWatch' ? 'sharedWatch' : 'feed');
+  if (tab === 'friendWatch') {
+    activeRequestsSubTab = 'watch';
+    switchFriendsTab('requests');
+    return;
+  }
+  const requestedSubTab = tab === 'sharedWatch' ? 'sharedWatch' : 'feed';
+  if (activeActivitySubTab === 'friendWatch') activeActivitySubTab = 'feed';
   if (activeActivitySubTab === requestedSubTab) {
     updateActivitySubtabUi();
     return;
   }
-  activeActivitySubTab = requestedSubTab;
-  renderCurrentActivitySubTab();
+  const previousSubTab = activeActivitySubTab || 'feed';
+  const delta = getSpatialTabDelta(FRIENDS_SPATIAL_ACTIVITY_TABS, previousSubTab, requestedSubTab);
+  const activityView = document.getElementById('activity-tab-view');
+  runFriendsSpatialTransition(activityView, delta, () => {
+    activeActivitySubTab = requestedSubTab;
+    renderCurrentActivitySubTab(true);
+    if (requestedSubTab === 'sharedWatch') {
+      hydrateWatchTogetherMirroredRequests().then(() => {
+        if (activeActivitySubTab === requestedSubTab) renderSharedWatchActivity(true);
+      }).catch(error => console.error('Shared Watch refresh failed:', error));
+    }
+  }, {
+    getOutgoingElement: () => getActivitySubTabViewElement(previousSubTab),
+    getIncomingElement: () => getActivitySubTabViewElement(requestedSubTab)
+  });
 }
 
 function getNextActivitySubTabFromSwipe(current = activeActivitySubTab, dx = 0) {
-  const section = current === 'friendWatch' || current === 'sharedWatch' ? current : 'feed';
-  if (section === 'feed') return dx > 0 ? 'friendWatch' : 'sharedWatch';
-  if (section === 'friendWatch') return dx < 0 ? 'feed' : 'friendWatch';
+  const section = current === 'sharedWatch' ? 'sharedWatch' : 'feed';
+  if (section === 'feed') return dx < 0 ? 'sharedWatch' : 'feed';
   if (section === 'sharedWatch') return dx > 0 ? 'feed' : 'sharedWatch';
   return 'feed';
 }
@@ -24886,16 +26740,82 @@ async function buildFriendRequestCards(uids = [], type = 'incoming') {
   return html;
 }
 
+async function renderWatchRequestsList(skipHydrate = false) {
+  const watchGrid = document.getElementById('watch-requests-grid');
+  const incomingSection = document.getElementById('incoming-section');
+  const outgoingSection = document.getElementById('outgoing-section');
+  const watchSection = document.getElementById('watch-requests-section');
+  if (!watchGrid || !watchSection) return;
+  activeRequestsSubTab = 'watch';
+  if (incomingSection) incomingSection.style.display = 'none';
+  if (outgoingSection) outgoingSection.style.display = 'none';
+  watchSection.style.display = 'block';
+  updateRequestSubtabUi();
+
+  if (isPreviewMode()) {
+    watchGrid.innerHTML = `<div class="friends-empty" style="grid-column:1/-1;">
+      <div class="friends-empty-icon">🎬</div>
+      <p style="color:#7a6f99;font-size:14px;">Preview Watch Requests are simulated only</p>
+      <p class="friends-empty-sub">Sign in to send, accept, and manage real Watch Requests.</p>
+    </div>`;
+    return;
+  }
+
+  if (!currentUser) {
+    watchGrid.innerHTML = `<div class="friends-empty" style="grid-column:1/-1;">
+      <div class="friends-empty-icon">🎬</div>
+      <p style="color:#7a6f99;font-size:14px;">Sign in required</p>
+      <p class="friends-empty-sub">Watch Requests will appear here.</p>
+    </div>`;
+    return;
+  }
+
+  if (!skipHydrate) await hydrateWatchTogetherMirroredRequests();
+  const incomingTogether = watchTogetherIncomingRequests.slice();
+  const outgoingTogether = watchTogetherOutgoingRequests.slice();
+  const incomingCount = incomingTogether.length;
+  const outgoingCount = outgoingTogether.length;
+  const hasIncoming = incomingCount > 0;
+  const hasOutgoing = outgoingCount > 0;
+
+  if (!hasIncoming && !hasOutgoing) {
+    watchGrid.innerHTML = `<div class="friend-watch-clean-shell empty">
+      <div class="friend-watch-clean-hero">
+        <div class="friend-watch-clean-icon">🎬</div>
+        <div><span>Watch Requests</span><strong>No requests right now</strong><p>Requests to plan or confirm watching together will show here with clear Accept and Decline buttons.</p></div>
+      </div>
+    </div>`;
+    updateRequestSubtabBadges();
+    return;
+  }
+
+  watchGrid.innerHTML = `<div class="friend-watch-clean-shell">
+    <div class="friend-watch-clean-hero">
+      <div class="friend-watch-clean-icon">🎬</div>
+      <div><span>Watch Requests</span><strong>${incomingCount ? `${incomingCount} request${incomingCount === 1 ? '' : 's'} need${incomingCount === 1 ? 's' : ''} approval` : 'No approvals needed'}</strong><p>${incomingCount ? 'Accept or decline shared watch requests sent to you.' : 'Your sent requests are below so you can remove them anytime.'}</p></div>
+    </div>
+    ${hasIncoming ? `<section class="friend-watch-clean-section priority"><div class="friend-watch-clean-section-head"><span>Needs your response</span><em>${incomingCount}</em></div>${renderWatchTogetherRequestCards(incomingTogether, 'incoming')}</section>` : ''}
+    ${hasOutgoing ? `<section class="friend-watch-clean-section"><div class="friend-watch-clean-section-head"><span>Sent by you</span><em>${outgoingCount}</em></div>${renderWatchTogetherRequestCards(outgoingTogether, 'outgoing')}</section>` : ''}
+  </div>`;
+  updateRequestSubtabBadges();
+}
+
 async function renderRequestsList(skipWatchTogetherHydrate = false) {
   const inGrid = document.getElementById('incoming-grid');
   const outGrid = document.getElementById('outgoing-grid');
   const inSec = document.getElementById('incoming-section');
   const outSec = document.getElementById('outgoing-section');
+  const watchSec = document.getElementById('watch-requests-section');
   if (!inGrid || !outGrid || !inSec || !outSec) {
     console.error("Requests DOM is incomplete.");
     return;
   }
-  activeRequestsSubTab = 'friends';
+  if (!['friends', 'watch'].includes(activeRequestsSubTab)) activeRequestsSubTab = 'friends';
+  if (activeRequestsSubTab === 'watch') {
+    await renderWatchRequestsList(skipWatchTogetherHydrate);
+    return;
+  }
+  if (watchSec) watchSec.style.display = 'none';
   updateRequestSubtabUi();
 
   const incomingHeading = inSec.querySelector('h3');
@@ -24911,6 +26831,7 @@ async function renderRequestsList(skipWatchTogetherHydrate = false) {
       <p style="color:#7a6f99;font-size:14px;">Preview requests are simulated only</p>
       <p class="friends-empty-sub">Sign in to send, accept, and manage real requests.</p>
     </div>`;
+    updateRequestSubtabBadges();
     return;
   }
 
@@ -24938,6 +26859,7 @@ async function renderRequestsList(skipWatchTogetherHydrate = false) {
       <p style="color:#7a6f99;font-size:14px;">No friend requests</p>
       <p class="friends-empty-sub">Incoming and sent friend invites will appear here.</p>
     </div>`;
+    updateRequestSubtabBadges();
     return;
   }
 
@@ -24966,7 +26888,9 @@ async function renderRequestsList(skipWatchTogetherHydrate = false) {
     outSec.style.display = 'none';
     outGrid.innerHTML = '';
   }
+  updateRequestSubtabBadges();
 }
+
 
 async function renderFriendsList() {
   const grid = document.getElementById('friends-grid');
@@ -25072,29 +26996,43 @@ async function loadAllUsers() {
   renderAllUsers(allUsersCache);
 }
 
+function buildFriendsSearchEmptyHTML(state = 'idle', title = 'Search for friends', subtitle = 'Type 1 character or more and matching users will appear automatically.', query = '') {
+  const safeTitle = escHtml(title);
+  const safeSubtitle = escHtml(subtitle);
+  const safeQuery = escHtml(String(query || '').trim());
+  const label = state === 'loading' ? 'Searching' : state === 'error' ? 'Error' : state === 'empty' ? 'No results' : 'Search';
+  const extra = safeQuery ? `<div class="friends-search-empty-query">${safeQuery}</div>` : '';
+  return `<div class="friends-search-empty friends-search-empty-${escAttr(state)}">
+    <div class="friends-search-empty-badge">${escHtml(label)}</div>
+    <div class="friends-search-empty-title">${safeTitle}</div>
+    <div class="friends-search-empty-copy">${safeSubtitle}</div>
+    ${extra}
+  </div>`;
+}
+
 async function initFindPeopleSearchView() {
   const grid = document.getElementById('all-users-grid');
   if (!grid) return;
   if (isPreviewMode()) {
-    grid.innerHTML = `<div class="friends-empty" style="grid-column:1/-1;">
-      <div class="friends-empty-icon">Search</div>
-      <p style="color:#7a6f99;font-size:14px;">Search preview community members</p>
-      <p class="friends-empty-sub">Type 1 or more characters to explore demo profiles. Friend actions stay preview-only.</p>
-    </div>`;
+    grid.innerHTML = buildFriendsSearchEmptyHTML(
+      'idle',
+      'Search preview community members',
+      'Type 1 or more characters to explore demo profiles. Friend actions stay preview-only.'
+    );
     return;
   }
-  grid.innerHTML = `<div class="friends-empty" style="grid-column:1/-1;">
-    <div class="friends-empty-icon">Search</div>
-    <p style="color:#7a6f99;font-size:14px;">Search for friends</p>
-    <p class="friends-empty-sub">Type 1 character or more and matching users will appear automatically.</p>
-  </div>`;
+  grid.innerHTML = buildFriendsSearchEmptyHTML(
+    'idle',
+    'Search for friends',
+    'Type a username and matching people will appear here.'
+  );
   const creatorUser = await loadCreatorSearchUser();
   if (!creatorUser || creatorUser.uid === currentUser?.uid) {
-    grid.innerHTML = `<div class="friends-empty" style="grid-column:1/-1;">
-      <div class="friends-empty-icon">Search</div>
-      <p style="color:#7a6f99;font-size:14px;">Search for friends</p>
-      <p class="friends-empty-sub">Type 1 character or more and matching users will appear automatically.</p>
-    </div>`;
+    grid.innerHTML = buildFriendsSearchEmptyHTML(
+      'idle',
+      'Search for friends',
+      'Type a username and matching people will appear here.'
+    );
     return;
   }
   allUsersCache = [creatorUser];
@@ -25144,11 +27082,12 @@ async function searchUsersByUsername(query) {
     renderAllUsers(previewMatches, query);
     return;
   }
-  grid.innerHTML = `<div class="friends-empty" style="grid-column:1/-1;">
-    <div class="friends-empty-icon">Search</div>
-    <p style="color:#7a6f99;font-size:14px;">Searching...</p>
-    <p class="friends-empty-sub">Looking for users matching "${escHtml(query)}".</p>
-  </div>`;
+  grid.innerHTML = buildFriendsSearchEmptyHTML(
+    'loading',
+    'Searching...',
+    'Looking for users matching this username.',
+    query
+  );
 
   try {
     const results = new Map();
@@ -25191,8 +27130,59 @@ async function searchUsersByUsername(query) {
     renderAllUsers(allUsersCache, query);
   } catch (e) {
     console.error("Failed to search users:", e);
-    grid.innerHTML = '<div class="friends-empty" style="grid-column:1/-1;"><div class="friends-empty-icon">Error</div><p>Could not search users</p><p class="friends-empty-sub">Try again in a moment.</p></div>';
+    grid.innerHTML = buildFriendsSearchEmptyHTML(
+      'error',
+      'Could not search users',
+      'Try again in a moment.'
+    );
   }
+}
+
+function buildFriendsSearchUserCard(user = {}, options = {}) {
+  const u = user || {};
+  const isPreview = !!options.preview;
+  const isFriend = !isPreview && friends.includes(u.uid);
+  const sentRequest = !isPreview && outgoingRequests.includes(u.uid);
+  const receivedRequest = !isPreview && incomingRequests.includes(u.uid);
+  const isPublicCreator = !isPreview && shouldExposeInUserSearch(u);
+  const isLocked = !isPreview && !isFriend && !isCreatorAdmin(u);
+  const avatar = u.photo || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(u.name || '?') + '&background=1e2028&color=60a5fa');
+  const statsText = isPreview
+    ? (u.findStats || u.stats || 'Preview profile')
+    : (isFriend ? 'Tap to view full shelf' : (isPublicCreator ? 'Public creator profile · add to connect' : 'Add to connect and view full shelf'));
+  const openAction = isPreview
+    ? `openPreviewCommunityProfile('${u.uid}')`
+    : (isPublicCreator ? `openUserProfile('${u.uid}')` : `viewUserFromMap('${u.uid}')`);
+
+  let action = '';
+  if (isPreview) {
+    action = `<div class="friend-actions-group friends-search-actions"><button class="friend-action-btn friend-profile-btn" type="button" onclick="event.stopPropagation(); openPreviewUserProfile('${u.uid}')">Profile</button><button class="friend-action-btn friend-pending-btn" type="button" disabled>Preview</button></div>`;
+  } else if (isFriend) {
+    action = `<div class="friend-actions-group friends-search-actions"><button class="friend-action-btn friend-profile-btn friend-message-btn" onclick="event.stopPropagation(); openDirectMessageFromUser('${u.uid}')">Message</button><button class="friend-action-btn friend-profile-btn" onclick="event.stopPropagation(); openUserProfile('${u.uid}')">Profile</button><button class="friend-action-btn friend-remove-btn" onclick="event.stopPropagation(); removeFriend('${u.uid}')">Remove</button></div>`;
+  } else if (sentRequest) {
+    action = isPublicCreator
+      ? `<div class="friend-actions-group friends-search-actions"><button class="friend-action-btn friend-profile-btn friend-message-btn" onclick="event.stopPropagation(); openDirectMessageFromUser('${u.uid}')">Message</button><button class="friend-action-btn friend-profile-btn" onclick="event.stopPropagation(); openUserProfile('${u.uid}')">Profile</button><button class="friend-action-btn friend-pending-btn" onclick="event.stopPropagation(); cancelFriendRequest('${u.uid}')" title="Tap to cancel">Pending</button></div>`
+      : `<div class="friend-actions-group friends-search-actions"><button class="friend-action-btn friend-pending-btn" onclick="event.stopPropagation(); cancelFriendRequest('${u.uid}')" title="Tap to cancel">Pending</button></div>`;
+  } else if (receivedRequest) {
+    action = isPublicCreator
+      ? `<div class="friend-actions-group friends-search-actions"><button class="friend-action-btn friend-profile-btn friend-message-btn" onclick="event.stopPropagation(); openDirectMessageFromUser('${u.uid}')">Message</button><button class="friend-action-btn friend-profile-btn" onclick="event.stopPropagation(); openUserProfile('${u.uid}')">Profile</button><button class="friend-action-btn friend-accept-btn" onclick="event.stopPropagation(); acceptFriendRequest('${u.uid}')">Accept</button></div>`
+      : `<div class="friend-actions-group friends-search-actions"><button class="friend-action-btn friend-accept-btn" onclick="event.stopPropagation(); acceptFriendRequest('${u.uid}')">Accept</button></div>`;
+  } else {
+    action = isPublicCreator
+      ? `<div class="friend-actions-group friends-search-actions"><button class="friend-action-btn friend-profile-btn friend-message-btn" onclick="event.stopPropagation(); openDirectMessageFromUser('${u.uid}')">Message</button><button class="friend-action-btn friend-profile-btn" onclick="event.stopPropagation(); openUserProfile('${u.uid}')">Profile</button><button class="friend-action-btn friend-add-btn" onclick="event.stopPropagation(); sendFriendRequest('${u.uid}')">+ Add</button></div>`
+      : `<div class="friend-actions-group friends-search-actions"><button class="friend-action-btn friend-add-btn" onclick="event.stopPropagation(); sendFriendRequest('${u.uid}')">+ Add</button></div>`;
+  }
+
+  return `<div class="user-card friends-search-card${isLocked ? ' locked' : ''}">
+    <div class="friends-search-card-main" onclick="${openAction}">
+      <img class="user-card-avatar friends-search-avatar" src="${escAttr(avatar)}" alt="${escAttr(getDisplayName(u, 'User'))}" loading="lazy">
+      <div class="friends-search-card-copy">
+        <div class="user-card-name friends-search-name">${renderDisplayNameHTML(u, isPreview ? 'Preview User' : 'Unknown User')}</div>
+        <div class="user-card-stats friends-search-stats">${escHtml(statsText)}</div>
+      </div>
+    </div>
+    ${action}
+  </div>`;
 }
 
 function renderAllUsers(users, query = '') {
@@ -25200,84 +27190,29 @@ function renderAllUsers(users, query = '') {
   if (!grid) return;
   if (isPreviewMode()) {
     if (!users || users.length === 0) {
-      grid.innerHTML = `<div class="friends-empty" style="grid-column:1/-1;">
-        <div class="friends-empty-icon">🔍</div>
-        <p>No preview users found for "${escHtml((query || '').trim())}"</p>
-        <p class="friends-empty-sub">Try a different name or sign in to search the live community.</p>
-      </div>`;
+      grid.innerHTML = buildFriendsSearchEmptyHTML(
+        'empty',
+        `No preview users found`,
+        'Try a different name or sign in to search the live community.',
+        query
+      );
       return;
     }
-    grid.innerHTML = users.map(user => `
-      <div class="user-card" style="justify-content:space-between;">
-        <div style="display:flex;align-items:center;gap:14px;flex:1;min-width:0;cursor:pointer;" onclick="openPreviewCommunityProfile('${user.uid}')">
-          <img class="user-card-avatar" src="${user.photo}" alt="">
-          <div style="min-width:0;">
-            <div class="user-card-name">${renderDisplayNameHTML(user, 'Preview User')}</div>
-            <div class="user-card-stats">${escHtml(user.findStats || user.stats || 'Preview profile')}</div>
-          </div>
-        </div>
-        <div class="friend-actions-group">
-          <button class="friend-action-btn friend-profile-btn" type="button" onclick="event.stopPropagation(); openPreviewUserProfile('${user.uid}')">Profile</button>
-          <button class="friend-action-btn friend-pending-btn" type="button" disabled>Preview</button>
-        </div>
-      </div>
-    `).join('');
-    return;
-  }
-  const safeQuery = escHtml((query || '').trim());
-  if (false && (!users || users.length === 0)) {
-    grid.innerHTML = `<div class="friends-empty" style="grid-column:1/-1;">
-      <div class="friends-empty-icon">Search</div>
-      <p>${safeQuery ? `No user found for "${safeQuery}"` : 'Search by username'}</p>
-      <p class="friends-empty-sub">${safeQuery ? 'Try a different spelling or a shorter username.' : 'People only appear here after you search for a username.'}</p>
-    </div>`;
+    grid.innerHTML = users.map(user => buildFriendsSearchUserCard(user, { preview: true })).join('');
     return;
   }
 
   if (!users || users.length === 0) {
-    grid.innerHTML = '<div class="friends-empty" style="grid-column:1/-1;"><div class="friends-empty-icon">🔍</div><p>No other users found</p><p class="friends-empty-sub">Try a different name or spelling.</p></div>';
+    grid.innerHTML = buildFriendsSearchEmptyHTML(
+      'empty',
+      'No other users found',
+      'Try a different name or spelling.',
+      query
+    );
     return;
   }
 
-  let html = '';
-  users.forEach(u => {
-    const isFriend = friends.includes(u.uid);
-    const sentRequest = outgoingRequests.includes(u.uid);
-    const receivedRequest = incomingRequests.includes(u.uid);
-    const isPublicCreator = shouldExposeInUserSearch(u);
-    const avatar = u.photo || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(u.name || '?') + '&background=1e2028&color=60a5fa');
-
-    let action = '';
-    if (isFriend) {
-      action = `<div class="friend-actions-group"><button class="friend-action-btn friend-profile-btn friend-message-btn" onclick="event.stopPropagation(); openDirectMessageFromUser('${u.uid}')">Message</button><button class="friend-action-btn friend-profile-btn" onclick="event.stopPropagation(); openUserProfile('${u.uid}')">Profile</button><button class="friend-action-btn friend-remove-btn" onclick="event.stopPropagation(); removeFriend('${u.uid}')">Remove</button></div>`;
-    } else if (sentRequest) {
-      action = isPublicCreator
-        ? `<div class="friend-actions-group"><button class="friend-action-btn friend-profile-btn friend-message-btn" onclick="event.stopPropagation(); openDirectMessageFromUser('${u.uid}')">Message</button><button class="friend-action-btn friend-profile-btn" onclick="event.stopPropagation(); openUserProfile('${u.uid}')">Profile</button><button class="friend-action-btn friend-pending-btn" onclick="event.stopPropagation(); cancelFriendRequest('${u.uid}')" title="Tap to cancel">Pending</button></div>`
-        : `<button class="friend-action-btn friend-pending-btn" onclick="event.stopPropagation(); cancelFriendRequest('${u.uid}')" title="Tap to cancel">Pending</button>`;
-    } else if (receivedRequest) {
-      action = isPublicCreator
-        ? `<div class="friend-actions-group"><button class="friend-action-btn friend-profile-btn friend-message-btn" onclick="event.stopPropagation(); openDirectMessageFromUser('${u.uid}')">Message</button><button class="friend-action-btn friend-profile-btn" onclick="event.stopPropagation(); openUserProfile('${u.uid}')">Profile</button><button class="friend-action-btn friend-accept-btn" onclick="event.stopPropagation(); acceptFriendRequest('${u.uid}')">Accept</button></div>`
-        : `<button class="friend-action-btn friend-accept-btn" onclick="event.stopPropagation(); acceptFriendRequest('${u.uid}')">Accept</button>`;
-    } else {
-      action = isPublicCreator
-        ? `<div class="friend-actions-group"><button class="friend-action-btn friend-profile-btn friend-message-btn" onclick="event.stopPropagation(); openDirectMessageFromUser('${u.uid}')">Message</button><button class="friend-action-btn friend-profile-btn" onclick="event.stopPropagation(); openUserProfile('${u.uid}')">Profile</button><button class="friend-action-btn friend-add-btn" onclick="event.stopPropagation(); sendFriendRequest('${u.uid}')">+ Add</button></div>`
-        : `<button class="friend-action-btn friend-add-btn" onclick="event.stopPropagation(); sendFriendRequest('${u.uid}')">+ Add</button>`;
-    }
-
-      html += `
-        <div class="user-card${(!isFriend && !isCreatorAdmin(u)) ? ' locked' : ''}" style="justify-content:space-between;">
-          <div style="display:flex;align-items:center;gap:14px;flex:1;min-width:0;cursor:pointer;" onclick="${isPublicCreator ? `openUserProfile('${u.uid}')` : `viewUserFromMap('${u.uid}')`}">
-            <img class="user-card-avatar" src="${avatar}" alt="">
-            <div style="min-width:0;">
-              <div class="user-card-name">${renderDisplayNameHTML(u, 'Unknown User')}</div>
-              <div class="user-card-stats">${isFriend ? 'Tap to view full shelf' : (isPublicCreator ? 'Public creator profile · add to connect' : 'Add to connect and view full shelf')}</div>
-            </div>
-        </div>
-        ${action}
-      </div>`;
-  });
-
-  grid.innerHTML = html;
+  grid.innerHTML = users.map(u => buildFriendsSearchUserCard(u)).join('');
 }
 
 function viewUserFromMap(uid) {
