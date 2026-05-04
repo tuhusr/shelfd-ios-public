@@ -4961,7 +4961,7 @@ let discoverCategoryFullHistoryActive = false;
 
 const DISCOVER_CATEGORY_FILTER_LIMIT = 21;
 const DISCOVER_CATEGORY_FILTER_PAGE_COUNT = 3;
-const DISCOVER_CATEGORY_FILTER_VERSION = 'v284-shelfline-search-filters';
+const DISCOVER_CATEGORY_FILTER_VERSION = 'v291-filter-scroll-preserve';
 
 // ShelfLine Filter UI: Shelfd's clean Letterboxd-inspired list-panel system.
 // Reuse this pattern when a feature needs flat text rows, semi-soft dividers,
@@ -4982,6 +4982,7 @@ window.SHELFD_UI_PATTERNS = window.SHELFD_UI_PATTERNS || {};
 window.SHELFD_UI_PATTERNS.SHELF_LINE_FILTER_UI = SHELFLINE_FILTER_UI_PATTERN;
 
 let discoverCategoryFilterPanelKey = 'main';
+let discoverCategoryFilterScrollMemory = {};
 
 const DISCOVER_CATEGORY_DECADE_FILTERS = Array.from({ length: 16 }, (_, index) => {
   const start = 2020 - (index * 10);
@@ -5213,6 +5214,8 @@ function renderDiscoverCategoryYearFilterPanel(decadeStart = 2020) {
   const decade = DISCOVER_CATEGORY_DECADE_FILTERS.find(item => Number(item.start) === start) || DISCOVER_CATEGORY_DECADE_FILTERS[0];
   const selected = new Set(getDiscoverCategoryFilters().year || []);
   const years = DISCOVER_CATEGORY_YEAR_FILTERS.filter(item => item.decadeStart === decade.start);
+  const availableYears = years.filter(item => !isDiscoverCategoryYearDisabled(item.year));
+  const allAvailableSelected = availableYears.length > 0 && availableYears.every(item => selected.has(String(item.key)));
   const rows = years.map(item => {
     const disabled = isDiscoverCategoryYearDisabled(item.year);
     const isSelected = selected.has(String(item.key));
@@ -5229,6 +5232,7 @@ function renderDiscoverCategoryYearFilterPanel(decadeStart = 2020) {
       <button class="discover-category-filter-done" type="button" onclick="closeDiscoverCategoryFilterSheet()">Done</button>
     </div>
     <div class="discover-category-filter-rule"></div>
+    <button class="discover-category-filter-select-all${allAvailableSelected ? ' selected' : ''}" type="button" onclick="selectAllDiscoverCategoryDecadeYears('${escAttr(String(decade.start))}')">Select All</button>
     <div class="discover-category-filter-list">${rows}</div>
   </div>`;
 }
@@ -5460,6 +5464,7 @@ function openDiscoverCategoryFilterSheet() {
   if (!discoverCategoryFullState) return;
   closeDiscoverCategoryFilterSheet({ immediate: true });
   discoverCategoryFilterPanelKey = 'main';
+  discoverCategoryFilterScrollMemory = {};
   const sheet = document.createElement('div');
   sheet.id = 'discover-category-filter-sheet';
   sheet.className = 'discover-category-filter-sheet discover-category-filter-sheet-letterboxd';
@@ -5482,13 +5487,40 @@ function closeDiscoverCategoryFilterSheet(options = {}) {
   setTimeout(() => sheet.remove(), 240);
 }
 
+function getDiscoverCategoryFilterScrollKey(panelKey = discoverCategoryFilterPanelKey) {
+  const mode = discoverCategoryFullState?.mode || 'view-all';
+  const gridId = discoverCategoryFullState?.gridId || '';
+  return `${mode}:${gridId}:${String(panelKey || 'main')}`;
+}
+
+function rememberDiscoverCategoryFilterScroll(panelKey = discoverCategoryFilterPanelKey) {
+  const sheet = document.getElementById('discover-category-filter-sheet');
+  const panel = sheet?.querySelector('.discover-category-filter-panel');
+  if (!panel) return;
+  discoverCategoryFilterScrollMemory[getDiscoverCategoryFilterScrollKey(panelKey)] = panel.scrollTop || 0;
+}
+
+function restoreDiscoverCategoryFilterScroll(panelKey = discoverCategoryFilterPanelKey, direction = 'none') {
+  if (direction && direction !== 'none') return;
+  const sheet = document.getElementById('discover-category-filter-sheet');
+  const panel = sheet?.querySelector('.discover-category-filter-panel');
+  if (!panel) return;
+  const nextTop = discoverCategoryFilterScrollMemory[getDiscoverCategoryFilterScrollKey(panelKey)] || 0;
+  requestAnimationFrame(() => {
+    const activePanel = document.getElementById('discover-category-filter-sheet')?.querySelector('.discover-category-filter-panel');
+    if (activePanel) activePanel.scrollTop = nextTop;
+  });
+}
+
 function refreshDiscoverCategoryFilterSheet(direction = 'none') {
   const sheet = document.getElementById('discover-category-filter-sheet');
   if (!sheet || !discoverCategoryFullState) return;
   const track = sheet.querySelector('.discover-category-filter-track');
   if (!track) return;
+  rememberDiscoverCategoryFilterScroll();
   track.classList.remove('filter-slide-in', 'filter-slide-back');
   track.innerHTML = renderDiscoverCategoryFilterSheet();
+  restoreDiscoverCategoryFilterScroll(discoverCategoryFilterPanelKey, direction);
   if (direction && direction !== 'none') {
     track.classList.add(direction === 'back' ? 'filter-slide-back' : 'filter-slide-in');
     setTimeout(() => track.classList.remove('filter-slide-in', 'filter-slide-back'), 260);
@@ -5497,6 +5529,7 @@ function refreshDiscoverCategoryFilterSheet(direction = 'none') {
 
 function openDiscoverCategoryFilterPanel(panelKey = 'main', direction = 'in') {
   if (!discoverCategoryFullState || !isDiscoverCategoryMediaFilterable(discoverCategoryFullState.gridId)) return;
+  rememberDiscoverCategoryFilterScroll();
   const cleanPanelKey = String(panelKey || 'main');
   const isYearDecadePanel = cleanPanelKey.startsWith('year-decade:');
   discoverCategoryFilterPanelKey = (DISCOVER_CATEGORY_FILTER_GROUPS[cleanPanelKey] || cleanPanelKey === 'main' || isYearDecadePanel) ? cleanPanelKey : 'main';
@@ -5517,6 +5550,26 @@ async function toggleDiscoverCategoryFilterOption(groupKey = '', value = '') {
   updateDiscoverUniversalSearchFilterButtonState();
   if (discoverCategoryFullState?.mode === 'universal-search') await loadDiscoverUniversalSearchFilteredItems(true);
   else await loadDiscoverFullFilteredItems(true);
+  restoreDiscoverCategoryFilterScroll(discoverCategoryFilterPanelKey, 'none');
+}
+
+async function selectAllDiscoverCategoryDecadeYears(decadeStart = 2020) {
+  if (!discoverCategoryFullState) return;
+  const start = Number(decadeStart || 0);
+  const decade = DISCOVER_CATEGORY_DECADE_FILTERS.find(item => Number(item.start) === start);
+  if (!decade) return;
+  const filters = getDiscoverCategoryFilters();
+  const values = new Set(filters.year || []);
+  DISCOVER_CATEGORY_YEAR_FILTERS
+    .filter(item => item.decadeStart === decade.start && !isDiscoverCategoryYearDisabled(item.year))
+    .forEach(item => values.add(String(item.key)));
+  filters.year = Array.from(values);
+  refreshDiscoverCategoryFilterSheet('none');
+  updateDiscoverCategoryFilterButtonState();
+  updateDiscoverUniversalSearchFilterButtonState();
+  if (discoverCategoryFullState?.mode === 'universal-search') await loadDiscoverUniversalSearchFilteredItems(true);
+  else await loadDiscoverFullFilteredItems(true);
+  restoreDiscoverCategoryFilterScroll(discoverCategoryFilterPanelKey, 'none');
 }
 
 async function clearDiscoverCategoryFilters() {

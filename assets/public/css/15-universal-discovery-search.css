@@ -1301,3 +1301,102 @@ body.light-mode .discover-universal-search-overlay {
     min-height: 146px !important;
   }
 }
+
+
+/* v290: Discover search top spacing repair.
+   The ShelfLine search header was too compressed on mobile/PWA after the larger poster update.
+   This keeps the same clean UI, but gives the title, search/filter row, helper copy, and tabs
+   enough vertical breathing room so the top area no longer feels crushed. */
+.discover-universal-search-shelfline .discover-universal-search-titlebar {
+  padding-top: max(12px, calc(env(safe-area-inset-top, 0px) + 9px)) !important;
+  padding-bottom: 10px !important;
+  min-height: 56px !important;
+}
+
+.discover-universal-search-title {
+  font-size: 17px !important;
+  line-height: 1.22 !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-header {
+  padding: 12px 16px 10px !important;
+  gap: 13px !important;
+  align-items: center !important;
+  border-bottom-color: rgba(232, 227, 243, 0.12) !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-input {
+  height: 44px !important;
+  font-size: 17px !important;
+  line-height: 1.2 !important;
+  padding: 0 2px 3px !important;
+}
+
+.discover-universal-search-filter-btn.discover-category-filter-btn {
+  height: 42px !important;
+  min-height: 42px !important;
+  padding-bottom: 3px !important;
+  font-size: 13px !important;
+  align-self: center !important;
+}
+
+.discover-universal-search-subtitle {
+  padding: 10px 16px 9px !important;
+  font-size: 13px !important;
+  line-height: 1.25 !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-tabs {
+  min-height: 50px !important;
+  padding: 0 12px !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-tab {
+  height: 50px !important;
+  padding-bottom: 9px !important;
+  font-size: 13px !important;
+  line-height: 1.12 !important;
+}
+
+.discover-universal-search-shelfline .discover-universal-search-body {
+  padding-top: 8px !important;
+}
+
+@media (max-width: 390px) {
+  .discover-universal-search-shelfline .discover-universal-search-titlebar {
+    min-height: 54px !important;
+    padding-top: max(10px, calc(env(safe-area-inset-top, 0px) + 7px)) !important;
+    padding-bottom: 9px !important;
+  }
+
+  .discover-universal-search-shelfline .discover-universal-search-header {
+    padding: 11px 13px 9px !important;
+    gap: 10px !important;
+  }
+
+  .discover-universal-search-shelfline .discover-universal-search-input {
+    height: 42px !important;
+    font-size: 16px !important;
+  }
+
+  .discover-universal-search-filter-btn.discover-category-filter-btn {
+    height: 40px !important;
+    min-height: 40px !important;
+    font-size: 12.5px !important;
+  }
+
+  .discover-universal-search-subtitle {
+    padding: 9px 12px 8px !important;
+    font-size: 12.5px !important;
+  }
+
+  .discover-universal-search-shelfline .discover-universal-search-tabs {
+    min-height: 48px !important;
+  }
+
+  .discover-universal-search-shelfline .discover-universal-search-tab {
+    height: 48px !important;
+    font-size: 12.2px !important;
+    padding-bottom: 8px !important;
+  }
+}

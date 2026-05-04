@@ -1884,6 +1884,25 @@ body.main-tab-discover .edit-profile-btn {
 .discover-category-filter-sheet-letterboxd .discover-category-filter-decade-row strong {
   color: rgba(255,255,255,0.58);
 }
+.discover-category-filter-sheet-letterboxd .discover-category-filter-select-all {
+  appearance: none;
+  width: 100%;
+  min-height: 46px;
+  margin: 8px 0 4px;
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.13);
+  background: transparent;
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+.discover-category-filter-sheet-letterboxd .discover-category-filter-select-all.selected {
+  color: rgba(255,255,255,0.64);
+}
 
 .discover-category-filter-sheet-letterboxd .discover-category-filter-check {
   color: #fff;
@@ -1938,8 +1957,15 @@ body.light-mode .discover-category-filter-sheet-letterboxd .discover-category-fi
 }
 body.light-mode .discover-category-filter-sheet-letterboxd .discover-category-filter-row,
 body.light-mode .discover-category-filter-sheet-letterboxd .discover-category-filter-header-flat,
-body.light-mode .discover-category-filter-sheet-letterboxd .discover-category-filter-clear-inline {
+body.light-mode .discover-category-filter-sheet-letterboxd .discover-category-filter-clear-inline,
+body.light-mode .discover-category-filter-sheet-letterboxd .discover-category-filter-select-all {
   border-color: rgba(18,8,46,0.14);
+}
+body.light-mode .discover-category-filter-sheet-letterboxd .discover-category-filter-select-all {
+  color: #12082e;
+}
+body.light-mode .discover-category-filter-sheet-letterboxd .discover-category-filter-select-all.selected {
+  color: rgba(18,8,46,0.58);
 }
 body.light-mode .discover-category-filter-service-icon {
   border-color: rgba(18,8,46,0.18);
