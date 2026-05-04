@@ -1400,11 +1400,11 @@ function renderWatchTogetherCardControl(item = {}, section = activeSection) {
   const pendingGroups = getPendingWatchTogetherGroupsForItem(item, section);
   const pendingCount = pendingGroups.reduce((sum, group) => sum + (Array.isArray(group.pendingUids) ? group.pendingUids.length : 0), 0);
   const visible = members.slice(0, 3);
-  const stack = members.length ? `<button class="watch-together-stack" type="button" data-mylist-watch-info-id="${itemId}" data-mylist-watch-section="${sectionAttr}" onclick="openWatchTogetherInfoModal(event, '${itemId}', '${sectionAttr}')" aria-label="View people tagged on this title">
+  const stack = members.length ? `<button class="watch-together-stack" type="button" onclick="openWatchTogetherInfoModal(event, '${itemId}', '${sectionAttr}')" aria-label="View people tagged on this title">
     ${visible.map(profile => `<img class="${profile.watchTogetherPending ? 'watch-together-avatar-pending' : ''}" src="${escAttr(getWatchTogetherAvatar(profile))}" alt="${escAttr(profile.name)}" loading="lazy" title="${profile.watchTogetherPending ? 'Waiting for approval' : 'Approved'}">`).join('')}
     ${members.length > 3 ? `<span class="watch-together-more">+${members.length - 3}</span>` : ''}
   </button>` : '';
-  const add = (!members.length && !viewingUser && currentUser) ? `<button class="watch-together-add" type="button" data-mylist-watch-add-id="${itemId}" data-mylist-watch-section="${sectionAttr}" onclick="openWatchTogetherTagModal(event, '${itemId}', '${sectionAttr}')" aria-label="Tag people to watch together">＋</button>` : '';
+  const add = (!members.length && !viewingUser && currentUser) ? `<button class="watch-together-add" type="button" onclick="openWatchTogetherTagModal(event, '${itemId}', '${sectionAttr}')" aria-label="Tag people to watch together">＋</button>` : '';
   const pending = pendingCount ? `<span class="watch-together-pending" title="Waiting for approval">${pendingCount} pending</span>` : '';
   if (!stack && !add && !pending) return '';
   return `<div class="watch-together-slot">${stack}${pending}${add}</div>`;
@@ -2614,10 +2614,10 @@ function buildRatingStarsMarkup(rating, itemId, prefix, size, section, interacti
       const leftVal = star * 2 - 1;
       const rightVal = star * 2;
       if (interactive) {
-        html += `<button class="star-btn half-step left ${leftVal <= currentRating ? 'lit' : ''}" style="font-size:${size}px" data-mylist-rate-item-id="${escAttr(itemId)}" data-mylist-rate-prefix="${escAttr(prefix)}" data-mylist-rate-score="${leftVal}"
+        html += `<button class="star-btn half-step left ${leftVal <= currentRating ? 'lit' : ''}" style="font-size:${size}px"
           onclick="event.stopPropagation();rate('${itemId}','${prefix}',${leftVal})"
           onmouseenter="hoverStars(this,${leftVal})" onmouseleave="unhoverStars(this,${currentRating})">★</button>`;
-        html += `<button class="star-btn half-step right ${rightVal <= currentRating ? 'lit' : ''}" style="font-size:${size}px" data-mylist-rate-item-id="${escAttr(itemId)}" data-mylist-rate-prefix="${escAttr(prefix)}" data-mylist-rate-score="${rightVal}"
+        html += `<button class="star-btn half-step right ${rightVal <= currentRating ? 'lit' : ''}" style="font-size:${size}px"
           onclick="event.stopPropagation();rate('${itemId}','${prefix}',${rightVal})"
           onmouseenter="hoverStars(this,${rightVal})" onmouseleave="unhoverStars(this,${currentRating})">★</button>`;
       } else {
@@ -2628,7 +2628,7 @@ function buildRatingStarsMarkup(rating, itemId, prefix, size, section, interacti
   } else {
     for (let s = 1; s <= 10; s++) {
       if (interactive) {
-        html += `<button class="star-btn ${s <= currentRating ? 'lit' : ''}" style="font-size:${size}px" data-mylist-rate-item-id="${escAttr(itemId)}" data-mylist-rate-prefix="${escAttr(prefix)}" data-mylist-rate-score="${s}"
+        html += `<button class="star-btn ${s <= currentRating ? 'lit' : ''}" style="font-size:${size}px"
           onclick="event.stopPropagation();rate('${itemId}','${prefix}',${s})"
           onmouseenter="hoverStars(this,${s})" onmouseleave="unhoverStars(this,${currentRating})">★</button>`;
       } else {
@@ -4012,7 +4012,7 @@ function renderCard(item, isDraggable) {
   const hasFullEpisodeRows = type === "show" && Array.isArray(item.episodes) && item.episodes.length > 0;
   if (hasFullEpisodeRows) {
     episodeToggleButton = `
-      <button class="ep-toggle-bar card-footer-btn" type="button" data-mylist-toggle-episodes-id="${escAttr(item.id)}" onclick="toggleEpisodes('${item.id}')">
+      <button class="ep-toggle-bar card-footer-btn" onclick="toggleEpisodes('${item.id}')">
         <span id="ep-label-${item.id}">Show Episodes</span>
         <span class="ep-arrow" id="ep-arrow-${item.id}">&#9662;</span>
       </button>
@@ -4022,8 +4022,8 @@ function renderCard(item, isDraggable) {
         <div class="ep-list-inner">
         ${!viewingUser ? `<div class="ep-actions">
           <div style="display:flex;gap:8px;">
-            <button class="btn-secondary btn-sm" type="button" data-mylist-mark-all-id="${escAttr(item.id)}" data-mylist-mark-all-value="true" onclick="markAllEps('${item.id}',true)">Mark All Watched</button>
-            <button class="btn-secondary btn-sm" type="button" data-mylist-mark-all-id="${escAttr(item.id)}" data-mylist-mark-all-value="false" onclick="markAllEps('${item.id}',false)">Clear All</button>
+            <button class="btn-secondary btn-sm" onclick="markAllEps('${item.id}',true)">Mark All Watched</button>
+            <button class="btn-secondary btn-sm" onclick="markAllEps('${item.id}',false)">Clear All</button>
           </div>
         </div>` : ''}
         <div class="ep-scroll">
@@ -4047,7 +4047,7 @@ function renderCard(item, isDraggable) {
           <div class="card-title-row">
             <div class="card-title">${gameTitleMarkup}${item.imdbId ? ` <a href="https://www.imdb.com/title/${item.imdbId}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;text-decoration:none;vertical-align:middle;">
             <span class="media-link-badge">IMDb</span>
-          </a>` : ''}${activeSection === 'movies' ? `<button class="letterboxd-badge-btn" type="button" data-mylist-letterboxd-id="${itemIdAttr}" onclick="event.stopPropagation();openLetterboxd('${item.id}')" title="Letterboxd">
+          </a>` : ''}${activeSection === 'movies' ? `<button class="letterboxd-badge-btn" onclick="event.stopPropagation();openLetterboxd('${item.id}')" title="Letterboxd">
             <span class="letterboxd-badge">
               <svg viewBox="0 0 24 10" aria-hidden="true" fill="none">
                 <circle cx="6" cy="5" r="4" fill="#FF8000"></circle>
@@ -4056,7 +4056,7 @@ function renderCard(item, isDraggable) {
               </svg>
             </span>
           </button>` : ''}${activeSection === 'games' ? renderMetacriticGameIcon(item, 'game-card-metacritic-icon') : ''}</div>
-            ${!viewingUser ? `<button class="delete-btn" type="button" data-mylist-delete-id="${itemIdAttr}" onclick="deleteItem(event,'${item.id}')" title="Delete">×</button>` : (currentUser ? `<button class="friend-card-add-btn${friendAlreadyAdded ? ' added' : ''}" type="button" data-friend-item-id="${escAttr(item.id)}" onclick="event.stopPropagation();openFriendAddModal(this.dataset.friendItemId, this)" title="Add to my list">+</button>` : '')}
+            ${!viewingUser ? `<button class="delete-btn" onclick="deleteItem(event,'${item.id}')" title="Delete">×</button>` : (currentUser ? `<button class="friend-card-add-btn${friendAlreadyAdded ? ' added' : ''}" data-friend-item-id="${escHtml(item.id)}" onclick="event.stopPropagation();openFriendAddModal(this.dataset.friendItemId, this)" title="Add to my list">+</button>` : '')}
           </div>
           ${item.genre ? `<div class="card-genre">${escHtml(item.genre)}</div>` : ''}
           ${!viewingUser ? `<div class="status-pills" id="status-pills-${item.id}">${statusButtons}</div>` : ''}
@@ -4074,7 +4074,7 @@ function renderCard(item, isDraggable) {
       </div>
       <div class="card-action-row">
         <div class="card-footer-actions">
-          <button class="comments-btn" type="button" data-mylist-comments-id="${itemIdAttr}" onclick="event.stopPropagation();openCommentsPage('${item.id}', this)">
+          <button class="comments-btn" onclick="event.stopPropagation();openCommentsPage('${item.id}', this)">
             <span class="comments-btn-label">Comments (<span class="comment-count" data-media-key="${escAttr(mediaKey)}">${commentCount}</span>)</span>
           </button>
           ${episodeToggleButton}
@@ -4330,7 +4330,7 @@ function renderEpisodeList(item) {
       ? `<div class="season-poster" style="background-image:url('${escAttr(seasonInfo.cover)}')"></div>`
       : `<div class="season-poster season-poster-empty" aria-hidden="true"></div>`;
     return `<div class="season-block">
-      <div class="season-header" role="button" tabindex="0" data-mylist-season-toggle-id="${escAttr(item.id)}" data-mylist-season-num="${escAttr(sNum)}" onclick="toggleSeason('${item.id}',${sNum})" ontouchend="toggleSeasonTouch(event,'${item.id}',${sNum})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSeason('${item.id}',${sNum})}">
+      <div class="season-header" role="button" tabindex="0" onclick="toggleSeason('${item.id}',${sNum})" ontouchend="toggleSeasonTouch(event,'${item.id}',${sNum})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSeason('${item.id}',${sNum})}">
         ${seasonPoster}
         <div class="season-header-left">
           <div class="season-title-line">
@@ -4345,7 +4345,7 @@ function renderEpisodeList(item) {
             <span>Season ${sNum}</span>
             <span class="season-arrow" id="s-arrow-${item.id}-${sNum}">▼</span>
           </div>
-          ${!viewingUser ? `<button class="edit-ep-link season-mark-btn" type="button" data-mylist-season-mark-id="${escAttr(item.id)}" data-mylist-season-num="${escAttr(sNum)}" data-mylist-season-mark-value="${sWatched < sEps.length ? 'true' : 'false'}" onclick="event.stopPropagation();markSeasonEps('${item.id}',${sNum},${sWatched < sEps.length})">
+          ${!viewingUser ? `<button class="edit-ep-link season-mark-btn" onclick="event.stopPropagation();markSeasonEps('${item.id}',${sNum},${sWatched < sEps.length})">
             ${sWatched < sEps.length ? 'Mark all' : 'Clear all'}
           </button>` : ''}
         </div>
@@ -4395,7 +4395,7 @@ function renderSingleEp(itemId, ep) {
       </span>
     </div>
     <div class="ep-right">
-      <button class="ep-rating-btn ${r ? 'has-rating' : ''}" type="button" data-mylist-ep-rating-item-id="${escAttr(itemId)}" data-mylist-ep-rating-ep-id="${escAttr(ep.id)}" onclick="event.stopPropagation();openEpRating('${itemId}','${ep.id}')">
+      <button class="ep-rating-btn ${r ? 'has-rating' : ''}" onclick="event.stopPropagation();openEpRating('${itemId}','${ep.id}')">
         ★${r ? ' ' + formatRatingValueForSection(r, activeSection) : ''}
       </button>
     </div>
@@ -6745,115 +6745,24 @@ function changeStatus(id, status) {
 function initMyListCardActionDelegates() {
   if (window.__shelfdMyListCardActionDelegatesReady) return;
   window.__shelfdMyListCardActionDelegatesReady = true;
-
-  const handled = event => {
-    event.preventDefault?.();
-    event.stopPropagation?.();
-    event.stopImmediatePropagation?.();
-  };
-
   document.addEventListener('click', event => {
-    const target = event.target;
-    if (!target?.closest || viewingUser) {
-      const friendAddButton = target?.closest?.('#mylist-view .friend-card-add-btn[data-friend-item-id]');
-      if (friendAddButton) {
-        handled(event);
-        openFriendAddModal(friendAddButton.dataset.friendItemId || '', friendAddButton);
-      }
-      return;
-    }
-
-    const statusButton = target.closest('#mylist-view .status-pill[data-mylist-status-id][data-status]');
+    const statusButton = event.target && event.target.closest ? event.target.closest('#mylist-view .status-pill[data-mylist-status-id][data-status]') : null;
     if (statusButton) {
-      handled(event);
+      event.preventDefault();
+      event.stopPropagation();
       const itemId = statusButton.dataset.mylistStatusId || '';
       const nextStatus = statusButton.dataset.status || '';
       if (itemId && nextStatus) changeStatus(itemId, nextStatus);
       return;
     }
 
-    // Let star ratings use their original inline/touch handlers.
-    // Capturing them here blocks the target-phase star behavior on mobile and breaks scrub/tap rating.
-    if (target.closest('#mylist-view .star-btn[data-mylist-rate-item-id][data-mylist-rate-prefix][data-mylist-rate-score]')) {
-      return;
-    }
-
-    const deleteButton = target.closest('#mylist-view .delete-btn[data-mylist-delete-id]');
-    if (deleteButton) {
-      handled(event);
-      deleteItem(event, deleteButton.dataset.mylistDeleteId || '');
-      return;
-    }
-
-    const commentsButton = target.closest('#mylist-view .comments-btn[data-mylist-comments-id]');
-    if (commentsButton) {
-      handled(event);
-      openCommentsPage(commentsButton.dataset.mylistCommentsId || '', commentsButton);
-      return;
-    }
-
-    const letterboxdButton = target.closest('#mylist-view .letterboxd-badge-btn[data-mylist-letterboxd-id]');
-    if (letterboxdButton) {
-      handled(event);
-      openLetterboxd(letterboxdButton.dataset.mylistLetterboxdId || '');
-      return;
-    }
-
-    const watchInfoButton = target.closest('#mylist-view .watch-together-stack[data-mylist-watch-info-id]');
-    if (watchInfoButton) {
-      handled(event);
-      openWatchTogetherInfoModal(event, watchInfoButton.dataset.mylistWatchInfoId || '', watchInfoButton.dataset.mylistWatchSection || activeSection);
-      return;
-    }
-
-    const watchAddButton = target.closest('#mylist-view .watch-together-add[data-mylist-watch-add-id]');
-    if (watchAddButton) {
-      handled(event);
-      openWatchTogetherTagModal(event, watchAddButton.dataset.mylistWatchAddId || '', watchAddButton.dataset.mylistWatchSection || activeSection);
-      return;
-    }
-
-    const episodeToggleButton = target.closest('#mylist-view .ep-toggle-bar[data-mylist-toggle-episodes-id]');
-    if (episodeToggleButton) {
-      handled(event);
-      toggleEpisodes(episodeToggleButton.dataset.mylistToggleEpisodesId || '');
-      return;
-    }
-
-    const markAllButton = target.closest('#mylist-view [data-mylist-mark-all-id][data-mylist-mark-all-value]');
-    if (markAllButton) {
-      handled(event);
-      markAllEps(markAllButton.dataset.mylistMarkAllId || '', markAllButton.dataset.mylistMarkAllValue === 'true');
-      return;
-    }
-
-    const seasonMarkButton = target.closest('#mylist-view .season-mark-btn[data-mylist-season-mark-id][data-mylist-season-num]');
-    if (seasonMarkButton) {
-      handled(event);
-      markSeasonEps(seasonMarkButton.dataset.mylistSeasonMarkId || '', Number(seasonMarkButton.dataset.mylistSeasonNum || 0), seasonMarkButton.dataset.mylistSeasonMarkValue === 'true');
-      return;
-    }
-
-    const episodeButton = target.closest('#mylist-view .ep-check[data-ep-toggle-item-id][data-ep-toggle-ep-id]');
+    const episodeButton = event.target && event.target.closest ? event.target.closest('#mylist-view .ep-check[data-ep-toggle-item-id][data-ep-toggle-ep-id]') : null;
     if (episodeButton) {
-      handled(event);
+      event.preventDefault();
+      event.stopPropagation();
       const itemId = episodeButton.dataset.epToggleItemId || '';
       const epId = episodeButton.dataset.epToggleEpId || '';
       if (itemId && epId) toggleEp(itemId, epId);
-      return;
-    }
-
-    const episodeRatingButton = target.closest('#mylist-view .ep-rating-btn[data-mylist-ep-rating-item-id][data-mylist-ep-rating-ep-id]');
-    if (episodeRatingButton) {
-      handled(event);
-      openEpRating(episodeRatingButton.dataset.mylistEpRatingItemId || '', episodeRatingButton.dataset.mylistEpRatingEpId || '');
-      return;
-    }
-
-    const seasonHeader = target.closest('#mylist-view .season-header[data-mylist-season-toggle-id][data-mylist-season-num]');
-    if (seasonHeader && !target.closest('button, a, input, textarea, select')) {
-      handled(event);
-      toggleSeason(seasonHeader.dataset.mylistSeasonToggleId || '', Number(seasonHeader.dataset.mylistSeasonNum || 0));
     }
   }, true);
 }
