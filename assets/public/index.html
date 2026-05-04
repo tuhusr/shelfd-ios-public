@@ -12,12 +12,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Shelfd">
-<link rel="icon" href="/favicon.ico?v=211-app-icon-refresh" sizes="any">
-<link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png?v=211-app-icon-refresh">
-<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=211-app-icon-refresh">
-<link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png?v=211-app-icon-refresh">
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=211-app-icon-refresh">
-<link rel="manifest" href="/site.webmanifest?v=211-app-icon-refresh">
+<link rel="icon" href="/favicon.ico?v=292-activity-card-smaller-text-halfstar-fix" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="manifest" href="/site.webmanifest?v=292-activity-card-smaller-text-halfstar-fix">
 
 <meta property="og:title" content="Shelfd">
 <meta property="og:description" content="Track your shows, movies, anime, games, books, and more.">
@@ -33,12 +33,38 @@
 <meta name="twitter:description" content="Track your shows, movies, anime, games, books, and more.">
 <meta name="twitter:image" content="https://myscreenlist.com/og-image-v216.png">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Sora:wght@600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/style.css?v=269-mylist-click-only-tabs">
+<script>
+  window.__shelfdSplitResourceErrors = window.__shelfdSplitResourceErrors || [];
+  window.addEventListener('error', function(event) {
+    var target = event && event.target;
+    if (!target || !target.tagName) return;
+    var tag = String(target.tagName || '').toLowerCase();
+    var url = target.src || target.href || '';
+    if ((tag === 'script' || tag === 'link') && /\/(js|css)\//.test(url)) {
+      window.__shelfdSplitResourceErrors.push({ tag: tag, url: url, at: Date.now() });
+      console.warn('Shelfd split resource failed to load:', url);
+    }
+  }, true);
+</script>
+<link rel="stylesheet" href="/css/00-base-layout.css?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="stylesheet" href="/css/02-comments-login-theme.css?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="stylesheet" href="/css/03-friends-discovery-base.css?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="stylesheet" href="/css/04-activity-feed.css?v=299-completion-post-prompt">
+<link rel="stylesheet" href="/css/05-messages-early-polish.css?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="stylesheet" href="/css/06-profile.css?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="stylesheet" href="/css/07-imports-discover-rankings.css?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="stylesheet" href="/css/08-watch-together.css?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="stylesheet" href="/css/09-direct-messages.css?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="stylesheet" href="/css/10-mobile-transitions-media-profile.css?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="stylesheet" href="/css/11-patch-notes-friends-refinements.css?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="stylesheet" href="/css/12-pwa-header-continuity.css?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="stylesheet" href="/css/13-e2ee-activity-post.css?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="stylesheet" href="/css/14-live-update-discover-controls.css?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="stylesheet" href="/css/15-universal-discovery-search.css?v=292-activity-card-smaller-text-halfstar-fix">
 
-<meta name="screenlist-build-version" content="2026-05-03-v269-mylist-click-only-tabs">
-<script>window.SCREENLIST_BUILD_VERSION = "2026-05-03-v269-mylist-click-only-tabs";</script>
-
-
+<meta name="screenlist-build-version" content="2026-05-04-v299-completion-post-prompt">
+<script>window.SCREENLIST_BUILD_VERSION = "2026-05-04-v299-completion-post-prompt";</script>
 </head>
 <body>
 
@@ -46,7 +72,7 @@
 <div id="login-screen" class="login-screen">
   <div class="login-hero">
     <div style="display:flex;align-items:center;margin-bottom:0;">
-      <img class="login-hero-logo" src="/logo_landing_page.png?v=209-landing-page-logo-refresh" alt="ScreenList" decoding="async" onerror="this.onerror=null;this.src='/logo.png?v=110-landing-logo-fallback'">
+      <img class="login-hero-logo" src="/logo_landing_page.png?v=292-activity-card-smaller-text-halfstar-fix" alt="ScreenList" decoding="async" onerror="this.onerror=null;this.src='/logo.png?v=292-activity-card-smaller-text-halfstar-fix'">
     </div>
     <div class="login-tagline">This is a tracker app / website like IMDb, Letterboxd, and MyAnimeList. It allows you to track movies, TV shows, anime, books, rate everything, track episode progress, comment on media, share media and lists, with a very heavy emphasis on the social / friend aspect.</div>
   </div>
@@ -166,7 +192,8 @@
       <div>
         <div>
           <div class="header-logo-block">
-            <img class="site-logo-img" src="/site_header_logo.png?v=207-header-outline-logo-center" alt="ScreenList" decoding="async" role="button" tabindex="0" title="Go to My Lists" onclick="goToDefaultMyListsPage()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();goToDefaultMyListsPage();}">
+            <img class="site-logo-img" src="/site_header_logo.png?v=292-activity-card-smaller-text-halfstar-fix" alt="ScreenList" decoding="async" role="button" tabindex="0" title="Go to My Lists" onclick="goToDefaultMyListsPage()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();goToDefaultMyListsPage();}">
+            <img class="site-wordmark-img" src="/shelfd_header_wordmark.png?v=292-activity-card-smaller-text-halfstar-fix" alt="Shelfd" decoding="async" role="button" tabindex="0" title="Go to My Lists" onclick="goToDefaultMyListsPage()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();goToDefaultMyListsPage();}">
             <button class="header-import-btn" type="button" onclick="openImportPage()">Import Lists</button>
             <button id="mylist-header-cog" class="mylist-header-cog" type="button" onclick="openMyListSettingsModal(this)" aria-label="My List settings" title="My List settings">
               <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18" aria-hidden="true"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
@@ -301,8 +328,8 @@
   </div>
   <div class="toolbar" id="mylist-toolbar">
     <div class="tabs">
-      <button class="tab-btn active" data-tab="watching" onclick="switchTab('watching')">Watching<span class="tab-count" id="count-watching">0</span></button>
       <button class="tab-btn" data-tab="live" onclick="switchTab('live')" style="display:none">Live Games<span class="tab-count" id="count-live">0</span></button>
+      <button class="tab-btn active" data-tab="watching" onclick="switchTab('watching')">Watching<span class="tab-count" id="count-watching">0</span></button>
       <button class="tab-btn" data-tab="planned" onclick="switchTab('planned')">Watchlist<span class="tab-count" id="count-planned">0</span></button>
       <button class="tab-btn" data-tab="watched" onclick="switchTab('watched')">Watched<span class="tab-count" id="count-watched">0</span></button>
       <button class="tab-btn" data-tab="paused" onclick="switchTab('paused')">Paused<span class="tab-count" id="count-paused">0</span></button>
@@ -390,7 +417,6 @@
   <div id="requests-view" style="display:none">
     <div class="request-subtabs" id="request-subtabs">
       <button class="request-subtab active" id="request-subtab-friends" type="button" onclick="switchRequestsSubTab('friends')">Friend Requests <span id="request-friends-count" class="request-subtab-count" style="display:none;"></span></button>
-      <button class="request-subtab" id="request-subtab-watch" type="button" onclick="switchRequestsSubTab('watch')">Watch Requests <span id="request-watch-count" class="request-subtab-count" style="display:none;"></span></button>
     </div>
     <div id="incoming-section">
       <h3 style="font-size:13px;color:#9990b3;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">Incoming</h3>
@@ -400,30 +426,15 @@
       <h3 style="font-size:13px;color:#9990b3;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">Sent</h3>
       <div class="community-grid" id="outgoing-grid"></div>
     </div>
-    <div id="watch-requests-section" class="watch-requests-section" style="display:none;">
-      <div id="watch-requests-grid" class="watch-requests-grid"></div>
-    </div>
   </div>
 
   <!-- Find People -->
-  <div id="find-people-view" class="friends-search-view" style="display:none">
-    <div class="friends-search-shell">
-      <div class="friends-search-hero">
-        <div class="friends-search-kicker">Find people</div>
-        <div class="friends-search-title">Search the Shelfd community</div>
-        <div class="friends-search-subtitle">Type a username to find people, view profiles, message friends, or send a request.</div>
-      </div>
-      <div class="friends-search-panel">
-        <div class="friends-search-input-wrap">
-          <span class="friends-search-icon" aria-hidden="true">⌕</span>
-          <input type="text" class="find-search" placeholder="Search username" oninput="filterPeople(this.value)" autocomplete="off" spellcheck="false" aria-label="Search users by username">
-        </div>
-      </div>
-      <div class="friends-search-results" id="all-users-grid">
-        <div class="skeleton-card"></div>
-      </div>
+<div id="find-people-view" style="display:none">
+    <input type="text" class="find-search" placeholder="Search by username..." oninput="filterPeople(this.value)" style="padding:8px 12px;background:#0c0a1d;border:1px solid #2a2248;border-radius:4px;color:#e8e3f3;font-size:13px;outline:none;font-family:'DM Sans',sans-serif;">
+    <div class="community-grid" id="all-users-grid">
+      <div class="skeleton-card"></div>
     </div>
-  </div>
+</div>
   <div class="screenlist-bottom-link-wrap"><button class="screenlist-bottom-link" type="button" onclick="openPatchNotesPage()">Patch Notes</button></div>
 </div>
 </div>
@@ -436,9 +447,6 @@
       <div class="discover-title">Discovery</div>
       <div class="discover-subtitle">Browse TV shows and movies in clean, separate discovery tabs.</div>
     </div>
-    <button class="discover-search-trigger" type="button" aria-label="Search Discovery" title="Search Discovery" onclick="openDiscoverUniversalSearch()">
-      <svg class="discover-search-trigger-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.75" cy="10.75" r="6.75"/><path d="M16.4 16.4 21 21"/></svg>
-    </button>
   </div>
   <div class="discover-hub-toggle" aria-label="Discovery category tabs">
     <button class="discover-hub-btn active" type="button" data-discovery-hub="tv" onclick="switchDiscoveryHub('tv')">TV Shows</button>
@@ -450,7 +458,7 @@
   <div class="discover-media-tab-section" data-discovery-tab="tv">
     <div class="discover-section">
       <h2 class="discover-section-title">Newest Releases</h2>
-      <div class="discover-section-desc">Newest TV shows releasing in the United States, ranked by recency plus real audience signal.</div>
+      <div class="discover-section-desc">Newest TV shows releasing in the United States, sorted by first air date, not popularity.</div>
       <div class="discover-filter-row" aria-label="TV release range">
         <button class="discover-filter-btn active" type="button" data-release-range="week" onclick="changeDiscoverReleaseRange('week')">New This Week</button>
         <button class="discover-filter-btn" type="button" data-release-range="month" onclick="changeDiscoverReleaseRange('month')">New This Month</button>
@@ -458,11 +466,11 @@
       <div class="discover-grid" id="discover-tv-new-releases-grid"><div class="discover-message">Loading...</div></div>
       <button class="discover-expand-btn" data-discover-target="discover-tv-new-releases-grid" onclick="toggleDiscoverSection('discover-tv-new-releases-grid')">Show more</button>
     </div>
-    <div class="discover-section" id="discover-tv-section">
-      <h2 class="discover-section-title">Trending TV Shows</h2>
-      <div class="discover-section-desc">Weekly trending TV shows ranked by current momentum.</div>
-      <div class="discover-grid" id="discover-tv-trending-grid"><div class="discover-message">Loading...</div></div>
-      <button class="discover-expand-btn" data-discover-target="discover-tv-trending-grid" onclick="toggleDiscoverSection('discover-tv-trending-grid')">Show more</button>
+    <div class="discover-section">
+      <h2 class="discover-section-title">This Year's Best</h2>
+      <div class="discover-section-desc">TV shows from this year ranked by strong ratings and meaningful vote volume.</div>
+      <div class="discover-grid" id="discover-tv-years-best-grid"><div class="discover-message">Loading...</div></div>
+      <button class="discover-expand-btn" data-discover-target="discover-tv-years-best-grid" onclick="toggleDiscoverSection('discover-tv-years-best-grid')">Show more</button>
     </div>
     <div class="discover-section">
       <h2 class="discover-section-title">Popular TV Shows</h2>
@@ -471,16 +479,28 @@
       <button class="discover-expand-btn" data-discover-target="discover-tv-popular-grid" onclick="toggleDiscoverSection('discover-tv-popular-grid')">Show more</button>
     </div>
     <div class="discover-section">
+      <h2 class="discover-section-title">Top Rated TV Shows</h2>
+      <div class="discover-section-desc">Highly rated TV shows with enough votes to avoid low-review outliers.</div>
+      <div class="discover-grid" id="discover-tv-top-rated-grid"><div class="discover-message">Loading...</div></div>
+      <button class="discover-expand-btn" data-discover-target="discover-tv-top-rated-grid" onclick="toggleDiscoverSection('discover-tv-top-rated-grid')">Show more</button>
+    </div>
+    <div class="discover-section" id="discover-tv-section">
+      <h2 class="discover-section-title">Trending TV Shows</h2>
+      <div class="discover-section-desc">Weekly trending TV shows from TMDB.</div>
+      <div class="discover-grid" id="discover-tv-trending-grid"><div class="discover-message">Loading...</div></div>
+      <button class="discover-expand-btn" data-discover-target="discover-tv-trending-grid" onclick="toggleDiscoverSection('discover-tv-trending-grid')">Show more</button>
+    </div>
+    <div class="discover-section">
       <h2 class="discover-section-title">Releasing Soon</h2>
-      <div class="discover-section-desc">Upcoming TV shows sorted by release proximity and relevance.</div>
+      <div class="discover-section-desc">Upcoming TV shows sorted by the closest future air date.</div>
       <div class="discover-grid" id="discover-tv-releasing-soon-grid"><div class="discover-message">Loading...</div></div>
       <button class="discover-expand-btn" data-discover-target="discover-tv-releasing-soon-grid" onclick="toggleDiscoverSection('discover-tv-releasing-soon-grid')">Show more</button>
     </div>
     <div class="discover-section">
-      <h2 class="discover-section-title">Top Rated TV Shows</h2>
-      <div class="discover-section-desc">All-time TV shows ranked by rating strength and vote confidence.</div>
-      <div class="discover-grid" id="discover-tv-top-rated-grid"><div class="discover-message">Loading...</div></div>
-      <button class="discover-expand-btn" data-discover-target="discover-tv-top-rated-grid" onclick="toggleDiscoverSection('discover-tv-top-rated-grid')">Show more</button>
+      <h2 class="discover-section-title">Hidden Gems</h2>
+      <div class="discover-section-desc">Lower-mainstream TV shows with strong ratings and enough audience feedback.</div>
+      <div class="discover-grid" id="discover-tv-hidden-gems-grid"><div class="discover-message">Loading...</div></div>
+      <button class="discover-expand-btn" data-discover-target="discover-tv-hidden-gems-grid" onclick="toggleDiscoverSection('discover-tv-hidden-gems-grid')">Show more</button>
     </div>
     <div class="discover-section">
       <button class="discover-section-title discover-section-title-button" type="button" onclick="openDiscoverFriendsWatchingPage()">What Your Friends Are Watching</button>
@@ -555,9 +575,6 @@
       <div class="discover-title">Discovery</div>
       <div class="discover-subtitle">Animated series picks filtered toward Japan and Korea, with anime-style search and trending rows.</div>
     </div>
-    <button class="discover-search-trigger" type="button" aria-label="Search" onclick="openDiscoverUniversalSearch('anime')">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-    </button>
   </div>
   <div class="discover-hub-toggle" aria-label="Discovery category tabs">
     <button class="discover-hub-btn" type="button" data-discovery-hub="tv" onclick="switchDiscoveryHub('tv')">TV Shows</button>
@@ -618,9 +635,6 @@
       <div class="discover-title">Discovery</div>
       <div class="discover-subtitle">Popular, trending, new release, anticipated, and hidden-gem game picks from multiple databases.</div>
     </div>
-    <button class="discover-search-trigger" type="button" aria-label="Search" onclick="openDiscoverUniversalSearch('gaming')">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-    </button>
   </div>
   <div class="discover-hub-toggle" aria-label="Discovery category tabs">
     <button class="discover-hub-btn" type="button" data-discovery-hub="tv" onclick="switchDiscoveryHub('tv')">TV Shows</button>
@@ -1075,11 +1089,34 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-<script src="/script.js?v=269-mylist-click-only-tabs"></script>
+<script src="/js/00-live-update-pwa.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
+<script src="/js/01-firebase-login-state.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
+<script src="/js/02-messages-e2ee.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
+<script src="/js/03-watch-together.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
+<script src="/js/04-shared-utils-data.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
+<script src="/js/05-app-state-preview-routes.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
+<script src="/js/06-mylists-render-episodes-ratings.js?v=299-completion-post-prompt"></script>
+<script src="/js/07-add-shelf-import-search.js?v=299-completion-post-prompt"></script>
+<script src="/js/08-discovery-state.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
+<script src="/js/09-direct-messages.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
+<script src="/js/10-activity-feed.js?v=299-completion-post-prompt"></script>
+<script src="/js/11-discovery-media-games-profiles.js?v=299-completion-post-prompt"></script>
+<script src="/js/12-patch-notes.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
+<script src="/js/13-discover-add-imports.js?v=299-completion-post-prompt"></script>
+<script src="/js/14-navigation.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
+<script src="/js/15-profile-settings.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
+<script src="/js/16-friends-requests.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
+<script src="/js/17-comments-auth-init.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js');
+      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+        .then(registration => {
+          if (registration && typeof registration.update === 'function') {
+            registration.update().catch(error => console.warn('Shelfd service worker update check failed:', error));
+          }
+        })
+        .catch(error => console.warn('Shelfd service worker registration failed:', error));
     });
   }
 </script>
