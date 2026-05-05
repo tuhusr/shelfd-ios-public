@@ -1,3 +1,7 @@
+window.__SHELFD_MYLIST_PATCH_VERSION = 'V301-mylist-render-recovery-no-swipe';
+window.__SHELFD_MYLIST_SWIPE_REMOVED = true;
+window.__SHELFD_MYLIST_RENDER_RECOVERY = true;
+window.__SHELFD_MYLIST_CONTROLS_STAR_CACHE_BUSTER = true;
 // Load from Firestore
 async function load() {
   if (!DOC_REF) return;
@@ -144,7 +148,8 @@ function render() {
     }
   });
   requestAnimationFrame(() => updateSlidingPills());
-  initMyListSwipe();
+  if (typeof initMyListInteractionFallbacks === 'function') initMyListInteractionFallbacks();
+  if (typeof removeMyListSwipeArtifacts === 'function') removeMyListSwipeArtifacts();
   const grid = document.getElementById("cards-grid");
   const empty = document.getElementById("empty-state");
   const emptySub = empty.querySelector(".empty-sub");
@@ -871,7 +876,7 @@ function renderCard(item, isDraggable) {
   const statusPill = (s, label) => {
     let cls = "status-pill";
     if (item.status === s) cls += ` ${s}-active`;
-    return `<button class="${cls}" data-status="${s}" onclick="changeStatus('${item.id}','${s}')">${label}</button>`;
+    return `<button type="button" class="${cls}" data-status="${s}" data-mylist-action="status" data-mylist-item-id="${item.id}" data-mylist-status="${s}" onclick="changeStatus('${item.id}','${s}')">${label}</button>`;
   };
   const statusButtons = getMyListStatusButtonConfigs(activeSection)
     .map(({ status, label }) => statusPill(status, label))
@@ -882,7 +887,7 @@ function renderCard(item, isDraggable) {
   const hasFullEpisodeRows = type === "show" && Array.isArray(item.episodes) && item.episodes.length > 0;
   if (hasFullEpisodeRows) {
     episodeToggleButton = `
-      <button class="ep-toggle-bar card-footer-btn" onclick="toggleEpisodes('${item.id}')">
+      <button type="button" class="ep-toggle-bar card-footer-btn" onclick="toggleEpisodes('${item.id}')">
         <span id="ep-label-${item.id}">Show Episodes</span>
         <span class="ep-arrow" id="ep-arrow-${item.id}">&#9662;</span>
       </button>
@@ -892,11 +897,11 @@ function renderCard(item, isDraggable) {
         <div class="ep-list-inner">
         ${!viewingUser ? `<div class="ep-actions">
           <div style="display:flex;gap:8px;">
-            <button class="btn-secondary btn-sm" onclick="markAllEps('${item.id}',true)">Mark All Watched</button>
-            <button class="btn-secondary btn-sm" onclick="markAllEps('${item.id}',false)">Clear All</button>
+            <button type="button" class="btn-secondary btn-sm" data-mylist-action="mark-all-eps" data-mylist-item-id="${item.id}" data-mylist-mark-value="true" onclick="markAllEps('${item.id}',true)">Mark All Watched</button>
+            <button type="button" class="btn-secondary btn-sm" data-mylist-action="mark-all-eps" data-mylist-item-id="${item.id}" data-mylist-mark-value="false" onclick="markAllEps('${item.id}',false)">Clear All</button>
           </div>
           <div class="edit-ep-row" id="edit-ep-${item.id}">
-            <button class="edit-ep-link" onclick="showEditEp('${item.id}')">Edit episode count</button>
+            <button type="button" class="edit-ep-link" onclick="showEditEp('${item.id}')">Edit episode count</button>
           </div>
         </div>` : ''}
         <div class="ep-scroll">
@@ -1173,7 +1178,7 @@ function renderEpisodeList(item) {
           <span class="season-progress" id="season-progress-${item.id}-${sNum}">(${sWatched}/${sEps.length})</span>
           ${seasonRating ? `<span class="season-rating-chip">★ ${formatRatingValueForSection(seasonRating, activeSection)}</span>` : ''}
         </div>
-        ${!viewingUser ? `<div class="season-header-right"><span class="season-card-kicker">Episodes</span><button class="edit-ep-link season-mark-btn" onclick="event.stopPropagation();markSeasonEps('${item.id}',${sNum},${sWatched < sEps.length})">
+        ${!viewingUser ? `<div class="season-header-right"><span class="season-card-kicker">Episodes</span><button type="button" class="edit-ep-link season-mark-btn" data-mylist-action="mark-season-eps" data-mylist-item-id="${item.id}" data-mylist-season-num="${sNum}" data-mylist-mark-value="${sWatched < sEps.length}" onclick="event.stopPropagation();markSeasonEps('${item.id}',${sNum},${sWatched < sEps.length})">
           ${sWatched < sEps.length ? 'Mark all' : 'Clear all'}
         </button></div>` : ''}
       </div>
@@ -1205,12 +1210,12 @@ function renderSingleEp(itemId, ep) {
   }
   return `<div class="ep-row ${ep.watched ? 'watched-ep' : ''}" id="ep-row-${ep.id}">
     <div class="ep-left">
-      <button class="ep-check ${ep.watched ? 'checked' : ''}" onclick="toggleEp('${itemId}','${ep.id}')">
+      <button type="button" class="ep-check ${ep.watched ? 'checked' : ''}" data-mylist-action="toggle-ep" data-mylist-item-id="${itemId}" data-mylist-episode-id="${ep.id}" onclick="toggleEp('${itemId}','${ep.id}')">
         ${ep.watched ? '✓' : ''}
       </button>
       <span class="ep-name">${ep.epNum || ep.number}${ep.title ? ' — ' + escHtml(ep.title) : ''}</span>
     </div>
-    <button class="ep-rating-btn ${r ? 'has-rating' : ''}" onclick="event.stopPropagation();openEpRating('${itemId}','${ep.id}')">
+    <button type="button" class="ep-rating-btn ${r ? 'has-rating' : ''}" onclick="event.stopPropagation();openEpRating('${itemId}','${ep.id}')">
       ★${r ? ' ' + formatRatingValueForSection(r, activeSection) : ''}
     </button>
   </div>`;
@@ -2884,211 +2889,90 @@ function switchTab(t) {
   });
 }
 
-// ── Swipe-between-status-tabs ────────────────────────────────────────────────
+// ── My Lists swipe-between-status-tabs removed ────────────────────────────────
+// V300: Status-page swiping is fully disabled for mobile/PWA. Previous swipe
+// handlers/rails could intercept title-card taps, episode checks, status buttons,
+// and star ratings. Status changes now happen only through visible buttons/tabs.
 let _sw = null;
-let _swPillLock = false; // prevents updateSlidingPills from interfering mid-swipe
+let _swPillLock = false;
+
+function removeMyListSwipeArtifacts() {
+  document.querySelectorAll('.mylist-edge-swipe-rail, #_swipe_out').forEach(el => el.remove());
+  document.body.classList.remove('mylist-status-swipe-active');
+}
 
 function initMyListSwipe() {
-  const view = document.getElementById('mylist-view');
-  if (!view || view._swipeReady) return;
-  view._swipeReady = true;
-  view.addEventListener('touchstart',  _swStart,  { passive: true });
-  view.addEventListener('touchmove',   _swMove,   { passive: false });
-  view.addEventListener('touchend',    _swEnd,    { passive: true });
-  view.addEventListener('touchcancel', _swCancel, { passive: true });
+  if (typeof initMyListInteractionFallbacks === 'function') initMyListInteractionFallbacks();
+  if (typeof removeMyListSwipeArtifacts === 'function') removeMyListSwipeArtifacts();
 }
 
-function _swVisibleTabs() {
-  return Array.from(document.querySelectorAll('#mylist-view #mylist-toolbar .tab-btn'))
-    .filter(b => b.style.display !== 'none' && b.offsetWidth > 0);
+function initMyListEdgeSwipeListeners() {
+  window.__shelfdMyListEdgeSwipeV300Disabled = true;
+  removeMyListSwipeArtifacts();
 }
 
-function _swAdjacentTab(dir) {
-  const tabs = _swVisibleTabs();
-  const i = tabs.findIndex(b => b.dataset.tab === activeTab);
-  if (i === -1) return null;
-  if (dir === 'left'  && i < tabs.length - 1) return tabs[i + 1].dataset.tab;
-  if (dir === 'right' && i > 0)               return tabs[i - 1].dataset.tab;
-  return null;
+
+function initMyListInteractionFallbacks() {
+  if (window.__shelfdMyListActionFallbacksV301) return;
+  window.__shelfdMyListActionFallbacksV301 = true;
+  document.addEventListener('click', handleMyListClickActionFallback, true);
 }
 
-function _swStart(e) {
-  if (_sw) return;
-  const touch = e.touches[0];
-  const toolbar = document.getElementById('mylist-toolbar');
-  if (!toolbar) return;
-  if (touch.clientY < toolbar.getBoundingClientRect().bottom) return;
-  _sw = { x0: touch.clientX, y0: touch.clientY, t0: Date.now(), dx: 0, live: false, canceled: false };
-}
+function handleMyListClickActionFallback(event) {
+  const target = event.target;
+  if (!target || !target.closest) return;
+  if (!target.closest('#mylist-view')) return;
 
-function _swMove(e) {
-  if (!_sw || _sw.canceled) return;
-  const touch = e.touches[0];
-  const dx = touch.clientX - _sw.x0;
-  const dy = touch.clientY - _sw.y0;
-  _sw.dx = dx;
-
-  if (!_sw.live) {
-    if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
-    if (Math.abs(dy) >= Math.abs(dx)) { _sw.canceled = true; return; }
-    const dir = dx < 0 ? 'left' : 'right';
-    const next = _swAdjacentTab(dir);
-    if (!next) { _sw.canceled = true; return; }
-
-    _sw.dir     = dir;
-    _sw.nextTab = next;
-    _sw.origTab = activeTab;
-    _sw.live    = true;
-    _sw.sw      = window.innerWidth;
-
-    // ── Snapshot outgoing content into fixed overlay ──
-    const toolbar = document.getElementById('mylist-toolbar');
-    const tbBottom = toolbar.getBoundingClientRect().bottom;
-    const container = document.querySelector('#mylist-view .container, #mylist-view .main-content') ||
-                      document.querySelector('#mylist-view');
-    const cs = window.getComputedStyle(container);
-
-    const snap = document.createElement('div');
-    snap.id = '_swipe_out';
-    snap.style.cssText =
-      `position:fixed;top:${tbBottom}px;left:0;right:0;bottom:0;z-index:700;` +
-      `pointer-events:none;background:#050410;overflow:hidden;` +
-      `will-change:transform;-webkit-backface-visibility:hidden;backface-visibility:hidden;`;
-    const inner = document.createElement('div');
-    inner.style.cssText = `padding-left:${cs.paddingLeft};padding-right:${cs.paddingRight};`;
-    const grid = document.getElementById('cards-grid');
-    const emp  = document.getElementById('empty-state');
-    if (grid) inner.appendChild(grid.cloneNode(true));
-    if (emp && emp.style.display !== 'none') inner.appendChild(emp.cloneNode(true));
-    snap.appendChild(inner);
-    document.body.appendChild(snap);
-    _sw.snap = snap;
-
-    // ── Capture pill 'from' position BEFORE render ──
-    const tabsEl = document.querySelector('#mylist-view #mylist-toolbar .tabs');
-    const fromBtn = tabsEl && tabsEl.querySelector(`.tab-btn[data-tab="${activeTab}"]`);
-    const fromX = fromBtn ? fromBtn.offsetLeft : 0;
-    const fromY = fromBtn ? fromBtn.offsetTop  : 0;
-    const fromW = fromBtn ? fromBtn.offsetWidth  : 0;
-    const fromH = fromBtn ? fromBtn.offsetHeight : 0;
-
-    // Lock pill updates so render()'s rAF-queued updateSlidingPills can't jump ahead
-    _swPillLock = true;
-
-    // Render incoming tab (updates active classes + card content)
-    activeTab = next;
-    render();
-
-    // Capture pill 'to' position AFTER render updates active classes
-    const toBtn = tabsEl && tabsEl.querySelector(`.tab-btn[data-tab="${next}"]`);
-    const toX = toBtn ? toBtn.offsetLeft : 0;
-    const toW = toBtn ? toBtn.offsetWidth : 0;
-
-    // Freeze pill at 'from', no transition — we drive it manually each frame
-    const pillEl = tabsEl && tabsEl.querySelector('.tab-sliding-pill');
-    if (pillEl) {
-      pillEl.style.transition = 'none';
-      pillEl.style.width      = fromW + 'px';
-      pillEl.style.height     = fromH + 'px';
-      pillEl.style.transform  = `translate3d(${fromX}px,${fromY}px,0)`;
+  const starBtn = target.closest('.stars[data-item-id][data-prefix] .star-btn[data-star]');
+  if (starBtn) {
+    const stars = starBtn.closest('.stars[data-item-id][data-prefix]');
+    const itemId = stars?.dataset?.itemId || '';
+    const prefix = stars?.dataset?.prefix || '';
+    const score = Number(starBtn.dataset.star || 0);
+    if (itemId && prefix && score > 0 && !viewingUser) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      rate(itemId, prefix, score);
     }
-    _sw.pillEl    = pillEl;
-    _sw.pillFromX = fromX;
-    _sw.pillFromY = fromY;
-    _sw.pillToX   = toX;
-    _sw.pillFromW = fromW;
-    _sw.pillToW   = toW;
-
-    // Position incoming content off-screen
-    const inX = dir === 'left' ? _sw.sw : -_sw.sw;
-    const grid2 = document.getElementById('cards-grid');
-    if (grid2) { grid2.style.transition = 'none'; grid2.style.willChange = 'transform'; grid2.style.transform = `translate3d(${inX}px,0,0)`; }
-    const emp2 = document.getElementById('empty-state');
-    if (emp2)  { emp2.style.transition  = 'none'; emp2.style.willChange  = 'transform'; emp2.style.transform  = `translate3d(${inX}px,0,0)`; }
-    _sw.inX = inX;
+    return;
   }
 
-  // Every frame: both panels + pill follow the finger
-  e.preventDefault();
-  const { snap, sw, inX, pillEl, pillFromX, pillFromY, pillToX, pillFromW, pillToW } = _sw;
-  const frac = Math.min(1, Math.max(0, Math.abs(dx) / sw));
+  const button = target.closest('[data-mylist-action]');
+  if (!button || button.disabled || viewingUser) return;
+  const action = button.dataset.mylistAction || '';
+  const itemId = button.dataset.mylistItemId || '';
+  if (!action || !itemId) return;
 
-  if (snap) snap.style.transform = `translate3d(${dx}px,0,0)`;
-  const g  = document.getElementById('cards-grid');
-  const em = document.getElementById('empty-state');
-  if (g)  g.style.transform  = `translate3d(${inX + dx}px,0,0)`;
-  if (em) em.style.transform = `translate3d(${inX + dx}px,0,0)`;
+  event.preventDefault();
+  event.stopImmediatePropagation();
 
-  // Pill slides proportionally between from→to
-  if (pillEl) {
-    pillEl.style.transform = `translate3d(${pillFromX + (pillToX - pillFromX) * frac}px,${pillFromY}px,0)`;
-    pillEl.style.width     = (pillFromW + (pillToW - pillFromW) * frac) + 'px';
+  if (action === 'status') {
+    const status = button.dataset.mylistStatus || button.dataset.status || '';
+    if (status) changeStatus(itemId, status);
+    return;
   }
-}
 
-function _swEnd() {
-  if (!_sw) return;
-  if (!_sw.live) { _sw = null; return; }
+  if (action === 'toggle-ep') {
+    const epId = button.dataset.mylistEpisodeId || '';
+    if (epId) toggleEp(itemId, epId);
+    return;
+  }
 
-  const { dx, t0, sw, dir, origTab, snap, inX, pillEl, pillFromX, pillFromY, pillToX, pillFromW, pillToW } = _sw;
-  _sw = null;
+  if (action === 'mark-all-eps') {
+    markAllEps(itemId, button.dataset.mylistMarkValue === 'true');
+    return;
+  }
 
-  const vel       = Math.abs(dx) / Math.max(1, Date.now() - t0);
-  const threshold = Math.min(sw * 0.25, 80);
-  const commit    = Math.abs(dx) > threshold || vel > 0.4;
-  const ease      = 'transform 0.15s cubic-bezier(0.25,0.46,0.45,0.94)';
-
-  const g  = document.getElementById('cards-grid');
-  const em = document.getElementById('empty-state');
-
-  if (commit) {
-    const outX = dir === 'left' ? -sw : sw;
-    if (snap) { snap.style.transition = ease; snap.style.transform = `translate3d(${outX}px,0,0)`; }
-    if (g)    { g.style.transition    = ease; g.style.transform    = 'translate3d(0,0,0)'; }
-    if (em)   { em.style.transition   = ease; em.style.transform   = 'translate3d(0,0,0)'; }
-    if (pillEl) { pillEl.style.transition = ease; pillEl.style.transform = `translate3d(${pillToX}px,${pillFromY}px,0)`; pillEl.style.width = pillToW + 'px'; }
-    setTimeout(() => {
-      _swPillLock = false;
-      if (snap && snap.parentNode) snap.remove();
-      if (g)      { g.style.transition = '';  g.style.transform = '';  g.style.willChange = ''; }
-      if (em)     { em.style.transition = ''; em.style.transform = ''; em.style.willChange = ''; }
-      if (pillEl) { pillEl.style.transition = ''; }
-      persistUiState();
-      requestAnimationFrame(() => updateSlidingPills());
-    }, 160);
-  } else {
-    if (snap) { snap.style.transition = ease; snap.style.transform = 'translate3d(0,0,0)'; }
-    if (g)    { g.style.transition    = ease; g.style.transform    = `translate3d(${inX}px,0,0)`; }
-    if (em)   { em.style.transition   = ease; em.style.transform   = `translate3d(${inX}px,0,0)`; }
-    if (pillEl) { pillEl.style.transition = ease; pillEl.style.transform = `translate3d(${pillFromX}px,${pillFromY}px,0)`; pillEl.style.width = pillFromW + 'px'; }
-    activeTab = origTab;
-    setTimeout(() => {
-      _swPillLock = false;
-      if (snap && snap.parentNode) snap.remove();
-      render();
-      if (g)      { g.style.transition = '';  g.style.transform = '';  g.style.willChange = ''; }
-      if (em)     { em.style.transition = ''; em.style.transform = ''; em.style.willChange = ''; }
-      if (pillEl) { pillEl.style.transition = ''; }
-      requestAnimationFrame(() => updateSlidingPills());
-    }, 160);
+  if (action === 'mark-season-eps') {
+    const seasonNum = Number(button.dataset.mylistSeasonNum || 0);
+    markSeasonEps(itemId, seasonNum, button.dataset.mylistMarkValue === 'true');
   }
 }
 
-function _swCancel() {
-  if (!_sw || !_sw.live) { _sw = null; return; }
-  const { snap, origTab, pillEl } = _sw;
-  _sw = null;
-  _swPillLock = false;
-  if (snap && snap.parentNode) snap.remove();
-  activeTab = origTab;
-  render();
-  const g  = document.getElementById('cards-grid');
-  const em = document.getElementById('empty-state');
-  if (g)      { g.style.transition = '';  g.style.transform = '';  g.style.willChange = ''; }
-  if (em)     { em.style.transition = ''; em.style.transform = ''; em.style.willChange = ''; }
-  if (pillEl) { pillEl.style.transition = ''; }
-  requestAnimationFrame(() => updateSlidingPills());
-}
+function _swStart() {}
+function _swMove() {}
+function _swEnd() { removeMyListSwipeArtifacts(); }
+function _swCancel() { removeMyListSwipeArtifacts(); }
 // ─────────────────────────────────────────────────────────────────────────────
 
 function positionSlidingPill(container, activeBtn, pillClass) {

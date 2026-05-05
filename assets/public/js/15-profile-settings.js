@@ -2554,7 +2554,7 @@ function toggleTheme(isLight) {
     applyThemeMode('light', false);
     return;
   }
-  applyThemeMode('default', false);
+  applyThemeMode(getDefaultThemeMode(), false);
 })();
 
 function previewProfilePhoto(url) {

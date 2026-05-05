@@ -3903,3 +3903,120 @@ body.light-mode .activity-page.user-filter-active .activity-group-label-this-mon
     min-width: 0;
   }
 }
+
+/* v293: Profile cleanup — flatter full profile, roomier stats, no extra showcase descriptions. */
+.profile-name-input,
+body.light-mode .profile-name-input,
+body.true-dark-mode .profile-name-input {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+}
+
+.profile-social-count,
+.profile-social-count:first-child,
+.profile-social-count:last-child,
+body.light-mode .profile-social-count,
+body.true-dark-mode .profile-social-count {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 9px 4px !important;
+  overflow: visible !important;
+}
+.profile-social-count::before,
+.profile-social-count::after { display: none !important; content: none !important; }
+.profile-social-count:hover {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
+
+.profile-link-row,
+body.light-mode .profile-link-row,
+body.true-dark-mode .profile-link-row {
+  border: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,0.10) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 10px 0 !important;
+}
+body.light-mode .profile-link-row { border-bottom-color: rgba(18,8,46,0.12) !important; }
+.profile-link-icon,
+.profile-external-link,
+.profile-mobile-link-badge,
+.profile-mobile-link-toggle,
+body.light-mode .profile-link-icon,
+body.light-mode .profile-external-link,
+body.light-mode .profile-mobile-link-badge,
+body.light-mode .profile-mobile-link-toggle,
+body.true-dark-mode .profile-link-icon,
+body.true-dark-mode .profile-external-link,
+body.true-dark-mode .profile-mobile-link-badge,
+body.true-dark-mode .profile-mobile-link-toggle {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.profile-mobile-link-badge:hover,
+.profile-mobile-link-badge:focus-visible {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.profile-section-card.profile-favorites-card,
+body.light-mode .profile-section-card.profile-favorites-card,
+body.true-dark-mode .profile-section-card.profile-favorites-card {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.profile-section-card.profile-favorites-card .profile-section-head { padding: 0 2px; }
+.profile-media-sub { display: none !important; }
+.profile-media-head { margin-bottom: 14px !important; }
+
+.profile-stats-grid {
+  gap: 14px !important;
+  margin-top: 24px !important;
+}
+.profile-stat-card {
+  min-height: 134px !important;
+  padding: 18px 15px 15px !important;
+  justify-content: center !important;
+}
+.profile-stat-value { font-size: 28px !important; line-height: 1.05 !important; }
+.profile-stat-label { margin-top: 12px !important; line-height: 1.36 !important; }
+.profile-stat-label-sub { margin-top: 5px !important; line-height: 1.35 !important; }
+.profile-group-stats {
+  gap: 12px !important;
+  margin-bottom: 14px !important;
+}
+.profile-group-stat {
+  padding: 12px 0 !important;
+}
+.profile-group-stat-label {
+  line-height: 1.35 !important;
+  margin-top: 7px !important;
+}
+
+@media (max-width: 700px) {
+  .profile-mobile-links-zone { margin-top: 14px !important; }
+  .profile-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+    margin-top: 22px !important;
+  }
+  .profile-stat-card {
+    min-height: 122px !important;
+    padding: 16px 13px 14px !important;
+  }
+  .profile-stat-value { font-size: 25px !important; }
+  .profile-stat-label { font-size: 9.5px !important; line-height: 1.34 !important; }
+  .profile-stat-label-sub { font-size: 9px !important; }
+  .profile-media-group { padding: 16px 14px !important; }
+}

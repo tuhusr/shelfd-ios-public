@@ -378,8 +378,8 @@ async function searchWatchTogetherUsers(query = '') {
   const results = document.getElementById('watch-together-search-results');
   if (!results) return;
   const q = String(query || '').trim().toLowerCase();
-  if (q.length < 2) {
-    results.innerHTML = '<div class="watch-together-empty">Type at least 2 letters to tag anyone by username.</div>';
+  if (q.length < 1) {
+    results.innerHTML = '<div class="watch-together-empty">Search by username.</div>';
     return;
   }
   results.innerHTML = '<div class="watch-together-empty">Searching...</div>';
@@ -395,6 +395,14 @@ async function searchWatchTogetherUsers(query = '') {
       if (!raw.uid || raw.uid === currentUser?.uid) return;
       usersMap[raw.uid] = raw;
       users.push(raw);
+    });
+    users.sort((a, b) => {
+      const aName = String(a.nameLower || a.customNameLower || a.name || a.customName || '').toLowerCase();
+      const bName = String(b.nameLower || b.customNameLower || b.name || b.customName || '').toLowerCase();
+      const aStarts = aName.startsWith(q) ? 0 : 1;
+      const bStarts = bName.startsWith(q) ? 0 : 1;
+      if (aStarts !== bStarts) return aStarts - bStarts;
+      return aName.localeCompare(bName);
     });
     if (!users.length) {
       results.innerHTML = '<div class="watch-together-empty">No users found.</div>';
@@ -453,7 +461,7 @@ function openWatchTogetherTagModal(event, itemId = '', section = activeSection) 
     </div>
     <div class="watch-together-selected" id="watch-together-selected"></div>
     <input id="watch-together-search-input" class="watch-together-search" type="text" placeholder="Search anyone by username..." oninput="queueWatchTogetherSearch(this.value)">
-    <div class="watch-together-search-results" id="watch-together-search-results"><div class="watch-together-empty">Type at least 2 letters to tag anyone by username.</div></div>
+    <div class="watch-together-search-results" id="watch-together-search-results"><div class="watch-together-empty">Search by username.</div></div>
     <button id="watch-together-save-btn" class="watch-together-save" type="button" disabled onclick="createWatchTogetherRequest()">Send approval request</button>
   </div>`;
   overlay.addEventListener('click', e => { if (e.target === overlay) closeWatchTogetherModal(); });
@@ -864,7 +872,7 @@ async function openWatchTogetherInfoModal(event, itemId = '', section = activeSe
     </div>
     <div class="watch-together-selected" id="watch-together-selected"></div>
     <input id="watch-together-search-input" class="watch-together-search" type="text" placeholder="Search anyone by username..." oninput="queueWatchTogetherSearch(this.value)">
-    <div class="watch-together-search-results" id="watch-together-search-results"><div class="watch-together-empty">Type at least 2 letters to tag anyone by username.</div></div>
+    <div class="watch-together-search-results" id="watch-together-search-results"><div class="watch-together-empty">Search by username.</div></div>
     <button id="watch-together-save-btn" class="watch-together-save" type="button" disabled onclick="createWatchTogetherRequest()">Send approval request</button>
   </div>` : '';
   const memberHtml = members.length

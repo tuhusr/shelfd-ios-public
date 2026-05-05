@@ -1,3 +1,4 @@
+:root { --shelfd-mylist-css-patch: "V301-mylist-render-recovery-no-swipe"; }
   /* Section toggle */
   .section-toggle {
     display: flex; margin-top: 20px; background: rgba(255,255,255,0.035); border-radius: 999px;
@@ -933,4 +934,162 @@ body.light-mode .game-platform-option:active {
   .game-details-inner { margin: 0 12px 10px; }
   .game-details-edit-grid { grid-template-columns: 1fr; }
   .game-card-edit-btn { right: 10px; bottom: 11px; }
+}
+
+/* V296: ShelfLine action borders for My Lists card actions + edge-only status swipe support. */
+#mylist-view .card-action-row .card-footer-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+#mylist-view .card-action-row .comments-btn,
+#mylist-view .card-action-row .ep-toggle-bar.card-footer-btn,
+#mylist-view .game-library-card .comments-btn,
+#mylist-view .game-details-expand-btn {
+  min-height: 32px !important;
+  width: auto !important;
+  max-width: none !important;
+  padding: 0 12px !important;
+  border: 1px solid rgba(255,255,255,0.30) !important;
+  border-radius: 999px !important;
+  background: rgba(5,5,10,0.94) !important;
+  color: #f7f3ff !important;
+  box-shadow: none !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  line-height: 1 !important;
+  letter-spacing: 0.01em !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+#mylist-view .card-action-row .comments-btn:hover,
+#mylist-view .card-action-row .comments-btn:active,
+#mylist-view .card-action-row .ep-toggle-bar.card-footer-btn:hover,
+#mylist-view .card-action-row .ep-toggle-bar.card-footer-btn:active,
+#mylist-view .game-details-expand-btn:hover,
+#mylist-view .game-details-expand-btn:active {
+  background: rgba(12,12,18,0.98) !important;
+  border-color: rgba(255,255,255,0.34) !important;
+  color: #ffffff !important;
+}
+
+#mylist-view .card-action-row .comments-btn-label,
+#mylist-view .card-action-row .ep-toggle-bar.card-footer-btn span:first-child {
+  display: inline-flex !important;
+  align-items: center !important;
+  min-width: 0 !important;
+  white-space: nowrap !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  line-height: 1 !important;
+}
+
+#mylist-view .card-action-row .ep-toggle-bar.card-footer-btn .ep-arrow {
+  margin-left: 2px;
+  flex: 0 0 auto;
+}
+
+body.light-mode #mylist-view .card-action-row .comments-btn,
+body.light-mode #mylist-view .card-action-row .ep-toggle-bar.card-footer-btn,
+body.light-mode #mylist-view .game-library-card .comments-btn,
+body.light-mode #mylist-view .game-details-expand-btn {
+  background: rgba(124,58,237,0.08) !important;
+  border-color: rgba(124,58,237,0.22) !important;
+  color: #4c1d95 !important;
+}
+
+@media (max-width: 700px) {
+  #mylist-view .card-action-row .card-footer-actions {
+    gap: 6px;
+  }
+  #mylist-view .card-action-row .comments-btn,
+  #mylist-view .card-action-row .ep-toggle-bar.card-footer-btn,
+  #mylist-view .game-details-expand-btn {
+    min-height: 30px !important;
+    padding: 0 10px !important;
+    font-size: 10.5px !important;
+  }
+  #mylist-view .card-action-row .comments-btn-label,
+  #mylist-view .card-action-row .ep-toggle-bar.card-footer-btn span:first-child {
+    font-size: 10.5px !important;
+  }
+}
+
+
+/* V297: edge-only My Lists status swipe rails so card taps/buttons are never intercepted. */
+.mylist-edge-swipe-rail {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 24px;
+  z-index: 260;
+  display: none;
+  background: transparent;
+  touch-action: pan-y;
+  pointer-events: auto;
+}
+.mylist-edge-swipe-rail-left { left: 0; }
+.mylist-edge-swipe-rail-right { right: 0; }
+body.main-tab-mylist .mylist-edge-swipe-rail { display: block; }
+body.modal-open .mylist-edge-swipe-rail,
+body.profile-active .mylist-edge-swipe-rail,
+body.main-nav-switching .mylist-edge-swipe-rail,
+body:not(.main-tab-mylist) .mylist-edge-swipe-rail { display: none !important; }
+@media (min-width: 761px) {
+  .mylist-edge-swipe-rail { display: none !important; }
+}
+
+
+/* V298: rails are retired; JS-only edge detection prevents invisible overlays from blocking card controls. */
+.mylist-edge-swipe-rail {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+/* V298: restore reliable star tap animation feedback on mobile/PWA. */
+#mylist-view .stars .star-btn {
+  position: relative;
+  z-index: 1;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+#mylist-view .status-pill,
+#mylist-view .ep-check,
+#mylist-view .ep-toggle-bar,
+#mylist-view .comments-btn {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+
+/* V300: My Lists status swiping fully removed. No invisible overlay/rail may sit above cards. */
+.mylist-edge-swipe-rail,
+#_swipe_out {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+#mylist-view,
+#mylist-view .card,
+#mylist-view .card * {
+  -webkit-tap-highlight-color: transparent;
+}
+#mylist-view .status-pill,
+#mylist-view .ep-check,
+#mylist-view .ep-toggle-bar,
+#mylist-view .comments-btn,
+#mylist-view .star-btn {
+  pointer-events: auto !important;
+  touch-action: manipulation;
 }

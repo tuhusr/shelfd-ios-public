@@ -448,7 +448,7 @@ function getDefaultRatingPreferences() {
 }
 
 function getDefaultThemeMode() {
-  return 'default';
+  return 'true-dark';
 }
 
 function normalizeThemeMode(value) {

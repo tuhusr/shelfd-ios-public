@@ -1,16 +1,17 @@
 /* v51: My Lists Watch Together / Plan Together tagging */
 .watch-together-slot {
-  margin-left: auto;
+  margin-left: 0;
   display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 6px;
   min-width: 0;
+  flex: 0 0 auto;
 }
 .watch-together-stack,
 .watch-together-add {
-  border: 1px solid rgba(167,139,250,0.34);
-  background: rgba(124,58,237,0.14);
+  border: 1px solid rgba(255,255,255,0.22);
+  background: rgba(5,5,10,0.94);
   color: #f7f3ff;
   border-radius: 999px;
   min-height: 32px;
@@ -49,17 +50,22 @@
 .watch-together-add {
   width: 32px;
   height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  aspect-ratio: 1 / 1;
   padding: 0;
+  border-radius: 50%;
+  border-color: rgba(255,255,255,0.30);
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 650;
   line-height: 1;
 }
 .watch-together-stack:active,
 .watch-together-add:active { transform: scale(0.94); }
 .watch-together-stack:hover,
 .watch-together-add:hover {
-  border-color: rgba(216,180,254,0.62);
-  background: rgba(139,92,246,0.22);
+  border-color: rgba(255,255,255,0.34);
+  background: rgba(12,12,18,0.98);
 }
 .watch-together-pending {
   border-radius: 999px;
@@ -76,7 +82,7 @@
   inset: 0;
   z-index: 7000;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
   background: rgba(3, 2, 10, 0.68);
   backdrop-filter: blur(14px);
@@ -88,12 +94,10 @@
   width: min(520px, calc(100vw - 20px));
   max-height: min(82vh, 720px);
   overflow-y: auto;
-  border: 1px solid rgba(167,139,250,0.24);
-  border-radius: 26px 26px 0 0;
-  background:
-    radial-gradient(circle at 18% 0%, rgba(139,92,246,0.22), transparent 36%),
-    linear-gradient(180deg, rgba(18,13,39,0.98), rgba(7,5,17,0.98));
-  box-shadow: 0 -18px 58px rgba(0,0,0,0.52);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 24px;
+  background: #05050a;
+  box-shadow: 0 22px 58px rgba(0,0,0,0.58);
   padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px));
   animation: watchTogetherSheetIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -138,17 +142,19 @@
 .watch-together-mode-toggle {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  padding: 4px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(167,139,250,0.14);
+  gap: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.14);
   margin-bottom: 12px;
 }
 .watch-together-mode-btn {
   min-height: 36px;
-  border-radius: 999px;
+  border-radius: 0;
   border: 0;
+  border-bottom: 2px solid transparent;
   background: transparent;
   color: #9f94bd;
   font-family: 'DM Sans', sans-serif;
@@ -158,9 +164,10 @@
   transition: color 0.18s, background 0.18s, transform 0.18s;
 }
 .watch-together-mode-btn.active {
-  background: linear-gradient(135deg, rgba(124,58,237,0.48), rgba(168,85,247,0.34));
+  background: transparent;
   color: #fff;
-  box-shadow: 0 8px 24px rgba(124,58,237,0.22);
+  border-bottom-color: rgba(255,255,255,0.82);
+  box-shadow: none;
 }
 .watch-together-selected {
   min-height: 42px;
@@ -214,8 +221,8 @@
   margin: 4px 0 10px;
 }
 .watch-together-search:focus {
-  border-color: rgba(196,181,253,0.52);
-  box-shadow: 0 0 0 3px rgba(139,92,246,0.12);
+  border-color: rgba(255,255,255,0.38);
+  box-shadow: none;
 }
 .watch-together-search-results {
   display: flex;
@@ -267,7 +274,7 @@
 .watch-together-save {
   border: 0;
   border-radius: 999px;
-  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  background: #7c3aed;
   color: #fff;
   font-family: 'DM Sans', sans-serif;
   font-weight: 850;
@@ -353,10 +360,8 @@
   letter-spacing: 0.2px;
 }
 .watch-together-request-card {
-  border-color: rgba(167,139,250,0.22);
-  background:
-    radial-gradient(circle at 10% 10%, rgba(139,92,246,0.18), transparent 34%),
-    rgba(12,9,29,0.88);
+  border-color: rgba(255,255,255,0.16);
+  background: #05050a;
 }
 .watch-together-request-copy {
   min-width: 0;
@@ -384,15 +389,28 @@
   .watch-together-slot { gap: 5px; }
   .watch-together-pending { display: none; }
   .watch-together-stack { min-height: 30px; padding-right: 7px; }
-  .watch-together-add { width: 30px; height: 30px; }
+  .watch-together-add { width: 30px; height: 30px; min-width: 30px; min-height: 30px; }
   .watch-together-stack img { width: 24px; height: 24px; }
   .watch-together-modal,
-  .watch-together-info-modal { width: calc(100vw - 12px); }
+  .watch-together-info-modal { width: calc(100vw - 24px); }
   .watch-together-modal-head h3 { font-size: 19px; }
   .watch-together-member-remove { min-height: 28px; padding: 0 9px; font-size: 10px; }
   .watch-together-manage-block { margin-top: 14px; }
   .watch-together-request-card { align-items: flex-start; gap: 10px; }
 }
+
+/* V295: center My Lists watch-together control and prevent Show Episodes wrapping. */
+#mylist-view .card-action-row {
+  justify-content: center;
+}
+#mylist-view .card-action-row .watch-together-slot {
+  margin-left: 0;
+}
+#mylist-view .card-action-row .ep-toggle-bar,
+#mylist-view .card-action-row .ep-toggle-bar span:first-child {
+  white-space: nowrap;
+}
+
 body.light-mode .watch-together-stack,
 body.light-mode .watch-together-add {
   background: rgba(124,58,237,0.08);
@@ -401,7 +419,8 @@ body.light-mode .watch-together-add {
 }
 body.light-mode .watch-together-modal,
 body.light-mode .watch-together-info-modal {
-  background: linear-gradient(180deg, #fff, #f7f4ff);
+  background: #fff;
+  border-color: rgba(21,16,45,0.14);
   color: #160b2d;
 }
 body.light-mode .watch-together-modal-head h3,
