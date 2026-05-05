@@ -1213,6 +1213,38 @@ body.main-tab-mylist .header-import-btn { display: none !important; }
   gap: 12px;
   padding: 5px 0;
 }
+.mylist-settings-row-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+.mylist-settings-row-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: rgba(255,255,255,0.92);
+}
+.mylist-settings-row-icon svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+.mylist-settings-row-icon-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.12);
+  font-size: 10px;
+  font-weight: 700;
+}
 .mylist-settings-row-label {
   font-size: 13px;
   color: #ffffff;

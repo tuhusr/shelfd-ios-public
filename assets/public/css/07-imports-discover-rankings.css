@@ -26,11 +26,36 @@
 .import-shell {
   padding-bottom: 110px;
 }
+body.import-page-active .header,
+body.steam-sync-page-active .header,
+body.import-page-active #mobile-bottom-nav,
+body.steam-sync-page-active #mobile-bottom-nav {
+  display: none !important;
+}
+body.import-page-active,
+body.steam-sync-page-active {
+  background: #000;
+}
+body.import-page-active .import-shell,
+body.steam-sync-page-active .steam-sync-shell {
+  padding-top: max(58px, calc(env(safe-area-inset-top, 0px) + 26px));
+}
+body.import-page-active #import-view > .import-shell {
+  padding-top: max(90px, calc(env(safe-area-inset-top, 0px) + 46px)) !important;
+}
+body.steam-sync-page-active #steam-sync-view > .steam-sync-shell {
+  padding-top: max(90px, calc(env(safe-area-inset-top, 0px) + 46px)) !important;
+}
+body.import-page-active #import-view,
+body.steam-sync-page-active #steam-sync-view {
+  min-height: 100vh;
+  background: #000;
+}
 .import-topbar {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 .import-title {
   color: #ffffff;
@@ -81,17 +106,55 @@
   gap: 8px;
   min-height: 148px;
   padding: 18px;
-  border: 1px solid rgba(167,139,250,0.24);
+  border: 1px solid rgba(248,244,232,0.62);
   border-radius: 20px;
   background: linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.025));
   cursor: pointer;
   overflow: hidden;
   transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
+.import-source-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.import-source-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(255,255,255,0.92);
+  box-shadow: 0 0 0 1px rgba(248,244,232,0.18), 0 10px 24px rgba(0,0,0,0.24);
+}
+.import-source-logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.import-source-card-button {
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  appearance: none;
+}
 .import-source-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(196,181,253,0.56);
+  border-color: rgba(248,244,232,0.86);
   background: linear-gradient(145deg, rgba(124,58,237,0.16), rgba(255,255,255,0.035));
+}
+.import-source-card.is-connected {
+  border-color: rgba(248,244,232,0.72);
+  background: linear-gradient(145deg, rgba(34,211,238,0.12), rgba(255,255,255,0.035));
+}
+.import-source-card.is-connected:hover {
+  border-color: rgba(248,244,232,0.92);
+  background: linear-gradient(145deg, rgba(34,211,238,0.16), rgba(255,255,255,0.045));
 }
 .import-source-card input[type="file"] {
   position: absolute;
@@ -110,6 +173,11 @@
   font-size: 13px;
   line-height: 1.45;
 }
+.import-source-meta {
+  color: rgba(244,240,255,0.66);
+  font-size: 11px;
+  line-height: 1.45;
+}
 .import-source-action {
   margin-top: auto;
   width: fit-content;
@@ -119,6 +187,9 @@
   padding: 7px 12px;
   font-size: 12px;
   font-weight: 900;
+}
+.import-source-card.is-connected .import-source-action {
+  background: linear-gradient(135deg, #06b6d4, #0891b2);
 }
 .import-options-card {
   padding: 14px 16px;
@@ -208,6 +279,224 @@
   white-space: nowrap;
   color: #fbbf24;
 }
+.steam-sync-shell {
+  min-height: 100vh;
+  background: #000;
+}
+.steam-sync-summary-card {
+  border: 1px solid rgba(34,211,238,0.28);
+  background: rgba(5,12,18,0.92);
+  border-radius: 16px;
+  padding: 14px;
+  margin-bottom: 12px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.steam-sync-summary-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.steam-sync-provider-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 54px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(34,211,238,0.42);
+  color: #ecfeff;
+  background: rgba(34,211,238,0.12);
+  font-size: 12px;
+  font-weight: 900;
+}
+.steam-sync-summary-title {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 900;
+}
+.steam-sync-summary-copy {
+  color: rgba(244,240,255,0.72);
+  font-size: 12px;
+  line-height: 1.4;
+  margin-top: 2px;
+}
+.steam-sync-options-card {
+  border-color: transparent;
+  background: rgba(255,255,255,0.035);
+  box-shadow: none;
+}
+.steam-sync-preview-card {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+.steam-sync-preview-row {
+  border-color: rgba(248,244,232,0.62);
+  cursor: pointer;
+}
+.steam-sync-preview-row:hover {
+  border-color: rgba(248,244,232,0.86);
+}
+.steam-sync-preview-row.is-excluded {
+  opacity: 0.46;
+}
+.steam-sync-row-toggle {
+  flex: 0 0 auto;
+  width: 19px;
+  height: 19px;
+  margin: 0;
+  accent-color: #06b6d4;
+}
+.steam-sync-import-btn {
+  background: linear-gradient(135deg, #06b6d4, #0891b2) !important;
+}
+.steam-sync-import-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.steam-import-success-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(28px, env(safe-area-inset-top, 0px)) 18px max(28px, env(safe-area-inset-bottom, 0px));
+  background:
+    radial-gradient(circle at 50% 42%, rgba(6,182,212,0.22), transparent 34%),
+    radial-gradient(circle at 50% 58%, rgba(124,58,237,0.24), transparent 40%),
+    rgba(0,0,0,0.74);
+  opacity: 0;
+  pointer-events: auto;
+  transition: opacity 260ms ease;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.steam-import-success-splash.show {
+  opacity: 1;
+}
+.steam-import-success-splash.closing {
+  opacity: 0;
+}
+.steam-import-success-card {
+  position: relative;
+  width: min(360px, 92vw);
+  border: 1px solid rgba(248,244,232,0.42);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(8,20,26,0.96), rgba(0,0,0,0.96));
+  box-shadow: 0 24px 70px rgba(0,0,0,0.58), 0 0 42px rgba(6,182,212,0.18);
+  padding: 26px 20px 20px;
+  text-align: center;
+  transform: translateY(18px) scale(0.96);
+  transition: transform 360ms cubic-bezier(.2,.9,.2,1);
+  overflow: hidden;
+}
+.steam-import-success-splash.show .steam-import-success-card {
+  transform: translateY(0) scale(1);
+}
+.steam-import-success-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  color: #ecfeff;
+  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  box-shadow: 0 0 0 8px rgba(6,182,212,0.12), 0 18px 40px rgba(6,182,212,0.24);
+  margin-bottom: 16px;
+}
+.steam-import-success-mark svg {
+  width: 34px;
+  height: 34px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 34;
+  stroke-dashoffset: 34;
+  animation: steamSuccessCheck 520ms ease 180ms forwards;
+}
+.steam-import-success-kicker {
+  color: #67e8f9;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 7px;
+}
+.steam-import-success-title {
+  color: #fff;
+  font-family: 'Sora', sans-serif;
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+}
+.steam-import-success-copy {
+  color: rgba(248,244,232,0.86);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.45;
+  margin-top: 10px;
+}
+.steam-import-success-detail {
+  color: rgba(207,198,226,0.82);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+  margin-top: 8px;
+}
+.steam-import-success-btn {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 18px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  color: #ecfeff;
+  font-family: 'Aptos', 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.steam-import-success-burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.steam-import-success-burst span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 42px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #67e8f9, rgba(167,139,250,0));
+  transform-origin: 50% 170px;
+  opacity: 0;
+  animation: steamSuccessBurst 900ms ease 120ms forwards;
+}
+.steam-import-success-burst span:nth-child(1) { transform: rotate(0deg) translateY(-138px); }
+.steam-import-success-burst span:nth-child(2) { transform: rotate(60deg) translateY(-138px); }
+.steam-import-success-burst span:nth-child(3) { transform: rotate(120deg) translateY(-138px); }
+.steam-import-success-burst span:nth-child(4) { transform: rotate(180deg) translateY(-138px); }
+.steam-import-success-burst span:nth-child(5) { transform: rotate(240deg) translateY(-138px); }
+.steam-import-success-burst span:nth-child(6) { transform: rotate(300deg) translateY(-138px); }
+@keyframes steamSuccessCheck {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes steamSuccessBurst {
+  0% { opacity: 0; scale: 0.72; }
+  24% { opacity: 0.86; }
+  100% { opacity: 0; scale: 1.12; }
+}
 body.light-mode .header-import-btn,
 body.light-mode .import-intro-card,
 body.light-mode .import-options-card,
@@ -235,11 +524,29 @@ body.light-mode .import-preview-main span {
   .header-logo-block { align-items: flex-start; }
   .header-import-btn { margin-left: 2px; padding: 6px 11px; font-size: 11px; }
   .import-topbar { align-items: flex-start; }
+  body.import-page-active .import-shell,
+  body.steam-sync-page-active .steam-sync-shell {
+    padding-top: max(76px, calc(env(safe-area-inset-top, 0px) + 34px));
+  }
+  body.import-page-active #import-view > .import-shell {
+    padding-top: max(90px, calc(env(safe-area-inset-top, 0px) + 46px)) !important;
+  }
+  body.steam-sync-page-active #steam-sync-view > .steam-sync-shell {
+    padding-top: max(90px, calc(env(safe-area-inset-top, 0px) + 46px)) !important;
+  }
   .import-title { font-size: 23px; }
   .import-source-grid { grid-template-columns: 1fr; }
   .import-preview-head { flex-direction: column; align-items: stretch; }
   .import-preview-row { align-items: flex-start; flex-direction: column; }
+  .steam-sync-preview-row {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    align-items: flex-start;
+  }
   .import-preview-main strong { white-space: normal; }
+  .steam-sync-summary-card { border-radius: 12px; }
+  .steam-sync-summary-main { align-items: flex-start; }
+  .steam-sync-provider-icon { min-width: 48px; height: 28px; font-size: 11px; }
 }
 
 /* Discover country-origin ranking controls */

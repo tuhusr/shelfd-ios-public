@@ -224,6 +224,10 @@ function renderMyListEditControls() {
 
 function renderMyListSettingsInner() {
   const vis = normalizeListTabVisibility(myListTabDraftVisibility || userProfile?.listTabVisibility);
+  const steamConnection = normalizeSteamConnection(userProfile?.steamConnection || {});
+  const steamIcon = typeof getScreenListSteamIconSvg === 'function'
+    ? getScreenListSteamIconSvg()
+    : '<span class="mylist-settings-row-icon-fallback">S</span>';
   const sections = [
     { key: 'games', label: 'Games' },
     { key: 'anime', label: 'Anime' },
@@ -245,6 +249,13 @@ function renderMyListSettingsInner() {
     <div class="mylist-settings-row">
       <span class="mylist-settings-row-label">Import Lists</span>
       <button type="button" class="mylist-settings-action-btn" onclick="event.stopPropagation();closeMyListSettingsModal();setTimeout(openImportPage,180)">Import</button>
+    </div>
+    <div class="mylist-settings-row">
+      <span class="mylist-settings-row-main">
+        <span class="mylist-settings-row-icon" aria-hidden="true">${steamIcon}</span>
+        <span class="mylist-settings-row-label">Import Steam</span>
+      </span>
+      <button type="button" class="mylist-settings-action-btn" onclick="event.stopPropagation();closeMyListSettingsModal();setTimeout(openSteamImportPage,180)">${steamConnection.steamId ? 'Sync' : 'Connect'}</button>
     </div>`;
 }
 
@@ -642,6 +653,7 @@ function normalizeUserProfile(raw = {}) {
     ratingPreferences: normalizeRatingPreferences(raw.ratingPreferences),
     animeTitleDisplayMode: normalizeAnimeTitleDisplayMode(raw.animeTitleDisplayMode || raw.animeTitleDisplay),
     socialLinks: normalizeSocialLinks(raw.socialLinks),
+    steamConnection: normalizeSteamConnection(raw.steamConnection || raw.steam || {}),
     pinnedFavorites: normalizePinnedFavorites(raw.pinnedFavorites),
     profileVisibility: normalizeProfileVisibility(raw.profileVisibility),
     listTabVisibility: normalizeListTabVisibility(raw.listTabVisibility),
@@ -659,6 +671,20 @@ function normalizeUserProfile(raw = {}) {
     outgoingFollowing: Array.isArray(raw.outgoingFollowing) ? raw.outgoingFollowing.filter(Boolean) : [],
     incomingRequests: Array.isArray(raw.incomingRequests) ? raw.incomingRequests.filter(Boolean) : [],
     outgoingRequests: Array.isArray(raw.outgoingRequests) ? raw.outgoingRequests.filter(Boolean) : []
+  };
+}
+
+function normalizeSteamConnection(raw = {}) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const total = Number(source.lastSyncTotal || source.libraryCount || 0);
+  return {
+    steamId: String(source.steamId || source.id || '').trim(),
+    personaName: String(source.personaName || source.displayName || '').trim(),
+    profileUrl: String(source.profileUrl || source.url || '').trim(),
+    avatar: String(source.avatar || source.avatarFull || '').trim(),
+    connectedAt: String(source.connectedAt || '').trim(),
+    lastSyncedAt: String(source.lastSyncedAt || '').trim(),
+    lastSyncTotal: Number.isFinite(total) && total > 0 ? Math.round(total) : 0
   };
 }
 
@@ -1969,7 +1995,7 @@ function renderProfilePage() {
   }
   if (creatorBadge) {
     if (isCreatorAdmin(profile)) {
-      creatorBadge.innerHTML = '<span><svg class="creator-crown-svg" viewBox="0 0 20 13" width="13" height="8" fill="currentColor" aria-hidden="true"><path d="M2 10 5 3 7 7 10 0 13 7 15 3 18 10Z"/><rect x="2" y="10" width="16" height="2" rx="0.5"/></svg> Admin Account</span><span class="creator-role">(Developer And Creator)</span>';
+      creatorBadge.innerHTML = '<span>👑 Admin Account</span><span class="creator-role">(Developer And Creator)</span>';
       creatorBadge.style.display = 'inline-flex';
     } else if (creativeTeamProfile) {
       creatorBadge.innerHTML = '<span class="creative-team-profile-label">Creative Team</span>';

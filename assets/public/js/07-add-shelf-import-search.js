@@ -996,6 +996,8 @@ function repairDuplicateImportItem(existing = {}, incoming = {}, entry = {}, sec
   fill('mediaCategory', incoming.mediaCategory || (section || 'anime'));
   fill('librarySection', incoming.librarySection || (section || 'anime'));
   fill('source', incoming.source || entry.source || '');
+  fill('steamAppId', incoming.steamAppId || entry.steamAppId || '');
+  fill('steamUrl', incoming.steamUrl || entry.steamUrl || '');
   fill('titleVariants', incoming.titleVariants || null);
   fill('englishTitle', incoming.englishTitle || '');
   fill('romajiTitle', incoming.romajiTitle || '');
@@ -1008,6 +1010,16 @@ function repairDuplicateImportItem(existing = {}, incoming = {}, entry = {}, sec
   if (incomingTotal && !Number(existing.totalEps || existing.totalEpisodes || 0)) {
     existing.totalEps = incomingTotal;
     existing.totalEpisodes = incomingTotal;
+    changed = true;
+  }
+  const existingHours = Number(existing.gameHoursPlayed || existing.gameHours || existing.hoursPlayed || existing.playtimeHours || 0);
+  const incomingHours = Number(incoming.gameHoursPlayed || incoming.gameHours || incoming.hoursPlayed || incoming.playtimeHours || entry.playtimeHours || 0);
+  if (incomingHours > existingHours) {
+    const normalizedHours = String(Math.round(incomingHours * 10) / 10);
+    existing.gameHoursPlayed = normalizedHours;
+    existing.gameHours = normalizedHours;
+    existing.hoursPlayed = normalizedHours;
+    existing.playtimeHours = normalizedHours;
     changed = true;
   }
   if (section === 'anime' || String(incoming.source || entry.source || '').toLowerCase() === 'myanimelist') {

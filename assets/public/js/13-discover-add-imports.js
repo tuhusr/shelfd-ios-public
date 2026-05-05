@@ -432,6 +432,27 @@ async function buildRawgLibraryItem(rawgId, status = 'planned', rating = 0) {
   };
 }
 
+function applySteamFieldsToLibraryItem(item = {}, entry = {}) {
+  const next = { ...(item || {}) };
+  const playtimeHours = Math.round((Number(entry.playtimeHours || 0) || 0) * 10) / 10;
+  const normalizedHours = playtimeHours > 0 ? String(playtimeHours) : '';
+  next.source = 'steam';
+  next.librarySection = 'games';
+  next.mediaCategory = 'games';
+  next.steamAppId = String(entry.steamAppId || next.steamAppId || '').trim();
+  next.steamId = String(entry.steamId || next.steamId || '').trim();
+  next.steamUrl = String(entry.steamUrl || next.steamUrl || '').trim();
+  next.lastPlayedAt = String(entry.lastPlayedAt || next.lastPlayedAt || '').trim();
+  if (normalizedHours) {
+    next.gameHoursPlayed = normalizedHours;
+    next.gameHours = normalizedHours;
+    next.hoursPlayed = normalizedHours;
+    next.playtimeHours = normalizedHours;
+  }
+  if (!String(next.platforms || '').trim()) next.platforms = 'Steam';
+  return next;
+}
+
 async function buildTmdbLibraryItem(type, tmdbId, status = 'planned', rating = 0) {
   const res = await fetchTmdbProxy(`${type}/${tmdbId}`);
   if (!res.ok) throw new Error("TMDB details request failed");
@@ -541,21 +562,108 @@ async function buildTmdbLibraryItems(type, tmdbId, status = 'planned', rating = 
 let importReturnTab = 'mylist';
 let pendingImportSource = '';
 let pendingImportRows = [];
+let steamImportExcludedKeys = new Set();
 let importBusy = false;
+const STEAM_IMPORT_QUERY_FLAG = 'steam_import';
+const STEAM_AUTH_RESULT_PARAM = 'steam_auth';
+const STEAM_AUTH_STEAM_ID_PARAM = 'steam_id';
+const STEAM_AUTH_MESSAGE_PARAM = 'steam_message';
+const STEAM_PENDING_AUTH_STORAGE_KEY = 'shelfd-steam-auth-pending-v1';
+
+function getSteamImportConnection() {
+  if (typeof normalizeSteamConnection === 'function') {
+    return normalizeSteamConnection(userProfile?.steamConnection || {});
+  }
+  const raw = userProfile?.steamConnection || {};
+  return {
+    steamId: String(raw.steamId || '').trim(),
+    personaName: String(raw.personaName || '').trim(),
+    profileUrl: String(raw.profileUrl || '').trim(),
+    avatar: String(raw.avatar || '').trim(),
+    connectedAt: String(raw.connectedAt || '').trim(),
+    lastSyncedAt: String(raw.lastSyncedAt || '').trim(),
+    lastSyncTotal: Number(raw.lastSyncTotal || 0) || 0
+  };
+}
+
+function formatSteamRelativeSyncTime(value = '') {
+  const ms = Date.parse(value || '');
+  if (!Number.isFinite(ms)) return '';
+  const diffMinutes = Math.max(0, Math.round((Date.now() - ms) / 60000));
+  if (diffMinutes < 1) return 'just now';
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  const diffHours = Math.round(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.round(diffHours / 24);
+  return `${diffDays}d ago`;
+}
+
+function renderSteamImportCardState() {
+  const card = document.getElementById('steam-import-card');
+  if (!card) return;
+  const copyEl = document.getElementById('steam-import-copy');
+  const metaEl = document.getElementById('steam-import-meta');
+  const actionEl = document.getElementById('steam-import-action');
+  const connection = getSteamImportConnection();
+  const busy = importBusy && pendingImportSource === 'steam';
+  card.classList.toggle('is-connected', !!connection.steamId);
+  card.classList.toggle('is-busy', !!busy);
+  if (copyEl) {
+    copyEl.textContent = connection.steamId
+      ? 'Pull your owned Steam games and playtime into Shelfd with a confirm step before import.'
+      : 'Connect your Steam account and pull your owned games with playtime.';
+  }
+  if (metaEl) {
+    if (connection.steamId) {
+      const lastSync = connection.lastSyncedAt ? formatSteamRelativeSyncTime(connection.lastSyncedAt) : '';
+      const pieces = [
+        connection.personaName ? `Connected as ${connection.personaName}` : 'Steam connected',
+        connection.lastSyncTotal ? `${connection.lastSyncTotal} games last synced` : '',
+        lastSync ? `Last sync ${lastSync}` : ''
+      ].filter(Boolean);
+      metaEl.textContent = pieces.join(' · ');
+    } else {
+      metaEl.textContent = 'Uses proper Sign in through Steam, then syncs on demand.';
+    }
+  }
+  if (actionEl) {
+    actionEl.textContent = busy ? 'Syncing...' : (connection.steamId ? 'Sync library' : 'Connect Steam');
+  }
+}
+
+function openSteamImportPage() {
+  openImportPage();
+  requestAnimationFrame(() => {
+    const card = document.getElementById('steam-import-card');
+    if (card) card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    renderSteamImportCardState();
+  });
+}
 
 function openImportPage() {
   importReturnTab = getActiveMainTab ? getActiveMainTab() : 'mylist';
+  document.body.classList.add('import-page-active');
+  document.body.classList.remove('steam-sync-page-active');
   syncMainNavButtons('');
   setBottomNavVisibility(false);
   setMainNavVisibility('import');
   window.scrollTo({ top: 0, behavior: 'auto' });
   persistUiState();
+  renderSteamImportCardState();
 }
 
 function closeImportPage() {
   const next = importReturnTab || 'mylist';
+  document.body.classList.remove('import-page-active', 'steam-sync-page-active');
   setBottomNavVisibility(true);
-  switchMainNav(next);
+  syncMainNavButtons(next);
+  setMainNavVisibility(next);
+  if (next === 'discover' && typeof loadActiveDiscoveryHub === 'function') loadActiveDiscoveryHub();
+  if (next === 'community' && typeof openFriendsActivityDefault === 'function') openFriendsActivityDefault();
+  persistUiState();
+  pendingImportSource = '';
+  renderSteamImportCardState();
+  window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
 function setImportStatus(message = '', kind = '') {
@@ -568,6 +676,131 @@ function setImportStatus(message = '', kind = '') {
 function clearImportPreview() {
   const el = document.getElementById('import-preview');
   if (el) el.innerHTML = '';
+}
+
+function setSteamSyncStatus(message = '', kind = '') {
+  const el = document.getElementById('steam-sync-status');
+  if (!el) return;
+  el.className = ['import-status', kind ? `import-status-${kind}` : ''].filter(Boolean).join(' ');
+  el.textContent = message;
+}
+
+function clearSteamSyncPreview() {
+  const el = document.getElementById('steam-sync-preview');
+  if (el) el.innerHTML = '';
+  steamImportExcludedKeys = new Set();
+}
+
+function openSteamSyncPage() {
+  document.body.classList.add('steam-sync-page-active');
+  document.body.classList.remove('import-page-active');
+  syncMainNavButtons('');
+  setBottomNavVisibility(false);
+  setMainNavVisibility('steam-sync');
+  window.scrollTo({ top: 0, behavior: 'auto' });
+  persistUiState();
+}
+
+function closeSteamSyncPage() {
+  document.body.classList.add('import-page-active');
+  document.body.classList.remove('steam-sync-page-active');
+  setBottomNavVisibility(false);
+  setMainNavVisibility('import');
+  renderSteamImportCardState();
+  window.scrollTo({ top: 0, behavior: 'auto' });
+}
+
+function renderSteamSyncSummary(count = 0) {
+  const connection = getSteamImportConnection();
+  const titleEl = document.getElementById('steam-sync-summary-title');
+  const copyEl = document.getElementById('steam-sync-summary-copy');
+  if (titleEl) {
+    titleEl.textContent = count
+      ? `${count.toLocaleString('en-US')} Steam game${count === 1 ? '' : 's'} ready`
+      : (connection.personaName ? `Connected as ${connection.personaName}` : 'Steam connected');
+  }
+  if (copyEl) {
+    const played = pendingImportRows.filter(row => Number(row.playtimeMinutes || 0) > 0).length;
+    copyEl.textContent = count
+      ? `${played.toLocaleString('en-US')} with playtime. Review below, then import to Shelfd.`
+      : 'Your library preview will appear here after Steam responds.';
+  }
+}
+
+function getSteamImportRowKey(row = {}, index = 0) {
+  return String(row.steamAppId || `steam-row-${index}`).trim();
+}
+
+function getSelectedSteamImportRows() {
+  return pendingImportRows.filter((row, index) => !steamImportExcludedKeys.has(getSteamImportRowKey(row, index)));
+}
+
+function updateSteamSyncSelectionUi() {
+  const selectedCount = getSelectedSteamImportRows().length;
+  const totalCount = pendingImportRows.length;
+  const countEl = document.getElementById('steam-sync-selection-count');
+  const importBtn = document.getElementById('steam-sync-import-btn');
+  if (countEl) countEl.textContent = `${selectedCount.toLocaleString('en-US')} of ${totalCount.toLocaleString('en-US')} selected`;
+  if (importBtn) {
+    importBtn.disabled = selectedCount <= 0 || importBusy;
+    importBtn.textContent = selectedCount > 0 ? `Import ${selectedCount.toLocaleString('en-US')} to Shelfd` : 'Select games to import';
+  }
+}
+
+function toggleSteamImportRow(key = '', checked = true) {
+  const cleanKey = String(key || '').trim();
+  if (!cleanKey) return;
+  if (checked) steamImportExcludedKeys.delete(cleanKey);
+  else steamImportExcludedKeys.add(cleanKey);
+  const rowEl = Array.from(document.querySelectorAll('[data-steam-import-key]'))
+    .find(el => el.dataset.steamImportKey === cleanKey);
+  if (rowEl) rowEl.classList.toggle('is-excluded', !checked);
+  updateSteamSyncSelectionUi();
+}
+
+function closeSteamImportSuccessSplash() {
+  const splash = document.getElementById('steam-import-success-splash');
+  if (!splash) return;
+  splash.classList.add('closing');
+  setTimeout(() => splash.remove(), 260);
+}
+
+function showSteamImportSuccessSplash({ added = 0, repaired = 0, skipped = 0, failed = 0, total = 0 } = {}) {
+  const previous = document.getElementById('steam-import-success-splash');
+  if (previous) previous.remove();
+  const completed = Math.max(0, Number(added || 0) + Number(repaired || 0) + Number(skipped || 0));
+  const importedCopy = completed
+    ? `${completed.toLocaleString('en-US')} of ${Math.max(total, completed).toLocaleString('en-US')} selected games finished syncing.`
+    : 'Your Steam library sync finished.';
+  const detailBits = [
+    added ? `${added.toLocaleString('en-US')} added` : '',
+    repaired ? `${repaired.toLocaleString('en-US')} updated` : '',
+    skipped ? `${skipped.toLocaleString('en-US')} already in Shelfd` : '',
+    failed ? `${failed.toLocaleString('en-US')} unmatched` : ''
+  ].filter(Boolean);
+  const splash = document.createElement('div');
+  splash.id = 'steam-import-success-splash';
+  splash.className = 'steam-import-success-splash';
+  splash.setAttribute('role', 'status');
+  splash.setAttribute('aria-live', 'polite');
+  splash.innerHTML = `
+    <div class="steam-import-success-burst" aria-hidden="true">
+      <span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="steam-import-success-card">
+      <div class="steam-import-success-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false"><path d="M20 6 9 17l-5-5"></path></svg>
+      </div>
+      <div class="steam-import-success-kicker">Steam sync complete</div>
+      <div class="steam-import-success-title">Your library is synced to Shelfd</div>
+      <div class="steam-import-success-copy">${escHtml(importedCopy)}</div>
+      <div class="steam-import-success-detail">${escHtml(detailBits.join(' · ') || 'Ready in My Lists')}</div>
+      <button class="steam-import-success-btn" type="button" onclick="closeSteamImportSuccessSplash()">Continue</button>
+    </div>
+  `;
+  document.body.appendChild(splash);
+  requestAnimationFrame(() => splash.classList.add('show'));
+  setTimeout(closeSteamImportSuccessSplash, 5200);
 }
 
 function normalizeImportText(value = '') {
@@ -657,7 +890,7 @@ function normalizeImportStatus(value = '', source = '') {
 }
 
 function getImportSourceLabel(source = '') {
-  return ({ letterboxd: 'Letterboxd', imdb: 'IMDb', myanimelist: 'MyAnimeList', backloggd: 'Backloggd' })[source] || 'Import';
+  return ({ letterboxd: 'Letterboxd', imdb: 'IMDb', myanimelist: 'MyAnimeList', backloggd: 'Backloggd', steam: 'Steam' })[source] || 'Import';
 }
 
 async function readImportTextFiles(source, file) {
@@ -805,6 +1038,7 @@ function normalizeImportRows(source, files = []) {
   if (source === 'imdb') return normalizeImdbImportRows(files);
   if (source === 'myanimelist') return normalizeMalImportRows(files);
   if (source === 'backloggd') return normalizeBackloggdImportRows(files);
+  if (source === 'steam') return Array.isArray(files) ? files : [];
   return [];
 }
 
@@ -832,11 +1066,46 @@ function renderImportPreview() {
           <div class="import-preview-title">Ready to import ${pendingImportRows.length} title${pendingImportRows.length === 1 ? '' : 's'}</div>
           <div class="import-preview-sub">${escHtml(getImportSourceLabel(pendingImportSource))} · Previewing first ${Math.min(60, pendingImportRows.length)}${hiddenCount ? ` · ${hiddenCount} more hidden` : ''}</div>
         </div>
-        <button class="btn-primary" onclick="confirmImportLibrary()">Import to ScreenList</button>
+        <button class="btn-primary" onclick="confirmImportLibrary()">Import to Shelfd</button>
       </div>
       <div class="import-preview-list">${rows}</div>
     </div>
   `;
+}
+
+function renderSteamSyncPreview() {
+  const el = document.getElementById('steam-sync-preview');
+  if (!el) return;
+  if (!pendingImportRows.length) {
+    el.innerHTML = '';
+    renderSteamSyncSummary(0);
+    return;
+  }
+  renderSteamSyncSummary(pendingImportRows.length);
+  const rows = pendingImportRows.slice(0, 80).map((row, index) => `
+    <label class="import-preview-row steam-sync-preview-row" data-steam-import-key="${escAttr(getSteamImportRowKey(row, index))}">
+      <input class="steam-sync-row-toggle" type="checkbox" checked onchange="toggleSteamImportRow('${escAttr(getSteamImportRowKey(row, index))}', this.checked)">
+      <div class="import-preview-main">
+        <strong>${index + 1}. ${escHtml(row.title)}</strong>
+        <span>${escHtml([row.status, row.playtimeHours ? `${row.playtimeHours}h played` : 'No playtime yet'].filter(Boolean).join(' · '))}</span>
+      </div>
+      <div class="import-preview-score">${row.playtimeHours ? escHtml(`${row.playtimeHours}h`) : 'Backlog'}</div>
+    </label>
+  `).join('');
+  const hiddenCount = Math.max(0, pendingImportRows.length - 80);
+  el.innerHTML = `
+    <div class="import-preview-card steam-sync-preview-card">
+      <div class="import-preview-head">
+        <div>
+          <div class="import-preview-title">Review Steam Library</div>
+          <div class="import-preview-sub"><span id="steam-sync-selection-count">${pendingImportRows.length.toLocaleString('en-US')} of ${pendingImportRows.length.toLocaleString('en-US')} selected</span> · Previewing first ${Math.min(80, pendingImportRows.length)}${hiddenCount ? ` · ${hiddenCount} more hidden` : ''}</div>
+        </div>
+        <button id="steam-sync-import-btn" class="btn-primary steam-sync-import-btn" onclick="confirmImportLibrary()">Import ${pendingImportRows.length.toLocaleString('en-US')} to Shelfd</button>
+      </div>
+      <div class="import-preview-list">${rows}</div>
+    </div>
+  `;
+  updateSteamSyncSelectionUi();
 }
 
 async function handleImportFile(source, file) {
@@ -858,6 +1127,233 @@ async function handleImportFile(source, file) {
     console.error('Import parse failed:', error);
     setImportStatus(error?.message || 'Could not read this import file.', 'error');
   }
+}
+
+function cleanupSteamImportUrlParams() {
+  const url = new URL(window.location.href);
+  let changed = false;
+  [STEAM_IMPORT_QUERY_FLAG, STEAM_AUTH_RESULT_PARAM, STEAM_AUTH_STEAM_ID_PARAM, STEAM_AUTH_MESSAGE_PARAM].forEach(key => {
+    if (url.searchParams.has(key)) {
+      url.searchParams.delete(key);
+      changed = true;
+    }
+  });
+  if (changed) window.history.replaceState({}, document.title, url.pathname + (url.search ? url.search : '') + url.hash);
+}
+
+function storePendingSteamAuth(payload = {}) {
+  try {
+    sessionStorage.setItem(STEAM_PENDING_AUTH_STORAGE_KEY, JSON.stringify(payload));
+  } catch (error) {}
+}
+
+function readPendingSteamAuth() {
+  try {
+    return JSON.parse(sessionStorage.getItem(STEAM_PENDING_AUTH_STORAGE_KEY) || 'null');
+  } catch (error) {
+    return null;
+  }
+}
+
+function clearPendingSteamAuth() {
+  try { sessionStorage.removeItem(STEAM_PENDING_AUTH_STORAGE_KEY); } catch (error) {}
+}
+
+async function fetchSteamProxyJson(path, params = {}) {
+  const url = new URL(path, window.location.origin);
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') url.searchParams.set(key, String(value));
+  });
+  const res = await fetch(url.toString(), { credentials: 'same-origin' });
+  let json = {};
+  try { json = await res.json(); } catch (error) {}
+  if (!res.ok || json?.ok === false) {
+    throw new Error(json?.error || `Steam request failed with status ${res.status}.`);
+  }
+  return json;
+}
+
+async function saveSteamConnectionPatch(connection = {}) {
+  const previous = getSteamImportConnection();
+  const next = {
+    ...previous,
+    ...connection,
+    steamId: String(connection.steamId || previous.steamId || '').trim(),
+    personaName: String(connection.personaName || previous.personaName || '').trim(),
+    profileUrl: String(connection.profileUrl || previous.profileUrl || '').trim(),
+    avatar: String(connection.avatar || previous.avatar || '').trim(),
+    connectedAt: String(connection.connectedAt || previous.connectedAt || new Date().toISOString()).trim(),
+    lastSyncedAt: String(connection.lastSyncedAt || previous.lastSyncedAt || '').trim(),
+    lastSyncTotal: Number(connection.lastSyncTotal || previous.lastSyncTotal || 0) || 0
+  };
+  if (typeof saveProfileSettingsPatch === 'function') {
+    await saveProfileSettingsPatch({ steamConnection: next });
+  } else {
+    if (!userProfile) userProfile = {};
+    userProfile.steamConnection = next;
+  }
+  renderSteamImportCardState();
+  return next;
+}
+
+function startSteamConnect() {
+  const target = new URL('/api/steam/connect', window.location.origin).toString();
+  setImportStatus('Opening Steam sign-in...', 'busy');
+  window.location.href = target;
+}
+
+async function handleSteamImportAction(event) {
+  if (event?.preventDefault) event.preventDefault();
+  if (event?.stopPropagation) event.stopPropagation();
+  const connection = getSteamImportConnection();
+  if (!connection.steamId) {
+    startSteamConnect();
+    return;
+  }
+  openSteamSyncPage();
+  clearSteamSyncPreview();
+  renderSteamSyncSummary(0);
+  setSteamSyncStatus('Syncing your Steam library...', 'busy');
+  await syncSteamLibraryPreview();
+}
+
+function normalizeSteamImportStatusFromPlaytime(playtimeMinutes = 0) {
+  return Number(playtimeMinutes || 0) > 0 ? 'watching' : 'planned';
+}
+
+function buildSteamImportRows(games = [], steamId = '') {
+  return (Array.isArray(games) ? games : []).map(game => {
+    const playtimeMinutes = Math.max(0, Number(game.playtimeMinutes || game.playtime_forever || 0));
+    const playtimeHours = Math.round((playtimeMinutes / 60) * 10) / 10;
+    return {
+      source: 'steam',
+      title: String(game.name || '').trim(),
+      year: '',
+      status: normalizeSteamImportStatusFromPlaytime(playtimeMinutes),
+      rating: 0,
+      typeHint: 'game',
+      steamId: String(steamId || '').trim(),
+      steamAppId: String(game.appId || game.appid || '').trim(),
+      steamUrl: String(game.storeUrl || '').trim(),
+      playtimeMinutes,
+      playtimeHours,
+      lastPlayedAt: String(game.lastPlayedAt || '').trim(),
+      raw: game
+    };
+  }).filter(row => row.title);
+}
+
+async function syncSteamLibraryPreview(options = {}) {
+  const connection = getSteamImportConnection();
+  if (!connection.steamId) {
+    openSteamImportPage();
+    setImportStatus('Connect Steam before syncing your library.', 'error');
+    return;
+  }
+  if (importBusy) {
+    openSteamSyncPage();
+    setSteamSyncStatus('Steam sync is already running...', 'busy');
+    return;
+  }
+  pendingImportSource = 'steam';
+  pendingImportRows = [];
+  clearImportPreview();
+  clearSteamSyncPreview();
+  openSteamSyncPage();
+  importBusy = true;
+  renderSteamImportCardState();
+  setImportStatus('Syncing your Steam library...', 'busy');
+  setSteamSyncStatus('Syncing your Steam library...', 'busy');
+  renderSteamSyncSummary(0);
+  try {
+    const payload = await fetchSteamProxyJson('/api/steam/library', { steamId: connection.steamId });
+    const rows = buildSteamImportRows(payload.games || [], connection.steamId);
+    if (!rows.length) {
+      setImportStatus('No Steam games were returned. Check that the account library is visible on Steam.', 'error');
+      setSteamSyncStatus('No Steam games were returned. Check that the account library is visible on Steam.', 'error');
+      return;
+    }
+    pendingImportRows = rows;
+    steamImportExcludedKeys = new Set();
+    await saveSteamConnectionPatch({
+      steamId: connection.steamId,
+      personaName: payload.player?.personaName || connection.personaName,
+      profileUrl: payload.player?.profileUrl || connection.profileUrl,
+      avatar: payload.player?.avatar || connection.avatar,
+      lastSyncedAt: new Date().toISOString(),
+      lastSyncTotal: rows.length
+    });
+    setImportStatus(`Found ${rows.length} Steam game${rows.length === 1 ? '' : 's'}. Review, then import.`, 'ready');
+    setSteamSyncStatus(`Found ${rows.length} Steam game${rows.length === 1 ? '' : 's'}. Review, then import to Shelfd.`, 'ready');
+    renderSteamSyncPreview();
+  } catch (error) {
+    console.error('Steam sync failed:', error);
+    setImportStatus(error?.message || 'Steam sync failed.', 'error');
+    setSteamSyncStatus(error?.message || 'Steam sync failed.', 'error');
+  } finally {
+    importBusy = false;
+    renderSteamImportCardState();
+  }
+}
+
+async function processPendingSteamAuthResult(retries = 10) {
+  const pending = readPendingSteamAuth();
+  if (!pending) return;
+  if (!pending.ok || !pending.steamId) {
+    openSteamImportPage();
+    setImportStatus(pending.message || 'Steam connect failed.', 'error');
+    clearPendingSteamAuth();
+    return;
+  }
+  if (!currentUser && retries > 1) {
+    setTimeout(() => processPendingSteamAuthResult(retries - 1), 500);
+    return;
+  }
+  if (retries <= 0) {
+    openSteamImportPage();
+    setImportStatus('Steam connected, but the profile session is still loading. Reopen Import Steam in a moment.', 'error');
+    return;
+  }
+  openSteamImportPage();
+  setImportStatus('Steam connected. Finalizing account link...', 'busy');
+  try {
+    const profile = await fetchSteamProxyJson('/api/steam/profile', { steamId: pending.steamId });
+    await saveSteamConnectionPatch({
+      steamId: pending.steamId,
+      personaName: profile.player?.personaName || '',
+      profileUrl: profile.player?.profileUrl || '',
+      avatar: profile.player?.avatar || '',
+      connectedAt: getSteamImportConnection().connectedAt || new Date().toISOString()
+    });
+    clearPendingSteamAuth();
+    setImportStatus(`Connected Steam as ${profile.player?.personaName || pending.steamId}. Pulling your library now...`, 'busy');
+    await syncSteamLibraryPreview({ fromAuth: true });
+  } catch (error) {
+    if (!currentUser && retries > 1) {
+      setTimeout(() => processPendingSteamAuthResult(retries - 1), 500);
+      return;
+    }
+    clearPendingSteamAuth();
+    setImportStatus(error?.message || 'Steam connect finished, but profile sync failed.', 'error');
+  }
+}
+
+function bootstrapSteamImportAuthFlow() {
+  const url = new URL(window.location.href);
+  const authResult = normalizeImportText(url.searchParams.get(STEAM_AUTH_RESULT_PARAM));
+  const steamId = normalizeImportText(url.searchParams.get(STEAM_AUTH_STEAM_ID_PARAM));
+  const message = normalizeImportText(url.searchParams.get(STEAM_AUTH_MESSAGE_PARAM));
+  const wantsImportView = url.searchParams.get(STEAM_IMPORT_QUERY_FLAG) === '1';
+  if (authResult) {
+    storePendingSteamAuth({
+      ok: authResult === 'success' && !!steamId,
+      steamId,
+      message
+    });
+    cleanupSteamImportUrlParams();
+  }
+  if (authResult || wantsImportView) openSteamImportPage();
+  processPendingSteamAuthResult();
 }
 
 function getImportTargetSection(entry = {}, item = null) {
@@ -977,6 +1473,43 @@ async function buildRawgImportItems(entry = {}) {
     return [await buildRawgLibraryItem(hit.id, entry.status, entry.rating)];
   } catch (e) {
     console.warn('RAWG import match failed:', e);
+    return [];
+  }
+}
+
+async function buildSteamImportItems(entry = {}) {
+  try {
+    let res = await fetchRawgProxy('games', { search: entry.title, page_size: 1 });
+    let json = res.ok ? await res.json() : {};
+    let hit = (json.results || [])[0];
+    if (!hit) {
+      const normalized = await tryAiNormalizeImportEntry(entry);
+      if (normalized?.title) {
+        res = await fetchRawgProxy('games', { search: normalized.title, page_size: 1 });
+        json = res.ok ? await res.json() : {};
+        hit = (json.results || [])[0];
+      }
+    }
+    if (!hit?.id) {
+      return [applySteamFieldsToLibraryItem({
+        id: Date.now().toString() + '-steam-' + (entry.steamAppId || Math.random().toString(36).slice(2, 7)),
+        title: entry.title,
+        cover: '',
+        genre: 'Game',
+        year: entry.year || '',
+        status: entry.status,
+        rating: entry.rating,
+        dateAdded: new Date().toISOString(),
+        source: 'steam',
+        librarySection: 'games',
+        mediaCategory: 'games',
+        episodes: []
+      }, entry)];
+    }
+    const item = await buildRawgLibraryItem(hit.id, entry.status, entry.rating);
+    return [applySteamFieldsToLibraryItem(item, entry)];
+  } catch (e) {
+    console.warn('Steam import match failed:', e);
     return [];
   }
 }
@@ -1217,13 +1750,22 @@ async function buildMalImportItems(entry = {}) {
 async function buildImportItems(entry = {}) {
   if (entry.source === 'myanimelist') return buildMalImportItems(entry);
   if (entry.source === 'backloggd') return buildRawgImportItems(entry);
+  if (entry.source === 'steam') return buildSteamImportItems(entry);
   return buildTmdbImportItems(entry);
 }
 
 async function confirmImportLibrary() {
   if (!pendingImportRows.length || importBusy) return;
+  const rowsToImport = pendingImportSource === 'steam' ? getSelectedSteamImportRows() : pendingImportRows.slice();
+  if (!rowsToImport.length) {
+    if (pendingImportSource === 'steam') setSteamSyncStatus('Select at least one Steam game to import.', 'error');
+    else setImportStatus('Select at least one title to import.', 'error');
+    return;
+  }
   importBusy = true;
-  const skipDuplicates = document.getElementById('import-skip-duplicates')?.checked !== false;
+  const skipDuplicates = pendingImportSource === 'steam'
+    ? document.getElementById('steam-sync-skip-duplicates')?.checked !== false
+    : document.getElementById('import-skip-duplicates')?.checked !== false;
   let added = 0;
   let skipped = 0;
   let failed = 0;
@@ -1234,9 +1776,10 @@ async function confirmImportLibrary() {
   let firstImportedSection = '';
   try {
     const working = compactImportedAnimeForStorage(data);
-    for (let i = 0; i < pendingImportRows.length; i++) {
-      const entry = pendingImportRows[i];
-      setImportStatus(`Importing ${i + 1}/${pendingImportRows.length}: ${entry.title}`, 'busy');
+    for (let i = 0; i < rowsToImport.length; i++) {
+      const entry = rowsToImport[i];
+      setImportStatus(`Importing ${i + 1}/${rowsToImport.length}: ${entry.title}`, 'busy');
+      if (source === 'steam') setSteamSyncStatus(`Importing ${i + 1}/${rowsToImport.length}: ${entry.title}`, 'busy');
       try {
         const items = await buildImportItems(entry);
         if (!items.length) {
@@ -1292,9 +1835,22 @@ async function confirmImportLibrary() {
     playLibraryAddPopSound();
     const sectionLabel = getSectionLabel(activeSection);
     setImportStatus(`Import complete: ${added} added, ${repaired} repaired, ${skipped} skipped, ${failed} unmatched. Showing ${sectionLabel} · ${activeTab}.`, added || repaired || skipped ? 'ready' : 'error');
+    if (source === 'steam') {
+      setSteamSyncStatus(`Import complete: ${added} added, ${repaired} updated, ${skipped} skipped, ${failed} unmatched.`, added || repaired || skipped ? 'ready' : 'error');
+      showSteamImportSuccessSplash({ added, repaired, skipped, failed, total: rowsToImport.length });
+    }
     pendingImportRows = [];
+    steamImportExcludedKeys = new Set();
     clearImportPreview();
+    clearSteamSyncPreview();
   } finally {
     importBusy = false;
+    renderSteamImportCardState();
   }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootstrapSteamImportAuthFlow, { once: true });
+} else {
+  setTimeout(bootstrapSteamImportAuthFlow, 0);
 }

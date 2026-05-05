@@ -174,7 +174,8 @@ function setMainNavVisibility(tab) {
   const gamesDiscoverView = document.getElementById('games-discover-view');
   const profilePage = document.getElementById('profile-page');
   const importView = document.getElementById('import-view');
-  resetPanelStyles([myListView, myListHeader, communityView, discoverView, animeDiscoverView, gamesDiscoverView, profilePage, importView]);
+  const steamSyncView = document.getElementById('steam-sync-view');
+  resetPanelStyles([myListView, myListHeader, communityView, discoverView, animeDiscoverView, gamesDiscoverView, profilePage, importView, steamSyncView]);
   if (myListView) myListView.style.display = normalizedTab === 'mylist' ? 'block' : 'none';
   if (myListHeader) myListHeader.style.display = normalizedTab === 'mylist' ? 'block' : 'none';
   if (communityView) communityView.style.display = normalizedTab === 'community' ? 'block' : 'none';
@@ -184,6 +185,7 @@ function setMainNavVisibility(tab) {
   syncDiscoverMediaTabSections();
   if (profilePage) profilePage.style.display = normalizedTab === 'profile' ? 'block' : 'none';
   if (importView) importView.style.display = normalizedTab === 'import' ? 'block' : 'none';
+  if (steamSyncView) steamSyncView.style.display = normalizedTab === 'steam-sync' ? 'block' : 'none';
   syncDiscoveryHubButtons();
 }
 

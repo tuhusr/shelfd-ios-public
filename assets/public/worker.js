@@ -1,6 +1,8 @@
 const TMDB_ORIGIN = "https://api.themoviedb.org/3/";
 const RAWG_ORIGIN = "https://api.rawg.io/api/";
 const TRAKT_ORIGIN = "https://api.trakt.tv";
+const STEAM_API_ORIGIN = "https://api.steampowered.com";
+const STEAM_OPENID_ORIGIN = "https://steamcommunity.com";
 const OMDB_ORIGIN = "https://www.omdbapi.com/";
 const TAVILY_ORIGIN = "https://api.tavily.com/";
 const SCREENLIST_AI_MODEL = "@cf/meta/llama-3.1-8b-instruct";
@@ -10,6 +12,7 @@ const SCREENLIST_RANK_CACHE_TTL_SECONDS = 60 * 60 * 24;
 const SCREENLIST_IMDB_RATING_CACHE_TTL_SECONDS = 60 * 60 * 24 * 7;
 const SCREENLIST_TAVILY_RATING_CACHE_TTL_SECONDS = 60 * 60 * 24 * 30;
 const TRAKT_ENV_NAMES = ["TRAKT_CLIENT_ID", "TRAKT_API_KEY", "TRAKT_KEY", "TRAKT_CLIENT_KEY"];
+const STEAM_ENV_NAMES = ["STEAM_API_KEY", "STEAM_KEY", "STEAM_WEB_API_KEY"];
 const OMDB_ENV_NAMES = ["OMDB_API_KEY", "OMDB_KEY", "IMDB_RATINGS_KEY", "IMDB_KEY"];
 const TAVILY_ENV_NAMES = ["TAVILY_API_KEY", "TAVILY_KEY"];
 
@@ -39,6 +42,29 @@ function getTraktConfigError(env) {
   const status = getTraktPublicStatus(env);
   if (status.configured) return "";
   return `Trakt API key is not configured. Add your Trakt OAuth app Client ID as a Cloudflare Worker secret named ${TRAKT_ENV_NAMES[0]}. Also accepted: ${TRAKT_ENV_NAMES.slice(1).join(", ")}.`;
+}
+
+function getSteamApiConfig(env) {
+  for (const name of STEAM_ENV_NAMES) {
+    const value = getEnvString(env, name);
+    if (value) return { name, value };
+  }
+  return { name: "", value: "" };
+}
+
+function getSteamPublicStatus(env) {
+  const config = getSteamApiConfig(env);
+  return {
+    configured: !!config.value,
+    envName: config.name || "",
+    acceptedEnvNames: STEAM_ENV_NAMES
+  };
+}
+
+function getSteamConfigError(env) {
+  const status = getSteamPublicStatus(env);
+  if (status.configured) return "";
+  return `Steam API key is not configured. Add it as a Cloudflare Worker secret named ${STEAM_ENV_NAMES[0]}. Also accepted: ${STEAM_ENV_NAMES.slice(1).join(", ")}.`;
 }
 
 function getOmdbClientConfig(env) {
@@ -989,6 +1015,8 @@ async function runScreenListAi(request, env, ctx) {
 
 const VISITOR_COOKIE = "msl_vid";
 const VISITOR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+const STEAM_STATE_COOKIE = "shelfd_steam_state";
+const STEAM_STATE_COOKIE_MAX_AGE = 60 * 10;
 
 function readCookie(request, name) {
   const cookieHeader = request.headers.get("cookie") || "";
@@ -1012,6 +1040,14 @@ function isHtmlNavigationRequest(request, url) {
 
 function buildVisitorCookie(visitorId) {
   return `${VISITOR_COOKIE}=${visitorId}; Max-Age=${VISITOR_COOKIE_MAX_AGE}; Path=/; HttpOnly; Secure; SameSite=Lax`;
+}
+
+function buildSteamStateCookie(state) {
+  return `${STEAM_STATE_COOKIE}=${state}; Max-Age=${STEAM_STATE_COOKIE_MAX_AGE}; Path=/; HttpOnly; Secure; SameSite=Lax`;
+}
+
+function clearSteamStateCookie() {
+  return `${STEAM_STATE_COOKIE}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax`;
 }
 
 async function registerVisitor(request, env) {
@@ -1112,6 +1148,161 @@ async function fetchJsonWithTimeout(url, init = {}, timeoutMs = 8000) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function fetchTextWithTimeout(url, init = {}, timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort("timeout"), timeoutMs);
+  try {
+    const res = await fetch(url, { ...init, signal: controller.signal });
+    const text = await res.text().catch(() => "");
+    return {
+      ok: res.ok,
+      status: res.status,
+      data: text,
+      error: res.ok ? "" : `Request failed with status ${res.status}.`
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      data: "",
+      error: error?.name === "AbortError" || errorMessage(error) === "timeout"
+        ? "Request timed out."
+        : errorMessage(error)
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function normalizeSteamId(value = "") {
+  const match = String(value || "").trim().match(/(\d{17})/);
+  return match ? match[1] : "";
+}
+
+function extractSteamIdFromClaimedId(value = "") {
+  const clean = String(value || "").trim();
+  const match = clean.match(/steamcommunity\.com\/openid\/id\/(\d{17})/i);
+  return match ? match[1] : normalizeSteamId(clean);
+}
+
+function buildSteamStoreUrl(appId = "") {
+  const cleanAppId = String(appId || "").trim();
+  return cleanAppId ? `https://store.steampowered.com/app/${encodeURIComponent(cleanAppId)}/` : "";
+}
+
+function buildSteamCommunityAssetUrl(appId = "", hash = "") {
+  const cleanAppId = String(appId || "").trim();
+  const cleanHash = String(hash || "").trim();
+  if (!cleanAppId || !cleanHash) return "";
+  return `https://media.steampowered.com/steamcommunity/public/images/apps/${encodeURIComponent(cleanAppId)}/${encodeURIComponent(cleanHash)}.jpg`;
+}
+
+function normalizeSteamLastPlayed(value = 0) {
+  const seconds = Number(value || 0);
+  if (!Number.isFinite(seconds) || seconds <= 0) return "";
+  return new Date(seconds * 1000).toISOString();
+}
+
+function buildSteamCallbackUrl(url, state = "") {
+  const callbackUrl = new URL("/api/steam/callback", url.origin);
+  callbackUrl.searchParams.set("state", state);
+  return callbackUrl.toString();
+}
+
+function buildSteamAppRedirectUrl(url, params = {}) {
+  const redirectUrl = new URL("/", url.origin);
+  redirectUrl.searchParams.set("steam_import", "1");
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      redirectUrl.searchParams.set(key, String(value));
+    }
+  });
+  return redirectUrl.toString();
+}
+
+function buildRedirectResponse(location, cookieHeader = "") {
+  const headers = new Headers({ Location: location, "Cache-Control": "no-store" });
+  if (cookieHeader) headers.append("Set-Cookie", cookieHeader);
+  return new Response(null, { status: 302, headers });
+}
+
+async function fetchSteamJson(env, path, params = {}, timeoutMs = 8000) {
+  const config = getSteamApiConfig(env);
+  if (!config.value) {
+    return { ok: false, status: 500, data: null, error: getSteamConfigError(env), steam: getSteamPublicStatus(env) };
+  }
+  const url = new URL(path.replace(/^\/+/, ""), STEAM_API_ORIGIN + "/");
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, String(value));
+  });
+  url.searchParams.set("key", config.value);
+  url.searchParams.set("format", "json");
+  const result = await fetchJsonWithTimeout(url.toString(), { headers: { Accept: "application/json" } }, timeoutMs);
+  if (!result.ok && result.status !== 0 && !result.error) result.error = `Steam request failed with status ${result.status}.`;
+  result.steam = getSteamPublicStatus(env);
+  return result;
+}
+
+async function fetchSteamPlayerSummary(env, steamId = "", timeoutMs = 8000) {
+  const cleanSteamId = normalizeSteamId(steamId);
+  if (!cleanSteamId) return { ok: false, status: 400, data: null, error: "Missing SteamID." };
+  const result = await fetchSteamJson(env, "/ISteamUser/GetPlayerSummaries/v0002/", { steamids: cleanSteamId }, timeoutMs);
+  if (!result.ok) return result;
+  const players = result.data?.response?.players;
+  const player = Array.isArray(players) ? players[0] || null : null;
+  return {
+    ok: !!player,
+    status: player ? 200 : 404,
+    data: player,
+    error: player ? "" : "Steam profile was not found.",
+    steam: result.steam
+  };
+}
+
+async function fetchSteamOwnedGames(env, steamId = "", timeoutMs = 10000) {
+  const cleanSteamId = normalizeSteamId(steamId);
+  if (!cleanSteamId) return { ok: false, status: 400, data: null, error: "Missing SteamID." };
+  const result = await fetchSteamJson(env, "/IPlayerService/GetOwnedGames/v0001/", {
+    steamid: cleanSteamId,
+    include_appinfo: 1,
+    include_played_free_games: 1,
+    appids_filter: ""
+  }, timeoutMs);
+  if (!result.ok) return result;
+  const response = result.data?.response || {};
+  const games = Array.isArray(response.games) ? response.games : [];
+  return {
+    ok: true,
+    status: 200,
+    data: {
+      game_count: Number(response.game_count || games.length || 0),
+      games
+    },
+    error: "",
+    steam: result.steam
+  };
+}
+
+async function verifySteamOpenIdResponse(requestUrl) {
+  const verifyParams = new URLSearchParams();
+  for (const [key, value] of requestUrl.searchParams.entries()) {
+    if (key.startsWith("openid.")) verifyParams.set(key, value);
+  }
+  verifyParams.set("openid.mode", "check_authentication");
+  const result = await fetchTextWithTimeout(`${STEAM_OPENID_ORIGIN}/openid/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: verifyParams.toString()
+  }, 9000);
+  const body = String(result.data || "");
+  return {
+    ok: result.ok && /is_valid\s*:\s*true/i.test(body),
+    status: result.status,
+    data: body,
+    error: result.ok ? "" : result.error || "Steam sign-in verification failed."
+  };
 }
 
 function normalizeRankTitle(value = "") {
@@ -2306,6 +2497,132 @@ async function runCountryRankEndpoint(request, env, ctx) {
   return response;
 }
 
+async function runSteamConnectStart(request, env) {
+  if (!getSteamApiConfig(env).value) {
+    return buildRedirectResponse(buildSteamAppRedirectUrl(new URL(request.url), {
+      steam_auth: "error",
+      steam_message: getSteamConfigError(env)
+    }));
+  }
+  const url = new URL(request.url);
+  const state = crypto.randomUUID();
+  const returnTo = buildSteamCallbackUrl(url, state);
+  const steamAuthUrl = new URL("/openid/login", STEAM_OPENID_ORIGIN);
+  steamAuthUrl.searchParams.set("openid.ns", "http://specs.openid.net/auth/2.0");
+  steamAuthUrl.searchParams.set("openid.mode", "checkid_setup");
+  steamAuthUrl.searchParams.set("openid.return_to", returnTo);
+  steamAuthUrl.searchParams.set("openid.realm", url.origin);
+  steamAuthUrl.searchParams.set("openid.identity", "http://specs.openid.net/auth/2.0/identifier_select");
+  steamAuthUrl.searchParams.set("openid.claimed_id", "http://specs.openid.net/auth/2.0/identifier_select");
+  return buildRedirectResponse(steamAuthUrl.toString(), buildSteamStateCookie(state));
+}
+
+async function runSteamConnectCallback(request, env) {
+  const url = new URL(request.url);
+  const returnedState = String(url.searchParams.get("state") || "").trim();
+  const cookieState = readCookie(request, STEAM_STATE_COOKIE);
+  const clearCookie = clearSteamStateCookie();
+  if (!returnedState || !cookieState || returnedState !== cookieState) {
+    return buildRedirectResponse(buildSteamAppRedirectUrl(url, {
+      steam_auth: "error",
+      steam_message: "Steam sign-in expired. Try connecting again."
+    }), clearCookie);
+  }
+  const claimedId = String(url.searchParams.get("openid.claimed_id") || "").trim();
+  const identity = String(url.searchParams.get("openid.identity") || "").trim();
+  const steamId = extractSteamIdFromClaimedId(claimedId);
+  if (!steamId || identity !== claimedId) {
+    return buildRedirectResponse(buildSteamAppRedirectUrl(url, {
+      steam_auth: "error",
+      steam_message: "Steam sign-in did not return a valid SteamID."
+    }), clearCookie);
+  }
+  const verification = await verifySteamOpenIdResponse(url);
+  if (!verification.ok) {
+    return buildRedirectResponse(buildSteamAppRedirectUrl(url, {
+      steam_auth: "error",
+      steam_message: verification.error || "Steam sign-in verification failed."
+    }), clearCookie);
+  }
+  return buildRedirectResponse(buildSteamAppRedirectUrl(url, {
+    steam_auth: "success",
+    steam_id: steamId
+  }), clearCookie);
+}
+
+async function runSteamProfileEndpoint(request, env) {
+  const url = new URL(request.url);
+  const steamId = normalizeSteamId(url.searchParams.get("steamId") || "");
+  if (!steamId) {
+    return jsonResponse({ ok: false, error: "Missing steamId." }, 400);
+  }
+  const result = await fetchSteamPlayerSummary(env, steamId);
+  if (!result.ok) {
+    return jsonResponse({
+      ok: false,
+      error: result.error || "Steam profile lookup failed.",
+      steam: result.steam || getSteamPublicStatus(env)
+    }, result.status || 502);
+  }
+  const player = result.data || {};
+  return jsonResponse({
+    ok: true,
+    steam: result.steam || getSteamPublicStatus(env),
+    player: {
+      steamId,
+      personaName: player.personaname || "",
+      profileUrl: player.profileurl || "",
+      avatar: player.avatarfull || player.avatarmedium || player.avatar || ""
+    }
+  });
+}
+
+async function runSteamLibraryEndpoint(request, env) {
+  const url = new URL(request.url);
+  const steamId = normalizeSteamId(url.searchParams.get("steamId") || "");
+  if (!steamId) {
+    return jsonResponse({ ok: false, error: "Missing steamId." }, 400);
+  }
+  const [profileResult, libraryResult] = await Promise.all([
+    fetchSteamPlayerSummary(env, steamId, 8000),
+    fetchSteamOwnedGames(env, steamId, 10000)
+  ]);
+  if (!libraryResult.ok) {
+    return jsonResponse({
+      ok: false,
+      error: libraryResult.error || "Steam library lookup failed.",
+      steam: libraryResult.steam || getSteamPublicStatus(env)
+    }, libraryResult.status || 502);
+  }
+  const games = (libraryResult.data?.games || []).map(game => ({
+    appId: String(game.appid || ""),
+    name: game.name || "",
+    playtimeMinutes: Number(game.playtime_forever || 0) || 0,
+    playtimeWindowsMinutes: Number(game.playtime_windows_forever || 0) || 0,
+    playtimeMacMinutes: Number(game.playtime_mac_forever || 0) || 0,
+    playtimeLinuxMinutes: Number(game.playtime_linux_forever || 0) || 0,
+    lastPlayedAt: normalizeSteamLastPlayed(game.rtime_last_played),
+    iconUrl: buildSteamCommunityAssetUrl(game.appid, game.img_icon_url),
+    logoUrl: buildSteamCommunityAssetUrl(game.appid, game.img_logo_url),
+    storeUrl: buildSteamStoreUrl(game.appid)
+  }));
+  return jsonResponse({
+    ok: true,
+    steam: libraryResult.steam || getSteamPublicStatus(env),
+    player: profileResult.ok ? {
+      steamId,
+      personaName: profileResult.data?.personaname || "",
+      profileUrl: profileResult.data?.profileurl || "",
+      avatar: profileResult.data?.avatarfull || profileResult.data?.avatarmedium || profileResult.data?.avatar || ""
+    } : { steamId },
+    totals: {
+      owned: Number(libraryResult.data?.game_count || games.length || 0),
+      played: games.filter(game => Number(game.playtimeMinutes || 0) > 0).length
+    },
+    games
+  });
+}
+
 async function proxyApi(request, env, options, ctx) {
   const keyValue = env[options.keyEnv];
   if (!keyValue) {
@@ -2364,6 +2681,22 @@ export default {
         binding: "myscreenlistAi",
         model: SCREENLIST_AI_MODEL
       }, env.myscreenlistAi ? 200 : 500);
+    }
+
+    if (url.pathname === "/api/steam/connect") {
+      return runSteamConnectStart(request, env);
+    }
+
+    if (url.pathname === "/api/steam/callback") {
+      return runSteamConnectCallback(request, env);
+    }
+
+    if (url.pathname === "/api/steam/profile") {
+      return runSteamProfileEndpoint(request, env);
+    }
+
+    if (url.pathname === "/api/steam/library") {
+      return runSteamLibraryEndpoint(request, env);
     }
 
     if (url.pathname === "/api/site-stats") {
