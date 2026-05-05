@@ -1969,7 +1969,7 @@ function renderProfilePage() {
   }
   if (creatorBadge) {
     if (isCreatorAdmin(profile)) {
-      creatorBadge.innerHTML = '<span>👑 Admin Account</span><span class="creator-role">(Developer And Creator)</span>';
+      creatorBadge.innerHTML = '<span><svg class="creator-crown-svg" viewBox="0 0 20 13" width="13" height="8" fill="currentColor" aria-hidden="true"><path d="M2 10 5 3 7 7 10 0 13 7 15 3 18 10Z"/><rect x="2" y="10" width="16" height="2" rx="0.5"/></svg> Admin Account</span><span class="creator-role">(Developer And Creator)</span>';
       creatorBadge.style.display = 'inline-flex';
     } else if (creativeTeamProfile) {
       creatorBadge.innerHTML = '<span class="creative-team-profile-label">Creative Team</span>';

@@ -108,6 +108,11 @@
     to   { opacity: 1; transform: translateY(0); }
   }
 
+  /* v322: activity cards use Aptos font */
+  .activity-card, .activity-card * {
+    font-family: 'Aptos', 'DM Sans', system-ui, sans-serif !important;
+  }
+
   .activity-card {
     display: grid;
     grid-template-columns: 46px minmax(0, 1fr) 88px;

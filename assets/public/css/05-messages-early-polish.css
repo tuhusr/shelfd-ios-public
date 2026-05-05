@@ -1582,7 +1582,7 @@ body.light-mode .discover-status-btn.planned-option:hover {
     color: rgba(154, 144, 181, 0.72);
     background: rgba(255,255,255,0.025);
     font-size: 10.5px;
-    font-weight: 650;
+    font-weight: 550;
     letter-spacing: 0;
     text-transform: none;
   }
@@ -1598,7 +1598,7 @@ body.light-mode .discover-status-btn.planned-option:hover {
   .status-pill.paused-active { border-color: rgba(249,115,22,0.34); background: rgba(249,115,22,0.1); color: #f6aa76; }
   .status-pill.dropped-active { border-color: rgba(248,113,113,0.36); background: rgba(248,113,113,0.1); color: #f5a1a1; }
 
-  .progress-area { margin-top: 13px; }
+  .progress-area { margin-top: 8px; }
   .progress-meta {
     margin-bottom: 6px;
     font-size: 11px;
@@ -1614,7 +1614,7 @@ body.light-mode .discover-status-btn.planned-option:hover {
     border-radius: 999px;
     background: linear-gradient(90deg, #7c3aed, #c084fc);
   }
-  .rating-area { margin-top: 12px; }
+  .rating-area { margin-top: 8px; }
   .rating-label {
     margin-bottom: 4px;
     color: var(--muted-2);

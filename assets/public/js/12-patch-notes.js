@@ -1,6 +1,21 @@
 // Shared Patch Notes page — one central data source for future updates.
 const SCREENLIST_PATCH_NOTES = [
   {
+    id: 'v341-comment-fix-pwa-typing',
+    date: '2026-05-05',
+    time: '12:00 PM UTC',
+    title: 'Comment fixes + PWA typing + patch notes cleanup',
+    changes: [
+      'Fixed comment typing blocked in PWA — card overflow:hidden was preventing the iOS keyboard from engaging on the textarea.',
+      'Fixed comment post failures by aligning the inline card comment object structure with the full comments page (added accountEmailLower, isCreatorAdmin, updatedAt).',
+      'Fixed comment delete failures by replacing arrayRemove with a Firestore transaction set, matching the full comments page delete pattern.',
+      'Simplified patch notes cards to show only date, time (Eastern), Update Applied, and version number — no titles or bullet points.',
+      'Added PWA install prompt on the landing page (shows once per session, never when already running as PWA).',
+      'Enabled comment posting when a logged-in user views the Creator Shelf.',
+      'Added current version display below each Patch Notes button in the app.',
+    ]
+  },
+  {
     id: 'v223-mylist-category-visibility-profile-sync',
     date: '2026-05-02',
     time: '8:35 PM UTC',
@@ -794,6 +809,21 @@ function getOrCreatePatchNotesPage() {
   return page;
 }
 
+function patchNoteToEasternTime(dateStr, timeStr) {
+  try {
+    if (!timeStr) return '';
+    var dt = new Date((dateStr || '') + ' ' + timeStr);
+    if (isNaN(dt.getTime())) return timeStr;
+    return dt.toLocaleString('en-US', {
+      timeZone: 'America/New_York',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZoneName: 'short'
+    });
+  } catch (e) { return timeStr; }
+}
+
 function renderPatchNotesEntries() {
   const list = document.getElementById('screenlist-patch-notes-list');
   if (!list) return;
@@ -802,14 +832,17 @@ function renderPatchNotesEntries() {
   list.innerHTML = entries.map(entry => {
     const id = getPatchNoteEntryId(entry);
     const unreadClass = readIds.has(id) ? '' : ' screenlist-patch-note-unread';
-    return `
-    <article class="screenlist-patch-note-card${unreadClass}" data-patch-note-id="${escAttr(id)}">
-      <div class="screenlist-patch-note-date">${escHtml(entry.date || '')}${entry.time ? ` · ${escHtml(entry.time)}` : ''}</div>
-      <div class="screenlist-patch-note-title-row">
-        <h2>${escHtml(entry.title || 'Update')}</h2>
+    const vMatch = id.match(/^(v\d+)/i);
+    const vStr = vMatch ? vMatch[1].toUpperCase() : '';
+    const etTime = patchNoteToEasternTime(entry.date || '', entry.time || '');
+    return `<article class="screenlist-patch-note-card${unreadClass}" data-patch-note-id="${escAttr(id)}">
+      <div class="screenlist-patch-note-simple">
         <span class="screenlist-patch-note-entry-ping" aria-label="Unread update"></span>
+        ${entry.date ? `<div class="screenlist-patch-note-s-date">${escHtml(entry.date)}</div>` : ''}
+        ${etTime ? `<div class="screenlist-patch-note-s-time">${escHtml(etTime)}</div>` : ''}
+        <div class="screenlist-patch-note-s-label">Update Applied</div>
+        ${vStr ? `<div class="screenlist-patch-note-s-version">${escHtml(vStr)}</div>` : ''}
       </div>
-      <ul>${(entry.changes || []).map(change => `<li>${escHtml(change)}</li>`).join('')}</ul>
     </article>`;
   }).join('');
 }

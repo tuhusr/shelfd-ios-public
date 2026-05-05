@@ -64,7 +64,7 @@ function renderDisplayNameHTML(userLike = null, fallback = 'Unknown User', extra
   const nameHtml = escHtml(getDisplayName(userLike, fallback));
   const creativeTeamTag = isCreativeTeamUser(userLike) ? renderCreativeTeamTagHTML() : '';
   if (isCreatorAdmin(userLike)) {
-    return `<span class="creator-name-wrap user-badged-name-wrap"><span class="${classes.join(' ')}">👑 ${nameHtml}</span><span class="creator-role">(Creator)</span>${creativeTeamTag}</span>`;
+    return `<span class="creator-name-wrap user-badged-name-wrap"><span class="${classes.join(' ')}"><svg class="creator-crown-svg" viewBox="0 0 20 13" width="13" height="8" fill="currentColor" aria-hidden="true"><path d="M2 10 5 3 7 7 10 0 13 7 15 3 18 10Z"/><rect x="2" y="10" width="16" height="2" rx="0.5"/></svg> ${nameHtml}</span><span class="creator-role">(Creator)</span>${creativeTeamTag}</span>`;
   }
   if (creativeTeamTag) {
     return `<span class="creator-name-wrap user-badged-name-wrap"><span${extraClass ? ` class="${extraClass}"` : ''}>${nameHtml}</span>${creativeTeamTag}</span>`;
@@ -535,10 +535,10 @@ function buildRatingStarsMarkup(rating, itemId, prefix, size, section, interacti
       const leftVal = star * 2 - 1;
       const rightVal = star * 2;
       if (interactive) {
-        html += `<button class="star-btn half-step left ${leftVal <= currentRating ? 'lit' : ''}" style="font-size:${size}px"
+        html += `<button class="star-btn half-step left ${leftVal <= currentRating ? 'lit' : ''}" data-star="${leftVal}" style="font-size:${size}px"
           onclick="event.stopPropagation();rate('${itemId}','${prefix}',${leftVal})"
           onmouseenter="hoverStars(this,${leftVal})" onmouseleave="unhoverStars(this,${currentRating})">★</button>`;
-        html += `<button class="star-btn half-step right ${rightVal <= currentRating ? 'lit' : ''}" style="font-size:${size}px"
+        html += `<button class="star-btn half-step right ${rightVal <= currentRating ? 'lit' : ''}" data-star="${rightVal}" style="font-size:${size}px"
           onclick="event.stopPropagation();rate('${itemId}','${prefix}',${rightVal})"
           onmouseenter="hoverStars(this,${rightVal})" onmouseleave="unhoverStars(this,${currentRating})">★</button>`;
       } else {
@@ -549,7 +549,7 @@ function buildRatingStarsMarkup(rating, itemId, prefix, size, section, interacti
   } else {
     for (let s = 1; s <= 10; s++) {
       if (interactive) {
-        html += `<button class="star-btn ${s <= currentRating ? 'lit' : ''}" style="font-size:${size}px"
+        html += `<button class="star-btn ${s <= currentRating ? 'lit' : ''}" data-star="${s}" style="font-size:${size}px"
           onclick="event.stopPropagation();rate('${itemId}','${prefix}',${s})"
           onmouseenter="hoverStars(this,${s})" onmouseleave="unhoverStars(this,${currentRating})">★</button>`;
       } else {
@@ -728,9 +728,22 @@ function normalizeListEntry(item, fallbackSection) {
     next.mediaCategory = resolvedSection;
     next.librarySection = resolvedSection;
     next.isAnime = resolvedSection === 'anime';
+    if (Array.isArray(next.episodes)) {
+      next.episodes = next.episodes.map((ep, idx) => {
+        if (ep && !ep.id) {
+          return { ...ep, id: (next.id || 'item') + '-ep-' + (ep.seasonNum ? ep.seasonNum + '-' : '') + (ep.epNum || ep.number || idx + 1) };
+        }
+        return ep;
+      });
+    }
   } else {
     next.librarySection = fallbackSection;
     if (fallbackSection === 'games') {
+      // Ensure every game has a stable id so the details panel and save button work correctly.
+      // Older entries were saved with only rawgId; without id the save key is '' and silently fails.
+      if (!next.id) {
+        next.id = next.rawgId || next.metacriticSlug || next.rawgSlug || next.backloggdSlug || next.title || String(Date.now());
+      }
       next = normalizeGameDetailFieldsForStorage(next);
     }
   }

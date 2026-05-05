@@ -1,4 +1,4 @@
-window.__SHELFD_MYLIST_PATCH_VERSION = 'V301-mylist-render-recovery-no-swipe';
+window.__SHELFD_MYLIST_PATCH_VERSION = 'v339-textarea-overflow-keyboard';
 window.__SHELFD_MYLIST_SWIPE_REMOVED = true;
 window.__SHELFD_MYLIST_RENDER_RECOVERY = true;
 window.__SHELFD_MYLIST_CONTROLS_STAR_CACHE_BUSTER = true;
@@ -150,6 +150,8 @@ function render() {
   requestAnimationFrame(() => updateSlidingPills());
   if (typeof initMyListInteractionFallbacks === 'function') initMyListInteractionFallbacks();
   if (typeof removeMyListSwipeArtifacts === 'function') removeMyListSwipeArtifacts();
+  // Lazy-backfill IGDB portrait covers for existing games that only have the RAWG landscape image
+  if (activeSection === 'games') setTimeout(backfillIgdbGameCovers, 800);
   const grid = document.getElementById("cards-grid");
   const empty = document.getElementById("empty-state");
   const emptySub = empty.querySelector(".empty-sub");
@@ -200,6 +202,7 @@ function render() {
   }
 
   refreshVisibleCommentCounts();
+  scheduleCardWatchSlotHydration();
 
   // Restore open episode lists and seasons
   Object.keys(openStates).forEach(key => {
@@ -444,6 +447,49 @@ function selectGameDetailsPlatform(id = '', value = '', event = null) {
   if (trigger) trigger.setAttribute('aria-expanded', 'false');
 }
 
+// v321: Platform bottom-sheet modal (replaces inline dropdown)
+let _gamePlatformModalActiveId = null;
+
+function openGamePlatformModal(id = '') {
+  const key = String(id || '').trim();
+  if (!key) return;
+  _gamePlatformModalActiveId = key;
+  const existing = document.getElementById('game-platform-modal-overlay');
+  if (existing) existing.remove();
+  const { item } = getScreenListGameById(key);
+  const draft = getGameDetailsDraftValues(key, item || {});
+  const currentPlatform = draft.platform || '';
+  const optionsHtml = SCREENLIST_GAME_PLATFORM_OPTIONS.map(opt => {
+    const isSel = opt === currentPlatform;
+    return `<button class="game-platform-modal-option${isSel ? ' modal-option-selected' : ''}" type="button" onclick="selectGamePlatformFromModal(${JSON.stringify(key)},${JSON.stringify(opt)})">${escHtml(opt)}</button>`;
+  }).join('');
+  const overlay = document.createElement('div');
+  overlay.id = 'game-platform-modal-overlay';
+  overlay.className = 'game-platform-modal-overlay';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) closeGamePlatformModal();
+  });
+  overlay.innerHTML = `<div class="game-platform-modal-sheet">
+    <div class="game-platform-modal-title">Platform</div>
+    <div class="game-platform-modal-options">${optionsHtml}</div>
+    <button class="game-platform-modal-cancel" type="button" onclick="closeGamePlatformModal()">Cancel</button>
+  </div>`;
+  document.body.appendChild(overlay);
+}
+
+function closeGamePlatformModal() {
+  const overlay = document.getElementById('game-platform-modal-overlay');
+  if (overlay) overlay.remove();
+  _gamePlatformModalActiveId = null;
+}
+
+function selectGamePlatformFromModal(id = '', value = '') {
+  closeGamePlatformModal();
+  selectGameDetailsPlatform(id, value, null);
+}
+
 function getGameDetailsSelectorById(id = '', field = '') {
   const key = String(id || '').trim();
   const cleanField = String(field || '').trim();
@@ -553,10 +599,10 @@ async function persistOwnListDataImmediate(nextData = null) {
 }
 
 function renderGameDetailsExpandButton(item = {}) {
-  const id = String(item.id || '');
+  const id = String(item.id || '') || getScreenListGameStableKey(item);
   const isOpen = !!screenlistGameDetailsOpenState[id] || !!screenlistGameDetailsEditState[id];
   return `<button id="game-details-toggle-${escAttr(id)}" class="game-details-expand-btn${isOpen ? ' open' : ''}" type="button" onclick="event.stopPropagation();toggleGameDetailsPanel('${escAttr(id)}')" aria-expanded="${isOpen ? 'true' : 'false'}">
-    <span>${isOpen ? 'Hide Info' : 'Expand Info'}</span>
+    <span>${isOpen ? 'Hide Info' : 'More Info'}</span>
     <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M5 7.5 10 12l5-4.5"/></svg>
   </button>`;
 }
@@ -568,7 +614,8 @@ function renderGamePlatformOptionButtons(id = '', selected = '') {
 }
 
 function renderGameDetailsPanel(item = {}) {
-  const id = String(item.id || '');
+  // Use stable key so games loaded before the id-backfill fix also work
+  const id = String(item.id || '') || getScreenListGameStableKey(item);
   const isOpen = !!screenlistGameDetailsOpenState[id] || !!screenlistGameDetailsEditState[id];
   const isEditing = !!screenlistGameDetailsEditState[id] && !viewingUser;
   const saved = getScreenListGameDetailValuesFromItem(item);
@@ -580,8 +627,8 @@ function renderGameDetailsPanel(item = {}) {
   const platformText = platform || 'Platform not added';
   const hoursText = hours !== '' ? `${hours}h played` : 'Hours not added';
   const trackerDisplay = trackerUrl
-    ? `<a class="game-details-tracker-link" href="${escAttr(trackerUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${getScreenListGameTrackerIconSvg()}<span>Tracker/Stats</span></a>`
-    : `<span class="game-details-muted">Tracker/Stats not added</span>`;
+    ? `<a class="game-details-tracker-link game-details-tracker-icon-only" href="${escAttr(trackerUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" aria-label="Open Tracker/Stats">${getScreenListGameTrackerIconSvg()}</a>`
+    : `<span class="game-details-muted">—</span>`;
 
   const readHtml = `
     <div class="game-details-read-row">
@@ -593,7 +640,7 @@ function renderGameDetailsPanel(item = {}) {
       <strong>${escHtml(hoursText)}</strong>
     </div>
     <div class="game-details-read-row">
-      <span class="game-details-label">Export</span>
+      <span class="game-details-label">Tracker/Stats</span>
       ${trackerDisplay}
     </div>`;
 
@@ -618,7 +665,7 @@ function renderGameDetailsPanel(item = {}) {
     </div>
     <div class="game-details-edit-actions">
       <button class="game-details-cancel-btn" type="button" onclick="event.stopPropagation();cancelGameDetailsEdit('${escAttr(id)}')">Cancel</button>
-      <button class="game-details-save-btn" type="button" data-game-details-save="true" data-game-details-id="${escAttr(id)}">Save</button>
+      <button class="game-details-save-btn" type="button" data-game-details-save="true" data-game-details-id="${escAttr(id)}" onclick="event.stopPropagation();event.preventDefault();saveGameDetailsEdit('${escAttr(id)}',this,event)">Save</button>
     </div>`;
 
   return `<div class="game-details-panel${isOpen ? ' open' : ''}${isEditing ? ' editing' : ''}" id="game-details-${escAttr(id)}" data-game-details-id="${escAttr(id)}">
@@ -673,13 +720,301 @@ function openGameDetailsEdit(id = '') {
   render();
 }
 
+// Game status expandable single-pill selector
+function toggleGameStatusSelector(itemId, event) {
+  event?.stopPropagation?.();
+  const wrap = document.getElementById('game-status-selector-' + itemId);
+  if (!wrap) return;
+  const willExpand = !wrap.classList.contains('expanded');
+  document.querySelectorAll('.game-status-selector.expanded').forEach(el => el.classList.remove('expanded'));
+  if (willExpand) wrap.classList.add('expanded');
+}
+function changeGameStatusFromSelector(itemId, newStatus, event) {
+  event?.stopPropagation?.();
+  const wrap = document.getElementById('game-status-selector-' + itemId);
+  if (wrap) wrap.classList.remove('expanded');
+  changeStatus(itemId, newStatus);
+}
+(function initGameStatusSelectorHandlers() {
+  if (window.__shelfdGameStatusSelectorInit) return;
+  window.__shelfdGameStatusSelectorInit = true;
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.game-status-selector')) {
+      document.querySelectorAll('.game-status-selector.expanded').forEach(el => el.classList.remove('expanded'));
+    }
+    // Close game card comment dropdowns when clicking outside
+    if (!e.target.closest('.game-card-comment-drop') && !e.target.closest('.comments-btn')) {
+      document.querySelectorAll('.game-card-comment-drop.open').forEach(el => el.classList.remove('open'));
+    }
+  }, false);
+})();
+
+// v318: Game card inline comment dropdown functions
+// v341: Add/remove comment-drop-open on parent .card so overflow:hidden is lifted for iOS keyboard
+function toggleGameCardComments(itemId, mediaKey, triggerEl, event) {
+  event && event.stopPropagation && event.stopPropagation();
+  const drop = document.getElementById('game-card-comments-' + itemId);
+  if (!drop) return;
+  const isOpen = drop.classList.contains('open');
+  // Close all open dropdowns and restore overflow on parent cards
+  document.querySelectorAll('.game-card-comment-drop.open').forEach(function(el) {
+    el.classList.remove('open');
+    var parentCard = el.closest('.card');
+    if (parentCard) parentCard.classList.remove('comment-drop-open');
+  });
+  if (!isOpen) {
+    drop.classList.add('open');
+    // Lift overflow:hidden on the parent card so iOS keyboard can open
+    var parentCard = drop.closest('.card');
+    if (parentCard) parentCard.classList.add('comment-drop-open');
+    loadGameCardComments(itemId, mediaKey);
+  }
+}
+
+async function loadGameCardComments(itemId, mediaKey) {
+  const listEl = document.getElementById('game-card-comment-list-' + itemId);
+  if (!listEl) return;
+  listEl.innerHTML = '<div class="game-card-comment-empty">Loading...</div>';
+  try {
+    if (typeof db === 'undefined' || !db || !mediaKey) {
+      listEl.innerHTML = '<div class="game-card-comment-empty">No comments yet.</div>';
+      return;
+    }
+    const snap = await db.collection('comments').doc(mediaKey).get();
+    const allComments = snap.exists && Array.isArray(snap.data() && snap.data().comments) ? snap.data().comments : [];
+    // Show comments visible to current user (friends-scoped + own, and global)
+    const visible = currentUser
+      ? allComments.filter(function(c) {
+          const scope = c.scope || 'global';
+          if (scope === 'friends') return c.uid === currentUser.uid || (Array.isArray(friends) && friends.includes(c.uid));
+          return true;
+        })
+      : allComments.filter(function(c) { return (c.scope || 'global') !== 'friends'; });
+    renderGameCardCommentsList(listEl, visible, mediaKey);
+    if (typeof setCachedCommentCount === 'function') setCachedCommentCount(mediaKey, allComments.length);
+    if (typeof updateCommentCountBadges === 'function') updateCommentCountBadges(mediaKey, allComments.length);
+  } catch (err) {
+    console.error('Game card comments load failed:', err);
+    listEl.innerHTML = '<div class="game-card-comment-empty">Could not load comments.</div>';
+  }
+}
+
+function renderGameCardCommentsList(listEl, comments, mediaKey) {
+  if (!comments || !comments.length) {
+    listEl.innerHTML = '<div class="game-card-comment-empty">No comments yet.</div>';
+    return;
+  }
+  listEl.innerHTML = comments.map(function(c) {
+    const name = typeof escHtml === 'function' ? escHtml(c.name || 'User') : (c.name || 'User');
+    const text = typeof escHtml === 'function' ? escHtml(c.text || '') : (c.text || '');
+    const fallbackAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(c.name || '?') + '&background=1e2028&color=60a5fa&size=32';
+    const photo = c.photo || fallbackAvatar;
+    const isOwn = currentUser && c.uid === currentUser.uid;
+    const cId = typeof escAttr === 'function' ? escAttr(c.id || '') : (c.id || '');
+    const mKey = typeof escAttr === 'function' ? escAttr(mediaKey || '') : (mediaKey || '');
+    const actions = isOwn
+      ? `<div class="gc-comment-actions"><div class="gc-delete-pill" id="gc-pill-${cId}"><button class="gc-delete-cancel" onclick="event.stopPropagation();gcCancelDelete('${cId}')">Cancel</button><button class="gc-delete-yes" onclick="event.stopPropagation();gcDoDelete('${cId}','${mKey}',this)">Delete</button></div><button class="gc-comment-delete-btn" onclick="event.stopPropagation();gcConfirmDelete('${cId}')" aria-label="Delete comment"><svg viewBox="0 0 12 12" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="1" y1="1" x2="11" y2="11"/><line x1="11" y1="1" x2="1" y2="11"/></svg></button></div>`
+      : '';
+    return `<div class="game-card-comment-item"><img class="game-card-comment-avatar" src="${photo}" alt="" onerror="this.src='${fallbackAvatar}'"><div class="game-card-comment-body"><div class="game-card-comment-name">${name}</div><div class="game-card-comment-text">${text}</div></div>${actions}</div>`;
+  }).join('');
+}
+
+async function postGameCardComment(itemId, mediaKey, btnEl) {
+  const ta = document.getElementById('game-card-comment-ta-' + itemId);
+  if (!ta || !currentUser || typeof db === 'undefined' || !db || !mediaKey) return;
+  const text = (ta.value || '').trim();
+  if (!text) return;
+  btnEl.disabled = true;
+  try {
+    const name = (typeof userProfile !== 'undefined' && userProfile && userProfile.name) || (currentUser.displayName) || 'User';
+    const photo = (typeof userProfile !== 'undefined' && userProfile && userProfile.photo) || currentUser.photoURL || '';
+    const newComment = {
+      id: 'gc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+      uid: currentUser.uid,
+      name: name,
+      photo: photo,
+      accountEmailLower: typeof normalizeEmail === 'function' ? normalizeEmail(currentUser.email || '') : (currentUser.email || '').toLowerCase(),
+      isCreatorAdmin: (typeof CREATOR_ADMIN_EMAIL !== 'undefined' && typeof normalizeEmail === 'function') ? normalizeEmail(currentUser.email || '') === CREATOR_ADMIN_EMAIL : false,
+      text: text,
+      timestamp: Date.now(),
+      scope: 'friends'
+    };
+    await db.collection('comments').doc(mediaKey).set(
+      {
+        comments: firebase.firestore.FieldValue.arrayUnion(newComment),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      },
+      { merge: true }
+    );
+    ta.value = '';
+    await loadGameCardComments(itemId, mediaKey);
+  } catch (err) {
+    console.error('Post game card comment failed:', err);
+    if (typeof showToast === 'function') showToast('Could not post comment. Try again.');
+  } finally {
+    btnEl.disabled = false;
+  }
+}
+
+// v334: Comment delete — slide-out pill
+function gcConfirmDelete(commentId) {
+  document.querySelectorAll('.gc-delete-pill.open').forEach(function(p) { p.classList.remove('open'); });
+  const pill = document.getElementById('gc-pill-' + commentId);
+  if (pill) pill.classList.add('open');
+}
+
+function gcCancelDelete(commentId) {
+  const pill = document.getElementById('gc-pill-' + commentId);
+  if (pill) pill.classList.remove('open');
+}
+
+async function gcDoDelete(commentId, mediaKey, btn) {
+  btn.disabled = true;
+  try {
+    const ref = db.collection('comments').doc(mediaKey);
+    await db.runTransaction(async function(transaction) {
+      const doc = await transaction.get(ref);
+      if (!doc.exists) return;
+      const comments = Array.isArray(doc.data().comments) ? doc.data().comments : [];
+      const target = comments.find(function(c) { return c.id === commentId; });
+      if (!target || target.uid !== currentUser.uid) return;
+      transaction.set(ref, {
+        comments: comments.filter(function(c) { return c.id !== commentId; }),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    });
+    if (typeof setCachedCommentCount === 'function' && typeof getCachedCommentCount === 'function') {
+      var newCount = Math.max(0, getCachedCommentCount(mediaKey) - 1);
+      setCachedCommentCount(mediaKey, newCount);
+      if (typeof updateCommentCountBadges === 'function') updateCommentCountBadges(mediaKey, newCount);
+    }
+    const item = btn.closest('.game-card-comment-item');
+    const listEl = item ? item.closest('.game-card-comment-list') : null;
+    if (listEl) {
+      const itemId = listEl.id.replace('game-card-comment-list-', '');
+      await loadGameCardComments(itemId, mediaKey);
+    }
+  } catch (err) {
+    console.error('Delete comment failed:', err);
+    if (typeof showToast === 'function') showToast('Could not delete. Try again.');
+    btn.disabled = false;
+  }
+}
+
+// v320: Watchlist card watch-slot — show streaming providers, In Theaters, or nothing
+const cardWatchInfoCache = {};
+
+async function fetchCardWatchInfo(tmdbId, section, year, title) {
+  const cacheKey = section + ':' + (String(tmdbId || '').trim() || String(title || '').trim().toLowerCase());
+  if (cardWatchInfoCache[cacheKey] !== undefined) return cardWatchInfoCache[cacheKey];
+  if (!tmdbId) { cardWatchInfoCache[cacheKey] = null; return null; }
+  const type = (section === 'movies') ? 'movie' : 'tv';
+  try {
+    // v321: fetch details + providers in parallel to get actual release date
+    const [detailsRes, providersRes] = await Promise.all([
+      fetchTmdbProxy(`${type}/${tmdbId}`),
+      fetchTmdbProxy(`${type}/${tmdbId}/watch/providers`)
+    ]);
+
+    // Determine if the title has been released yet
+    let isReleased = true;
+    let releaseDateStr = null;
+    if (detailsRes && detailsRes.ok) {
+      try {
+        const detailsJson = await detailsRes.json();
+        const rawDate = type === 'movie' ? detailsJson.release_date : detailsJson.first_air_date;
+        if (rawDate) {
+          const releaseDate = new Date(rawDate + 'T00:00:00');
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          if (releaseDate > today) {
+            isReleased = false;
+            releaseDateStr = releaseDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          }
+        }
+      } catch (e) { /* ignore parse errors */ }
+    }
+
+    if (!isReleased) {
+      cardWatchInfoCache[cacheKey] = { type: 'upcoming', date: releaseDateStr };
+      return cardWatchInfoCache[cacheKey];
+    }
+
+    // Title is released — check streaming providers
+    if (providersRes && providersRes.ok) {
+      const json = await providersRes.json();
+      const usData = (json.results || {}).US || {};
+      const flatrate = Array.isArray(usData.flatrate) ? usData.flatrate : [];
+      const free = Array.isArray(usData.free) ? usData.free : [];
+      const ads = Array.isArray(usData.ads) ? usData.ads : [];
+      const seen = new Set();
+      const allProviders = [...flatrate, ...free, ...ads].filter(p => {
+        if (!p || seen.has(p.provider_id)) return false;
+        seen.add(p.provider_id);
+        return true;
+      });
+      if (allProviders.length > 0) {
+        cardWatchInfoCache[cacheKey] = { type: 'streaming', providers: allProviders };
+        return cardWatchInfoCache[cacheKey];
+      }
+      if (type === 'movie') {
+        cardWatchInfoCache[cacheKey] = { type: 'theaters' };
+        return cardWatchInfoCache[cacheKey];
+      }
+    }
+  } catch (e) { console.warn('Card watch info fetch failed:', e); }
+  cardWatchInfoCache[cacheKey] = null;
+  return null;
+}
+
+function renderCardWatchSlotContent(info) {
+  if (!info) return '';
+  if (info.type === 'upcoming') {
+    const dateText = info.date || 'N/A';
+    return '<div class="card-watch-slot-inner card-release-date-badge">Release Date: ' + escHtml(dateText) + '</div>';
+  }
+  if (info.type === 'theaters') {
+    return '<div class="card-watch-slot-inner card-theaters-badge">In Theaters</div>';
+  }
+  if (info.type === 'streaming' && Array.isArray(info.providers) && info.providers.length) {
+    const logos = info.providers.slice(0, 4).map(function(p) {
+      const lp = p.logo_path || '';
+      const logoUrl = lp ? ('https://image.tmdb.org/t/p/w154' + (lp.startsWith('/') ? lp : '/' + lp)) : (typeof getMediaProviderFallbackIconUrl === 'function' ? getMediaProviderFallbackIconUrl(p) : '');
+      const name = escAttr(p.provider_name || '');
+      return logoUrl ? '<img class="card-provider-logo" src="' + escAttr(logoUrl) + '" alt="' + name + '" title="' + name + '" loading="lazy">' : '';
+    }).filter(Boolean).join('');
+    return logos ? '<div class="card-watch-slot-inner"><span class="card-watch-label">Stream:</span><span class="card-provider-logos">' + logos + '</span></div>' : '';
+  }
+  return '';
+}
+
+async function hydrateCardWatchSlot(slotEl) {
+  if (!slotEl || slotEl.dataset.watchSlotHydrated === '1') return;
+  slotEl.dataset.watchSlotHydrated = '1';
+  const tmdbId = slotEl.dataset.watchSlotTmdbId;
+  const section = slotEl.dataset.watchSlotSection;
+  const year = slotEl.dataset.watchSlotYear;
+  const title = slotEl.dataset.watchSlotTitle;
+  const info = await fetchCardWatchInfo(tmdbId, section, year, title);
+  const html = renderCardWatchSlotContent(info);
+  if (html && slotEl.isConnected) slotEl.innerHTML = html;
+}
+
+function scheduleCardWatchSlotHydration() {
+  requestAnimationFrame(function() {
+    document.querySelectorAll('.card-watch-slot:not([data-watch-slot-hydrated="1"])').forEach(function(slot) {
+      hydrateCardWatchSlot(slot);
+    });
+  });
+}
+
 function cancelGameDetailsEdit(id = '') {
   const key = String(id || '').trim();
   if (!key) return;
   delete screenlistGameDetailsDraftState[key];
   screenlistGameDetailsPlatformMenuState[key] = false;
   screenlistGameDetailsEditState[key] = false;
-  screenlistGameDetailsOpenState[key] = true;
+  screenlistGameDetailsOpenState[key] = false;
   syncScreenListGameDetailGlobals();
   render();
 }
@@ -773,7 +1108,7 @@ async function saveGameDetailsEdit(id = '', triggerEl = null, event = null) {
   data = normalizedData;
   ownDataCache = typeof cloneListData === 'function' ? cloneListData(normalizedData) : JSON.parse(JSON.stringify(normalizedData));
 
-  screenlistGameDetailsOpenState[key] = true;
+  screenlistGameDetailsOpenState[key] = false;
   screenlistGameDetailsEditState[key] = false;
   screenlistGameDetailsPlatformMenuState[key] = false;
   delete screenlistGameDetailsDraftState[key];
@@ -842,15 +1177,18 @@ function renderCard(item, isDraggable) {
   const commentCount = isPreviewMode() && !currentUser
     ? getPreviewCommentsForMedia(mediaKey).length
     : getCachedCommentCount(mediaKey);
-  const coverStyle = item.cover
-    ? `background-image:url('${item.cover}');background-size:cover;background-position:center;`
+  const cardCoverSrc = (activeSection === 'games' && item.igdbCoverUrl) ? item.igdbCoverUrl : (item.cover || '');
+  const coverStyle = cardCoverSrc
+    ? `background-image:url('${cardCoverSrc}');background-size:cover;background-position:top center;`
     : "";
-  const coverClass = item.cover ? "card-cover" : "card-cover no-img";
+  const coverClass = cardCoverSrc ? "card-cover" : "card-cover no-img";
   const emoji = getSectionIcon(activeSection);
   const friendAlreadyAdded = viewingUser && myData ? isDuplicateTitleInList(item.title, activeSection, myData) : false;
   const isGameCard = activeSection === 'games';
   const itemSectionAttr = escAttr(activeSection);
   const itemIdAttr = escAttr(item.id);
+  // Stable key for game details panel — falls back to rawgId/slug/title for legacy entries without item.id
+  const gameDetailsKey = isGameCard ? escAttr(String(item.id || '') || getScreenListGameStableKey(item)) : itemIdAttr;
   const displayTitle = getDisplayTitleForItem(item, activeSection) || item.title || '';
   if (activeSection === 'anime') {
     queueAnimeTitleVariantHydration(item, activeSection);
@@ -858,7 +1196,7 @@ function renderCard(item, isDraggable) {
   }
   const canOpenProfile = canOpenLibraryMediaProfile(activeSection);
   const gameTitleMarkup = isGameCard
-    ? `<button class="card-title-profile-btn game-title-profile-btn" type="button" data-library-item-id="${itemIdAttr}" data-library-section="${itemSectionAttr}" onclick="openGameMediaProfileFromLibrary(event,'${itemIdAttr}','${itemSectionAttr}')">${escHtml(displayTitle)}</button>${renderBackloggdGameIcon(item, 'game-card-backloggd-icon')}`
+    ? `<button class="card-title-profile-btn game-title-profile-btn" type="button" data-library-item-id="${itemIdAttr}" data-library-section="${itemSectionAttr}" onclick="openGameMediaProfileFromLibrary(event,'${itemIdAttr}','${itemSectionAttr}')">${escHtml(displayTitle)}</button>`
     : canOpenProfile
       ? `<button class="card-title-profile-btn media-title-profile-btn" type="button" data-library-item-id="${itemIdAttr}" data-library-section="${itemSectionAttr}" onclick="openLibraryMediaProfile(event,'${itemIdAttr}','${itemSectionAttr}')">${escHtml(displayTitle)}</button>`
       : `<span>${escHtml(displayTitle)}</span>`;
@@ -873,18 +1211,20 @@ function renderCard(item, isDraggable) {
     progress = compactProgress.percent;
   }
 
-  const statusPill = (s, label) => {
-    let cls = "status-pill";
-    if (item.status === s) cls += ` ${s}-active`;
-    return `<button type="button" class="${cls}" data-status="${s}" data-mylist-action="status" data-mylist-item-id="${item.id}" data-mylist-status="${s}" onclick="changeStatus('${item.id}','${s}')">${label}</button>`;
-  };
-  const statusButtons = getMyListStatusButtonConfigs(activeSection)
-    .map(({ status, label }) => statusPill(status, label))
-    .join('');
+  const statusConfigs = getMyListStatusButtonConfigs(activeSection);
+  // v319: all cards use the expandable single-pill pop-out status selector
+  const currentStatusCfg = statusConfigs.find(c => c.status === item.status);
+  const currentStatusLabel = currentStatusCfg?.label || (item.status || 'Status');
+  const statusSelectorHtml = `<div class="game-status-selector" id="game-status-selector-${escAttr(item.id)}">
+    <button class="status-pill ${item.status ? item.status + '-active' : ''} game-status-current-pill" type="button" data-status="${escAttr(item.status || '')}" onclick="event.stopPropagation();toggleGameStatusSelector('${escAttr(item.id)}',event)">${escHtml(currentStatusLabel)}</button>
+    <div class="game-status-options">
+      ${statusConfigs.filter(c => c.status !== item.status).map(c => `<button class="status-pill" type="button" data-status="${escAttr(c.status)}" onclick="event.stopPropagation();changeGameStatusFromSelector('${escAttr(item.id)}','${escAttr(c.status)}',event)">${escHtml(c.label)}</button>`).join('')}
+    </div>
+  </div>`;
 
   let episodeToggleButton = "";
   let episodeSection = "";
-  const hasFullEpisodeRows = type === "show" && Array.isArray(item.episodes) && item.episodes.length > 0;
+  const hasFullEpisodeRows = type === "show" && item.status !== 'planned' && Array.isArray(item.episodes) && item.episodes.length > 0;
   if (hasFullEpisodeRows) {
     episodeToggleButton = `
       <button type="button" class="ep-toggle-bar card-footer-btn" onclick="toggleEpisodes('${item.id}')">
@@ -912,6 +1252,37 @@ function renderCard(item, isDraggable) {
     `;
   }
 
+  // Inline game stats for card display
+  const _igs = isGameCard ? getScreenListGameDetailValuesFromItem(item) : null;
+  const gameStatHours = _igs ? (_igs.hours ? _igs.hours + 'h' : '—') : '';
+  const gameStatPlatform = _igs ? (_igs.platform || '—') : '';
+  const gameStatTracker = _igs ? _igs.tracker : '';
+  const gameStatsHtml = isGameCard ? `<div class="game-card-stats-inline">
+    <div class="game-card-stat-row"><span class="game-card-stat-label">Platform:</span><span class="game-card-stat-val">${escHtml(gameStatPlatform)}</span></div>
+    <div class="game-card-stat-row"><span class="game-card-stat-label">Hours played:</span><span class="game-card-stat-val">${escHtml(gameStatHours)}</span></div>
+    <div class="game-card-stat-row"><span class="game-card-stat-label">Tracker/Stats:</span>${gameStatTracker ? `<a class="game-card-tracker-icon-link" href="${escAttr(gameStatTracker)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" aria-label="Open Tracker/Stats">${getScreenListGameTrackerIconSvg()}</a>` : '<span class="game-card-stat-val">—</span>'}</div>
+  </div>` : '';
+
+  // v329: left badge — IMDb for movies/shows, MAL for anime, none for games/manga/books
+  const _malUrl = activeSection === 'anime'
+    ? (item.malId ? `https://myanimelist.net/anime/${escAttr(String(item.malId))}` : `https://myanimelist.net/search/all?q=${encodeURIComponent(item.title || '')}`)
+    : '';
+  const leftBadge = activeSection === 'anime'
+    ? `<a href="${_malUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="card-mal-footer-link"><span class="media-link-badge card-mal-badge">MAL</span></a>`
+    : (!isGameCard && item.imdbId
+      ? `<a href="https://www.imdb.com/title/${escAttr(item.imdbId)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="card-imdb-footer-link"><span class="media-link-badge">IMDb</span></a>`
+      : '');
+
+  // v328: all cards use inline comment dropdown
+  const commentsOnclick = `toggleGameCardComments('${escAttr(item.id)}','${escAttr(mediaKey)}',this,event)`;
+  const gameCommentDropHtml = `<div class="game-card-comment-drop" id="game-card-comments-${escAttr(item.id)}">
+    <div class="game-card-comment-list" id="game-card-comment-list-${escAttr(item.id)}"></div>
+    ${currentUser ? `<div class="game-card-comment-input-row">
+      <textarea class="game-card-comment-textarea" id="game-card-comment-ta-${escAttr(item.id)}" placeholder="Write a comment..." rows="1" onclick="event.stopPropagation();this.focus();" ontouchend="event.stopPropagation();this.focus();" oninput="event.stopPropagation()"></textarea>
+      <button class="game-card-comment-post-btn" type="button" onclick="event.stopPropagation();postGameCardComment('${escAttr(item.id)}','${escAttr(mediaKey)}',this)">Post</button>
+    </div>` : ''}
+  </div>`;
+
   const dragAttrs = isDraggable
     ? `draggable="true" ondragstart="onCardDragStart(event,'${item.id}')" ondragover="onCardDragOver(event)" ondragleave="onCardDragLeave(event)" ondrop="onCardDrop(event,'${item.id}')"`
     : '';
@@ -923,46 +1294,48 @@ function renderCard(item, isDraggable) {
         </div>
         <div class="card-info">
           <div class="card-title-row">
-            <div class="card-title">${gameTitleMarkup}${item.imdbId ? ` <a href="https://www.imdb.com/title/${item.imdbId}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;text-decoration:none;vertical-align:middle;">
-            <span class="media-link-badge">IMDb</span>
-          </a>` : ''}${activeSection === 'movies' ? `<button class="letterboxd-badge-btn" onclick="event.stopPropagation();openLetterboxd('${item.id}')" title="Letterboxd">
-            <span class="letterboxd-badge">
-              <svg viewBox="0 0 24 10" aria-hidden="true" fill="none">
-                <circle cx="6" cy="5" r="4" fill="#FF8000"></circle>
-                <circle cx="12" cy="5" r="4" fill="#00E054"></circle>
-                <circle cx="18" cy="5" r="4" fill="#40BCF4"></circle>
-              </svg>
-            </span>
-          </button>` : ''}${activeSection === 'games' ? renderMetacriticGameIcon(item, 'game-card-metacritic-icon') : ''}</div>
+            <div class="card-title">${gameTitleMarkup}</div>
             ${!viewingUser ? `<button class="delete-btn" onclick="deleteItem(event,'${item.id}')" title="Delete">×</button>` : (currentUser ? `<button class="friend-card-add-btn${friendAlreadyAdded ? ' added' : ''}" data-friend-item-id="${escHtml(item.id)}" onclick="event.stopPropagation();openFriendAddModal(this.dataset.friendItemId, this)" title="Add to my list">+</button>` : '')}
           </div>
-          ${item.genre ? `<div class="card-genre">${escHtml(item.genre)}</div>` : ''}
-          ${!viewingUser ? `<div class="status-pills" id="status-pills-${item.id}">${statusButtons}</div>` : ''}
-          ${type === "show" ? `
+          ${gameStatsHtml}
+          ${(item.genre && item.status === 'planned' && (activeSection === 'movies' || isShowSection(activeSection))) ? `<div class="card-genre">${escHtml(item.genre)}</div>` : ''}
+          ${!viewingUser ? `<div class="status-pills status-pills-selector-wrap" id="status-pills-${item.id}">${statusSelectorHtml}</div>` : ''}
+          ${(item.status === 'planned' && (activeSection === 'movies' || isShowSection(activeSection)) && item.year && Number(item.year) > new Date().getFullYear()) ? `<div class="card-release-date card-below-status">Releases: ${escHtml(String(item.year))}</div>` : ''}
+          ${(item.status === 'planned' && (activeSection === 'movies' || isShowSection(activeSection)) && item.tmdbId && !(item.year && Number(item.year) > new Date().getFullYear())) ? `<div class="card-watch-slot card-below-status" id="card-watch-slot-${escAttr(item.id)}" data-watch-slot-item-id="${escAttr(item.id)}" data-watch-slot-tmdb-id="${escAttr(String(item.tmdbId || ''))}" data-watch-slot-section="${escAttr(activeSection)}" data-watch-slot-year="${escAttr(String(item.year || ''))}" data-watch-slot-title="${escAttr(item.title || '')}"></div>` : ''}
+          ${type === "show" && item.status !== 'planned' ? `
             <div class="progress-area">
               <div class="progress-meta"><span id="progress-count-${item.id}">${watchedCount}/${totalEps} episodes</span><span id="progress-percent-${item.id}">${Math.round(progress)}%</span></div>
               <div class="progress-bar"><div class="progress-fill" id="progress-fill-${item.id}" style="width:${progress}%"></div></div>
             </div>
           ` : ''}
-          <div class="rating-area">
-            <div class="rating-label">Overall Rating</div>
+          ${item.status !== 'planned' ? `<div class="rating-area">
+            <div class="rating-label">Rating</div>
             ${renderStars(item.rating || 0, item.id, 'overall', 16)}
-          </div>
+          </div>` : ''}
         </div>
       </div>
       <div class="card-action-row">
+        ${isGameCard ? `
         <div class="card-footer-actions">
-          <button class="comments-btn" onclick="event.stopPropagation();openCommentsPage('${item.id}', this)">
+          <button class="comments-btn" onclick="event.stopPropagation();${commentsOnclick}">
             <span class="comments-btn-label">Comments (<span class="comment-count" data-media-key="${escAttr(mediaKey)}">${commentCount}</span>)</span>
           </button>
-          ${isGameCard ? renderGameDetailsExpandButton(item) : ''}
-          ${episodeToggleButton}
-        </div>
+        </div>` : `
+        <div class="card-footer-actions">
+          ${leftBadge}
+          <div class="card-footer-center">
+            <button class="comments-btn" onclick="event.stopPropagation();${commentsOnclick}">
+              <span class="comments-btn-label">Comments (<span class="comment-count" data-media-key="${escAttr(mediaKey)}">${commentCount}</span>)</span>
+            </button>
+            ${episodeToggleButton}
+          </div>
+        </div>`}
         ${renderWatchTogetherCardControl(item, activeSection)}
       </div>
+      ${gameCommentDropHtml}
       ${isGameCard ? renderGameDetailsPanel(item) : ''}
       ${episodeSection}
-      ${isGameCard && !viewingUser ? `<button class="game-card-edit-btn" type="button" onclick="event.stopPropagation();openGameDetailsEdit('${itemIdAttr}')" aria-label="Edit game details">${getScreenListGamePencilSvg()}</button>` : ''}
+      ${isGameCard && !viewingUser && !screenlistGameDetailsEditState[gameDetailsKey] ? `<button class="game-card-edit-btn" type="button" onclick="event.stopPropagation();openGameDetailsEdit('${gameDetailsKey}')" aria-label="Edit game details">${getScreenListGamePencilSvg()}</button>` : ''}
     </div>
   `;
 }
@@ -1194,6 +1567,7 @@ function renderEpisodeList(item) {
 }
 
 function renderSingleEp(itemId, ep) {
+  if (!ep.id) ep.id = itemId + '-ep-' + (ep.seasonNum ? ep.seasonNum + '-' : '') + (ep.epNum || ep.number || Math.random().toString(36).slice(2, 7));
   const r = ep.rating || 0;
   if (viewingUser) {
     return `<div class="ep-row ${ep.watched ? 'watched-ep' : ''}">
@@ -2029,7 +2403,6 @@ function renderMediaProfileFloatingExports(type, details = {}) {
   }
 
   return renderProfileFloatingExportLinks([
-    { key: 'letterboxd', title: 'Letterboxd', url: getLetterboxdMediaUrl(details), className: 'letterboxd', logo: PROFILE_EXPORT_LOGO_ASSETS.letterboxd },
     { key: 'imdb', title: 'IMDb', url: getImdbMediaUrl(details), className: 'imdb', logo: PROFILE_EXPORT_LOGO_ASSETS.imdb }
   ], `${type === 'tv' ? 'TV show' : 'Movie'} export links`);
 }
@@ -2988,10 +3361,11 @@ function positionSlidingPill(container, activeBtn, pillClass) {
   const y = activeBtn.offsetTop;
   const w = activeBtn.offsetWidth;
   const h = activeBtn.offsetHeight;
-  // Width + height set directly (no transition) — only transform animates
+  // Underline mode: 3px line pinned to the bottom of the button
+  const UNDERLINE_H = 3;
   pill.style.width = w + 'px';
-  pill.style.height = h + 'px';
-  pill.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0)';
+  pill.style.height = UNDERLINE_H + 'px';
+  pill.style.transform = 'translate3d(' + x + 'px,' + (y + h - UNDERLINE_H) + 'px,0)';
   if (isNew) {
     // Two rAFs: first commits the paint, second enables spring transition
     requestAnimationFrame(() => requestAnimationFrame(() => pill.classList.remove('pill-init')));
@@ -3009,6 +3383,59 @@ function updateSlidingPills() {
   if (tabsContainer && activeTabBtn) positionSlidingPill(tabsContainer, activeTabBtn, 'tab-sliding-pill');
 }
 
+
+// Backfill IGDB portrait covers for existing game items that only have the RAWG landscape image.
+// Runs lazily after render, batches requests, writes back to Firebase so covers persist.
+let _igdbBackfillRunning = false;
+async function backfillIgdbGameCovers() {
+  if (_igdbBackfillRunning) return;
+  if (activeSection !== 'games') return;
+  if (typeof data === 'undefined' || !Array.isArray(data.games)) return;
+
+  const missing = data.games.filter(item => item && item.title && !item.igdbCoverUrl);
+  if (!missing.length) return;
+
+  _igdbBackfillRunning = true;
+  try {
+    for (const item of missing) {
+      try {
+        const res = await fetch('/api/igdb/cover?title=' + encodeURIComponent(item.title));
+        if (!res.ok) continue;
+        const json = await res.json();
+        if (!json.ok || !json.coverUrl) continue;
+
+        // Write to live data
+        item.igdbCoverUrl = json.coverUrl;
+
+        // Update the DOM card directly without a full re-render
+        const coverEl = document.querySelector(`#card-${CSS.escape(item.id)} .card-cover`);
+        if (coverEl) {
+          coverEl.style.backgroundImage = `url('${json.coverUrl}')`;
+          coverEl.style.backgroundSize = 'cover';
+          coverEl.style.backgroundPosition = 'top center';
+          coverEl.classList.remove('no-img');
+        }
+
+        // Persist to Firebase
+        if (typeof writeOwnDataDirect === 'function') {
+          const targetData = typeof getOwnData === 'function' ? await getOwnData() : null;
+          if (targetData && Array.isArray(targetData.games)) {
+            const idx = targetData.games.findIndex(g => g.id === item.id);
+            if (idx !== -1) {
+              targetData.games[idx].igdbCoverUrl = json.coverUrl;
+              await writeOwnDataDirect(targetData);
+            }
+          }
+        }
+
+        // Small delay between requests to stay within IGDB rate limits (4 req/s)
+        await new Promise(r => setTimeout(r, 280));
+      } catch (e) { /* silent */ }
+    }
+  } finally {
+    _igdbBackfillRunning = false;
+  }
+}
 
 async function goToDefaultMyListsPage() {
   try {
@@ -3328,27 +3755,38 @@ function playRatingAnimation(itemId, prefix) {
     containers.forEach(c => {
       if (c.dataset.itemId !== itemId || c.dataset.prefix !== prefix) return;
       const lit = [...c.querySelectorAll('.star-btn.lit')];
-      lit.forEach((star, i) => {
-        // Tell the browser to promote this element to its own GPU layer for the animation
-        star.style.willChange = 'transform, filter';
-        const anim = star.animate([
-          { transform: 'scale(1)', filter: 'none' },
-          { transform: `scale(${peakScale})`, filter: peakFilter, offset: 0.3 },
-          { transform: `scale(${midScale})`, filter: 'none', offset: 0.6 },
-          { transform: 'scale(1)', filter: 'none' }
-        ], { duration, delay: i * stagger, easing: 'ease-out', fill: 'none' });
-        anim.onfinish = () => { star.style.willChange = ''; };
-      });
 
+      // CSS class animation — reliable on all browsers including mobile/PWA
+      lit.forEach((star, i) => {
+        star.classList.remove('star-pop');
+        void star.offsetWidth; // force reflow to restart animation
+        setTimeout(() => star.classList.add('star-pop'), i * stagger);
+        setTimeout(() => star.classList.remove('star-pop'), i * stagger + 500);
+      });
       const label = c.querySelector('.star-label');
       if (label) {
-        label.style.willChange = 'transform, color';
-        const lAnim = label.animate([
-          { transform: 'scale(1)', color: '' },
-          { transform: `scale(${1.15 + t * 0.35})`, color: '#fbbf24', offset: 0.4 },
-          { transform: 'scale(1)', color: '' }
-        ], { duration: 500 + t * 180, delay: 100 + t * 70, easing: 'ease-out' });
-        lAnim.onfinish = () => { label.style.willChange = ''; };
+        label.classList.remove('label-pop');
+        void label.offsetWidth;
+        setTimeout(() => { label.classList.add('label-pop'); setTimeout(() => label.classList.remove('label-pop'), 520); }, 100);
+      }
+
+      // Web Animations API for intensity-scaled glow (progressive enhancement)
+      if (typeof Element.prototype.animate === 'function') {
+        lit.forEach((star, i) => {
+          star.animate([
+            { transform: 'scale(1)', filter: 'none' },
+            { transform: `scale(${peakScale})`, filter: peakFilter, offset: 0.3 },
+            { transform: `scale(${midScale})`, filter: 'none', offset: 0.6 },
+            { transform: 'scale(1)', filter: 'none' }
+          ], { duration, delay: i * stagger, easing: 'ease-out', fill: 'none' });
+        });
+        if (label) {
+          label.animate([
+            { transform: 'scale(1)', color: '' },
+            { transform: `scale(${1.15 + t * 0.35})`, color: '#fbbf24', offset: 0.4 },
+            { transform: 'scale(1)', color: '' }
+          ], { duration: 500 + t * 180, delay: 100 + t * 70, easing: 'ease-out' });
+        }
       }
 
       if (isPerfect) spawnPerfectBurst(c);
@@ -3724,7 +4162,8 @@ function animateEpisodeWatchSweep(epId) {
 function toggleEp(itemId, epId) {
   const item = data[activeSection].find(i => i.id === itemId);
   if (!item) return;
-  const ep = item.episodes.find(e => e.id === epId);
+  let ep = item.episodes.find(e => e.id === epId);
+  if (!ep && epId) ep = item.episodes.find(e => (itemId + '-ep-' + (e.seasonNum ? e.seasonNum + '-' : '') + (e.epNum || e.number)) === epId);
   if (!ep) return;
   let becameWatched = false;
   preserveEpisodeScroll(itemId, () => {

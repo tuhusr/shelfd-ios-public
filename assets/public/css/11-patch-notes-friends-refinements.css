@@ -1,9 +1,21 @@
 /* v139 Pass 3: shared mobile-first Patch Notes link and page. */
 .screenlist-bottom-link-wrap {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
+  gap: 8px;
   padding: 28px 0 calc(92px + env(safe-area-inset-bottom, 0px));
+}
+.shelfd-version-inline {
+  font-family: 'Aptos', 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 300;
+  color: rgba(255,255,255,0.3);
+  letter-spacing: 0.1em;
+  text-align: center;
+  pointer-events: none;
+  user-select: none;
 }
 .screenlist-bottom-link {
   appearance: none;
@@ -40,14 +52,18 @@
   background: rgba(11,8,26,0.74);
   color: #fff;
   border-radius: 999px;
-  min-height: 38px;
-  padding: 9px 15px;
+  min-height: 44px;
+  padding: 9px 18px;
   font-family: 'DM Sans', sans-serif;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-appearance: none;
+  appearance: none;
 }
 .screenlist-patch-notes-floating-back {
   position: fixed;
@@ -1660,6 +1676,58 @@ body.main-tab-mylist .header-dm-icon svg {
   }
 }
 
+
+/* v340: Simplified patch note cards — date, time ET, Update Applied, version only. */
+.screenlist-patch-note-simple {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-family: 'Aptos', 'DM Sans', sans-serif;
+}
+.screenlist-patch-note-s-date {
+  color: #ffffff;
+  font-family: 'Aptos', 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+}
+.screenlist-patch-note-s-time {
+  color: rgba(255,255,255,0.55);
+  font-family: 'Aptos', 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 300;
+  letter-spacing: 0.01em;
+}
+.screenlist-patch-note-s-label {
+  color: rgba(255,255,255,0.82);
+  font-family: 'Aptos', 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 300;
+  margin-top: 2px;
+}
+.screenlist-patch-note-s-version {
+  color: #a78bfa;
+  font-family: 'Aptos', 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+}
+/* Suppress old header/bullet markup for any cached pages */
+.screenlist-patch-note-card h2,
+.screenlist-patch-note-card ul,
+.screenlist-patch-note-date,
+.screenlist-patch-note-title-row {
+  display: none !important;
+}
+/* Unread ping moves to top-left of simple card */
+.screenlist-patch-note-simple .screenlist-patch-note-entry-ping {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+}
+.screenlist-patch-note-card {
+  position: relative;
+}
 
 /* v159 guardrail: no empty edit-control gap when viewing someone else's lists. */
 #mylist-view #mylist-header #mylist-edit-controls:empty {

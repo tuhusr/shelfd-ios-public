@@ -2350,6 +2350,96 @@ async function proxyApi(request, env, options, ctx) {
   return response;
 }
 
+// IGDB portrait game cover proxy — keeps Twitch credentials server-side
+async function fetchIgdbGameCover(request, env) {
+  const url = new URL(request.url);
+  const title = (url.searchParams.get('title') || '').trim();
+  if (!title) return jsonResponse({ ok: false, error: 'title param required' }, 400);
+
+  const clientId = getEnvString(env, 'IGDB_CLIENT_ID');
+  const clientSecret = getEnvString(env, 'IGDB_CLIENT_SECRET');
+  if (!clientId || !clientSecret) {
+    return jsonResponse({ ok: false, error: 'IGDB credentials not configured' }, 500);
+  }
+
+  // Exchange client credentials for OAuth token
+  let accessToken = '';
+  try {
+    const tokenRes = await fetch(
+      `https://id.twitch.tv/oauth2/token?client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`,
+      { method: 'POST' }
+    );
+    if (!tokenRes.ok) return jsonResponse({ ok: false, error: 'Twitch token request failed', status: tokenRes.status }, 502);
+    const tokenData = await tokenRes.json();
+    accessToken = tokenData.access_token || '';
+    if (!accessToken) return jsonResponse({ ok: false, error: 'No access token returned' }, 502);
+  } catch (e) {
+    return jsonResponse({ ok: false, error: 'Twitch token fetch error' }, 502);
+  }
+
+  // Query IGDB for the game cover — two-step: exact name match first, then fuzzy fallback
+  try {
+    const safeTitle = title.replace(/["\\']/g, '').trim();
+    const igdbHeaders = {
+      'Client-ID': clientId,
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'text/plain',
+    };
+
+    // Step 1: exact case-insensitive name match (avoids fuzzy false positives)
+    const exactRes = await fetch('https://api.igdb.com/v4/games', {
+      method: 'POST',
+      headers: igdbHeaders,
+      body: `fields name, cover.image_id; where name ~ "${safeTitle}"i & cover != null; limit 1;`
+    });
+    if (exactRes.ok) {
+      const exactGames = await exactRes.json();
+      if (Array.isArray(exactGames) && exactGames.length && exactGames[0]?.cover?.image_id) {
+        const imageId = exactGames[0].cover.image_id;
+        const coverUrl = `https://images.igdb.com/igdb/image/upload/t_cover_big_2x/${imageId}.jpg`;
+        return jsonResponse({ ok: true, coverUrl, imageId, found: true, matchType: 'exact' });
+      }
+    }
+
+    // Step 2: fuzzy search — pick result whose name best matches the query title
+    const searchRes = await fetch('https://api.igdb.com/v4/games', {
+      method: 'POST',
+      headers: igdbHeaders,
+      body: `fields name, cover.image_id; search "${safeTitle}"; where cover != null; limit 10;`
+    });
+    if (!searchRes.ok) return jsonResponse({ ok: true, coverUrl: null, found: false });
+
+    const searchGames = await searchRes.json();
+    if (!Array.isArray(searchGames) || !searchGames.length) {
+      return jsonResponse({ ok: true, coverUrl: null, found: false });
+    }
+
+    // Pick the best match: prefer exact name match, then starts-with, then contains
+    const lowerTitle = safeTitle.toLowerCase();
+    let bestMatch = null;
+    for (const g of searchGames) {
+      if (!g?.cover?.image_id) continue;
+      const lowerName = (g.name || '').toLowerCase();
+      if (lowerName === lowerTitle) { bestMatch = g; break; }
+      if (!bestMatch && lowerName.startsWith(lowerTitle)) bestMatch = g;
+      if (!bestMatch && lowerTitle.startsWith(lowerName)) bestMatch = g;
+    }
+    // Last resort: first result with a cover
+    if (!bestMatch) bestMatch = searchGames.find(g => g?.cover?.image_id) || null;
+
+    if (!bestMatch?.cover?.image_id) {
+      return jsonResponse({ ok: true, coverUrl: null, found: false });
+    }
+
+    const imageId = bestMatch.cover.image_id;
+    // t_cover_big_2x = 528×748px — full quality portrait box art
+    const coverUrl = `https://images.igdb.com/igdb/image/upload/t_cover_big_2x/${imageId}.jpg`;
+    return jsonResponse({ ok: true, coverUrl, imageId, found: true, matchType: 'fuzzy' });
+  } catch (e) {
+    return jsonResponse({ ok: false, error: 'IGDB fetch error' }, 502);
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -2416,6 +2506,10 @@ export default {
         keyEnv: "RAWG_KEY",
         label: "RAWG"
       }, ctx);
+    }
+
+    if (url.pathname === "/api/igdb/cover") {
+      return fetchIgdbGameCover(request, env);
     }
 
     if (url.pathname.startsWith("/api/")) {

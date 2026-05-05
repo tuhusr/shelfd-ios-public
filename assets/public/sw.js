@@ -1,4 +1,4 @@
-const CACHE = 'shelfd-v239';
+const CACHE = 'shelfd-v341';
 
 const PRECACHE = [
   '/',

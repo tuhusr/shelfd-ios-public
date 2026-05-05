@@ -112,46 +112,50 @@ body.screenlist-live-update-active {
 #mylist-view #mylist-toolbar .tab-btn[data-tab="watched"] { order: 3 !important; }
 #mylist-view #mylist-toolbar .tab-btn[data-tab="paused"] { order: 4 !important; }
 
+/* Category tab underline — milky cream line, no glow */
 #mylist-view .section-sliding-pill {
-  background: linear-gradient(135deg, #7c3aed, #a78bfa) !important;
-  box-shadow: 0 2px 16px rgba(124, 58, 237, 0.48) !important;
+  background: #FFFCF1 !important;
+  box-shadow: none !important;
 }
 
+/* Status tab underline — solid medium-dark purple, no glow */
 #mylist-view .tab-sliding-pill {
-  background: linear-gradient(135deg, #0891b2, #22d3ee) !important;
-  box-shadow: 0 2px 16px rgba(34, 211, 238, 0.34) !important;
+  background: #5b21b6 !important;
+  box-shadow: none !important;
 }
 
+/* Active category button — transparent bg, bright white text */
 #mylist-view #mylist-header .section-btn.active,
 body:not(.light-mode):not(.true-dark-mode) #mylist-view .section-btn.active,
 body.light-mode #mylist-view #mylist-header .section-btn.active,
 body.true-dark-mode #mylist-view #mylist-header .section-btn.active {
-  border-color: rgba(196, 181, 253, 0.32) !important;
-  background: rgba(124, 58, 237, 0.22) !important;
-  box-shadow: inset 0 0 0 1px rgba(196, 181, 253, 0.12) !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
   color: #ffffff !important;
 }
 
+/* Active status button — transparent bg, bright white text */
 #mylist-view #mylist-toolbar .tab-btn.active,
 body:not(.light-mode):not(.true-dark-mode) #mylist-view .tab-btn.active,
 body:not(.light-mode):not(.true-dark-mode) #mylist-view .tab-btn.active[data-tab],
 body.light-mode #mylist-view #mylist-toolbar .tab-btn.active,
 body.true-dark-mode #mylist-view #mylist-toolbar .tab-btn.active,
 body.true-dark-mode #mylist-view .tab-btn.active[data-tab] {
-  border-color: rgba(34, 211, 238, 0.46) !important;
-  background: rgba(8, 145, 178, 0.20) !important;
-  box-shadow: inset 0 0 0 1px rgba(103, 232, 249, 0.13) !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
   color: #ffffff !important;
 }
 
 body.light-mode #mylist-view .section-sliding-pill {
-  background: linear-gradient(135deg, #7c3aed, #9f67ff) !important;
-  box-shadow: 0 2px 14px rgba(124, 58, 237, 0.24) !important;
+  background: #FFFCF1 !important;
+  box-shadow: none !important;
 }
 
 body.light-mode #mylist-view .tab-sliding-pill {
-  background: linear-gradient(135deg, #0891b2, #06b6d4) !important;
-  box-shadow: 0 2px 14px rgba(8, 145, 178, 0.22) !important;
+  background: #5b21b6 !important;
+  box-shadow: none !important;
 }
 
 /* v264: Friends spatial tab-strip motion uses a lightweight two-panel strip. */
