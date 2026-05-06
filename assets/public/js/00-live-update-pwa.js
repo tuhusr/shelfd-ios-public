@@ -1,9 +1,9 @@
-// Shelfd split runtime guard v302-splash-until-app-ready.
+// Shelfd split runtime guard v364-force-fresh.
 // Direct chunk loads set this flag so compatibility /script.js never double-loads them.
 window.__shelfdSplitScriptsLoading = true;
-window.__shelfdSplitChunkVersion = '302-splash-until-app-ready';
+window.__shelfdSplitChunkVersion = '364-force-fresh';
 
-// ScreenList deploy auto-refresh: all browser + PWA clients show a clear update screen before reloading.
+// ScreenList deploy auto-refresh: browser + PWA clients show a clear update screen before reloading.
 (function initScreenListDeployAutoRefresh() {
   const currentVersion = String(window.SCREENLIST_BUILD_VERSION || '').trim();
   if (!currentVersion || window.__screenListDeployAutoRefreshReady) return;
@@ -12,14 +12,17 @@ window.__shelfdSplitChunkVersion = '302-splash-until-app-ready';
   let checking = false;
   let reloading = false;
   let lastCheckAt = 0;
+  let serviceWorkerRefreshBound = false;
+
   const MIN_CHECK_GAP_MS = 15000;
   const CHECK_INTERVAL_MS = 60000;
   const LIVE_UPDATE_SPLASH_KEY = 'screenlist-live-update-splash-v3';
   const LIVE_UPDATE_RELOAD_DELAY_MS = 3000;
   const LIVE_UPDATE_AFTER_LOAD_HOLD_MS = 700;
   const LIVE_UPDATE_APP_READY_TIMEOUT_MS = 10000;
-  const LIVE_UPDATE_LOGO_SRC = '/live_update_splash_logo.png?v=302-splash-until-app-ready';
+  const LIVE_UPDATE_LOGO_SRC = '/live_update_splash_logo.png?v=362-pwa-edge-no-store';
   const LIVE_UPDATE_MESSAGE = 'the developer has just sent out a live update, please wait for refresh';
+  const PWA_CACHE_RESET_KEY = 'shelfd-pwa-cache-reset-v364';
 
   function readVersionFromHtml(html) {
     const metaMatch = String(html || '').match(/<meta\s+name=["']screenlist-build-version["']\s+content=["']([^"']+)["']/i);
@@ -104,7 +107,7 @@ window.__shelfdSplitChunkVersion = '302-splash-until-app-ready';
     setTimeout(() => splash.remove(), 260);
   }
 
-  function waitForScreenListAppReadyThenHide(startedAt = Date.now(), minHoldMs = LIVE_UPDATE_AFTER_LOAD_HOLD_MS) {
+  function waitForScreenListAppReadyThenHide(startedAt, minHoldMs) {
     const hideAfterReady = () => {
       const elapsed = Date.now() - startedAt;
       const delay = Math.max(0, minHoldMs - elapsed);
@@ -136,7 +139,7 @@ window.__shelfdSplitChunkVersion = '302-splash-until-app-ready';
         sessionStorage.removeItem('screenlist-live-update-splash-v2');
         sessionStorage.removeItem('screenlist-live-update-splash-v1');
       }
-    } catch (e) {}
+    } catch (error) {}
     if (!shouldShow) return;
     const run = () => {
       const startedAt = Date.now();
@@ -148,7 +151,7 @@ window.__shelfdSplitChunkVersion = '302-splash-until-app-ready';
   }
 
   function reloadAfterVisibleSplash() {
-    try { sessionStorage.setItem(LIVE_UPDATE_SPLASH_KEY, '1'); } catch (e) {}
+    try { sessionStorage.setItem(LIVE_UPDATE_SPLASH_KEY, '1'); } catch (error) {}
     const run = () => {
       showLiveUpdateSplash();
       setTimeout(() => window.location.reload(), LIVE_UPDATE_RELOAD_DELAY_MS);
@@ -157,7 +160,7 @@ window.__shelfdSplitChunkVersion = '302-splash-until-app-ready';
     else window.addEventListener('DOMContentLoaded', run, { once: true });
   }
 
-  async function checkForScreenListDeployUpdate(force = false) {
+  async function checkForScreenListDeployUpdate(force) {
     if (checking || reloading) return;
     const now = Date.now();
     if (!force && now - lastCheckAt < MIN_CHECK_GAP_MS) return;
@@ -172,7 +175,7 @@ window.__shelfdSplitChunkVersion = '302-splash-until-app-ready';
       const nextVersion = readVersionFromHtml(await res.text());
       if (nextVersion && nextVersion !== currentVersion) {
         reloading = true;
-        try { localStorage.setItem('screenlist-last-auto-refresh', String(now)); } catch (e) {}
+        try { localStorage.setItem('screenlist-last-auto-refresh', String(now)); } catch (error) {}
         reloadAfterVisibleSplash();
       }
     } catch (error) {
@@ -182,9 +185,66 @@ window.__shelfdSplitChunkVersion = '302-splash-until-app-ready';
     }
   }
 
+  async function forceRefreshServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    try {
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (!registration) return;
+      if (!serviceWorkerRefreshBound) {
+        serviceWorkerRefreshBound = true;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (reloading) return;
+          reloading = true;
+          reloadAfterVisibleSplash();
+        });
+      }
+      if (registration.waiting) {
+        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        return;
+      }
+      if (typeof registration.update === 'function') {
+        await registration.update();
+      }
+      if (registration.waiting) {
+        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+    } catch (error) {
+      console.warn('Shelfd service worker refresh failed:', error);
+    }
+  }
+
+  async function resetStandalonePwaCachesOnce() {
+    const isStandalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+    if (!isStandalone) return false;
+    try {
+      if (localStorage.getItem(PWA_CACHE_RESET_KEY) === '1') return false;
+    } catch (error) {}
+    try {
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(registration => registration.unregister().catch(() => false)));
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(
+          keys
+            .filter(key => /^shelfd-/i.test(String(key || '')))
+            .map(key => caches.delete(key))
+        );
+      }
+      try { localStorage.setItem(PWA_CACHE_RESET_KEY, '1'); } catch (error) {}
+      return true;
+    } catch (error) {
+      console.warn('Shelfd standalone cache reset failed:', error);
+      return false;
+    }
+  }
+
   function showStartupSplashIfNeeded() {
     if (!window.matchMedia || !window.matchMedia('(display-mode: standalone)').matches) return;
-    try { if (sessionStorage.getItem(LIVE_UPDATE_SPLASH_KEY) === '1') return; } catch (e) {}
+    try {
+      if (sessionStorage.getItem(LIVE_UPDATE_SPLASH_KEY) === '1') return;
+    } catch (error) {}
     const pageStartMs = Date.now();
     const run = () => {
       showLiveUpdateSplash();
@@ -194,197 +254,44 @@ window.__shelfdSplitChunkVersion = '302-splash-until-app-ready';
     else window.addEventListener('DOMContentLoaded', run, { once: true });
   }
 
-  finishReloadSplashIfNeeded();
-  showStartupSplashIfNeeded();
-  window.checkScreenListDeployUpdate = () => checkForScreenListDeployUpdate(true);
-  setInterval(() => checkForScreenListDeployUpdate(false), CHECK_INTERVAL_MS);
-  window.addEventListener('load', () => checkForScreenListDeployUpdate(true), { once: true });
-  window.addEventListener('focus', () => checkForScreenListDeployUpdate(true));
-  window.addEventListener('pageshow', () => checkForScreenListDeployUpdate(true));
-  window.addEventListener('online', () => checkForScreenListDeployUpdate(true));
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) checkForScreenListDeployUpdate(true);
-  });
-})();
+  async function startScreenListLiveUpdateRuntime() {
+    const resetPerformed = await resetStandalonePwaCachesOnce();
+    if (resetPerformed) {
+      window.location.replace(window.location.pathname + window.location.search + window.location.hash);
+      return;
+    }
+    finishReloadSplashIfNeeded();
+    forceRefreshServiceWorker();
+    showStartupSplashIfNeeded();
+    window.checkScreenListDeployUpdate = () => checkForScreenListDeployUpdate(true);
+    setInterval(() => checkForScreenListDeployUpdate(false), CHECK_INTERVAL_MS);
+    window.addEventListener('load', () => {
+      forceRefreshServiceWorker();
+      checkForScreenListDeployUpdate(true);
+    }, { once: true });
+    window.addEventListener('focus', () => {
+      forceRefreshServiceWorker();
+      checkForScreenListDeployUpdate(true);
+    });
+    window.addEventListener('pageshow', () => {
+      forceRefreshServiceWorker();
+      checkForScreenListDeployUpdate(true);
+    });
+    window.addEventListener('online', () => {
+      forceRefreshServiceWorker();
+      checkForScreenListDeployUpdate(true);
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        forceRefreshServiceWorker();
+        checkForScreenListDeployUpdate(true);
+      }
+    });
+  }
 
+  startScreenListLiveUpdateRuntime();
+})();
 
 // Double-tap zoom guard removed: the viewport already sets user-scalable=no + maximum-scale=1.0,
 // which prevents zoom natively. The previous touchend preventDefault() was cancelling
 // synthesized click events inside iOS PWA standalone (WKWebView), breaking tap interactions.
-
-
-// PWA reinstall notice — shown once to standalone users to prompt a one-time cache reset.
-(function initPWAReinstallNotice() {
-  const NOTICE_KEY = 'shelfd-pwa-reinstall-notice-v303';
-  const isStandalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
-  if (!isStandalone) return;
-  try { if (localStorage.getItem(NOTICE_KEY)) return; } catch (e) {}
-
-  function injectNoticeStyles() {
-    if (document.getElementById('shelfd-reinstall-notice-style')) return;
-    const s = document.createElement('style');
-    s.id = 'shelfd-reinstall-notice-style';
-    s.textContent = `
-      #shelfd-reinstall-backdrop {
-        position: fixed; inset: 0; z-index: 2147483646;
-        background: rgba(0,0,0,0.82);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        display: flex; align-items: center; justify-content: center;
-        padding: max(24px, env(safe-area-inset-top, 0px)) 20px max(24px, env(safe-area-inset-bottom, 0px));
-        opacity: 0; transition: opacity 260ms ease;
-      }
-      #shelfd-reinstall-backdrop.visible { opacity: 1; }
-      #shelfd-reinstall-card {
-        background: #0d0d0d;
-        border: 1px solid rgba(255,255,255,0.1);
-        border-radius: 22px;
-        padding: 32px 28px 28px;
-        width: min(400px, 94vw);
-        display: flex; flex-direction: column; align-items: center;
-        gap: 0;
-        transform: translateY(14px) scale(0.97);
-        transition: transform 300ms cubic-bezier(0.22,1,0.36,1), opacity 300ms ease;
-        opacity: 0;
-        box-shadow: 0 24px 64px rgba(0,0,0,0.72), 0 0 0 0.5px rgba(255,255,255,0.06);
-        text-align: center;
-        font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
-      }
-      #shelfd-reinstall-backdrop.visible #shelfd-reinstall-card {
-        transform: translateY(0) scale(1); opacity: 1;
-      }
-      #shelfd-reinstall-icon {
-        width: 52px; height: 52px; border-radius: 14px;
-        background: rgba(255,255,255,0.06);
-        border: 1px solid rgba(255,255,255,0.1);
-        display: flex; align-items: center; justify-content: center;
-        margin-bottom: 20px; font-size: 24px;
-        flex-shrink: 0;
-      }
-      #shelfd-reinstall-title {
-        color: #fff;
-        font-size: 17px; font-weight: 700; line-height: 1.3;
-        margin-bottom: 12px; letter-spacing: -0.01em;
-      }
-      #shelfd-reinstall-body {
-        color: rgba(255,255,255,0.62);
-        font-size: 14px; line-height: 1.6; font-weight: 400;
-        margin-bottom: 8px;
-      }
-      #shelfd-reinstall-steps {
-        width: 100%; margin: 14px 0 24px;
-        display: flex; flex-direction: column; gap: 10px;
-      }
-      .shelfd-reinstall-step {
-        display: flex; align-items: flex-start; gap: 12px;
-        background: rgba(255,255,255,0.04);
-        border: 1px solid rgba(255,255,255,0.07);
-        border-radius: 12px; padding: 11px 14px; text-align: left;
-      }
-      .shelfd-reinstall-step-num {
-        width: 22px; height: 22px; border-radius: 50%;
-        background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.9);
-        font-size: 12px; font-weight: 700;
-        display: flex; align-items: center; justify-content: center;
-        flex-shrink: 0; margin-top: 1px;
-      }
-      .shelfd-reinstall-step-text {
-        color: rgba(255,255,255,0.78); font-size: 13px; line-height: 1.5;
-      }
-      .shelfd-reinstall-step-text strong { color: #fff; font-weight: 600; }
-      #shelfd-reinstall-note {
-        color: rgba(255,255,255,0.36);
-        font-size: 12px; line-height: 1.5;
-        margin-bottom: 22px;
-      }
-      #shelfd-reinstall-btn {
-        width: 100%; padding: 14px;
-        background: #fff; color: #000;
-        border: none; border-radius: 12px;
-        font-family: 'DM Sans', system-ui, sans-serif;
-        font-size: 15px; font-weight: 700;
-        cursor: pointer; letter-spacing: -0.01em;
-        transition: opacity 140ms ease, transform 140ms ease;
-        -webkit-tap-highlight-color: transparent;
-      }
-      #shelfd-reinstall-btn:active { opacity: 0.82; transform: scale(0.98); }
-    `;
-    (document.head || document.documentElement).appendChild(s);
-  }
-
-  function showNotice() {
-    if (document.getElementById('shelfd-reinstall-backdrop')) return;
-    injectNoticeStyles();
-
-    const backdrop = document.createElement('div');
-    backdrop.id = 'shelfd-reinstall-backdrop';
-    backdrop.setAttribute('role', 'dialog');
-    backdrop.setAttribute('aria-modal', 'true');
-    backdrop.setAttribute('aria-labelledby', 'shelfd-reinstall-title');
-
-    backdrop.innerHTML = `
-      <div id="shelfd-reinstall-card">
-        <div id="shelfd-reinstall-icon">⚡</div>
-        <div id="shelfd-reinstall-title">Reinstall Required — One Time</div>
-        <div id="shelfd-reinstall-body">
-          A recent update changed how Shelfd stores files on your device.
-          To get the latest version and fix any broken features, you'll need to
-          remove and re-add the app — takes less than 30 seconds.
-        </div>
-        <div id="shelfd-reinstall-steps">
-          <div class="shelfd-reinstall-step">
-            <div class="shelfd-reinstall-step-num">1</div>
-            <div class="shelfd-reinstall-step-text">
-              <strong>Hold the app</strong> on your home screen and tap
-              <strong>Remove App</strong>
-            </div>
-          </div>
-          <div class="shelfd-reinstall-step">
-            <div class="shelfd-reinstall-step-num">2</div>
-            <div class="shelfd-reinstall-step-text">
-              Open <strong>Safari</strong> and go to
-              <strong>myscreenlist.com</strong>
-            </div>
-          </div>
-          <div class="shelfd-reinstall-step">
-            <div class="shelfd-reinstall-step-num">3</div>
-            <div class="shelfd-reinstall-step-text">
-              Tap the <strong>Share button</strong> and select
-              <strong>Add to Home Screen</strong>
-            </div>
-          </div>
-        </div>
-        <div id="shelfd-reinstall-note">This is a one-time step. It won't happen again.</div>
-        <button id="shelfd-reinstall-btn" type="button">Got it</button>
-      </div>
-    `;
-
-    document.body.appendChild(backdrop);
-
-    // Animate in
-    requestAnimationFrame(() => requestAnimationFrame(() => backdrop.classList.add('visible')));
-
-    // Dismiss
-    document.getElementById('shelfd-reinstall-btn').addEventListener('click', function dismissNotice() {
-      try { localStorage.setItem(NOTICE_KEY, '1'); } catch (e) {}
-      backdrop.classList.remove('visible');
-      setTimeout(() => { if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); }, 300);
-    });
-  }
-
-  // Wait for app to be ready before showing
-  function scheduleNotice() {
-    const show = () => setTimeout(showNotice, 900);
-    if (window.__shelfdAppReady) { show(); return; }
-    let done = false;
-    const finish = () => { if (done) return; done = true; window.removeEventListener('shelfd:app-ready', finish); show(); };
-    window.addEventListener('shelfd:app-ready', finish, { once: true });
-    setTimeout(finish, 8000);
-  }
-
-  if (document.readyState === 'loading') {
-    window.addEventListener('DOMContentLoaded', scheduleNotice, { once: true });
-  } else {
-    scheduleNotice();
-  }
-})();

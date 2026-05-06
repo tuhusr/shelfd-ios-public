@@ -13,6 +13,7 @@ function getActivityAction(item) {
 
 function getActivityEventType(activity) {
   if (activity.type === 'comment') return 'commented';
+  if (activity.type === 'import-batch') return 'import-batch';
   const item = activity.item || {};
   const evType = activity.eventType;
   if (evType) return evType;
@@ -38,6 +39,8 @@ function getActivityVerbPhrase(eventType, item = {}) {
     case 'dropped':   return 'dropped';
     case 'planned':   return isGame ? 'wants to play' : 'wants to watch';
     case 'commented': return 'commented on';
+    case 'episode-watched': return 'watched an episode of';
+    case 'import-batch': return 'imported';
     case 'added':     return 'added';
     default:          return 'updated';
   }
@@ -92,6 +95,193 @@ function getStableActivityDocId(activity = {}, fallbackId = '') {
   const timestamp = parseFriendActivityTime(activity.timestamp || item.dateModified || item.dateAdded || item.updatedAt || item.createdAt) || '';
   const rawKey = [uid, eventType, section, mediaKey, timestamp].filter(Boolean).join('|') || String(fallbackId || 'activity');
   return 'activity-' + screenlistStableHash(rawKey);
+}
+
+
+const SCREENLIST_ACTIVITY_MERGE_WINDOW_MS = 6 * 60 * 60 * 1000;
+
+function isScreenListMergeableLibraryActivity(activity = {}) {
+  if (!activity || activity.type === 'comment' || activity.type === 'post' || activity.type === 'trailer') return false;
+  const item = activity.item || {};
+  const section = String(item.librarySection || item.mediaCategory || '').trim();
+  if (!section) return false;
+  const eventType = getActivityEventType(activity);
+  return ['added', 'rated', 'status-changed', 'completed', 'started', 'planned', 'paused', 'dropped'].includes(eventType);
+}
+
+function getScreenListActivityMergeKey(activity = {}) {
+  const item = activity.item || {};
+  const uid = String(activity.uid || '').trim();
+  const section = String(item.librarySection || item.mediaCategory || '').trim();
+  const mediaKey = String(activity.mediaKey || getMediaKey(item) || item.mediaKey || '').trim();
+  const fallbackTitle = String(item.title || item.name || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  if (!uid || !section || (!mediaKey && !fallbackTitle)) return '';
+  return [uid, section, mediaKey || fallbackTitle].join('|');
+}
+
+function mergeScreenListActivityPair(base = {}, incoming = {}) {
+  const baseTime = parseFriendActivityTime(base.timestamp || base.item?.dateModified || base.item?.dateAdded);
+  const incomingTime = parseFriendActivityTime(incoming.timestamp || incoming.item?.dateModified || incoming.item?.dateAdded);
+  const newer = incomingTime >= baseTime ? incoming : base;
+  const older = incomingTime >= baseTime ? base : incoming;
+  const mergedItem = { ...(older.item || {}), ...(newer.item || {}) };
+  const olderRating = Number(older.item?.rating || older.rating || 0);
+  const newerRating = Number(newer.item?.rating || newer.rating || 0);
+  if (!Number(mergedItem.rating || 0) && (newerRating || olderRating)) mergedItem.rating = newerRating || olderRating;
+  ['cover', 'igdbCoverUrl', 'poster', 'image', 'background_image'].forEach(key => {
+    if (!mergedItem[key] && older.item?.[key]) mergedItem[key] = older.item[key];
+  });
+  return {
+    ...older,
+    ...newer,
+    item: mergedItem,
+    timestamp: newer.timestamp || incoming.timestamp || base.timestamp,
+    eventType: newer.eventType || incoming.eventType || base.eventType || 'added',
+    nextStatus: newer.nextStatus || mergedItem.status || older.nextStatus || '',
+    eventKey: `merged:${getScreenListActivityMergeKey(newer) || getScreenListActivityMergeKey(older)}:${Math.min(baseTime || incomingTime || Date.now(), incomingTime || baseTime || Date.now())}`,
+    mergedActivityActions: true
+  };
+}
+
+function mergeRelatedLibraryActivities(activities = []) {
+  const ordered = Array.isArray(activities) ? activities.slice().sort((a, b) => parseFriendActivityTime(a.timestamp || a.item?.dateAdded) - parseFriendActivityTime(b.timestamp || b.item?.dateAdded)) : [];
+  const merged = [];
+  const latestByKey = new Map();
+  ordered.forEach(activity => {
+    if (!isScreenListMergeableLibraryActivity(activity)) {
+      merged.push(activity);
+      return;
+    }
+    const key = getScreenListActivityMergeKey(activity);
+    const currentTime = parseFriendActivityTime(activity.timestamp || activity.item?.dateModified || activity.item?.dateAdded);
+    const existingIndex = key ? latestByKey.get(key) : undefined;
+    const existing = existingIndex !== undefined ? merged[existingIndex] : null;
+    const existingTime = existing ? parseFriendActivityTime(existing.timestamp || existing.item?.dateModified || existing.item?.dateAdded) : 0;
+    if (existing && Math.abs(currentTime - existingTime) <= SCREENLIST_ACTIVITY_MERGE_WINDOW_MS) {
+      merged[existingIndex] = mergeScreenListActivityPair(existing, activity);
+      latestByKey.set(key, existingIndex);
+    } else {
+      latestByKey.set(key, merged.length);
+      merged.push(activity);
+    }
+  });
+  return merged;
+}
+
+
+
+const SCREENLIST_IMPORT_ACTIVITY_GROUP_WINDOW_MS = 12 * 60 * 1000;
+const SCREENLIST_IMPORT_ACTIVITY_MIN_GROUP_SIZE = 3;
+
+function getScreenListImportSourceLabel(source = '') {
+  const key = String(source || '').trim().toLowerCase();
+  return ({
+    steam: 'Steam',
+    myanimelist: 'MyAnimeList',
+    backloggd: 'Backloggd',
+    letterboxd: 'Letterboxd',
+    imdb: 'IMDb'
+  })[key] || 'Import';
+}
+
+function isScreenListImportAddedActivity(activity = {}) {
+  if (!activity || activity.type === 'comment' || activity.type === 'post' || activity.type === 'trailer' || activity.type === 'import-batch') return false;
+  const item = activity.item || {};
+  const eventType = getActivityEventType(activity);
+  if (eventType !== 'added') return false;
+  const source = String(item.importSource || item.source || activity.importSource || '').trim().toLowerCase();
+  return !!(item.importBatchId || ['steam', 'myanimelist', 'backloggd', 'letterboxd', 'imdb'].includes(source));
+}
+
+function getScreenListImportActivityGroupKey(activity = {}) {
+  const item = activity.item || {};
+  const uid = String(activity.uid || '').trim();
+  const source = String(item.importSource || item.source || activity.importSource || 'import').trim().toLowerCase();
+  const section = String(item.librarySection || item.mediaCategory || '').trim();
+  const batchId = String(item.importBatchId || activity.importBatchId || '').trim();
+  if (batchId) return [uid, source, section, batchId].filter(Boolean).join('|');
+  const ts = parseFriendActivityTime(activity.timestamp || item.dateAdded || item.importedAt);
+  const bucket = ts ? Math.floor(ts / SCREENLIST_IMPORT_ACTIVITY_GROUP_WINDOW_MS) : 0;
+  return [uid, source, section, bucket].filter(Boolean).join('|');
+}
+
+function buildScreenListImportBatchActivity(group = []) {
+  const items = group.map(activity => ({ ...(activity.item || {}) }));
+  const first = group[0] || {};
+  const firstItem = first.item || {};
+  const latest = group.reduce((best, activity) => {
+    const bestTime = parseFriendActivityTime(best.timestamp || best.item?.dateAdded || best.item?.importedAt);
+    const nextTime = parseFriendActivityTime(activity.timestamp || activity.item?.dateAdded || activity.item?.importedAt);
+    return nextTime >= bestTime ? activity : best;
+  }, first);
+  const source = String(firstItem.importSource || firstItem.source || first.importSource || 'import').trim().toLowerCase();
+  const section = String(firstItem.librarySection || firstItem.mediaCategory || '').trim();
+  const statusCounts = items.reduce((acc, item) => {
+    const status = String(item.status || 'planned').trim();
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {});
+  return {
+    type: 'import-batch',
+    eventType: 'import-batch',
+    uid: first.uid,
+    name: first.name,
+    photo: first.photo,
+    importSource: source,
+    importSourceLabel: getScreenListImportSourceLabel(source),
+    importSection: section,
+    importStatusCounts: statusCounts,
+    importItems: items,
+    item: {
+      title: `${getScreenListImportSourceLabel(source)} import`,
+      librarySection: section,
+      mediaCategory: section,
+      dateAdded: latest.timestamp || latest.item?.dateAdded || latest.item?.importedAt || first.timestamp || firstItem.dateAdded || '',
+      importBatchId: firstItem.importBatchId || first.importBatchId || '',
+      importSource: source
+    },
+    timestamp: latest.timestamp || latest.item?.dateAdded || latest.item?.importedAt || first.timestamp || firstItem.dateAdded || Date.now(),
+    eventKey: `import-batch:${getScreenListImportActivityGroupKey(first)}:${items.length}`
+  };
+}
+
+function collapseImportBatchActivities(activities = []) {
+  const source = Array.isArray(activities) ? activities : [];
+  const groups = new Map();
+  source.forEach(activity => {
+    if (!isScreenListImportAddedActivity(activity)) return;
+    const key = getScreenListImportActivityGroupKey(activity);
+    if (!key) return;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(activity);
+  });
+
+  const collapsedKeys = new Set();
+  const collapsedByKey = new Map();
+  groups.forEach((group, key) => {
+    if (group.length < SCREENLIST_IMPORT_ACTIVITY_MIN_GROUP_SIZE) return;
+    collapsedKeys.add(key);
+    collapsedByKey.set(key, buildScreenListImportBatchActivity(group));
+  });
+  if (!collapsedKeys.size) return source;
+
+  const emitted = new Set();
+  const result = [];
+  source.forEach(activity => {
+    if (!isScreenListImportAddedActivity(activity)) {
+      result.push(activity);
+      return;
+    }
+    const key = getScreenListImportActivityGroupKey(activity);
+    if (!collapsedKeys.has(key)) {
+      result.push(activity);
+      return;
+    }
+    if (emitted.has(key)) return;
+    emitted.add(key);
+    result.push(collapsedByKey.get(key));
+  });
+  return result;
 }
 
 async function resolveActivityInteractionTarget(activityId = '') {
@@ -281,6 +471,10 @@ function getScreenListActivityItemTitle(item = {}) {
 }
 
 function getScreenListActivityItemCover(item = {}) {
+  const section = item?.librarySection || item?.mediaCategory || '';
+  if (section === 'games' && typeof getScreenListPreferredGameCover === 'function') {
+    return getScreenListPreferredGameCover(item);
+  }
   return String(item?.cover || item?.poster || item?.image || item?.background_image || '').trim();
 }
 
@@ -2027,11 +2221,11 @@ function buildActivityPostDetailHTML(activity, activityId, collection = 'activit
     ? `<img class="x-post-avatar ${meta.ringClass}" src="${escAttr(avatarSrc)}" alt="" loading="lazy" onclick="openActivityUserList('${escAttr(activity.uid)}')">`
     : `<div class="x-post-avatar x-post-avatar-placeholder ${meta.ringClass}" onclick="openActivityUserList('${escAttr(activity.uid)}')">${initial}</div>`;
 
-  const itemCover = String(item.cover || '').trim();
+  const itemCover = getScreenListActivityItemCover(item);
   const actorPhoto = String(avatarSrc || '').trim();
   const mediaCover = itemCover && itemCover !== actorPhoto ? itemCover : '';
   const posterHtml = mediaCover
-    ? `<button type="button" class="x-post-media-poster" onclick="handleActivityMediaClick('${escAttr(activityId)}', this)"><img src="${escAttr(mediaCover)}" alt="" loading="lazy"></button>`
+    ? `<button type="button" class="x-post-media-poster" data-activity-game-poster="${section === 'games' ? '1' : '0'}" data-game-title="${escAttr(title)}" data-rawg-id="${escAttr(getGameRawgIdValue(item) || '')}" onclick="handleActivityMediaClick('${escAttr(activityId)}', this)"><img src="${escAttr(mediaCover)}" alt="" loading="lazy"></button>`
     : '';
 
   let actionText = getActivityVerbPhrase(eventType, item);
@@ -2306,6 +2500,8 @@ function getActivityDisplayAction(eventType = '', item = {}, activity = {}) {
   const status = String(activity.nextStatus || item.status || '').toLowerCase();
   const isGame = section === 'games';
   if (status === 'watched' || eventType === 'completed') return isGame ? 'played' : 'watched';
+  if (eventType === 'import-batch' || activity.type === 'import-batch') return 'imported titles';
+  if (eventType === 'episode-watched') return 'watched an episode';
   if (eventType === 'rated') return 'rated';
   if (eventType === 'commented' || activity.type === 'comment') return 'commented';
   if (status === 'watching' || eventType === 'started') return isGame ? 'playing' : 'watching';
@@ -2352,7 +2548,63 @@ function toggleActivityCommentPreview(btn) {
   btn.textContent = expanded ? 'Show less' : 'Show more';
 }
 
+
+
+function toggleImportActivityCard(btn) {
+  const card = btn?.closest?.('[data-import-activity-card]');
+  if (!card) return;
+  const expanded = card.classList.toggle('expanded');
+  btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  const label = btn.querySelector('[data-import-toggle-label]');
+  if (label) label.textContent = expanded ? 'Collapse' : 'Expand';
+}
+
+function buildImportActivityCardHTML(a = {}, activityId = '', options = {}) {
+  const items = Array.isArray(a.importItems) ? a.importItems : [];
+  const actor = usersMap[a.uid] ? { ...a, ...usersMap[a.uid] } : a;
+  const avatarSrc = actor.photo || a.photo || '';
+  const initial = getDisplayName(actor, 'F').charAt(0).toUpperCase();
+  const actorName = renderDisplayNameHTML(actor, 'Friend', '');
+  const sourceLabel = a.importSourceLabel || getScreenListImportSourceLabel(a.importSource || a.item?.importSource || '');
+  const section = a.importSection || a.item?.librarySection || a.item?.mediaCategory || '';
+  const sectionLabel = getSectionLabel2(section) || getSectionLabel(section, true) || 'Library';
+  const count = items.length;
+  const timeStr = relativeTime(a.timestamp || a.item?.dateAdded || Date.now());
+  const avatarHtml = avatarSrc
+    ? `<button class="sl-activity-avatar-btn" type="button" onclick="event.stopPropagation(); openActivityUserList('${escAttr(a.uid)}','${escAttr(actor.name || actor.customName || a.name || '')}','${escAttr(avatarSrc)}',event.currentTarget)" title="View list" aria-label="Open ${escAttr(getDisplayName(actor, 'Friend'))} list"><img class="sl-activity-avatar-img" src="${escAttr(avatarSrc)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="sl-activity-avatar-fallback" style="display:none">${escHtml(initial)}</span></button>`
+    : `<button class="sl-activity-avatar-btn" type="button" onclick="event.stopPropagation(); openActivityUserList('${escAttr(a.uid)}','${escAttr(actor.name || actor.customName || a.name || '')}','',event.currentTarget)" title="View list" aria-label="Open ${escAttr(getDisplayName(actor, 'Friend'))} list"><span class="sl-activity-avatar-fallback">${escHtml(initial)}</span></button>`;
+  const preview = items.slice(0, 4).map(item => {
+    const cover = getScreenListActivityItemCover(item);
+    return `<div class="import-activity-preview-tile">${cover ? `<img src="${escAttr(cover)}" alt="" loading="lazy">` : `<span>${escHtml((item.title || '?').charAt(0).toUpperCase())}</span>`}</div>`;
+  }).join('');
+  const rows = items.map(item => {
+    const cover = getScreenListActivityItemCover(item);
+    const status = item.status === 'watching' ? 'Playing' : item.status === 'planned' ? 'Backlog' : item.status === 'watched' ? 'Played' : item.status === 'wishlist' ? 'Wishlist' : (item.status || 'Added');
+    return `<div class="import-activity-row">
+      <div class="import-activity-row-poster">${cover ? `<img src="${escAttr(cover)}" alt="" loading="lazy">` : `<span>${escHtml((item.title || '?').charAt(0).toUpperCase())}</span>`}</div>
+      <div class="import-activity-row-copy"><strong>${escHtml(item.title || item.name || 'Untitled')}</strong><span>${escHtml(status)}</span></div>
+    </div>`;
+  }).join('');
+
+  return `<article class="shelfd-social-card import-activity-card" data-import-activity-card="1" data-activity-card-id="${escAttr(activityId)}" data-activity-id="${escAttr(activityId)}">
+    <div class="import-activity-top">
+      <div class="sl-activity-avatar-zone">${avatarHtml}</div>
+      <div class="import-activity-copy">
+        <div class="sl-activity-meta-row"><button class="sl-activity-name" type="button" onclick="event.stopPropagation(); openActivityUserList('${escAttr(a.uid)}','${escAttr(actor.name || actor.customName || a.name || '')}','${escAttr(avatarSrc)}',event.currentTarget)">${actorName}</button><span class="sl-activity-dot">·</span><time class="sl-activity-time">${escHtml(timeStr)}</time></div>
+        <div class="import-activity-title">Imported ${count} ${escHtml(sectionLabel)} ${count === 1 ? 'title' : 'titles'}</div>
+        <div class="import-activity-status">${escHtml(sourceLabel)} library import</div>
+      </div>
+    </div>
+    <div class="import-activity-preview">${preview}</div>
+    <button class="import-activity-toggle" type="button" onclick="event.stopPropagation(); toggleImportActivityCard(this)" aria-expanded="false"><span data-import-toggle-label>Expand</span> ${count} title${count === 1 ? '' : 's'}</button>
+    <div class="import-activity-list">${rows}</div>
+  </article>`;
+}
+
 function buildActivityCardHTML(a, activityId, options = {}) {
+  if (a.type === 'import-batch') {
+    return buildImportActivityCardHTML(a, activityId, options);
+  }
   if (a.type === 'post' || a.type === 'trailer') {
     return buildFeedPostCardHTML(a, activityId, options);
   }
@@ -2375,13 +2627,15 @@ function buildActivityCardHTML(a, activityId, options = {}) {
     ? `<button class="sl-activity-avatar-btn" type="button" onclick="event.stopPropagation(); openActivityUserList('${escAttr(a.uid)}','${escAttr(actor.name || actor.customName || a.name || '')}','${escAttr(avatarSrc)}',event.currentTarget)" title="View list" aria-label="Open ${escAttr(getDisplayName(actor, 'Friend'))} list"><img class="sl-activity-avatar-img" src="${escAttr(avatarSrc)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="sl-activity-avatar-fallback" style="display:none">${escHtml(initial)}</span></button>`
     : `<button class="sl-activity-avatar-btn" type="button" onclick="event.stopPropagation(); openActivityUserList('${escAttr(a.uid)}','${escAttr(actor.name || actor.customName || a.name || '')}','',event.currentTarget)" title="View list" aria-label="Open ${escAttr(getDisplayName(actor, 'Friend'))} list"><span class="sl-activity-avatar-fallback">${escHtml(initial)}</span></button>`;
 
-  const itemCover = String(item.cover || item.poster || item.image || '').trim();
+  const itemCover = getScreenListActivityItemCover(item);
   const actorPhoto = String(avatarSrc || '').trim();
   const mediaCover = itemCover && itemCover !== actorPhoto ? itemCover : '';
   const posterClick = `event.stopPropagation(); handleActivityMediaClick('${escAttr(activityId)}', this)`;
   const posterHtml = mediaCover
-    ? `<button type="button" class="sl-activity-poster" onclick="${posterClick}" aria-label="Open ${escAttr(title)} media profile"><img class="sl-activity-poster-img" src="${escAttr(mediaCover)}" alt="${escAttr(title)}" loading="lazy"></button>`
-    : `<button type="button" class="sl-activity-poster sl-activity-poster-empty" onclick="${posterClick}" aria-label="Open ${escAttr(title)} media profile"><span>${escHtml((sectionLabel || title || '?').charAt(0).toUpperCase())}</span></button>`;
+    ? `<button type="button" class="sl-activity-poster" data-activity-game-poster="${section === 'games' ? '1' : '0'}" data-activity-game-activity-id="${escAttr(activityId)}" data-game-title="${escAttr(title)}" data-rawg-id="${escAttr(getGameRawgIdValue(item) || '')}" data-steam-app-id="${escAttr(item.steamAppId || item.appId || '')}" onclick="${posterClick}" aria-label="Open ${escAttr(title)} media profile"><img class="sl-activity-poster-img" src="${escAttr(mediaCover)}" alt="${escAttr(title)}" loading="lazy"></button>`
+    : (section === 'games'
+      ? `<button type="button" class="sl-activity-poster sl-activity-poster-empty" data-activity-game-poster="1" data-activity-game-activity-id="${escAttr(activityId)}" data-game-title="${escAttr(title)}" data-rawg-id="${escAttr(getGameRawgIdValue(item) || '')}" data-steam-app-id="${escAttr(item.steamAppId || item.appId || '')}" onclick="${posterClick}" aria-label="Open ${escAttr(title)} media profile"><span>${escHtml((sectionLabel || title || '?').charAt(0).toUpperCase())}</span></button>`
+      : `<button type="button" class="sl-activity-poster sl-activity-poster-empty" onclick="${posterClick}" aria-label="Open ${escAttr(title)} media profile"><span>${escHtml((sectionLabel || title || '?').charAt(0).toUpperCase())}</span></button>`);
 
   const ratingHtml = renderActivityUniversalRating(item.rating || a.rating || a.activityRating || 0);
   const commentHtml = renderActivityCommentPreview(getActivityPreviewComment(a, item), activityId);
@@ -2525,6 +2779,117 @@ function renderFriendActivityItems(feed, activities, options = {}) {
     card.style.animationDelay = `${Math.min(i * 45, 360)}ms`;
   });
   hydrateActivityInteractionCounts(feed);
+  scheduleBackfillActivityGamePosters(feed);
+}
+
+async function persistActivityGameIgdbCover(activityId = '', activity = {}, cover = {}) {
+  const coverUrl = String(cover?.coverUrl || '').trim();
+  if (!activityId || !activity || !coverUrl) return;
+  const item = { ...(activity.item || {}) };
+  if (typeof applyScreenListIgdbCoverToGameItem === 'function') {
+    applyScreenListIgdbCoverToGameItem(item, cover);
+  } else {
+    item.igdbCoverUrl = coverUrl;
+    item.cover = coverUrl;
+    item.poster = coverUrl;
+    item.image = coverUrl;
+    item.background_image = coverUrl;
+    item.coverProvider = 'igdb';
+    item.coverSource = 'igdb';
+  }
+  activity.item = { ...(activity.item || {}), ...item };
+  activity.igdbCoverUrl = coverUrl;
+  activity.cover = coverUrl;
+  activity.poster = coverUrl;
+  activity.image = coverUrl;
+  activity.background_image = coverUrl;
+  activity.__igdbActivityCoverSaved = coverUrl;
+
+  try {
+    const target = await resolveActivityInteractionTarget(activityId);
+    if (!target?.ref) return;
+    await target.ref.set({
+      item: activity.item,
+      igdbCoverUrl: coverUrl,
+      cover: coverUrl,
+      poster: coverUrl,
+      image: coverUrl,
+      background_image: coverUrl,
+      coverProvider: 'igdb',
+      coverSource: 'igdb',
+      igdbCoverUpdatedAt: new Date().toISOString()
+    }, { merge: true });
+  } catch (error) {
+    console.warn('Activity IGDB/Twitch cover save failed:', error);
+  }
+}
+
+const activityGamePosterBackfillDone = new Set();
+const activityGamePosterBackfillInFlight = new Set();
+let activityGamePosterBackfillTimer = null;
+
+function getActivityGamePosterBackfillKey(activityId = '', item = {}, currentCover = '') {
+  const mediaKey = item.mediaKey || (typeof getMediaKey === 'function' ? getMediaKey(item) : '') || item.rawgId || item.steamAppId || item.title || item.name || '';
+  return [activityId || 'activity', mediaKey || 'game', currentCover || 'no-cover'].join('|');
+}
+
+function scheduleBackfillActivityGamePosters(root = document) {
+  if (!root || typeof backfillActivityGamePosters !== 'function') return;
+  if (activityGamePosterBackfillTimer) clearTimeout(activityGamePosterBackfillTimer);
+  const run = () => {
+    activityGamePosterBackfillTimer = null;
+    const start = () => backfillActivityGamePosters(root).catch(error => console.warn('Activity game poster backfill failed:', error));
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(start, { timeout: 1600 });
+    } else {
+      window.setTimeout(start, 260);
+    }
+  };
+  activityGamePosterBackfillTimer = window.setTimeout(run, 180);
+}
+
+async function backfillActivityGamePosters(root = document) {
+  if (!root || typeof forceHydrateScreenListGamePosterElement !== 'function') return;
+  const posters = Array.from(root.querySelectorAll('[data-activity-game-poster="1"]'));
+  for (const poster of posters) {
+    const card = poster.closest?.('[data-activity-card-id], [data-activity-id]');
+    const activityId = poster.dataset.activityGameActivityId || card?.getAttribute('data-activity-card-id') || card?.getAttribute('data-activity-id') || '';
+    const activity = activityId ? friendActivityClickTargets[activityId] : null;
+    const item = activity?.item || {};
+    const title = poster.dataset.gameTitle || item.title || item.name || '';
+    if (!title) continue;
+    const img = poster.matches?.('img') ? poster : poster.querySelector?.('img');
+    const currentCover = String(img?.currentSrc || img?.src || item.igdbCoverUrl || item.cover || item.poster || item.image || item.background_image || '').trim();
+    const backfillKey = getActivityGamePosterBackfillKey(activityId, item, currentCover);
+    if (typeof isScreenListIgdbCoverUrl === 'function' && isScreenListIgdbCoverUrl(currentCover) && activity?.__igdbActivityCoverSaved === currentCover) {
+      activityGamePosterBackfillDone.add(backfillKey);
+      continue;
+    }
+    if (activityGamePosterBackfillDone.has(backfillKey) || activityGamePosterBackfillInFlight.has(backfillKey)) continue;
+    activityGamePosterBackfillInFlight.add(backfillKey);
+    try {
+      const cover = await forceHydrateScreenListGamePosterElement(poster, {
+        ...item,
+        title,
+        name: item.name || title,
+        rawgId: item.rawgId || poster.dataset.rawgId || getGameRawgIdValue(item) || '',
+        id: item.id || item.rawgId || poster.dataset.rawgId || '',
+        steamAppId: item.steamAppId || item.appId || poster.dataset.steamAppId || '',
+        librarySection: 'games',
+        mediaCategory: 'games'
+      });
+      if (cover?.coverUrl && activityId && activity) {
+        await persistActivityGameIgdbCover(activityId, activity, cover);
+        activityGamePosterBackfillDone.add(getActivityGamePosterBackfillKey(activityId, activity.item || item, cover.coverUrl));
+      }
+      activityGamePosterBackfillDone.add(backfillKey);
+    } catch (error) {
+      console.warn('Activity game poster repair skipped:', error);
+    } finally {
+      activityGamePosterBackfillInFlight.delete(backfillKey);
+    }
+    await new Promise(resolve => setTimeout(resolve, 80));
+  }
 }
 
 function getActivityMediaProfileTarget(activity = {}) {
@@ -2680,19 +3045,34 @@ function handleFriendActivityClick(activityId) {
   viewUserFromMap(activity.uid);
 }
 
-async function fetchAllFriendActivities(dayLimit = 7) {
-  const cacheKey = `${isPreviewMode() ? 'preview' : (currentUser?.uid || 'guest')}|${friends.slice().sort().join(',')}|${dayLimit || 0}`;
+function getFriendActivityCacheKey(dayLimit = 7) {
+  return `${isPreviewMode() ? 'preview' : (currentUser?.uid || 'guest')}|${friends.slice().sort().join(',')}|${dayLimit || 0}`;
+}
+
+function cloneFriendActivityList(activities = []) {
+  return (Array.isArray(activities) ? activities : []).map(activity => ({
+    ...activity,
+    item: activity.item ? { ...activity.item } : activity.item
+  }));
+}
+
+function getFreshFriendActivityCache(dayLimit = 7) {
+  const cacheKey = getFriendActivityCacheKey(dayLimit);
   const now = Date.now();
   if (
     friendActivityCache &&
     friendActivityCache.key === cacheKey &&
     (now - friendActivityCache.timestamp) < FRIEND_ACTIVITY_CACHE_MS
   ) {
-    return friendActivityCache.activities.map(activity => ({
-      ...activity,
-      item: activity.item ? { ...activity.item } : activity.item
-    }));
+    return cloneFriendActivityList(friendActivityCache.activities);
   }
+  return null;
+}
+
+async function fetchAllFriendActivities(dayLimit = 7) {
+  const cacheKey = getFriendActivityCacheKey(dayLimit);
+  const cachedActivities = getFreshFriendActivityCache(dayLimit);
+  if (cachedActivities) return cachedActivities;
   if (friendActivityPromise && friendActivityPromise.key === cacheKey) {
     return friendActivityPromise.promise;
   }
@@ -2705,7 +3085,7 @@ async function fetchAllFriendActivities(dayLimit = 7) {
       return item ? { uid: user.uid, name: user.name, photo: user.photo, item: { ...item, dateAdded: new Date(Date.now() - (index + 1) * 45 * 60000).toISOString() } } : null;
     }).filter(Boolean);
     friendActivityCache = { key: cacheKey, timestamp: Date.now(), activities: previewActivities };
-    return previewActivities.map(activity => ({ ...activity, item: activity.item ? { ...activity.item } : activity.item }));
+    return cloneFriendActivityList(previewActivities);
   }
   if (!currentUser) {
     friendActivityCache = { key: cacheKey, timestamp: Date.now(), activities: [] };
@@ -2725,15 +3105,31 @@ async function fetchAllFriendActivities(dayLimit = 7) {
 
       const addedAt = item.dateAdded || '';
       const modifiedAt = item.dateModified || '';
+      const episodeActivityAt = item.lastEpisodeActivityAt || item.episodeActivityAt || '';
       const hasRating = Number(item.rating || 0) > 0;
       const modIsDistinct = modifiedAt && modifiedAt !== addedAt &&
         (new Date(modifiedAt).getTime() - new Date(addedAt).getTime()) > 5 * 60 * 1000;
+      const modIsEpisodeActivity = episodeActivityAt && modifiedAt &&
+        Math.abs(parseFriendActivityTime(episodeActivityAt) - parseFriendActivityTime(modifiedAt)) <= 2000;
 
       if (addedAt && (!cutoff || addedAt >= cutoff)) {
         activities.push({ uid, name: u.name || 'User', photo: u.photo || '', item: enriched, timestamp: addedAt, eventType: 'added', mediaKey });
       }
 
-      if (modIsDistinct && (!cutoff || modifiedAt >= cutoff)) {
+      if (episodeActivityAt && (!cutoff || episodeActivityAt >= cutoff)) {
+        activities.push({
+          uid,
+          name: u.name || 'User',
+          photo: u.photo || '',
+          item: enriched,
+          timestamp: episodeActivityAt,
+          eventType: 'episode-watched',
+          mediaKey,
+          eventKey: [uid, 'episode-watched', mediaKey, episodeActivityAt].join('|')
+        });
+      }
+
+      if (modIsDistinct && !modIsEpisodeActivity && (!cutoff || modifiedAt >= cutoff)) {
         let modEventType = 'added';
         if (hasRating) {
           modEventType = 'rated';
@@ -2846,12 +3242,10 @@ async function fetchAllFriendActivities(dayLimit = 7) {
       item: cloneFriendActivityItem(activity.item)
     });
   });
-  const mergedActivities = [...deduped.values()].sort((a, b) => new Date(b.timestamp || b.item.dateAdded) - new Date(a.timestamp || a.item.dateAdded));
+  const mergedActivities = collapseImportBatchActivities(mergeRelatedLibraryActivities([...deduped.values()]))
+    .sort((a, b) => new Date(b.timestamp || b.item?.dateAdded || 0) - new Date(a.timestamp || a.item?.dateAdded || 0));
   friendActivityCache = { key: cacheKey, timestamp: Date.now(), activities: mergedActivities };
-  return mergedActivities.map(activity => ({
-    ...activity,
-    item: activity.item ? { ...activity.item } : activity.item
-  }));
+  return cloneFriendActivityList(mergedActivities);
   })();
 
   friendActivityPromise = { key: cacheKey, promise: loader };

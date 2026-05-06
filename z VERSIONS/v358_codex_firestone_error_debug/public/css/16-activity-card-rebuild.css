@@ -1,0 +1,436 @@
+/* Shelfd v287 Activity Card clean rebuild
+   Source-of-truth layout for media Activity Feed cards. Uses isolated sl-activity-* classes so old Activity CSS cannot collapse the new card. */
+
+#community-view #activity-tab-view .sl-activity-card.activity-card,
+.activity-page .sl-activity-card.activity-card {
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) clamp(128px, 22vw, 172px) !important;
+  grid-template-rows: minmax(172px, auto) 54px !important;
+  column-gap: clamp(14px, 3.2vw, 26px) !important;
+  min-height: clamp(250px, 31vw, 318px) !important;
+  width: 100% !important;
+  padding: clamp(18px, 3vw, 28px) clamp(14px, 2.6vw, 24px) 0 clamp(20px, 3.1vw, 30px) !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(139, 92, 246, .38) !important;
+  border-radius: 30px !important;
+  background:
+    radial-gradient(circle at 8% 18%, rgba(124, 58, 237, .17), transparent 33%),
+    linear-gradient(145deg, #211247 0%, #1e123f 56%, #1b1137 100%) !important;
+  box-shadow: 0 18px 34px rgba(0, 0, 0, .22), inset 0 1px 0 rgba(255,255,255,.035) !important;
+  transform: translateZ(0) !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card.activity-card::before,
+.activity-page .sl-activity-card.activity-card::before {
+  display: none !important;
+  content: none !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-main,
+.activity-page .sl-activity-card .sl-activity-main {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  display: grid !important;
+  grid-template-columns: clamp(60px, 13vw, 82px) minmax(0, 1fr) !important;
+  align-items: start !important;
+  gap: clamp(10px, 2.3vw, 18px) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding-right: clamp(4px, 1vw, 12px) !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-avatar-zone,
+.activity-page .sl-activity-card .sl-activity-avatar-zone {
+  grid-column: 1 !important;
+  align-self: start !important;
+  min-width: 0 !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-avatar-btn,
+.activity-page .sl-activity-card .sl-activity-avatar-btn {
+  width: clamp(56px, 12vw, 78px) !important;
+  height: clamp(56px, 12vw, 78px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 20px !important;
+  background: linear-gradient(145deg, rgba(124, 58, 237, .34), rgba(36, 20, 80, .92)) !important;
+  box-shadow: 0 9px 22px rgba(21, 9, 50, .42), 0 0 0 6px rgba(124, 58, 237, .12) !important;
+  overflow: hidden !important;
+  cursor: pointer !important;
+  appearance: none !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-avatar-img,
+.activity-page .sl-activity-card .sl-activity-avatar-img,
+#community-view #activity-tab-view .sl-activity-card .sl-activity-avatar-fallback,
+.activity-page .sl-activity-card .sl-activity-avatar-fallback {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 18px !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-avatar-fallback,
+.activity-page .sl-activity-card .sl-activity-avatar-fallback {
+  align-items: center !important;
+  justify-content: center !important;
+  color: #ddd4ff !important;
+  font: 800 22px/1 'DM Sans', system-ui, sans-serif !important;
+  background: #100823 !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-copy-zone,
+.activity-page .sl-activity-card .sl-activity-copy-zone {
+  grid-column: 2 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  padding-top: 0 !important;
+  overflow: hidden !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-meta-row,
+.activity-page .sl-activity-card .sl-activity-meta-row {
+  display: flex !important;
+  align-items: baseline !important;
+  gap: 5px !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  margin: 0 0 4px !important;
+  font-family: 'DM Sans', system-ui, sans-serif !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-name,
+.activity-page .sl-activity-card .sl-activity-name {
+  display: inline-flex !important;
+  align-items: center !important;
+  min-width: 0 !important;
+  max-width: min(62vw, 290px) !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #f6f1ff !important;
+  font: 800 clamp(16px, 3.4vw, 22px)/1.08 'DM Sans', system-ui, sans-serif !important;
+  letter-spacing: -.03em !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  cursor: pointer !important;
+  appearance: none !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-name .creator-name-wrap,
+#community-view #activity-tab-view .sl-activity-card .sl-activity-name .creator-name,
+.activity-page .sl-activity-card .sl-activity-name .creator-name-wrap,
+.activity-page .sl-activity-card .sl-activity-name .creator-name {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  color: inherit !important;
+  font: inherit !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-dot,
+#community-view #activity-tab-view .sl-activity-card .sl-activity-time,
+.activity-page .sl-activity-card .sl-activity-dot,
+.activity-page .sl-activity-card .sl-activity-time {
+  flex: 0 0 auto !important;
+  color: rgba(235, 229, 255, .72) !important;
+  font: 800 clamp(13px, 2.8vw, 17px)/1.1 'DM Sans', system-ui, sans-serif !important;
+  letter-spacing: -.02em !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-title,
+.activity-page .sl-activity-card .sl-activity-title {
+  display: block !important;
+  width: 100% !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  text-align: left !important;
+  color: #ffd946 !important;
+  font: 800 clamp(25px, 5.3vw, 42px)/.98 'Space Grotesk', 'Sora', 'DM Sans', system-ui, sans-serif !important;
+  letter-spacing: -.055em !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  cursor: pointer !important;
+  appearance: none !important;
+  text-shadow: none !important;
+  margin: 0 0 4px !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-status,
+.activity-page .sl-activity-card .sl-activity-status {
+  color: #ffffff !important;
+  font: 800 clamp(17px, 3.6vw, 25px)/1.05 'DM Sans', system-ui, sans-serif !important;
+  letter-spacing: -.035em !important;
+  margin: 0 0 8px !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-rating,
+.activity-page .sl-activity-card .sl-activity-rating {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 0 clamp(16px, 3vw, 24px) !important;
+  white-space: nowrap !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-stars,
+.activity-page .sl-activity-card .sl-activity-stars {
+  color: #ffc928 !important;
+  font: 900 clamp(19px, 4vw, 27px)/1 'DM Sans', system-ui, sans-serif !important;
+  letter-spacing: -.12em !important;
+  text-shadow: 0 0 12px rgba(255, 201, 40, .15) !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-score,
+.activity-page .sl-activity-card .sl-activity-score {
+  color: rgba(255,255,255,.84) !important;
+  font: 500 clamp(18px, 3.6vw, 26px)/1 'Space Grotesk', 'DM Sans', system-ui, sans-serif !important;
+  letter-spacing: -.04em !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-comment-wrap,
+.activity-page .sl-activity-card .sl-activity-comment-wrap {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-comment,
+.activity-page .sl-activity-card .sl-activity-comment {
+  color: #ffffff !important;
+  font: 800 clamp(16px, 3.5vw, 25px)/1.22 'DM Sans', system-ui, sans-serif !important;
+  letter-spacing: -.035em !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-comment-wrap.is-clamped .sl-activity-comment,
+.activity-page .sl-activity-card .sl-activity-comment-wrap.is-clamped .sl-activity-comment {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-show-more,
+.activity-page .sl-activity-card .sl-activity-show-more {
+  margin: 7px 0 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: rgba(255,217,70,.94) !important;
+  font: 800 13px/1 'DM Sans', system-ui, sans-serif !important;
+  cursor: pointer !important;
+  appearance: none !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-poster,
+.activity-page .sl-activity-card .sl-activity-poster {
+  grid-column: 2 !important;
+  grid-row: 1 / 3 !important;
+  align-self: center !important;
+  justify-self: center !important;
+  width: clamp(116px, 20vw, 164px) !important;
+  height: clamp(178px, 27vw, 248px) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 19px !important;
+  background: #12091f !important;
+  box-shadow: 0 13px 30px rgba(0,0,0,.38), 0 0 0 1px rgba(255,255,255,.05) !important;
+  overflow: hidden !important;
+  cursor: pointer !important;
+  appearance: none !important;
+  transform: translateZ(0) !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-poster-img,
+.activity-page .sl-activity-card .sl-activity-poster-img {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: inherit !important;
+  transition: transform 220ms ease !important;
+}
+
+@media (hover:hover) {
+  #community-view #activity-tab-view .sl-activity-card .sl-activity-poster:hover .sl-activity-poster-img,
+  .activity-page .sl-activity-card .sl-activity-poster:hover .sl-activity-poster-img { transform: scale(1.035) !important; }
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-poster-empty,
+.activity-page .sl-activity-card .sl-activity-poster-empty {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: rgba(255,255,255,.72) !important;
+  font: 900 34px/1 'DM Sans', system-ui, sans-serif !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-bottom-safe,
+.activity-page .sl-activity-card .sl-activity-bottom-safe {
+  grid-column: 1 !important;
+  grid-row: 2 !important;
+  display: flex !important;
+  align-items: center !important;
+  min-width: 0 !important;
+  min-height: 54px !important;
+  border-top: 0 !important;
+  padding-left: clamp(60px, 13vw, 82px) !important;
+  padding-bottom: 10px !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-actions,
+.activity-page .sl-activity-card .sl-activity-actions {
+  position: static !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: clamp(18px, 4vw, 30px) !important;
+  width: auto !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-action-btn,
+.activity-page .sl-activity-card .sl-activity-action-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 9px !important;
+  width: auto !important;
+  height: auto !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #ffffff !important;
+  font: 900 clamp(18px, 4vw, 26px)/1 'DM Sans', system-ui, sans-serif !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+  appearance: none !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-action-btn svg,
+.activity-page .sl-activity-card .sl-activity-action-btn svg {
+  width: clamp(24px, 5vw, 34px) !important;
+  height: clamp(24px, 5vw, 34px) !important;
+  color: currentColor !important;
+}
+
+#community-view #activity-tab-view .sl-activity-card .sl-activity-action-btn[data-activity-action="like"],
+.activity-page .sl-activity-card .sl-activity-action-btn[data-activity-action="like"],
+#community-view #activity-tab-view .sl-activity-card .sl-activity-action-btn.liked,
+.activity-page .sl-activity-card .sl-activity-action-btn.liked {
+  color: #ff4968 !important;
+}
+
+body.light-mode #community-view #activity-tab-view .sl-activity-card.activity-card,
+body.light-mode .activity-page .sl-activity-card.activity-card {
+  background: linear-gradient(145deg, #f8f5ff 0%, #efe8ff 100%) !important;
+  border-color: rgba(124, 58, 237, .18) !important;
+  box-shadow: 0 15px 30px rgba(31, 16, 72, .10) !important;
+}
+body.light-mode #community-view #activity-tab-view .sl-activity-card .sl-activity-name,
+body.light-mode #community-view #activity-tab-view .sl-activity-card .sl-activity-status,
+body.light-mode #community-view #activity-tab-view .sl-activity-card .sl-activity-comment,
+body.light-mode .activity-page .sl-activity-card .sl-activity-name,
+body.light-mode .activity-page .sl-activity-card .sl-activity-status,
+body.light-mode .activity-page .sl-activity-card .sl-activity-comment { color: #1d1434 !important; }
+body.light-mode #community-view #activity-tab-view .sl-activity-card .sl-activity-score,
+body.light-mode .activity-page .sl-activity-card .sl-activity-score { color: rgba(29,20,52,.68) !important; }
+
+body.true-dark-mode #community-view #activity-tab-view .sl-activity-card.activity-card,
+body.true-dark-mode .activity-page .sl-activity-card.activity-card {
+  background: linear-gradient(145deg, #101010 0%, #070707 100%) !important;
+  border-color: rgba(255,255,255,.08) !important;
+}
+
+@media (max-width: 560px) {
+  #community-view #activity-tab-view .sl-activity-card.activity-card,
+  .activity-page .sl-activity-card.activity-card {
+    grid-template-columns: minmax(0, 1fr) 118px !important;
+    grid-template-rows: minmax(166px, auto) 50px !important;
+    column-gap: 10px !important;
+    min-height: 242px !important;
+    padding: 18px 10px 0 16px !important;
+    border-radius: 25px !important;
+  }
+  #community-view #activity-tab-view .sl-activity-card .sl-activity-main,
+  .activity-page .sl-activity-card .sl-activity-main {
+    grid-template-columns: 58px minmax(0, 1fr) !important;
+    gap: 10px !important;
+  }
+  #community-view #activity-tab-view .sl-activity-card .sl-activity-avatar-btn,
+  .activity-page .sl-activity-card .sl-activity-avatar-btn {
+    width: 54px !important;
+    height: 54px !important;
+    border-radius: 16px !important;
+  }
+  #community-view #activity-tab-view .sl-activity-card .sl-activity-poster,
+  .activity-page .sl-activity-card .sl-activity-poster {
+    width: 102px !important;
+    height: 164px !important;
+    border-radius: 15px !important;
+  }
+  #community-view #activity-tab-view .sl-activity-card .sl-activity-bottom-safe,
+  .activity-page .sl-activity-card .sl-activity-bottom-safe {
+    min-height: 50px !important;
+    padding-left: 58px !important;
+    padding-bottom: 8px !important;
+  }
+  #community-view #activity-tab-view .sl-activity-card .sl-activity-title,
+  .activity-page .sl-activity-card .sl-activity-title {
+    font-size: clamp(22px, 6.5vw, 30px) !important;
+  }
+  #community-view #activity-tab-view .sl-activity-card .sl-activity-status,
+  .activity-page .sl-activity-card .sl-activity-status {
+    font-size: clamp(16px, 4.3vw, 20px) !important;
+  }
+  #community-view #activity-tab-view .sl-activity-card .sl-activity-comment,
+  .activity-page .sl-activity-card .sl-activity-comment {
+    font-size: clamp(15px, 4vw, 19px) !important;
+  }
+}
+
+@media (max-width: 390px) {
+  #community-view #activity-tab-view .sl-activity-card.activity-card,
+  .activity-page .sl-activity-card.activity-card {
+    grid-template-columns: minmax(0, 1fr) 104px !important;
+    min-height: 226px !important;
+  }
+  #community-view #activity-tab-view .sl-activity-card .sl-activity-poster,
+  .activity-page .sl-activity-card .sl-activity-poster {
+    width: 92px !important;
+    height: 148px !important;
+  }
+}

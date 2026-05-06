@@ -804,7 +804,8 @@ const MODAL_STATUS_OPTIONS = {
     { status: 'watching', label: 'Playing' },
     { status: 'live',     label: 'Live Games' },
     { status: 'planned',  label: 'Backlog' },
-    { status: 'watched',  label: 'Played' }
+    { status: 'watched',  label: 'Played' },
+    { status: 'wishlist', label: 'Wishlist' }
   ],
   manga: [
     { status: 'watching', label: 'Reading' },
@@ -998,6 +999,13 @@ function repairDuplicateImportItem(existing = {}, incoming = {}, entry = {}, sec
   fill('source', incoming.source || entry.source || '');
   fill('steamAppId', incoming.steamAppId || entry.steamAppId || '');
   fill('steamUrl', incoming.steamUrl || entry.steamUrl || '');
+  fill('igdbCoverUrl', incoming.igdbCoverUrl || entry.igdbCoverUrl || '');
+  fill('coverProvider', incoming.coverProvider || '');
+  fill('coverSource', incoming.coverSource || '');
+  if (incoming.igdbCoverUrl && (!existing.cover || !/images\.igdb\.com\/igdb\/image\/upload/i.test(String(existing.cover || '')))) {
+    existing.cover = incoming.igdbCoverUrl;
+    changed = true;
+  }
   fill('titleVariants', incoming.titleVariants || null);
   fill('englishTitle', incoming.englishTitle || '');
   fill('romajiTitle', incoming.romajiTitle || '');
@@ -1109,12 +1117,14 @@ function renderFriendAddChoice() {
   const isGame = activeSection === 'games';
   const watchedLabel = isGame ? 'Played' : 'Watched';
   const plannedLabel = isGame ? 'Backlog' : 'Watchlist';
+  const wishlistButton = isGame ? `<button class="discover-status-btn wishlist-option" onclick="confirmFriendAdd('wishlist')">Wishlist</button>` : '';
   content.innerHTML = `
     <h3>Add to Library</h3>
     <div class="discover-add-desc">Where you bouta put this?</div>
     <div class="discover-status-options">
       <button class="discover-status-btn watched-option" onclick="confirmFriendAdd('watched')">${watchedLabel}</button>
       <button class="discover-status-btn planned-option" onclick="confirmFriendAdd('planned')">${plannedLabel}</button>
+      ${wishlistButton}
     </div>
     <div class="modal-actions">
       <button class="btn-secondary discover-cancel-btn" onclick="closeDiscoverAddModal()">Cancel</button>
@@ -1319,20 +1329,12 @@ async function submitModal(status, rating = 0) {
   if (currentUser) localStorage.setItem('screenlist-own-data-backup-' + currentUser.uid, JSON.stringify(safeData));
   localStorage.setItem('watchlist-tracker-data', JSON.stringify(safeData));
   activeSection = targetSection;
-  activeTab = status;
+  activeTab = targetSection === 'games' && status === 'live' ? 'watching' : status;
   render();
 
   // Firestore write happens in the background — doesn't block the modal close
   if (DOC_REF) {
-    DOC_REF.set({
-      shows: JSON.stringify(safeData.shows),
-      movies: JSON.stringify(safeData.movies),
-      anime: JSON.stringify(safeData.anime),
-      games: JSON.stringify(safeData.games),
-      manga: JSON.stringify(safeData.manga),
-      books: JSON.stringify(safeData.books),
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true }).catch(err => {
+    persistOwnDataToFirestore(safeData).catch(err => {
       console.error('Background Firestore write failed after shelf add:', err);
       showToast('Saved locally. Cloud sync may be delayed.');
     });

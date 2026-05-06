@@ -93,6 +93,22 @@ async function fetchDiscoverMediaRank(section, fallbackFetcher = null) {
   throw new Error(payload?.error || `Discover ranking request failed (${res.status})`);
 }
 
+async function runDiscoverSectionsInBatches(sections = [], batchSize = 4) {
+  const queue = Array.isArray(sections) ? sections.slice() : [];
+  const size = Math.max(1, Number(batchSize) || 4);
+  while (queue.length) {
+    const batch = queue.splice(0, size);
+    await Promise.all(batch.map(async section => {
+      try {
+        await section.run();
+      } catch (e) {
+        console.error(`Discover row failed: ${section.label}`, e);
+        renderDiscoverGridError(section.gridId, `${section.label} could not load. It will try again automatically later.`);
+      }
+    }));
+  }
+}
+
 async function loadDiscover(force = false) {
   if (discoverLoading) return;
   if (discoverLoaded && !force && isDiscoverMemoryFresh(discoverLoadedAt)) {
@@ -266,14 +282,7 @@ async function loadDiscover(force = false) {
       }
     ];
 
-    for (const section of sections) {
-      try {
-        await section.run();
-      } catch (e) {
-        console.error(`Discover row failed: ${section.label}`, e);
-        renderDiscoverGridError(section.gridId, `${section.label} could not load. It will try again automatically later.`);
-      }
-    }
+    await runDiscoverSectionsInBatches(sections, 4);
 
     discoverLoaded = true;
     discoverLoadedAt = Date.now();
@@ -2020,7 +2029,7 @@ function buildDiscoverUniversalGameRow(row = {}) {
   const item = row.item || {};
   const title = item.name || '';
   const year = (item.released || '').slice(0, 4);
-  const poster = item.background_image || '';
+  const poster = typeof getScreenListPreferredGameCover === 'function' ? getScreenListPreferredGameCover(item) : (item.igdbCoverUrl || item.cover || item.background_image || '');
   const genres = (item.genres || []).map(g => g.name).slice(0, 3).join(', ');
   const platforms = (item.platforms || []).map(p => p.platform?.name).filter(Boolean).slice(0, 3).join(', ');
   const overview = genres || platforms || 'Game';
@@ -2033,6 +2042,10 @@ function buildDiscoverUniversalGameRow(row = {}) {
     name: title,
     released: item.released || '',
     background_image: poster,
+    cover: poster,
+    poster,
+    image: poster,
+    igdbCoverUrl: item.igdbCoverUrl || '',
     genres: item.genres || [],
     platforms: item.platforms || [],
     metacritic: item.metacritic || '',
@@ -2045,7 +2058,7 @@ function buildDiscoverUniversalGameRow(row = {}) {
   const addClick = `openDiscoveryAddModal('game', ${item.id}, this)`;
   const removeClick = `removeDiscoveryTitle(this)`;
   return `<div class="discover-card games-discover-card discover-universal-search-result-row" data-universal-kind="Game">
-    <div class="discover-poster" data-poster="${escAttr(poster)}" data-media-type="game" data-media-id="${escAttr(String(item.id || ''))}" data-discover-title="${titleAttr}" data-discover-section="games" style="background-image:url('${escAttr(poster)}')" onclick="openGameMediaProfile(event, '${escAttr(String(item.id || ''))}', getGameMediaProfileSeed('${escAttr(String(item.id || ''))}'), this)">${getDiscoverFriendStackMarkup(title, 'games')}</div>
+    <div class="discover-poster" data-poster="${escAttr(poster)}" data-media-type="game" data-media-id="${escAttr(String(item.id || ''))}" data-discover-title="${titleAttr}" data-discover-section="games" data-game-title="${titleAttr}" data-rawg-id="${escAttr(String(item.id || ''))}" style="background-image:url('${escAttr(poster)}')" onclick="openGameMediaProfile(event, '${escAttr(String(item.id || ''))}', getGameMediaProfileSeed('${escAttr(String(item.id || ''))}'), this)">${getDiscoverFriendStackMarkup(title, 'games')}</div>
     <div class="discover-card-body">
       <div class="discover-card-title-row">
         <div class="discover-card-info-stack">
@@ -2070,6 +2083,7 @@ function renderDiscoverUniversalSearchRows(rows = [], grid = null) {
   grid.classList.add('discover-universal-search-results-list');
   grid.innerHTML = rows.map(row => row.kind === 'game' ? buildDiscoverUniversalGameRow(row) : buildDiscoverUniversalTmdbRow(row)).join('');
   requestAnimationFrame(refreshDiscoverFriendStacks);
+  setTimeout(() => backfillIgdbDiscoverGameCovers(grid), 240);
 }
 
 async function runDiscoverUniversalAllMediaSearch(query = '', grid = null, token = discoverUniversalSearchToken) {
@@ -3455,7 +3469,7 @@ function getDatabaseMoreLikeThisReason(item = {}, fallbackType = 'movie') {
 }
 
 function getDatabaseMoreLikeThisImage(item = {}, fallbackType = 'movie') {
-  if (fallbackType === 'game') return item.background_image || item.image || item.cover || '';
+  if (fallbackType === 'game') return typeof getScreenListPreferredGameCover === 'function' ? getScreenListPreferredGameCover(item) : (item.igdbCoverUrl || item.cover || item.image || item.background_image || '');
   if (item.poster_path) return getTmdbImageUrl(item.poster_path, 'w500');
   if (item.backdrop_path) return getTmdbImageUrl(item.backdrop_path, 'w780');
   return item.poster || item.image || item.backdrop || '';
@@ -6303,7 +6317,7 @@ function renderGamesDiscoverCards(items, gridId) {
   grid.innerHTML = items.map(item => {
     const title = item.name || '';
     const year = (item.released || '').slice(0, 4);
-    const poster = item.background_image || '';
+    const poster = typeof getScreenListPreferredGameCover === 'function' ? getScreenListPreferredGameCover(item) : (item.igdbCoverUrl || item.cover || item.background_image || '');
     const genres = (item.genres || []).map(g => g.name).slice(0, 3).join(', ');
     const platforms = (item.platforms || []).map(p => p.platform?.name).filter(Boolean).slice(0, 3).join(', ');
     const overview = genres || platforms || 'Game';
@@ -6316,6 +6330,10 @@ function renderGamesDiscoverCards(items, gridId) {
       name: title,
       released: item.released || '',
       background_image: poster,
+      cover: poster,
+      poster,
+      image: poster,
+      igdbCoverUrl: item.igdbCoverUrl || '',
       genres: item.genres || [],
       platforms: item.platforms || [],
       metacritic: item.metacritic || '',
@@ -6328,7 +6346,7 @@ function renderGamesDiscoverCards(items, gridId) {
     const addClick = `openDiscoveryAddModal('game', ${item.id}, this)`;
     const removeClick = `removeDiscoveryTitle(this)`;
     return `<div class="discover-card games-discover-card">
-      <div class="discover-poster" data-poster="${escAttr(poster)}" data-media-type="game" data-media-id="${escAttr(String(item.id || ''))}" data-discover-title="${titleAttr}" data-discover-section="games" style="background-image:url('${escAttr(poster)}')" onclick="openGameMediaProfile(event, '${escAttr(String(item.id || ''))}', getGameMediaProfileSeed('${escAttr(String(item.id || ''))}'), this)">${getDiscoverFriendStackMarkup(title, 'games')}</div>
+      <div class="discover-poster" data-poster="${escAttr(poster)}" data-media-type="game" data-media-id="${escAttr(String(item.id || ''))}" data-discover-title="${titleAttr}" data-discover-section="games" data-game-title="${titleAttr}" data-rawg-id="${escAttr(String(item.id || ''))}" style="background-image:url('${escAttr(poster)}')" onclick="openGameMediaProfile(event, '${escAttr(String(item.id || ''))}', getGameMediaProfileSeed('${escAttr(String(item.id || ''))}'), this)">${getDiscoverFriendStackMarkup(title, 'games')}</div>
       <div class="discover-card-body">
         <div class="discover-card-title-row">
           <button class="discover-card-title discover-title-profile-btn game-title-profile-btn" type="button" onclick="openGameMediaProfile(event, ${item.id}, getGameMediaProfileSeed(${item.id}), this)">${escHtml(title)}${year ? ` (${year})` : ''}</button>
@@ -6347,31 +6365,42 @@ function renderGamesDiscoverCards(items, gridId) {
   setTimeout(() => backfillIgdbDiscoverGameCovers(grid), 600);
 }
 
-// Fetch and apply IGDB portrait covers to discovery game card posters
-let _igdbDiscoverBackfillRunning = false;
+// Fetch and apply IGDB/Twitch portrait covers to discovery game card posters.
+// No single global lock: each grid can repair its own cards so concurrent discovery rows do not skip each other.
+const IGDB_DISCOVER_COVER_IN_FLIGHT = new Set();
 async function backfillIgdbDiscoverGameCovers(grid) {
-  if (_igdbDiscoverBackfillRunning) return;
-  _igdbDiscoverBackfillRunning = true;
-  try {
-    const posters = Array.from(grid ? grid.querySelectorAll('.discover-poster[data-media-type="game"]') : []);
-    for (const poster of posters) {
-      const title = poster.dataset.discoverTitle || '';
-      if (!title || poster.dataset.igdbCoverApplied) continue;
-      try {
-        const res = await fetch('/api/igdb/cover?title=' + encodeURIComponent(title));
-        if (res.ok) {
-          const data = await res.json();
-          if (data.ok && data.coverUrl) {
-            poster.style.backgroundImage = `url('${data.coverUrl}')`;
-            poster.style.backgroundPosition = 'top center';
-            poster.dataset.igdbCoverApplied = '1';
-          }
+  const posters = Array.from(grid ? grid.querySelectorAll('.discover-poster[data-media-type="game"]') : []);
+  for (const poster of posters) {
+    const title = poster.dataset.discoverTitle || poster.dataset.gameTitle || '';
+    const rawgId = poster.dataset.rawgId || poster.dataset.mediaId || '';
+    if (!title) continue;
+    const key = `${rawgId}|${title.toLowerCase()}`;
+    if (IGDB_DISCOVER_COVER_IN_FLIGHT.has(key)) continue;
+    IGDB_DISCOVER_COVER_IN_FLIGHT.add(key);
+    try {
+      const seed = rawgId && typeof getGameMediaProfileSeed === 'function' ? getGameMediaProfileSeed(rawgId, {}) : {};
+      const payload = { ...seed, title, name: seed.name || title, rawgId, id: rawgId };
+      let cover = null;
+      if (typeof forceHydrateScreenListGamePosterElement === 'function') {
+        cover = await forceHydrateScreenListGamePosterElement(poster, payload);
+      } else {
+        const params = new URLSearchParams({ title, force: '1' });
+        const res = await fetch('/api/igdb/cover?' + params.toString(), { cache: 'no-store' });
+        const data = res.ok ? await res.json() : null;
+        if (data?.ok && data.coverUrl) {
+          poster.style.backgroundImage = `url('${data.coverUrl}')`;
+          poster.style.backgroundPosition = 'top center';
+          poster.dataset.igdbCoverApplied = '1';
+          cover = data;
         }
-      } catch (e) { /* silent */ }
-      await new Promise(r => setTimeout(r, 280));
-    }
-  } finally {
-    _igdbDiscoverBackfillRunning = false;
+      }
+      if (cover?.coverUrl && rawgId && typeof setGameMediaProfileSeed === 'function') {
+        const existing = getGameMediaProfileSeed(rawgId, {}) || {};
+        setGameMediaProfileSeed(rawgId, { ...existing, title, name: existing.name || title, rawgId, id: rawgId, igdbCoverUrl: cover.coverUrl, cover: cover.coverUrl, poster: cover.coverUrl, image: cover.coverUrl, background_image: cover.coverUrl });
+      }
+    } catch (e) { /* silent */ }
+    finally { IGDB_DISCOVER_COVER_IN_FLIGHT.delete(key); }
+    await new Promise(r => setTimeout(r, 220));
   }
 }
 

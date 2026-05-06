@@ -7,6 +7,9 @@ let saveTimeout = null;
 
 // Sort state — session-only (resets on page refresh/leave, never persisted)
 let sessionSortState = {};   // { "section:tab": sortKey }
+let sessionSortDirectionState = {}; // { "section:tab": 'asc' | 'desc' }
+let sessionRenderedSortOrder = {}; // { "section:tab": [id, ...] }
+let sessionLastEditedResortHold = {}; // delays Last Edited visual resort until navigation changes
 let sessionCustomOrder = {}; // { "section:tab": [id, ...] }
 const DEFAULT_SORT = 'recently-added';
 const WATCHED_RATING_DEFAULT_SECTIONS = new Set(['movies', 'shows', 'anime']);
@@ -22,6 +25,7 @@ const SORT_OPTIONS = [
 
 const GAME_SORT_OPTIONS = [
   { key: 'recently-added',    label: 'When Added' },
+  { key: 'last-edited',       label: 'Last Edited' },
   { key: 'last-played',       label: 'Last Played' },
   { key: 'time-played',       label: 'Time Played' },
   { key: 'rating-high',       label: 'User Rating' },
@@ -34,9 +38,84 @@ const GAME_SORT_OPTIONS = [
   { key: 'avg-finish-time',   label: 'Avg Finish Time' },
 ];
 
+const LAST_EDITED_SORT_SECTIONS = new Set(['games', 'shows', 'anime']);
+
+function normalizeSortDirection(value = '') { return value === 'asc' ? 'asc' : 'desc'; }
+function getSortOptionsForSection(section = activeSection) {
+  const base = section === 'games' ? GAME_SORT_OPTIONS : SORT_OPTIONS;
+  if (!LAST_EDITED_SORT_SECTIONS.has(section) || section === 'games') return base;
+  if (base.some(option => option.key === 'last-edited')) return base;
+  const next = [...base];
+  const insertAt = Math.max(1, next.findIndex(option => option.key === 'title-az'));
+  next.splice(insertAt, 0, { key: 'last-edited', label: 'Last Edited' });
+  return next;
+}
+function getDefaultSortDirectionFor(sortKey = getActiveSortKey()) {
+  switch (sortKey) {
+    case 'title-az':
+    case 'rating-low':
+    case 'release-oldest':
+    case 'avg-play-time':
+    case 'avg-finish-time':
+      return 'asc';
+    default:
+      return 'desc';
+  }
+}
+function getActiveSortDirection(stateKey = getSortStateKey(), sortKey = getActiveSortKey()) {
+  return normalizeSortDirection(sessionSortDirectionState[stateKey] || getDefaultSortDirectionFor(sortKey));
+}
+function toggleSortDirection(event = null) {
+  event?.stopPropagation?.();
+  const stateKey = getSortStateKey();
+  const current = getActiveSortDirection(stateKey, getActiveSortKey());
+  sessionSortDirectionState[stateKey] = current === 'asc' ? 'desc' : 'asc';
+  clearLastEditedResortHold(stateKey);
+  closeSortDropdown();
+  render();
+}
+function getSortItemKey(item = {}) {
+  return String(item?.id || (typeof getScreenListGameStableKey === 'function' ? getScreenListGameStableKey(item) : '') || item?.title || '');
+}
+function rememberRenderedSortOrder(stateKey = getSortStateKey(), items = []) {
+  if (!stateKey || !Array.isArray(items)) return;
+  sessionRenderedSortOrder[stateKey] = items.map(getSortItemKey).filter(Boolean);
+}
+function clearLastEditedResortHold(stateKey = '') {
+  if (stateKey) delete sessionLastEditedResortHold[stateKey];
+  else sessionLastEditedResortHold = {};
+}
+function getItemLastEditedTime(item = {}) {
+  const candidates = [item.lastEditedAt, item.dateLastEdited, item.lastEdited, item.dateModified, item.updatedAt, item.dateAdded];
+  for (const value of candidates) {
+    if (!value) continue;
+    const ms = typeof value === 'number' ? value : new Date(value).getTime();
+    if (Number.isFinite(ms) && ms > 0) return ms;
+  }
+  return 0;
+}
+function shouldTrackLastEditedForSection(section = activeSection) {
+  return LAST_EDITED_SORT_SECTIONS.has(section);
+}
+function markOwnItemLastEdited(item = null, section = activeSection) {
+  if (!item || !shouldTrackLastEditedForSection(section)) return item;
+  const now = new Date().toISOString();
+  item.lastEditedAt = now;
+  item.dateModified = now;
+  const stateKey = getSortStateKey();
+  if (getActiveSortKey() === 'last-edited') sessionLastEditedResortHold[stateKey] = true;
+  return item;
+}
+
 function getSortStateKey(section = activeSection, tab = activeTab) { return section + ':' + tab; }
 function getDefaultSortKeyFor(section = activeSection, tab = activeTab) {
-  return tab === 'watched' && WATCHED_RATING_DEFAULT_SECTIONS.has(section)
+  const normalizedSection = String(section || '').trim();
+  const normalizedTab = String(tab || '').trim();
+  if ((normalizedSection === 'games' && (normalizedTab === 'watching' || normalizedTab === 'live')) ||
+      ((normalizedSection === 'shows' || normalizedSection === 'anime') && normalizedTab === 'watching')) {
+    return 'last-edited';
+  }
+  return normalizedTab === 'watched' && WATCHED_RATING_DEFAULT_SECTIONS.has(normalizedSection)
     ? 'rating-high'
     : DEFAULT_SORT;
 }
@@ -44,11 +123,17 @@ function getActiveSortKey() { return sessionSortState[getSortStateKey()] || getD
 
 function setSortOrder(key) {
   const stateKey = getSortStateKey();
+  const previousKey = sessionSortState[stateKey] || getDefaultSortKeyFor();
   sessionSortState[stateKey] = key;
+  if (previousKey !== key) sessionSortDirectionState[stateKey] = getDefaultSortDirectionFor(key);
+  clearLastEditedResortHold(stateKey);
   if (key === 'custom' && !sessionCustomOrder[stateKey]) {
     const visibleData = getVisibleListData();
-    const items = (visibleData[activeSection] || []).filter(i => i.status === activeTab);
-    sessionCustomOrder[stateKey] = applySortOrder(items, getDefaultSortKeyFor(), stateKey).map(i => i.id);
+    const items = (visibleData[activeSection] || []).filter(i => {
+      if (typeof itemMatchesActiveListStatus === 'function') return itemMatchesActiveListStatus(i);
+      return i.status === activeTab;
+    });
+    sessionCustomOrder[stateKey] = applySortOrder(items, getDefaultSortKeyFor(), stateKey).map(getSortItemKey);
   }
   closeSortDropdown();
   render();
@@ -56,52 +141,83 @@ function setSortOrder(key) {
 
 function applySortOrder(items, sortKey, stateKey) {
   const arr = [...items];
+  const activeDirection = getActiveSortDirection(stateKey || getSortStateKey(), sortKey);
+  const defaultDirection = getDefaultSortDirectionFor(sortKey);
+
+  if (sortKey === 'last-edited' && stateKey && sessionLastEditedResortHold[stateKey] && sessionRenderedSortOrder[stateKey]?.length) {
+    const order = sessionRenderedSortOrder[stateKey];
+    const idx = {};
+    order.forEach((id, i) => { idx[id] = i; });
+    return arr.sort((a, b) => {
+      const ak = getSortItemKey(a);
+      const bk = getSortItemKey(b);
+      const ai = Object.prototype.hasOwnProperty.call(idx, ak) ? idx[ak] : 99999;
+      const bi = Object.prototype.hasOwnProperty.call(idx, bk) ? idx[bk] : 99999;
+      if (ai !== bi) return ai - bi;
+      return getItemLastEditedTime(b) - getItemLastEditedTime(a);
+    });
+  }
+
   switch (sortKey) {
     case 'recently-added':
-      return arr.sort((a, b) =>
-        new Date(b.dateAdded || 0) - new Date(a.dateAdded || 0));
+      arr.sort((a, b) => new Date(b.dateAdded || 0) - new Date(a.dateAdded || 0));
+      break;
+    case 'last-edited':
+      arr.sort((a, b) => getItemLastEditedTime(b) - getItemLastEditedTime(a));
+      break;
     case 'title-az':
-      return arr.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+      arr.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+      break;
     case 'rating-high':
-      return arr.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      arr.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      break;
     case 'rating-low':
-      return arr.sort((a, b) => (a.rating || 0) - (b.rating || 0));
+      arr.sort((a, b) => (a.rating || 0) - (b.rating || 0));
+      break;
     case 'release-newest':
-      return arr.sort((a, b) => (parseInt(b.year) || 0) - (parseInt(a.year) || 0));
+      arr.sort((a, b) => (parseInt(b.year) || 0) - (parseInt(a.year) || 0));
+      break;
     case 'release-oldest':
-      return arr.sort((a, b) => (parseInt(a.year) || 0) - (parseInt(b.year) || 0));
+      arr.sort((a, b) => (parseInt(a.year) || 0) - (parseInt(b.year) || 0));
+      break;
     case 'last-played':
-      return arr.sort((a, b) =>
-        new Date(b.lastPlayed || b.lastPlayedDate || 0) - new Date(a.lastPlayed || a.lastPlayedDate || 0));
+      arr.sort((a, b) => new Date(b.lastPlayed || b.lastPlayedDate || 0) - new Date(a.lastPlayed || a.lastPlayedDate || 0));
+      break;
     case 'time-played':
-      return arr.sort((a, b) =>
+      arr.sort((a, b) =>
         (Number(b.hoursPlayed || b.gameHoursPlayed || b.playtimeHours || 0)) -
         (Number(a.hoursPlayed || a.gameHoursPlayed || a.playtimeHours || 0)));
+      break;
     case 'game-rating':
-      return arr.sort((a, b) => (Number(b.metacritic || 0)) - (Number(a.metacritic || 0)));
+      arr.sort((a, b) => (Number(b.metacritic || 0)) - (Number(a.metacritic || 0)));
+      break;
     case 'popularity':
-      return arr.sort((a, b) => (Number(b.popularity || b.added || 0)) - (Number(a.popularity || a.added || 0)));
+      arr.sort((a, b) => (Number(b.popularity || b.added || 0)) - (Number(a.popularity || a.added || 0)));
+      break;
     case 'trending':
-      return arr.sort((a, b) =>
-        new Date(b.dateModified || b.dateAdded || 0) - new Date(a.dateModified || a.dateAdded || 0));
+      arr.sort((a, b) => new Date(b.dateModified || b.dateAdded || 0) - new Date(a.dateModified || a.dateAdded || 0));
+      break;
     case 'avg-play-time':
-      return arr.sort((a, b) =>
-        (Number(a.avgPlayTime || a.hltbMain || 0)) - (Number(b.avgPlayTime || b.hltbMain || 0)));
+      arr.sort((a, b) => (Number(a.avgPlayTime || a.hltbMain || 0)) - (Number(b.avgPlayTime || b.hltbMain || 0)));
+      break;
     case 'avg-finish-time':
-      return arr.sort((a, b) =>
-        (Number(a.avgFinishTime || a.hltbCompletionist || 0)) - (Number(b.avgFinishTime || b.hltbCompletionist || 0)));
+      arr.sort((a, b) => (Number(a.avgFinishTime || a.hltbCompletionist || 0)) - (Number(b.avgFinishTime || b.hltbCompletionist || 0)));
+      break;
     case 'custom': {
       const order = (stateKey && sessionCustomOrder[stateKey]) || [];
       if (!order.length) return arr;
       const idx = {};
       order.forEach((id, i) => { idx[id] = i; });
       return arr.sort((a, b) =>
-        (idx[a.id] !== undefined ? idx[a.id] : 9999) -
-        (idx[b.id] !== undefined ? idx[b.id] : 9999));
+        (idx[getSortItemKey(a)] !== undefined ? idx[getSortItemKey(a)] : 9999) -
+        (idx[getSortItemKey(b)] !== undefined ? idx[getSortItemKey(b)] : 9999));
     }
     default:
       return arr;
   }
+
+  if (sortKey !== 'custom' && activeDirection !== defaultDirection) arr.reverse();
+  return arr;
 }
 
 function closeSortDropdown() {
@@ -116,10 +232,17 @@ function toggleSortDropdown(e) {
   const btn = document.getElementById('sort-dropdown-btn');
   if (!btn) return;
   const activeSortKey = getActiveSortKey();
+  const activeDirection = getActiveSortDirection(getSortStateKey(), activeSortKey);
   const menu = document.createElement('div');
   menu.id = 'sort-dropdown-menu';
   menu.className = 'sort-dropdown-menu';
-  const sortOptions = activeSection === 'games' ? GAME_SORT_OPTIONS : SORT_OPTIONS;
+  const directionBtn = document.createElement('button');
+  directionBtn.className = 'sort-direction-toggle';
+  directionBtn.type = 'button';
+  directionBtn.innerHTML = `<span>${activeDirection === 'asc' ? 'Ascending' : 'Descending'}</span><strong>${activeDirection === 'asc' ? '↑' : '↓'}</strong>`;
+  directionBtn.onclick = toggleSortDirection;
+  menu.appendChild(directionBtn);
+  const sortOptions = getSortOptionsForSection(activeSection);
   sortOptions.forEach(opt => {
     const el = document.createElement('button');
     el.className = 'sort-dropdown-item' + (opt.key === activeSortKey ? ' active' : '');

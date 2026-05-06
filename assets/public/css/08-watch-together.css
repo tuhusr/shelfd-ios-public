@@ -1526,3 +1526,172 @@ body.light-mode .friend-watch-request-person-pill {
   border-color: rgba(124,58,237,0.16);
   color: #160b2d;
 }
+
+/* v376: Shared Watch intro + larger Activity/Shared Watch header text. */
+.activity-shared-watch-pill.activity-feed-pill,
+.activity-shared-watch-pill.shared-watch-tab-pill {
+  font-size: 13px !important;
+}
+@media (max-width: 700px) {
+  .activity-shared-watch-pill.activity-feed-pill,
+  .activity-shared-watch-pill.shared-watch-tab-pill {
+    font-size: 12.5px !important;
+  }
+}
+.shared-watch-description-card {
+  margin: 10px 0 14px;
+  border: 1px solid rgba(245, 245, 255, 0.6);
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.44);
+  color: #ffffff;
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.045);
+}
+.shared-watch-description-toggle {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 0;
+  background: rgba(255,255,255,0.035);
+  color: #ffffff;
+  font-family: Aptos, 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 850;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+.shared-watch-description-toggle em {
+  color: rgba(255,255,255,0.72);
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.shared-watch-description-body {
+  display: grid;
+  gap: 10px;
+  padding: 13px 14px 15px;
+  font-family: Aptos, 'DM Sans', sans-serif;
+  font-size: 13px;
+  line-height: 1.48;
+  color: rgba(255,255,255,0.9);
+}
+.shared-watch-description-body p { margin: 0; }
+.shared-watch-description-body strong { color: #ffffff; font-weight: 900; }
+.shared-watch-description-card.collapsed .shared-watch-description-body { display: none; }
+body.light-mode .shared-watch-description-card {
+  background: rgba(255,255,255,0.84);
+  color: #12082e;
+  border-color: rgba(20,20,28,0.42);
+}
+body.light-mode .shared-watch-description-toggle {
+  background: rgba(0,0,0,0.035);
+  color: #12082e;
+}
+body.light-mode .shared-watch-description-toggle em,
+body.light-mode .shared-watch-description-body {
+  color: rgba(18,8,46,0.74);
+}
+body.light-mode .shared-watch-description-body strong { color: #12082e; }
+
+/* v377-v380: Shared Watch clarity pass — cyan only on explainer, sectioned explainer, no composer on Shared Watch. */
+.activity-shared-watch-pill.activity-feed-pill,
+.activity-shared-watch-pill.shared-watch-tab-pill {
+  font-size: 15px !important;
+}
+@media (max-width: 700px) {
+  .activity-shared-watch-pill.activity-feed-pill,
+  .activity-shared-watch-pill.shared-watch-tab-pill {
+    font-size: 14.5px !important;
+  }
+}
+#community-view.activity-subtab-shared-watch #feed-composer {
+  display: none !important;
+}
+#community-view.activity-subtab-shared-watch #shared-watch-feed,
+#community-view.activity-subtab-shared-watch .shared-watch-dashboard,
+#community-view.activity-subtab-shared-watch .shared-watch-hero,
+#community-view.activity-subtab-shared-watch .shared-watch-dashboard-card,
+#community-view.activity-subtab-shared-watch .shared-watch-dashboard-empty-card,
+#community-view.activity-subtab-shared-watch .shared-watch-dashboard-lane {
+  color: #ffffff !important;
+}
+#community-view.activity-subtab-shared-watch .shared-watch-hero span,
+#community-view.activity-subtab-shared-watch .shared-watch-lane-title span,
+#community-view.activity-subtab-shared-watch .shared-watch-dashboard-kicker span,
+#community-view.activity-subtab-shared-watch .shared-watch-dashboard-kicker em,
+#community-view.activity-subtab-shared-watch .shared-watch-dashboard-meta,
+#community-view.activity-subtab-shared-watch .shared-watch-dashboard-people,
+#community-view.activity-subtab-shared-watch .shared-watch-dashboard-people strong,
+#community-view.activity-subtab-shared-watch .shared-watch-hero p,
+#community-view.activity-subtab-shared-watch .shared-watch-hero small {
+  color: #ffffff !important;
+}
+.shared-watch-description-card {
+  background: linear-gradient(145deg, rgba(3, 73, 86, 0.96), rgba(4, 49, 62, 0.98)) !important;
+  border-color: rgba(245, 245, 255, 0.6) !important;
+  color: #ffffff !important;
+}
+.shared-watch-description-toggle {
+  min-height: 50px !important;
+  background: rgba(255,255,255,0.06) !important;
+  color: #ffffff !important;
+  font-size: 16px !important;
+}
+.shared-watch-description-toggle em {
+  color: rgba(255,255,255,0.82) !important;
+}
+.shared-watch-description-body {
+  gap: 13px !important;
+  padding: 15px 15px 17px !important;
+  font-size: 15px !important;
+  color: #ffffff !important;
+}
+.shared-watch-description-section {
+  display: grid;
+  gap: 5px;
+  padding-top: 11px;
+  border-top: 1px solid rgba(245,245,255,0.18);
+}
+.shared-watch-description-section:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.shared-watch-description-section h4 {
+  margin: 0;
+  color: #ffffff;
+  font-family: Aptos, 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.shared-watch-description-section p {
+  margin: 0;
+  color: #ffffff;
+}
+.shared-watch-description-section strong { color: #ffffff; font-weight: 950; }
+body.light-mode .shared-watch-description-card {
+  background: linear-gradient(145deg, rgba(3, 73, 86, 0.96), rgba(4, 49, 62, 0.98)) !important;
+  border-color: rgba(245, 245, 255, 0.6) !important;
+  color: #ffffff !important;
+}
+body.light-mode .shared-watch-description-body,
+body.light-mode .shared-watch-description-toggle,
+body.light-mode .shared-watch-description-section h4,
+body.light-mode .shared-watch-description-section p,
+body.light-mode .shared-watch-description-body strong {
+  color: #ffffff !important;
+}
+
+/* v380: deep cyan is scoped to the Shared Watch explanation card only. */
+#community-view.activity-subtab-shared-watch .shared-watch-description-card {
+  background: linear-gradient(145deg, rgba(3, 73, 86, 0.96), rgba(4, 49, 62, 0.98)) !important;
+  border-color: rgba(245, 245, 255, 0.6) !important;
+  color: #ffffff !important;
+}

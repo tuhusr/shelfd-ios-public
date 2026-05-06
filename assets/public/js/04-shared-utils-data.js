@@ -377,7 +377,7 @@ const SCREENLIST_VISIBLE_STATUS_TABS_BY_SECTION = {
   shows: ['watching', 'planned', 'watched', 'paused'],
   anime: ['watching', 'planned', 'watched', 'paused'],
   movies: ['planned', 'watched', 'paused'],
-  games: ['watching', 'live', 'planned', 'watched'],
+  games: ['watching', 'planned', 'watched', 'wishlist'],
   manga: ['watching', 'planned', 'watched', 'paused'],
   books: ['watching', 'planned', 'watched', 'paused']
 };
@@ -387,11 +387,13 @@ function isVisibleMyListStatusTab(tab = activeTab, section = activeSection) {
 }
 
 function normalizeVisibleMyListStatusTab(tab = activeTab, section = activeSection) {
+  if (section === 'games' && tab === 'live') return 'watching';
   return isVisibleMyListStatusTab(tab, section) ? tab : getDefaultTabForSection(section);
 }
 
 function getMyListStatusLabel(status = '', section = activeSection) {
   if (status === 'live') return 'Live Games';
+  if (status === 'wishlist') return section === 'games' ? 'Wishlist' : 'Wishlist';
   if (status === 'watching') {
     if (section === 'games') return 'Playing';
     return isReadingSection(section) ? 'Reading' : 'Watching';
@@ -410,8 +412,10 @@ function getMyListStatusLabel(status = '', section = activeSection) {
 }
 
 function getMyListStatusButtonConfigs(section = activeSection) {
-  return (SCREENLIST_VISIBLE_STATUS_TABS_BY_SECTION[section] || SCREENLIST_VISIBLE_STATUS_TABS_BY_SECTION.shows)
-    .map(status => ({ status, label: getMyListStatusLabel(status, section) }));
+  const statuses = section === 'games'
+    ? ['watching', 'live', 'planned', 'watched', 'wishlist']
+    : (SCREENLIST_VISIBLE_STATUS_TABS_BY_SECTION[section] || SCREENLIST_VISIBLE_STATUS_TABS_BY_SECTION.shows);
+  return statuses.map(status => ({ status, label: getMyListStatusLabel(status, section) }));
 }
 
 
@@ -883,44 +887,137 @@ function readOwnLocalBackup(excludeData = null) {
   }
   return null;
 }
-async function writeOwnDataDirect(nextData) {
+
+function getOwnDataFirestorePayload(safeData) {
+  return {
+    shows: JSON.stringify(safeData.shows),
+    movies: JSON.stringify(safeData.movies),
+    anime: JSON.stringify(safeData.anime),
+    games: JSON.stringify(safeData.games),
+    manga: JSON.stringify(safeData.manga),
+    books: JSON.stringify(safeData.books),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+}
+
+function parseOwnFirestoreData(docData = {}) {
+  return normalizeListData({
+    shows: docData.shows ? JSON.parse(docData.shows) : [],
+    movies: docData.movies ? JSON.parse(docData.movies) : [],
+    anime: docData.anime ? JSON.parse(docData.anime) : [],
+    games: docData.games ? JSON.parse(docData.games) : [],
+    manga: docData.manga ? JSON.parse(docData.manga) : [],
+    books: docData.books ? JSON.parse(docData.books) : []
+  });
+}
+
+function getOwnDataFirestorePayloadSizeBytes(safeData = null) {
+  try {
+    const payload = getOwnDataFirestorePayload(safeData || getEmptyListData());
+    const serializable = {
+      shows: payload.shows || '',
+      movies: payload.movies || '',
+      anime: payload.anime || '',
+      games: payload.games || '',
+      manga: payload.manga || '',
+      books: payload.books || ''
+    };
+    const json = JSON.stringify(serializable);
+    if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(json).length;
+    return unescape(encodeURIComponent(json)).length;
+  } catch (e) {
+    return 0;
+  }
+}
+
+function formatOwnDataSaveError(error, safeData = null) {
+  const code = String(error?.code || '').trim();
+  const message = String(error?.message || error || '').trim();
+  const sizeBytes = getOwnDataFirestorePayloadSizeBytes(safeData);
+  const sizeKb = Math.round((sizeBytes / 1024) * 10) / 10;
+  const codeLabel = code || 'unknown';
+  return `Save failed [${codeLabel}] ${sizeKb} KB${message ? `: ${message}` : ''}`;
+}
+
+async function loadWatchlistDataFromDocRef(docRef, fallbackData = null) {
+  const fallback = fallbackData
+    ? cloneListData(fallbackData)
+    : (ownDataCache ? cloneListData(ownDataCache) : cloneListData(data));
+  if (!docRef) return fallback;
+  try {
+    const snap = await docRef.get();
+    if (!snap.exists) return getEmptyListData();
+    return parseOwnFirestoreData(snap.data() || {});
+  } catch(e) {
+    console.error("Watchlist reload failed:", e);
+    return fallback;
+  }
+}
+
+async function persistOwnDataToFirestore(safeData, options = {}) {
+  if (!DOC_REF) {
+    if (options.verify) throw new Error("No library document is available for saving.");
+    return;
+  }
+  try {
+    const payload = getOwnDataFirestorePayload(safeData);
+    await DOC_REF.set(payload, { merge: true });
+    if (typeof window !== 'undefined') {
+      window.__lastOwnDataSaveDebug = {
+        ok: true,
+        sizeBytes: getOwnDataFirestorePayloadSizeBytes(safeData),
+        itemCount: listDataItemCount(safeData),
+        gamesCount: Array.isArray(safeData?.games) ? safeData.games.length : 0,
+        at: new Date().toISOString()
+      };
+    }
+  } catch (error) {
+    const formatted = formatOwnDataSaveError(error, safeData);
+    if (typeof window !== 'undefined') {
+      window.__lastOwnDataSaveDebug = {
+        ok: false,
+        code: String(error?.code || ''),
+        message: String(error?.message || error || ''),
+        formatted,
+        sizeBytes: getOwnDataFirestorePayloadSizeBytes(safeData),
+        itemCount: listDataItemCount(safeData),
+        gamesCount: Array.isArray(safeData?.games) ? safeData.games.length : 0,
+        at: new Date().toISOString()
+      };
+    }
+    throw error;
+  }
+  if (options.verify) await verifyOwnDataDirectWrite(safeData);
+}
+
+async function verifyOwnDataDirectWrite(expectedData) {
+  if (!DOC_REF) throw new Error("No library document is available for saving.");
+  const storedData = await loadWatchlistDataFromDocRef(DOC_REF);
+  if (listDataItemCount(storedData) < listDataItemCount(expectedData)) {
+    throw new Error("Library save verification did not match the imported library.");
+  }
+}
+
+async function writeOwnDataDirect(nextData, options = {}) {
   const safeData = compactImportedAnimeForStorage(nextData);
+  if (typeof saveTimeout !== 'undefined' && saveTimeout) {
+    clearTimeout(saveTimeout);
+    saveTimeout = null;
+  }
   data = cloneListData(safeData);
   ownDataCache = cloneListData(safeData);
   if (currentUser) localStorage.setItem("screenlist-own-data-backup-" + currentUser.uid, JSON.stringify(safeData));
   localStorage.setItem("watchlist-tracker-data", JSON.stringify(safeData));
   if (DOC_REF) {
-    await DOC_REF.set({
-      shows: JSON.stringify(safeData.shows),
-      movies: JSON.stringify(safeData.movies),
-      anime: JSON.stringify(safeData.anime),
-      games: JSON.stringify(safeData.games),
-      manga: JSON.stringify(safeData.manga),
-      books: JSON.stringify(safeData.books),
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
+    await persistOwnDataToFirestore(safeData, options);
     if (currentUser?.uid === CREATOR_PUBLIC_UID) {
       await syncCreatorPublicProfileMirror(currentUser, userProfile, safeData);
     }
+  } else if (options.verify) {
+    throw new Error("You need to be signed in before importing to Shelfd.");
   }
   return safeData;
 }
 async function loadOwnDataFromFirestore() {
-  if (!DOC_REF) return ownDataCache ? cloneListData(ownDataCache) : cloneListData(data);
-  try {
-    const snap = await DOC_REF.get();
-    if (!snap.exists) return getEmptyListData();
-    const d = snap.data();
-    return normalizeListData({
-      shows: d.shows ? JSON.parse(d.shows) : [],
-      movies: d.movies ? JSON.parse(d.movies) : [],
-      anime: d.anime ? JSON.parse(d.anime) : [],
-      games: d.games ? JSON.parse(d.games) : [],
-      manga: d.manga ? JSON.parse(d.manga) : [],
-      books: d.books ? JSON.parse(d.books) : []
-    });
-  } catch(e) {
-    console.error("Own library reload failed:", e);
-    return ownDataCache ? cloneListData(ownDataCache) : cloneListData(data);
-  }
+  return loadWatchlistDataFromDocRef(DOC_REF);
 }

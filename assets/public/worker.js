@@ -5,6 +5,8 @@ const STEAM_API_ORIGIN = "https://api.steampowered.com";
 const STEAM_OPENID_ORIGIN = "https://steamcommunity.com";
 const OMDB_ORIGIN = "https://www.omdbapi.com/";
 const TAVILY_ORIGIN = "https://api.tavily.com/";
+const IGDB_ORIGIN = "https://api.igdb.com/v4/";
+const TWITCH_TOKEN_ORIGIN = "https://id.twitch.tv/oauth2/token";
 const SCREENLIST_AI_MODEL = "@cf/meta/llama-3.1-8b-instruct";
 const SCREENLIST_AI_CACHE_TTL_SECONDS = 60 * 60 * 24 * 30;
 const SCREENLIST_API_CACHE_TTL_SECONDS = 60 * 60 * 6;
@@ -15,6 +17,9 @@ const TRAKT_ENV_NAMES = ["TRAKT_CLIENT_ID", "TRAKT_API_KEY", "TRAKT_KEY", "TRAKT
 const STEAM_ENV_NAMES = ["STEAM_API_KEY", "STEAM_KEY", "STEAM_WEB_API_KEY"];
 const OMDB_ENV_NAMES = ["OMDB_API_KEY", "OMDB_KEY", "IMDB_RATINGS_KEY", "IMDB_KEY"];
 const TAVILY_ENV_NAMES = ["TAVILY_API_KEY", "TAVILY_KEY"];
+const IGDB_CLIENT_ID_ENV_NAMES = ["IGDB_CLIENT_ID", "TWITCH_CLIENT_ID"];
+const IGDB_CLIENT_SECRET_ENV_NAMES = ["IGDB_CLIENT_SECRET", "TWITCH_CLIENT_SECRET"];
+let igdbAccessTokenCache = { token: "", expiresAt: 0 };
 
 function getEnvString(env, name) {
   const value = env && env[name];
@@ -111,6 +116,235 @@ function getTavilyConfigError(env) {
   const status = getTavilyPublicStatus(env);
   if (status.configured) return "";
   return `Tavily search is not configured. Add your Tavily API key as a Cloudflare Worker secret named ${TAVILY_ENV_NAMES[0]}. Also accepted: ${TAVILY_ENV_NAMES.slice(1).join(", ")}.`;
+}
+
+function getIgdbClientConfig(env) {
+  const clientIdName = IGDB_CLIENT_ID_ENV_NAMES.find(name => getEnvString(env, name));
+  const clientSecretName = IGDB_CLIENT_SECRET_ENV_NAMES.find(name => getEnvString(env, name));
+  return {
+    clientIdName: clientIdName || "",
+    clientId: clientIdName ? getEnvString(env, clientIdName) : "",
+    clientSecretName: clientSecretName || "",
+    clientSecret: clientSecretName ? getEnvString(env, clientSecretName) : ""
+  };
+}
+
+function getIgdbPublicStatus(env) {
+  const config = getIgdbClientConfig(env);
+  return {
+    configured: !!(config.clientId && config.clientSecret),
+    clientIdEnvName: config.clientIdName || "",
+    clientSecretEnvName: config.clientSecretName || "",
+    acceptedClientIdEnvNames: IGDB_CLIENT_ID_ENV_NAMES,
+    acceptedClientSecretEnvNames: IGDB_CLIENT_SECRET_ENV_NAMES
+  };
+}
+
+function getIgdbConfigError(env) {
+  const status = getIgdbPublicStatus(env);
+  if (status.configured) return "";
+  return `IGDB/Twitch cover lookup is not configured. Add Cloudflare Worker secrets named ${IGDB_CLIENT_ID_ENV_NAMES[0]} and ${IGDB_CLIENT_SECRET_ENV_NAMES[0]}.`;
+}
+
+function escapeIgdbSearchString(value = "") {
+  return String(value || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"').trim();
+}
+
+function normalizeIgdbGameTitle(value = "") {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[®™©]/g, "")
+    .replace(/\b(game of the year|goty|deluxe|ultimate|complete|definitive|enhanced|remastered|remake|standard|edition|bundle)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function scoreIgdbCoverCandidate(game = {}, requestedTitle = "") {
+  const requested = normalizeIgdbGameTitle(requestedTitle);
+  const candidate = normalizeIgdbGameTitle(game.name || "");
+  if (!requested || !candidate) return 0;
+  if (candidate === requested) return 100;
+  if (candidate.startsWith(requested) || requested.startsWith(candidate)) return 80;
+  const requestedWords = new Set(requested.split(" ").filter(Boolean));
+  const candidateWords = new Set(candidate.split(" ").filter(Boolean));
+  const overlap = [...requestedWords].filter(word => candidateWords.has(word)).length;
+  return overlap ? 40 + overlap * 6 : 0;
+}
+
+function selectBestIgdbCoverCandidate(games = [], requestedTitle = "") {
+  return (Array.isArray(games) ? games : [])
+    .filter(game => game?.cover?.image_id)
+    .map(game => ({ game, score: scoreIgdbCoverCandidate(game, requestedTitle) }))
+    .sort((a, b) => b.score - a.score || Number(b.game.total_rating || b.game.rating || 0) - Number(a.game.total_rating || a.game.rating || 0))[0]?.game || null;
+}
+
+function buildIgdbCoverUrl(imageId = "") {
+  const clean = String(imageId || "").trim();
+  return clean ? `https://images.igdb.com/igdb/image/upload/t_cover_big/${clean}.jpg` : "";
+}
+
+async function fetchIgdbAccessToken(env, timeoutMs = 8000) {
+  const config = getIgdbClientConfig(env);
+  if (!config.clientId || !config.clientSecret) {
+    return { ok: false, status: 500, error: getIgdbConfigError(env), igdb: getIgdbPublicStatus(env) };
+  }
+
+  if (igdbAccessTokenCache.token && Date.now() < igdbAccessTokenCache.expiresAt) {
+    return { ok: true, token: igdbAccessTokenCache.token, cached: true, igdb: getIgdbPublicStatus(env) };
+  }
+
+  const url = new URL(TWITCH_TOKEN_ORIGIN);
+  url.searchParams.set("client_id", config.clientId);
+  url.searchParams.set("client_secret", config.clientSecret);
+  url.searchParams.set("grant_type", "client_credentials");
+  const result = await fetchJsonWithTimeout(url.toString(), { method: "POST" }, timeoutMs);
+  const token = String(result.data?.access_token || "").trim();
+  const expiresIn = Math.max(600, Number(result.data?.expires_in || 3600));
+  if (!result.ok || !token) {
+    return {
+      ok: false,
+      status: result.status || 502,
+      error: result.error || "Twitch access token request failed.",
+      igdb: getIgdbPublicStatus(env)
+    };
+  }
+  igdbAccessTokenCache = { token, expiresAt: Date.now() + Math.max(60, expiresIn - 120) * 1000 };
+  return { ok: true, token, cached: false, igdb: getIgdbPublicStatus(env) };
+}
+
+async function fetchIgdbGameCoverBySteamAppId(env, steamAppId = "", token = "", timeoutMs = 9000) {
+  const cleanSteamAppId = String(steamAppId || "").trim();
+  if (!cleanSteamAppId || !token) return null;
+  const config = getIgdbClientConfig(env);
+  const body = [
+    "fields game.name, game.slug, game.cover.image_id, game.first_release_date, game.total_rating, game.rating, uid, external_game_source;",
+    `where uid = "${escapeIgdbSearchString(cleanSteamAppId)}" & external_game_source = 1;`,
+    "limit 5;"
+  ].join("\n");
+
+  const result = await fetchJsonWithTimeout(new URL("external_games", IGDB_ORIGIN).toString(), {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "text/plain",
+      "Client-ID": config.clientId,
+      "Authorization": `Bearer ${token}`
+    },
+    body
+  }, timeoutMs);
+
+  const externalRows = Array.isArray(result.data) ? result.data : [];
+  const games = externalRows.map(row => row?.game).filter(game => game?.cover?.image_id);
+  const selected = games.sort((a, b) => Number(b.total_rating || b.rating || 0) - Number(a.total_rating || a.rating || 0))[0] || null;
+  const coverUrl = buildIgdbCoverUrl(selected?.cover?.image_id || "");
+  if (!result.ok || !selected || !coverUrl) return null;
+
+  return {
+    ok: true,
+    status: result.status || 200,
+    matchedName: selected.name || "",
+    slug: selected.slug || "",
+    imageId: selected.cover?.image_id || "",
+    coverUrl,
+    matchMethod: "steam_app_id"
+  };
+}
+
+async function fetchIgdbGameCover(env, payload = {}, timeoutMs = 9000) {
+  const title = String(payload.title || payload.name || "").trim();
+  const steamAppId = String(payload.steamAppId || payload.appId || "").trim();
+  if (!title && !steamAppId) return { ok: false, status: 400, error: "Missing game title or Steam App ID.", steamAppId, igdb: getIgdbPublicStatus(env) };
+
+  const tokenResult = await fetchIgdbAccessToken(env, timeoutMs);
+  if (!tokenResult.ok) return tokenResult;
+
+  const steamMatch = steamAppId ? await fetchIgdbGameCoverBySteamAppId(env, steamAppId, tokenResult.token, timeoutMs) : null;
+  if (steamMatch?.coverUrl) {
+    return {
+      ...steamMatch,
+      title,
+      steamAppId,
+      source: "IGDB",
+      provider: "Twitch/IGDB",
+      igdb: getIgdbPublicStatus(env)
+    };
+  }
+
+  if (!title) return { ok: false, status: 404, error: "IGDB cover was not found from Steam App ID.", steamAppId, igdb: getIgdbPublicStatus(env) };
+
+  const body = [
+    `search "${escapeIgdbSearchString(title)}";`,
+    "fields name, slug, cover.image_id, first_release_date, total_rating, rating;",
+    "where cover != null;",
+    "limit 10;"
+  ].join("\n");
+
+  const config = getIgdbClientConfig(env);
+  const result = await fetchJsonWithTimeout(new URL("games", IGDB_ORIGIN).toString(), {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "text/plain",
+      "Client-ID": config.clientId,
+      "Authorization": `Bearer ${tokenResult.token}`
+    },
+    body
+  }, timeoutMs);
+
+  const games = Array.isArray(result.data) ? result.data : [];
+  const selected = selectBestIgdbCoverCandidate(games, title);
+  const coverUrl = buildIgdbCoverUrl(selected?.cover?.image_id || "");
+
+  if (!result.ok || !selected || !coverUrl) {
+    return {
+      ok: false,
+      status: result.status || 404,
+      error: result.error || "IGDB cover was not found.",
+      title,
+      steamAppId,
+      candidates: games.slice(0, 5).map(game => ({ name: game.name || "", slug: game.slug || "" })),
+      igdb: getIgdbPublicStatus(env)
+    };
+  }
+
+  return {
+    ok: true,
+    status: result.status || 200,
+    title,
+    steamAppId,
+    matchedName: selected.name || "",
+    slug: selected.slug || "",
+    imageId: selected.cover?.image_id || "",
+    coverUrl,
+    matchMethod: "title_search",
+    source: "IGDB",
+    provider: "Twitch/IGDB",
+    igdb: getIgdbPublicStatus(env)
+  };
+}
+
+async function runIgdbCoverEndpoint(request, env, ctx) {
+  const url = new URL(request.url);
+  const title = url.searchParams.get("title") || url.searchParams.get("name") || "";
+  const steamAppId = url.searchParams.get("steamAppId") || url.searchParams.get("appId") || "";
+  if (!String(title || "").trim()) return jsonResponse({ ok: false, error: "Missing title." }, 400);
+
+  const cacheKey = new Request(`${url.origin}/__screenlist_igdb_cover/v2/${encodeURIComponent(String(title).trim().toLowerCase())}/${encodeURIComponent(String(steamAppId).trim())}`, { method: "GET" });
+  const cached = await caches.default.match(cacheKey);
+  if (cached) {
+    const headers = new Headers(cached.headers);
+    headers.set("x-screenlist-igdb-cache", "HIT");
+    return new Response(cached.body, { status: cached.status, statusText: cached.statusText, headers });
+  }
+
+  const result = await fetchIgdbGameCover(env, { title, steamAppId });
+  const response = jsonResponse(result, result.ok ? 200 : (result.status || 502), {
+    "Cache-Control": result.ok ? "public, max-age=2592000" : "no-store",
+    "x-screenlist-igdb-cache": "MISS"
+  });
+  if (result.ok && ctx?.waitUntil) ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+  return response;
 }
 
 function getRatingResolveSources(env) {
@@ -2699,6 +2933,10 @@ export default {
       return runSteamLibraryEndpoint(request, env);
     }
 
+    if (url.pathname === "/api/igdb/cover") {
+      return runIgdbCoverEndpoint(request, env, ctx);
+    }
+
     if (url.pathname === "/api/site-stats") {
       return fetchVisitorStats(env);
     }
@@ -2757,7 +2995,7 @@ export default {
         error: "Unknown Shelfd API route.",
         path: url.pathname
       }, 404, {
-        "x-shelfd-api-router": "worker-v240"
+        "x-shelfd-api-router": "worker-v366"
       });
     }
 

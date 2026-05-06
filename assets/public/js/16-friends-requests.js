@@ -616,7 +616,7 @@ async function loadCommunity(forceActivity = false) {
     }
 
     const hadLocalFriendState = friendsDataLoadedOnce || friends.length || incomingRequests.length || outgoingRequests.length || watchTogetherIncomingRequestIds.length;
-    switchFriendsTab(targetTab);
+    switchFriendsTab(targetTab, { skipHeavyRender: !hadLocalFriendState });
 
     await loadFriendsData();
     primeFriendProfiles().catch(() => {});
@@ -645,7 +645,7 @@ function runFriendsTabWorkWhenSmooth(fn) {
   run();
 }
 
-function switchFriendsTab(tab) {
+function switchFriendsTab(tab, options = {}) {
   if (tab === 'find') tab = 'friends';
   if (tab === 'activity') {
     activeActivitySubTab = 'feed';
@@ -658,6 +658,7 @@ function switchFriendsTab(tab) {
     return;
   }
   activeFriendsTab = tab;
+  const skipHeavyRender = !!options.skipHeavyRender;
   const activityTabBtn = document.getElementById('ftab-activity');
   const friendsTab = document.getElementById('ftab-friends');
   const requestsTab = document.getElementById('ftab-requests');
@@ -688,7 +689,7 @@ function switchFriendsTab(tab) {
     bindFriendsActivitySwipeNavigation();
     updateActivitySubtabUi();
     initFeedComposer();
-    runFriendsTabWorkWhenSmooth(() => {
+    if (!skipHeavyRender) runFriendsTabWorkWhenSmooth(() => {
       if (activeFriendsTab !== 'activity') return;
       if (isWatchActivitySubTab()) {
         renderActiveWatchActivitySubTab();
@@ -701,11 +702,11 @@ function switchFriendsTab(tab) {
   }
   if (tab === 'friends') {
     resetInlineFriendSearch();
-    runFriendsTabWorkWhenSmooth(() => { if (activeFriendsTab === 'friends') renderFriendsList(); });
+    if (!skipHeavyRender) runFriendsTabWorkWhenSmooth(() => { if (activeFriendsTab === 'friends') renderFriendsList(); });
   }
-  if (tab === 'requests') runFriendsTabWorkWhenSmooth(() => { if (activeFriendsTab === 'requests') renderRequestsList(); });
-  if (tab === 'messages') runFriendsTabWorkWhenSmooth(() => { if (activeFriendsTab === 'messages') renderDirectMessagesView(); });
-  if (tab === 'find') runFriendsTabWorkWhenSmooth(() => { if (activeFriendsTab === 'find') initFindPeopleSearchView(); });
+  if (tab === 'requests' && !skipHeavyRender) runFriendsTabWorkWhenSmooth(() => { if (activeFriendsTab === 'requests') renderRequestsList(); });
+  if (tab === 'messages' && !skipHeavyRender) runFriendsTabWorkWhenSmooth(() => { if (activeFriendsTab === 'messages') renderDirectMessagesView(); });
+  if (tab === 'find' && !skipHeavyRender) runFriendsTabWorkWhenSmooth(() => { if (activeFriendsTab === 'find') initFindPeopleSearchView(); });
   persistUiState();
 }
 
@@ -977,13 +978,55 @@ async function renderFriendWatchRequestsActivity(skipHydrate = false) {
   </div>`;
 }
 
+
+function buildSharedWatchDescriptionCard() {
+  return `<section class="shared-watch-description-card" data-shared-watch-description-card>
+    <button class="shared-watch-description-toggle" type="button" onclick="toggleSharedWatchDescriptionCard(this)" aria-expanded="true">
+      <span>What is Shared Watch?</span>
+      <em>Collapse</em>
+    </button>
+    <div class="shared-watch-description-body">
+      <section class="shared-watch-description-section">
+        <h4>Overview</h4>
+        <p><strong>Shared Watch</strong> is a Shelfd feature for tagging friends or partners on movies and TV shows you plan to watch together or already watched together.</p>
+      </section>
+      <section class="shared-watch-description-section">
+        <h4>Planning together</h4>
+        <p>If a movie or TV show has not released yet, or you have not watched it yet, you can tag someone as a reminder that you want to watch that title together.</p>
+      </section>
+      <section class="shared-watch-description-section">
+        <h4>Watched together</h4>
+        <p>If you already watched a title together, you can tag the people you watched it with so the shared memory is connected to that title.</p>
+      </section>
+      <section class="shared-watch-description-section">
+        <h4>How to add people</h4>
+        <p>You can add people to planning or watched titles by using the plus icon at the bottom right of a title card in your My Lists page.</p>
+      </section>
+      <section class="shared-watch-description-section">
+        <h4>Privacy</h4>
+        <p>Planning tags are private to you. Confirmed watched-together tags can be shared so people can see who watched that title together.</p>
+      </section>
+    </div>
+  </section>`;
+}
+
+function toggleSharedWatchDescriptionCard(btn) {
+  const card = btn?.closest?.('[data-shared-watch-description-card]');
+  if (!card) return;
+  const collapsed = card.classList.toggle('collapsed');
+  btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  const label = btn.querySelector('em');
+  if (label) label.textContent = collapsed ? 'Read' : 'Collapse';
+}
+
 async function renderSharedWatchActivity(skipHydrate = false) {
   const feed = document.getElementById('shared-watch-feed');
   if (!feed) return;
   updateActivitySubtabUi();
   const headerHtml = buildActivityFeedHeaderHTML('Shared Watch');
+  const sharedWatchDescriptionHtml = buildSharedWatchDescriptionCard();
   if (!currentUser) {
-    feed.innerHTML = `${headerHtml}<div class="activity-feed-empty"><strong>Sign in required</strong>Your confirmed shared titles will appear here.</div>`;
+    feed.innerHTML = `${headerHtml}${sharedWatchDescriptionHtml}<div class="activity-feed-empty"><strong>Sign in required</strong>Your confirmed shared titles will appear here.</div>`;
     return;
   }
   if (!skipHydrate) await hydrateWatchTogetherMirroredRequests();
@@ -992,10 +1035,10 @@ async function renderSharedWatchActivity(skipHydrate = false) {
   const watched = groups.filter(group => group.mode !== 'planned');
   const friendCount = new Set(groups.flatMap(group => getSharedWatchGroupPartners(group).map(profile => profile.uid))).size;
   if (!groups.length) {
-    feed.innerHTML = `${headerHtml}<div class="shared-watch-dashboard"><div class="shared-watch-hero"><div><span>Shared Watch</span><strong>Nothing confirmed yet</strong><p>Approve a Watch Request to build shared shelves for plans and watched-together titles.</p></div></div></div>`;
+    feed.innerHTML = `${headerHtml}${sharedWatchDescriptionHtml}<div class="shared-watch-dashboard"><div class="shared-watch-hero"><div><span>Shared Watch</span><strong>Nothing confirmed yet</strong><p>Approve a Watch Request to build shared shelves for plans and watched-together titles.</p></div></div></div>`;
     return;
   }
-  feed.innerHTML = `${headerHtml}<div class="shared-watch-dashboard">
+  feed.innerHTML = `${headerHtml}${sharedWatchDescriptionHtml}<div class="shared-watch-dashboard">
     <div class="shared-watch-hero">
       <div><span>Shared Watch</span><strong>${groups.length} shared ${groups.length === 1 ? 'title' : 'titles'}</strong><p>${friendCount} ${friendCount === 1 ? 'friend' : 'friends'} connected through movies, TV, and anime.</p></div>
       <div class="shared-watch-hero-stats"><em>${planned.length}</em><small>Planned</small><em>${watched.length}</em><small>Watched</small></div>
@@ -1016,8 +1059,18 @@ async function loadActivityTabFeed() {
     feed.innerHTML = `${buildActivityFeedHeaderHTML('Activity Feed', { showRefresh: false })}<div class="activity-feed-empty"><strong>Sign in to see activity</strong></div>`;
     return;
   }
-  feed.innerHTML = buildSkeletonHTML();
+  const cachedActivities = typeof getFreshFriendActivityCache === 'function' ? getFreshFriendActivityCache(14) : null;
+  if (cachedActivities) {
+    if (!cachedActivities.length && !friends.length) {
+      feed.innerHTML = `${buildActivityFeedHeaderHTML('Activity Feed', { showRefresh: false })}<div class="activity-feed-empty"><strong>Nothing here yet</strong>Add friends or add titles to your list to see activity.</div>`;
+      return;
+    }
+    renderFriendActivityItems(feed, cachedActivities);
+    return;
+  }
+  if (!feed.dataset.activityHydrated) feed.innerHTML = buildSkeletonHTML();
   const activities = await fetchAllFriendActivities(14);
+  feed.dataset.activityHydrated = '1';
   if (!activities.length && !friends.length) {
     feed.innerHTML = `${buildActivityFeedHeaderHTML('Activity Feed', { showRefresh: false })}<div class="activity-feed-empty"><strong>Nothing here yet</strong>Add friends or add titles to your list to see activity.</div>`;
     return;
@@ -1768,20 +1821,7 @@ async function viewUserList(uid, name, photo) {
   viewingUser = sourceUser;
   let loadFailed = false;
   try {
-    const snap = await db.collection("watchlist").doc(uid).get();
-    if (snap.exists) {
-      const d = snap.data();
-      friendViewData = {
-        shows: d.shows ? JSON.parse(d.shows) : [],
-        movies: d.movies ? JSON.parse(d.movies) : [],
-        anime: d.anime ? JSON.parse(d.anime) : [],
-        games: d.games ? JSON.parse(d.games) : [],
-        manga: d.manga ? JSON.parse(d.manga) : [],
-        books: d.books ? JSON.parse(d.books) : []
-      };
-    } else {
-      friendViewData = getEmptyListData();
-    }
+    friendViewData = await loadWatchlistDataFromDocRef(db.collection("watchlist").doc(uid), getEmptyListData());
   } catch(e) {
     console.error("Failed to load user list:", e);
     friendViewData = getEmptyListData();

@@ -618,10 +618,8 @@ async function switchMainNav(tab) {
       if (normalizedTab === 'community') {
         activeFriendsTab = 'activity';
         activeActivitySubTab = 'feed';
-        if (typeof switchFriendsTab === 'function') switchFriendsTab('activity');
         const hydrateCommunity = () => {
           loadCommunity(true);
-          if (typeof loadFriendActivity === 'function') loadFriendActivity();
         };
         if (isMobileMainNav) {
           setTimeout(() => requestAnimationFrame(hydrateCommunity), MAIN_NAV_MOBILE_TOTAL_MS + 36);

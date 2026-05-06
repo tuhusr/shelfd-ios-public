@@ -13,12 +13,14 @@ function renderDiscoveryAddChoice() {
   const isGame = pendingDiscoveryAdd?.type === 'game';
   const watchedLabel = isGame ? 'Played' : 'Watched';
   const plannedLabel = isGame ? 'Backlog' : 'Watchlist';
+  const wishlistButton = isGame ? `<button class="discover-status-btn wishlist-option" onclick="confirmDiscoveryAdd('wishlist')">Wishlist</button>` : '';
   content.innerHTML = `
     <h3>Add to Library</h3>
     <div class="discover-add-desc">Where you bouta put this?</div>
     <div class="discover-status-options">
       <button class="discover-status-btn watched-option" onclick="confirmDiscoveryAdd('watched')">${watchedLabel}</button>
       <button class="discover-status-btn planned-option" onclick="confirmDiscoveryAdd('planned')">${plannedLabel}</button>
+      ${wishlistButton}
     </div>
     <div class="modal-actions">
       <button class="btn-secondary discover-cancel-btn" onclick="closeDiscoverAddModal()">Cancel</button>
@@ -293,7 +295,7 @@ async function addDiscoveryTitle(type, tmdbId, btn, status = 'planned', original
     }
     data[section].push(...newItems);
     activeSection = section;
-    activeTab = status;
+    activeTab = section === 'games' && status === 'live' ? 'watching' : status;
     save();
     render();
     playLibraryAddPopSound();
@@ -562,8 +564,40 @@ async function buildTmdbLibraryItems(type, tmdbId, status = 'planned', rating = 
 let importReturnTab = 'mylist';
 let pendingImportSource = '';
 let pendingImportRows = [];
+let activeImportSourcePage = '';
 let steamImportExcludedKeys = new Set();
 let importBusy = false;
+const IMPORT_SOURCE_PAGE_CONFIG = {
+  letterboxd: {
+    label: 'Letterboxd',
+    title: 'Letterboxd Library',
+    subtitle: 'Import your Letterboxd ratings, watched, diary, or watchlist export.',
+    copy: 'Upload your Letterboxd ZIP export or a ratings / watched / watchlist CSV. Shelfd will preview the titles before syncing.',
+    button: 'Choose Letterboxd file'
+  },
+  imdb: {
+    label: 'IMDb',
+    title: 'IMDb Library',
+    subtitle: 'Import your IMDb ratings, watchlist, or custom list CSV.',
+    copy: 'Upload your IMDb CSV export. Shelfd will match movies and TV shows, then let you confirm the import.',
+    button: 'Choose IMDb file'
+  },
+  myanimelist: {
+    label: 'MyAnimeList',
+    title: 'MyAnimeList Library',
+    subtitle: 'Import your MyAnimeList anime XML and choose where each title should go.',
+    copy: 'Upload your MAL XML export. Shelfd will map MAL status and rating when possible, then you can adjust each title before importing.',
+    helper: 'This might be easier to do via the browser via a desktop or laptop',
+    button: 'Choose MyAnimeList file'
+  },
+  backloggd: {
+    label: 'Backloggd',
+    title: 'Backloggd Library',
+    subtitle: 'Import your Backloggd-style or manual game CSV.',
+    copy: 'Upload your game CSV. Shelfd will preview the games before syncing them into your Games list.',
+    button: 'Choose Backloggd file'
+  }
+};
 const STEAM_IMPORT_QUERY_FLAG = 'steam_import';
 const STEAM_AUTH_RESULT_PARAM = 'steam_auth';
 const STEAM_AUTH_STEAM_ID_PARAM = 'steam_id';
@@ -631,6 +665,78 @@ function renderSteamImportCardState() {
   }
 }
 
+
+function getImportSourcePageConfig(source = '') {
+  return IMPORT_SOURCE_PAGE_CONFIG[source] || {
+    label: getImportSourceLabel(source),
+    title: `${getImportSourceLabel(source)} Library`,
+    subtitle: 'Import your export file into Shelfd.',
+    copy: 'Choose an export file to preview before syncing.',
+    button: 'Choose file'
+  };
+}
+
+function openImportSourcePage(source = '', options = {}) {
+  const cleanSource = String(source || '').trim().toLowerCase();
+  if (!cleanSource || cleanSource === 'steam') return;
+  openImportPage();
+  if (activeImportSourcePage !== cleanSource && !options.preservePreview) {
+    pendingImportSource = cleanSource;
+    pendingImportRows = [];
+    clearImportPreview();
+    setImportStatus('', '');
+  }
+  activeImportSourcePage = cleanSource;
+  const config = getImportSourcePageConfig(cleanSource);
+  const panel = document.getElementById('import-source-detail-panel');
+  const title = document.getElementById('import-source-detail-title');
+  const subtitle = document.getElementById('import-source-detail-subtitle');
+  const cardTitle = document.getElementById('import-source-detail-card-title');
+  const cardCopy = document.getElementById('import-source-detail-card-copy');
+  const helper = document.getElementById('import-source-detail-helper');
+  const fileBtn = document.getElementById('import-source-detail-file-btn');
+  if (title) title.textContent = config.title;
+  if (subtitle) subtitle.textContent = config.subtitle;
+  if (cardTitle) cardTitle.textContent = `Upload ${config.label} export`;
+  if (cardCopy) cardCopy.textContent = config.copy;
+  if (helper) {
+    const helperText = String(config.helper || '').trim();
+    helper.textContent = helperText;
+    helper.hidden = !helperText;
+  }
+  if (fileBtn) fileBtn.textContent = config.button;
+  if (panel) {
+    panel.dataset.importSource = cleanSource;
+    panel.setAttribute('aria-hidden', 'false');
+    panel.style.display = 'block';
+    requestAnimationFrame(() => panel.classList.add('open'));
+  }
+  document.body.classList.add('import-source-detail-open');
+  window.scrollTo({ top: 0, behavior: 'auto' });
+}
+
+function closeImportSourcePage() {
+  const panel = document.getElementById('import-source-detail-panel');
+  if (panel) {
+    panel.classList.remove('open');
+    panel.setAttribute('aria-hidden', 'true');
+    setTimeout(() => {
+      if (!panel.classList.contains('open')) panel.style.display = 'none';
+    }, 260);
+  }
+  document.body.classList.remove('import-source-detail-open');
+  activeImportSourcePage = '';
+  window.scrollTo({ top: 0, behavior: 'auto' });
+}
+
+function triggerImportFilePicker(source = '') {
+  const cleanSource = String(source || activeImportSourcePage || pendingImportSource || '').trim().toLowerCase();
+  const input = document.getElementById(`import-file-${cleanSource}`);
+  if (!input) return;
+  input.value = '';
+  input.click();
+}
+
 function openSteamImportPage() {
   openImportPage();
   requestAnimationFrame(() => {
@@ -662,20 +768,33 @@ function closeImportPage() {
   if (next === 'community' && typeof openFriendsActivityDefault === 'function') openFriendsActivityDefault();
   persistUiState();
   pendingImportSource = '';
+  activeImportSourcePage = '';
+  document.body.classList.remove('import-source-detail-open');
+  const importSourcePanel = document.getElementById('import-source-detail-panel');
+  if (importSourcePanel) {
+    importSourcePanel.classList.remove('open');
+    importSourcePanel.style.display = 'none';
+    importSourcePanel.setAttribute('aria-hidden', 'true');
+  }
   renderSteamImportCardState();
   window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
 function setImportStatus(message = '', kind = '') {
-  const el = document.getElementById('import-status');
-  if (!el) return;
-  el.className = ['import-status', kind ? `import-status-${kind}` : ''].filter(Boolean).join(' ');
-  el.textContent = message;
+  const className = ['import-status', kind ? `import-status-${kind}` : ''].filter(Boolean).join(' ');
+  ['import-status', 'import-detail-status'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.className = className;
+    el.textContent = message;
+  });
 }
 
 function clearImportPreview() {
-  const el = document.getElementById('import-preview');
-  if (el) el.innerHTML = '';
+  ['import-preview', 'import-detail-preview'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '';
+  });
 }
 
 function setSteamSyncStatus(message = '', kind = '') {
@@ -765,13 +884,16 @@ function closeSteamImportSuccessSplash() {
   setTimeout(() => splash.remove(), 260);
 }
 
-function showSteamImportSuccessSplash({ added = 0, repaired = 0, skipped = 0, failed = 0, total = 0 } = {}) {
+function showSteamImportSuccessSplash({ added = 0, repaired = 0, skipped = 0, failed = 0, total = 0, providerLabel = 'Steam', itemLabel = 'title' } = {}) {
   const previous = document.getElementById('steam-import-success-splash');
   if (previous) previous.remove();
+  const cleanProvider = String(providerLabel || 'Import').trim();
   const completed = Math.max(0, Number(added || 0) + Number(repaired || 0) + Number(skipped || 0));
+  const totalCount = Math.max(total, completed);
+  const noun = cleanProvider === 'Steam' ? 'games' : `${itemLabel || 'title'}${totalCount === 1 ? '' : 's'}`;
   const importedCopy = completed
-    ? `${completed.toLocaleString('en-US')} of ${Math.max(total, completed).toLocaleString('en-US')} selected games finished syncing.`
-    : 'Your Steam library sync finished.';
+    ? `${completed.toLocaleString('en-US')} of ${totalCount.toLocaleString('en-US')} selected ${noun} finished syncing.`
+    : `Your ${cleanProvider} library sync finished.`;
   const detailBits = [
     added ? `${added.toLocaleString('en-US')} added` : '',
     repaired ? `${repaired.toLocaleString('en-US')} updated` : '',
@@ -791,7 +913,7 @@ function showSteamImportSuccessSplash({ added = 0, repaired = 0, skipped = 0, fa
       <div class="steam-import-success-mark" aria-hidden="true">
         <svg viewBox="0 0 24 24" focusable="false"><path d="M20 6 9 17l-5-5"></path></svg>
       </div>
-      <div class="steam-import-success-kicker">Steam sync complete</div>
+      <div class="steam-import-success-kicker">${escHtml(cleanProvider)} sync complete</div>
       <div class="steam-import-success-title">Your library is synced to Shelfd</div>
       <div class="steam-import-success-copy">${escHtml(importedCopy)}</div>
       <div class="steam-import-success-detail">${escHtml(detailBits.join(' · ') || 'Ready in My Lists')}</div>
@@ -879,6 +1001,13 @@ function normalizeImportRating(value = '', source = '') {
 
 function normalizeImportStatus(value = '', source = '') {
   const raw = normalizeImportText(value).toLowerCase();
+  if (source === 'myanimelist') {
+    if (/complete|completed|watched|finished/.test(raw)) return 'watched';
+    if (/watching|current|in progress|progress/.test(raw)) return 'watching';
+    if (/plan|watchlist|want|priority|tbr/.test(raw)) return 'planned';
+    if (/hold|on-hold|pause|paused|drop|dropped|abandon/.test(raw)) return 'paused';
+    return 'planned';
+  }
   if (!raw) return 'planned';
   if (/plan|watchlist|want|backlog|priority|tbr/.test(raw)) return 'planned';
   if (/watching|reading|playing|current|in progress|progress/.test(raw)) return 'watching';
@@ -891,6 +1020,110 @@ function normalizeImportStatus(value = '', source = '') {
 
 function getImportSourceLabel(source = '') {
   return ({ letterboxd: 'Letterboxd', imdb: 'IMDb', myanimelist: 'MyAnimeList', backloggd: 'Backloggd', steam: 'Steam' })[source] || 'Import';
+}
+
+const STEAM_IGDB_COVER_CACHE = new Map();
+let _steamIgdbBackfillRunning = false;
+
+function isIgdbCoverUrl(value = '') {
+  return /images\.igdb\.com\/igdb\/image\/upload/i.test(String(value || ''));
+}
+
+function isSteamImportedGameItem(item = {}) {
+  return !!(item && (String(item.source || '').trim().toLowerCase() === 'steam' || String(item.steamAppId || '').trim()));
+}
+
+function shouldRefreshGameIgdbCover(item = {}) {
+  if (!item || !item.title) return false;
+  if (isSteamImportedGameItem(item)) return !isIgdbCoverUrl(item.igdbCoverUrl) || !isIgdbCoverUrl(item.cover);
+  return !isIgdbCoverUrl(item.igdbCoverUrl || item.cover || '');
+}
+
+function getSteamIgdbCoverCacheKey(title = '', steamAppId = '') {
+  return `${String(steamAppId || '').trim()}|${String(title || '').trim().toLowerCase()}`;
+}
+
+async function fetchSteamIgdbCover(entry = {}) {
+  const title = String(entry.title || entry.name || '').trim();
+  if (!title) return null;
+  const steamAppId = String(entry.steamAppId || entry.appId || '').trim();
+  const cacheKey = getSteamIgdbCoverCacheKey(title, steamAppId);
+  if (STEAM_IGDB_COVER_CACHE.has(cacheKey)) return STEAM_IGDB_COVER_CACHE.get(cacheKey);
+  try {
+    const params = new URLSearchParams({ title });
+    if (steamAppId) params.set('steamAppId', steamAppId);
+    const res = await fetch(`/api/igdb/cover?${params.toString()}`, { cache: 'no-store' });
+    const json = res.ok ? await res.json() : null;
+    const payload = json?.ok && json.coverUrl ? json : null;
+    STEAM_IGDB_COVER_CACHE.set(cacheKey, payload);
+    return payload;
+  } catch (error) {
+    console.warn('Steam IGDB cover lookup failed:', title, error);
+    STEAM_IGDB_COVER_CACHE.set(cacheKey, null);
+    return null;
+  }
+}
+
+async function applySteamIgdbCoverToItem(item = {}, entry = {}) {
+  if (!item || !item.title) return false;
+  const cover = await fetchSteamIgdbCover({
+    ...entry,
+    title: entry.title || item.title,
+    steamAppId: entry.steamAppId || item.steamAppId || ''
+  });
+  if (!cover?.coverUrl) return false;
+  const nextCover = String(cover.coverUrl || '').trim();
+  const changed = item.igdbCoverUrl !== nextCover || item.cover !== nextCover;
+  item.igdbCoverUrl = nextCover;
+  item.cover = nextCover;
+  item.coverProvider = 'igdb';
+  item.coverSource = 'igdb';
+  item.igdbMatchedName = cover.matchedName || item.igdbMatchedName || '';
+  item.igdbSlug = cover.slug || item.igdbSlug || '';
+  item.igdbCoverUpdatedAt = new Date().toISOString();
+  return changed;
+}
+
+async function backfillSteamImportedGameCoversFromRows(rows = []) {
+  if (_steamIgdbBackfillRunning) return 0;
+  if (!currentUser || isPreviewMode()) return 0;
+  _steamIgdbBackfillRunning = true;
+  try {
+    const targetData = ownDataCache
+      ? cloneListData(ownDataCache)
+      : (typeof loadOwnDataFromFirestore === 'function' ? await loadOwnDataFromFirestore() : cloneListData(data));
+    if (!targetData || !Array.isArray(targetData.games) || !targetData.games.length) return 0;
+
+    const rowByAppId = new Map((Array.isArray(rows) ? rows : [])
+      .filter(row => row?.steamAppId)
+      .map(row => [String(row.steamAppId).trim(), row]));
+    const candidates = targetData.games.filter(item => {
+      if (!item || !item.title || !shouldRefreshGameIgdbCover(item)) return false;
+      return isSteamImportedGameItem(item);
+    });
+
+    let updated = 0;
+    for (const item of candidates) {
+      const appId = String(item.steamAppId || '').trim();
+      const row = rowByAppId.get(appId) || { title: item.title, steamAppId: appId };
+      const changed = await applySteamIgdbCoverToItem(item, row);
+      if (changed) updated++;
+      await new Promise(resolve => setTimeout(resolve, 260));
+    }
+
+    if (updated) {
+      await writeOwnDataDirect(targetData);
+      data = cloneListData(targetData);
+      ownDataCache = cloneListData(targetData);
+      if (activeSection === 'games') render();
+    }
+    return updated;
+  } catch (error) {
+    console.warn('Steam IGDB cover backfill failed:', error);
+    return 0;
+  } finally {
+    _steamIgdbBackfillRunning = false;
+  }
 }
 
 async function readImportTextFiles(source, file) {
@@ -1042,35 +1275,95 @@ function normalizeImportRows(source, files = []) {
   return [];
 }
 
+function getImportStatusDisplayLabel(status = '', source = pendingImportSource) {
+  const section = source === 'myanimelist' ? 'anime' : source === 'backloggd' || source === 'steam' ? 'games' : 'movies';
+  if (status === 'watching') return section === 'games' ? 'Playing' : section === 'anime' ? 'Watching' : 'Watching';
+  if (status === 'planned') return section === 'games' ? 'Backlog' : 'Watchlist';
+  if (status === 'watched') return section === 'games' ? 'Played' : 'Watched';
+  if (status === 'paused') return 'Paused';
+  if (status === 'wishlist') return 'Wishlist';
+  return status || 'Watchlist';
+}
+
+function getImportStatusOptions(source = pendingImportSource) {
+  if (source === 'myanimelist') {
+    return [
+      { value: 'watching', label: 'Watching' },
+      { value: 'planned', label: 'Watchlist' },
+      { value: 'watched', label: 'Watched' },
+      { value: 'paused', label: 'Paused' }
+    ];
+  }
+  return [];
+}
+
+function updatePendingImportRowStatus(index = 0, status = '') {
+  const rowIndex = Number(index);
+  if (!Number.isInteger(rowIndex) || rowIndex < 0 || rowIndex >= pendingImportRows.length) return;
+  const allowed = getImportStatusOptions(pendingImportSource).map(option => option.value);
+  if (!allowed.includes(status)) return;
+  pendingImportRows[rowIndex].status = status;
+  renderImportPreview();
+}
+
+function renderImportStatusControl(row = {}, index = 0) {
+  const options = getImportStatusOptions(pendingImportSource);
+  if (!options.length) return '';
+  const selected = row.status || 'planned';
+  return `
+    <label class="import-row-status-control">
+      <span>Send to</span>
+      <select onchange="updatePendingImportRowStatus(${index}, this.value)">
+        ${options.map(option => `<option value="${escAttr(option.value)}"${option.value === selected ? ' selected' : ''}>${escHtml(option.label)}</option>`).join('')}
+      </select>
+    </label>
+  `;
+}
+
+function setImportPreviewHtml(html = '') {
+  ['import-preview', 'import-detail-preview'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+  });
+}
+
 function renderImportPreview() {
-  const el = document.getElementById('import-preview');
-  if (!el) return;
   if (!pendingImportRows.length) {
-    el.innerHTML = '';
+    setImportPreviewHtml('');
     return;
   }
-  const rows = pendingImportRows.slice(0, 60).map((row, index) => `
-    <div class="import-preview-row">
-      <div class="import-preview-main">
-        <strong>${index + 1}. ${escHtml(row.title)}</strong>
-        <span>${escHtml([row.year, row.typeHint, row.status].filter(Boolean).join(' · '))}</span>
+  const rows = pendingImportRows.slice(0, 80).map((row, index) => {
+    const meta = [row.year, row.typeHint, getImportStatusDisplayLabel(row.status, row.source || pendingImportSource)].filter(Boolean).join(' · ');
+    const ratingSection = row.typeHint === 'game' ? 'games' : row.typeHint === 'anime' ? 'anime' : 'movies';
+    return `
+      <div class="import-preview-row${pendingImportSource === 'myanimelist' ? ' import-preview-row-myanimelist' : ''}">
+        <div class="import-preview-main">
+          <strong>${index + 1}. ${escHtml(row.title)}</strong>
+          <span>${escHtml(meta)}</span>
+          ${row.rawStatus ? `<small class="import-source-raw-status">MAL status: ${escHtml(row.rawStatus)}</small>` : ''}
+        </div>
+        ${renderImportStatusControl(row, index)}
+        <div class="import-preview-score">${row.rating ? escHtml(formatRatingValueForSection(row.rating, ratingSection, true)) : 'No rating'}</div>
       </div>
-      <div class="import-preview-score">${row.rating ? escHtml(formatRatingValueForSection(row.rating, row.typeHint === 'game' ? 'games' : 'movies', true)) : 'No rating'}</div>
-    </div>
-  `).join('');
-  const hiddenCount = Math.max(0, pendingImportRows.length - 60);
-  el.innerHTML = `
+    `;
+  }).join('');
+  const hiddenCount = Math.max(0, pendingImportRows.length - 80);
+  const sourceLabel = getImportSourceLabel(pendingImportSource);
+  const malSub = pendingImportSource === 'myanimelist'
+    ? 'MAL status and rating are mapped automatically when possible. You can change each title before importing.'
+    : `${sourceLabel} · Previewing first ${Math.min(80, pendingImportRows.length)}${hiddenCount ? ` · ${hiddenCount} more hidden` : ''}`;
+  setImportPreviewHtml(`
     <div class="import-preview-card">
       <div class="import-preview-head">
         <div>
           <div class="import-preview-title">Ready to import ${pendingImportRows.length} title${pendingImportRows.length === 1 ? '' : 's'}</div>
-          <div class="import-preview-sub">${escHtml(getImportSourceLabel(pendingImportSource))} · Previewing first ${Math.min(60, pendingImportRows.length)}${hiddenCount ? ` · ${hiddenCount} more hidden` : ''}</div>
+          <div class="import-preview-sub">${escHtml(malSub)}${pendingImportSource === 'myanimelist' && hiddenCount ? escHtml(` Previewing first 80 · ${hiddenCount} more hidden`) : ''}</div>
         </div>
         <button class="btn-primary" onclick="confirmImportLibrary()">Import to Shelfd</button>
       </div>
       <div class="import-preview-list">${rows}</div>
     </div>
-  `;
+  `);
 }
 
 function renderSteamSyncPreview() {
@@ -1110,7 +1403,9 @@ function renderSteamSyncPreview() {
 
 async function handleImportFile(source, file) {
   if (!file || importBusy) return;
-  pendingImportSource = source;
+  const cleanSource = String(source || '').trim().toLowerCase();
+  if (cleanSource && cleanSource !== 'steam') openImportSourcePage(cleanSource, { preservePreview: true });
+  pendingImportSource = cleanSource || source;
   pendingImportRows = [];
   clearImportPreview();
   setImportStatus(`Reading ${file.name}...`, 'busy');
@@ -1238,6 +1533,8 @@ function buildSteamImportRows(games = [], steamId = '') {
       playtimeMinutes,
       playtimeHours,
       lastPlayedAt: String(game.lastPlayedAt || '').trim(),
+      cover: '',
+      igdbCoverUrl: '',
       raw: game
     };
   }).filter(row => row.title);
@@ -1286,6 +1583,9 @@ async function syncSteamLibraryPreview(options = {}) {
     setImportStatus(`Found ${rows.length} Steam game${rows.length === 1 ? '' : 's'}. Review, then import.`, 'ready');
     setSteamSyncStatus(`Found ${rows.length} Steam game${rows.length === 1 ? '' : 's'}. Review, then import to Shelfd.`, 'ready');
     renderSteamSyncPreview();
+    backfillSteamImportedGameCoversFromRows(rows).then(updated => {
+      if (updated) setSteamSyncStatus(`Found ${rows.length} Steam game${rows.length === 1 ? '' : 's'}. Updated ${updated} game poster${updated === 1 ? '' : 's'} from IGDB.`, 'ready');
+    });
   } catch (error) {
     console.error('Steam sync failed:', error);
     setImportStatus(error?.message || 'Steam sync failed.', 'error');
@@ -1491,7 +1791,7 @@ async function buildSteamImportItems(entry = {}) {
       }
     }
     if (!hit?.id) {
-      return [applySteamFieldsToLibraryItem({
+      const item = applySteamFieldsToLibraryItem({
         id: Date.now().toString() + '-steam-' + (entry.steamAppId || Math.random().toString(36).slice(2, 7)),
         title: entry.title,
         cover: '',
@@ -1504,10 +1804,13 @@ async function buildSteamImportItems(entry = {}) {
         librarySection: 'games',
         mediaCategory: 'games',
         episodes: []
-      }, entry)];
+      }, entry);
+      await applySteamIgdbCoverToItem(item, entry);
+      return [item];
     }
-    const item = await buildRawgLibraryItem(hit.id, entry.status, entry.rating);
-    return [applySteamFieldsToLibraryItem(item, entry)];
+    const item = applySteamFieldsToLibraryItem(await buildRawgLibraryItem(hit.id, entry.status, entry.rating), entry);
+    await applySteamIgdbCoverToItem(item, entry);
+    return [item];
   } catch (e) {
     console.warn('Steam import match failed:', e);
     return [];
@@ -1772,6 +2075,9 @@ async function confirmImportLibrary() {
   let repaired = 0;
   const startedSection = activeSection;
   const source = pendingImportSource;
+  const importBatchStartedAt = new Date().toISOString();
+  const importBatchId = `import-${source || 'library'}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const importSourceLabel = getImportSourceLabel(source);
   const importedStatusCounts = {};
   let firstImportedSection = '';
   try {
@@ -1789,6 +2095,11 @@ async function confirmImportLibrary() {
         for (const rawItem of items) {
           const section = getImportTargetSection(entry, rawItem);
           const item = section === 'anime' ? getCompactImportedAnimeItem(rawItem) : rawItem;
+          item.importBatchId = item.importBatchId || importBatchId;
+          item.importedAt = item.importedAt || importBatchStartedAt;
+          item.importSource = item.importSource || source;
+          item.importSourceLabel = item.importSourceLabel || importSourceLabel;
+          item.importBatchTotal = rowsToImport.length;
           working[section] = Array.isArray(working[section]) ? working[section] : [];
           const duplicateItem = skipDuplicates ? findDuplicateImportItemInList(item, entry, section, working) : null;
           if (duplicateItem) {
@@ -1837,12 +2148,23 @@ async function confirmImportLibrary() {
     setImportStatus(`Import complete: ${added} added, ${repaired} repaired, ${skipped} skipped, ${failed} unmatched. Showing ${sectionLabel} · ${activeTab}.`, added || repaired || skipped ? 'ready' : 'error');
     if (source === 'steam') {
       setSteamSyncStatus(`Import complete: ${added} added, ${repaired} updated, ${skipped} skipped, ${failed} unmatched.`, added || repaired || skipped ? 'ready' : 'error');
-      showSteamImportSuccessSplash({ added, repaired, skipped, failed, total: rowsToImport.length });
+      showSteamImportSuccessSplash({ added, repaired, skipped, failed, total: rowsToImport.length, providerLabel: 'Steam', itemLabel: 'game' });
+    } else {
+      showSteamImportSuccessSplash({ added, repaired, skipped, failed, total: rowsToImport.length, providerLabel: importSourceLabel, itemLabel: source === 'backloggd' ? 'game' : source === 'myanimelist' ? 'anime title' : 'title' });
     }
+    closeImportSourcePage();
     pendingImportRows = [];
     steamImportExcludedKeys = new Set();
     clearImportPreview();
     clearSteamSyncPreview();
+  } catch (error) {
+    console.error('Import save failed:', error);
+    const message = typeof formatOwnDataSaveError === 'function'
+      ? formatOwnDataSaveError(error, working)
+      : (error?.message || 'Import could not be saved permanently. Check your connection and try syncing again.');
+    setImportStatus(message, 'error');
+    if (source === 'steam') setSteamSyncStatus(message, 'error');
+    showToast(message);
   } finally {
     importBusy = false;
     renderSteamImportCardState();

@@ -11,6 +11,7 @@ let profileFavoritePickerSearchTimer = null;
 let profileFavoritePickerSearchSeq = 0;
 let profileFavoriteAutoSaveTimer = null;
 let profileFavoriteAutoSaveSeq = 0;
+let profileEditModeOpen = false;
 
 const PROFILE_LINK_CONFIG = [
   { key: 'imdb', label: 'IMDb', domain: 'imdb.com', placeholder: 'https://www.imdb.com/user/...' },
@@ -196,6 +197,15 @@ function renderShelfSummaryInlineHTML(source = data, className = 'mylist-own-pro
 
 let myListTabDraftVisibility = null;
 let _mylistVisOutsideHandler = null;
+let _mylistSettingsScrollY = 0;
+const MYLIST_CLEAR_CATEGORY_SECTIONS = [
+  { key: 'shows', label: 'TV Shows' },
+  { key: 'movies', label: 'Movies' },
+  { key: 'anime', label: 'Anime' },
+  { key: 'games', label: 'Games' },
+  { key: 'manga', label: 'Manga' },
+  { key: 'books', label: 'Books' }
+];
 
 function renderMyListEditControls() {
   const editHost = document.getElementById('mylist-edit-controls');
@@ -222,12 +232,30 @@ function renderMyListEditControls() {
   if (editHost) editHost.innerHTML = '';
 }
 
+function getMyListCategoryItemCount(section = '') {
+  const key = String(section || '').trim();
+  const list = data && Array.isArray(data[key]) ? data[key] : [];
+  return list.length;
+}
+
+function renderMyListCategoryClearRows() {
+  return MYLIST_CLEAR_CATEGORY_SECTIONS.map(section => {
+    const count = getMyListCategoryItemCount(section.key);
+    const disabled = count <= 0 ? ' disabled' : '';
+    const countLabel = `${count.toLocaleString('en-US')} title${count === 1 ? '' : 's'}`;
+    return `
+      <div class="mylist-settings-row mylist-clear-category-row" data-clear-category="${escAttr(section.key)}">
+        <span class="mylist-settings-row-main">
+          <span class="mylist-settings-row-label">${escHtml(section.label)}</span>
+          <span class="mylist-edit-list-count">${escHtml(countLabel)}</span>
+        </span>
+        <button type="button" class="mylist-delete-category-btn" data-confirm-step="0" onclick="event.stopPropagation();handleMyListCategoryDeleteClick('${escAttr(section.key)}',this)"${disabled}>Clear</button>
+      </div>`;
+  }).join('');
+}
+
 function renderMyListSettingsInner() {
   const vis = normalizeListTabVisibility(myListTabDraftVisibility || userProfile?.listTabVisibility);
-  const steamConnection = normalizeSteamConnection(userProfile?.steamConnection || {});
-  const steamIcon = typeof getScreenListSteamIconSvg === 'function'
-    ? getScreenListSteamIconSvg()
-    : '<span class="mylist-settings-row-icon-fallback">S</span>';
   const sections = [
     { key: 'games', label: 'Games' },
     { key: 'anime', label: 'Anime' },
@@ -245,17 +273,16 @@ function renderMyListSettingsInner() {
         </button>
       </div>`).join('')}
     <div class="mylist-settings-divider"></div>
-    <div class="mylist-settings-section-label">Library</div>
-    <div class="mylist-settings-row">
-      <span class="mylist-settings-row-label">Import Lists</span>
-      <button type="button" class="mylist-settings-action-btn" onclick="event.stopPropagation();closeMyListSettingsModal();setTimeout(openImportPage,180)">Import</button>
+    <div class="mylist-settings-import-box">
+      <div class="mylist-settings-row">
+        <span class="mylist-settings-row-label">Import Lists</span>
+        <button type="button" class="mylist-settings-action-btn" onclick="event.stopPropagation();closeMyListSettingsModal();setTimeout(openImportPage,180)">Import</button>
+      </div>
     </div>
-    <div class="mylist-settings-row">
-      <span class="mylist-settings-row-main">
-        <span class="mylist-settings-row-icon" aria-hidden="true">${steamIcon}</span>
-        <span class="mylist-settings-row-label">Import Steam</span>
-      </span>
-      <button type="button" class="mylist-settings-action-btn" onclick="event.stopPropagation();closeMyListSettingsModal();setTimeout(openSteamImportPage,180)">${steamConnection.steamId ? 'Sync' : 'Connect'}</button>
+    <div class="mylist-settings-milky-divider"></div>
+    <div class="mylist-settings-section-label">Clear Category Data</div>
+    <div class="mylist-settings-clear-section">
+      ${renderMyListCategoryClearRows()}
     </div>`;
 }
 
@@ -265,6 +292,7 @@ function openMyListSettingsModal(triggerEl) {
     return;
   }
   myListTabDraftVisibility = normalizeListTabVisibility(userProfile?.listTabVisibility);
+  const triggerRect = triggerEl ? triggerEl.getBoundingClientRect() : null;
 
   const modal = document.createElement('div');
   modal.id = 'mylist-settings-modal';
@@ -276,17 +304,22 @@ function openMyListSettingsModal(triggerEl) {
   modal.appendChild(panel);
   document.body.appendChild(modal);
 
-  if (triggerEl) {
-    const rect = triggerEl.getBoundingClientRect();
-    const panelW = 230;
-    let left = rect.left;
-    if (left + panelW > window.innerWidth - 10) left = window.innerWidth - panelW - 10;
-    left = Math.max(10, left);
-    panel.style.top = (rect.bottom + 8) + 'px';
+  if (triggerRect) {
+    const rect = triggerRect;
+    const isMobile = window.matchMedia && window.matchMedia('(max-width: 700px)').matches;
+    const panelW = isMobile ? window.innerWidth : 230;
+    let left = isMobile ? 0 : rect.left;
+    if (!isMobile && left + panelW > window.innerWidth - 10) left = window.innerWidth - panelW - 10;
+    left = isMobile ? 0 : Math.max(10, left);
+    const top = rect.bottom + 8;
+    panel.style.top = top + 'px';
     panel.style.left = left + 'px';
+    panel.style.width = panelW + 'px';
+    panel.style.maxHeight = `calc(100dvh - ${Math.ceil(top + 10)}px)`;
     const originX = rect.left + rect.width / 2 - left;
     panel.style.transformOrigin = originX + 'px 0px';
   }
+  lockMyListSettingsPageScroll();
 
   setTimeout(() => {
     _mylistVisOutsideHandler = (e) => {
@@ -309,12 +342,42 @@ function closeMyListSettingsModal() {
     setTimeout(() => {
       const modal = document.getElementById('mylist-settings-modal');
       if (modal) modal.remove();
+      unlockMyListSettingsPageScroll();
     }, 150);
   } else {
     const modal = document.getElementById('mylist-settings-modal');
     if (modal) modal.remove();
+    unlockMyListSettingsPageScroll();
   }
   _commitMyListVisibility();
+}
+
+function lockMyListSettingsPageScroll() {
+  if (document.body.classList.contains('mylist-settings-open')) return;
+  _mylistSettingsScrollY = window.scrollY || window.pageYOffset || 0;
+  document.documentElement.classList.add('mylist-settings-open');
+  document.body.classList.add('mylist-settings-open');
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${_mylistSettingsScrollY}px`;
+  document.body.style.left = '0';
+  document.body.style.right = '0';
+  document.body.style.width = '100%';
+  document.body.style.overflow = 'hidden';
+}
+
+function unlockMyListSettingsPageScroll() {
+  if (!document.body.classList.contains('mylist-settings-open')) return;
+  const y = _mylistSettingsScrollY || Math.abs(parseInt(document.body.style.top || '0', 10)) || 0;
+  document.documentElement.classList.remove('mylist-settings-open');
+  document.body.classList.remove('mylist-settings-open');
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.left = '';
+  document.body.style.right = '';
+  document.body.style.width = '';
+  document.body.style.overflow = '';
+  window.scrollTo(0, y);
+  _mylistSettingsScrollY = 0;
 }
 
 async function _commitMyListVisibility() {
@@ -357,6 +420,52 @@ function toggleMyListDraftSection(section) {
   if (btn) {
     const isOn = myListTabDraftVisibility[section] !== false;
     btn.className = 'mylist-vis-toggle ' + (isOn ? 'on' : 'off');
+  }
+}
+
+
+function refreshMyListSettingsPanel() {
+  const panel = document.querySelector('.mylist-settings-panel');
+  if (!panel) return;
+  panel.innerHTML = renderMyListSettingsInner();
+}
+
+function handleMyListCategoryDeleteClick(section = '', button = null) {
+  const key = String(section || '').trim();
+  if (!MYLIST_CLEAR_CATEGORY_SECTIONS.some(row => row.key === key)) return;
+  const currentCount = getMyListCategoryItemCount(key);
+  if (!currentCount) return;
+  const step = Math.max(0, Math.min(2, Number(button?.dataset?.confirmStep || 0)));
+  if (step === 0) {
+    button.dataset.confirmStep = '1';
+    button.classList.add('confirming');
+    button.textContent = 'Confirm';
+    return;
+  }
+  if (step === 1) {
+    button.dataset.confirmStep = '2';
+    button.classList.add('confirming');
+    button.textContent = 'Clear forever';
+    return;
+  }
+  clearMyListCategoryData(key);
+}
+
+function clearMyListCategoryData(section = '') {
+  const key = String(section || '').trim();
+  if (!MYLIST_CLEAR_CATEGORY_SECTIONS.some(row => row.key === key)) return;
+  if (!data || typeof data !== 'object') data = getEmptyListData();
+  data[key] = [];
+  if (ownDataCache && typeof ownDataCache === 'object') ownDataCache[key] = [];
+  if (activeSection === key) {
+    activeTab = getDefaultTabForSection(activeSection);
+  }
+  save();
+  render();
+  refreshMyListSettingsPanel();
+  if (typeof showToast === 'function') {
+    const label = MYLIST_CLEAR_CATEGORY_SECTIONS.find(row => row.key === key)?.label || 'Category';
+    showToast(`${label} cleared from your library.`);
   }
 }
 
@@ -727,7 +836,7 @@ function calculateProfileStats() {
   const moviesTvAvg = formatAverageRatingForSection([...(source.movies || []), ...(source.shows || [])], 'shows');
   const animeAvg = formatAverageRatingForSection(source.anime || [], 'anime');
   const gamesAvg = formatAverageRatingForSection(source.games || [], 'games');
-  const allMediaAvg = formatAverageRatingForSection([...(source.movies || []), ...(source.shows || []), ...(source.anime || []), ...(source.games || [])], 'shows');
+  const allMediaAvg = formatAverageRatingForSection([...(source.movies || []), ...(source.shows || []), ...(source.anime || [])], 'shows');
   return { movieHours, tvHours, moviesTvHours, allMediaHours, animeHours, gameHours, movieAvg, tvAvg, moviesTvAvg, animeAvg, gamesAvg, allMediaAvg };
 }
 
@@ -747,16 +856,18 @@ function renderProfileStats() {
   const profile = getActiveProfile();
   const visibility = normalizeProfileVisibility(profile?.profileVisibility);
   const listVisibility = getProfileListTabVisibility(profile);
-  const editing = !isViewingOtherProfile();
+  const editing = !isViewingOtherProfile() && profileEditModeOpen;
   const cards = [
     { key: 'allMediaHours', optional: false, tone: 'hours', value: formatProfileHours(stats.allMediaHours), labelMain: 'All Media', labelSub: 'Hours Watched' },
-    { key: 'moviesTvHours', optional: false, tone: 'hours', value: formatProfileHours(stats.moviesTvHours), labelMain: 'TV Shows + Movies', labelSub: 'Hours Watched' },
+    { key: 'allMediaAvg', optional: false, tone: 'score', value: stats.allMediaAvg, labelMain: 'All Media', labelSub: 'Average Rating' },
+    { key: 'movieHours', optional: false, tone: 'hours', value: formatProfileHours(stats.movieHours), labelMain: 'Movies', labelSub: 'Hours Watched' },
+    { key: 'movieAvg', optional: false, tone: 'score', value: stats.movieAvg, labelMain: 'Movies', labelSub: 'Average Rating' },
+    { key: 'tvHours', optional: false, tone: 'hours', value: formatProfileHours(stats.tvHours), labelMain: 'TV Shows', labelSub: 'Hours Watched' },
+    { key: 'tvAvg', optional: false, tone: 'score', value: stats.tvAvg, labelMain: 'TV Shows', labelSub: 'Average Rating' },
     { key: 'statsAnimeHours', optional: true, tone: 'hours', value: formatProfileHours(stats.animeHours), labelMain: 'Anime', labelSub: 'Hours Watched' },
+    { key: 'statsAnimeAvg', optional: true, tone: 'score', value: stats.animeAvg, labelMain: 'Anime', labelSub: 'Average Score' },
     { key: 'statsGameHours', optional: true, tone: 'hours', value: formatProfileHours(stats.gameHours), labelMain: 'Games', labelSub: 'Hours Played' },
-    { key: 'allMediaAvg', optional: false, tone: 'score', value: stats.allMediaAvg, labelMain: 'Average Score', labelSub: 'All Media' },
-    { key: 'moviesTvAvg', optional: false, tone: 'score', value: stats.moviesTvAvg, labelMain: 'Average Score', labelSub: 'TV Shows + Movies' },
-    { key: 'statsAnimeAvg', optional: true, tone: 'score', value: stats.animeAvg, labelMain: 'Average Score', labelSub: 'Anime' },
-    { key: 'statsGamesAvg', optional: true, tone: 'score', value: stats.gamesAvg, labelMain: 'Average Score', labelSub: 'Video Games' }
+    { key: 'statsGamesAvg', optional: true, tone: 'score', value: stats.gamesAvg, labelMain: 'Games', labelSub: 'Average Score' }
   ];
   el.innerHTML = cards.map(card => {
     const hiddenByListTab =
@@ -798,7 +909,7 @@ function isProfileNoRatingFavoriteKey(key) {
 }
 function getProfileSlotRankText(index, dotted = false) {
   const n = Number(index) + 1;
-  return Number.isFinite(n) && n > 0 ? `${n}${dotted ? '.' : ''}` : '';
+  return Number.isFinite(n) && n > 0 ? `${n}` : '';
 }
 function renderGoldStarIconHTML(extraClass = '') {
   return `<span class="screenlist-gold-star-icon ${escAttr(extraClass)}" aria-hidden="true">★</span>`;
@@ -808,16 +919,43 @@ function renderProfileRatingValueHTML(value) {
   return text ? `${renderGoldStarIconHTML('profile-rating-star')}<span>${escHtml(text)}</span>` : '';
 }
 function getProfileStatLabelHTML(key) {
-  const text = getProfileStatLabel(key);
-  return key.endsWith('Avg') ? `${renderGoldStarIconHTML('profile-stat-label-star')}<span>${escHtml(text)}</span>` : escHtml(text);
+  return escHtml(getProfileStatLabel(key));
+}
+function getProfileShowcaseStatLabel(key) {
+  const map = {
+    movieHours: 'Hours Watched',
+    tvHours: 'Hours Watched',
+    animeHours: 'Hours Watched',
+    gameHours: 'Hours Played',
+    movieAvg: 'Avg Rating',
+    tvAvg: 'Avg Rating',
+    animeAvg: 'Avg Rating',
+    gamesAvg: 'Avg Rating'
+  };
+  return map[key] || getProfileStatLabel(key);
+}
+function getProfileShowcaseStatLabelHTML(key) {
+  return escHtml(getProfileShowcaseStatLabel(key));
+}
+function formatProfileStatAverageDisplay(value) {
+  const raw = String(value || '').trim();
+  if (!raw || raw === 'N/A') return raw || 'N/A';
+  const normalized = raw.replace(/^★\s*/, '').replace(/^⭐\s*/, '').trim();
+  const match = normalized.match(/^(\d+(?:\.\d+)?)\s*(?:\/\s*10)?$/);
+  return match ? match[1] : normalized.replace(/\s*\/\s*10\s*$/, '');
 }
 function getProfileStatValueHTML(stats, key) {
   const value = getProfileStatValue(stats, key);
-  return key.endsWith('Avg') ? `${renderGoldStarIconHTML('profile-stat-value-star')}<span>${escHtml(value)}</span>` : escHtml(value);
+  const displayValue = key.endsWith('Avg') ? formatProfileStatAverageDisplay(value) : value;
+  return key.endsWith('Avg') ? `${renderGoldStarIconHTML('profile-stat-value-star')}<span>${escHtml(displayValue)}</span>` : escHtml(displayValue);
 }
 function getProfileSummaryCardValueHTML(card, visible) {
   const value = visible ? card.value : 'Hidden';
-  return card.tone === 'score' && visible ? `${renderGoldStarIconHTML('profile-stat-value-star')}<span>${escHtml(value)}</span>` : escHtml(value);
+  if (visible && card && card.tone === 'score') {
+    const displayValue = formatProfileStatAverageDisplay(value);
+    return `${renderGoldStarIconHTML('profile-stat-value-star')}<span>${escHtml(displayValue)}</span>`;
+  }
+  return escHtml(value);
 }
 function renderProfileFavoriteRatingHTML(key, value, placeholder = 'Tap to rate') {
   if (isProfileNoRatingFavoriteKey(key)) return '';
@@ -923,9 +1061,7 @@ function getProfileStatSubLabelHTML(card) {
   return escHtml(card.labelSub);
 }
 function getProfileStatsMainLabelHTML(card) {
-  return card.tone === 'score'
-    ? `${renderGoldStarIconHTML('profile-stat-label-star')}<span>${escHtml(card.labelMain)}</span>`
-    : escHtml(card.labelMain);
+  return escHtml(card.labelMain);
 }
 function getProfileFavoriteRankLabel(index) {
   return getProfileSlotRankText(index, true);
@@ -962,14 +1098,14 @@ function getProfileFavoritePosterAttrs(index) {
 }
 function getProfileStatLabel(key) {
   const map = {
-    movieHours: 'Movies · Hours Watched',
-    tvHours: 'TV Shows · Hours Watched',
-    animeHours: 'Anime · Hours Watched',
-    gameHours: 'Games · Hours Played',
-    movieAvg: 'Average Score · Movies',
-    tvAvg: 'Average Score · TV Shows',
-    animeAvg: 'Average Score · Anime',
-    gamesAvg: 'Average Score · Video Games'
+    movieHours: 'Hours',
+    tvHours: 'Hours',
+    animeHours: 'Hours',
+    gameHours: 'Hours Played',
+    movieAvg: 'Average Rating',
+    tvAvg: 'Average Rating',
+    animeAvg: 'Average Score',
+    gamesAvg: 'Average Score'
   };
   return map[key] || '';
 }
@@ -1093,6 +1229,85 @@ function getProfileFavoriteCard(section, index) {
   return Array.from(document.querySelectorAll('.profile-db-slot')).find(card => card.dataset.profileDbSection === String(section) && card.dataset.profileDbIndex === String(index)) || null;
 }
 
+function getProfileFavoriteLibrarySections(config = {}) {
+  if (config.key === 'overallMedia') return ['movies', 'shows', 'anime'];
+  if (config.section) return [config.section];
+  if (config.source === 'rawg') return ['games'];
+  return [];
+}
+
+function getProfileFavoriteLibraryImage(item = {}) {
+  return String(
+    item.igdbCover ||
+    item.cover ||
+    item.poster ||
+    item.image ||
+    item.background_image ||
+    item.backgroundImage ||
+    item.photo ||
+    ''
+  ).trim();
+}
+
+function getProfileFavoriteLibraryNumericRating(item = {}) {
+  const rating = Number(item?.rating || 0);
+  return Number.isFinite(rating) ? rating : 0;
+}
+
+function getProfileFavoriteLibraryMeta(item = {}, section = '') {
+  const year = String(item.releaseDate || item.released || item.firstAirDate || item.airDate || item.year || '').match(/(18|19|20)\d{2}/)?.[0] || '';
+  const status = String(item.status || '').trim();
+  const labelMap = { movies: 'Movie', shows: 'TV Show', anime: 'Anime', games: 'Game' };
+  return [year, status, labelMap[section] || 'Library'].filter(Boolean).join(' · ');
+}
+
+function buildProfileFavoriteHitFromLibraryItem(config = {}, item = {}, section = '') {
+  const isGame = section === 'games' || config.source === 'rawg';
+  const tmdbId = String(item.tmdbId || item.tmdb_id || '').trim();
+  const rawgId = String(item.rawgId || item.rawg_id || item.id || '').trim();
+  const source = isGame ? (rawgId ? 'rawg' : 'library') : (tmdbId ? 'tmdb' : 'library');
+  const id = isGame ? (rawgId || String(item.id || '')) : (tmdbId || String(item.id || ''));
+  const type = isGame ? 'game' : (section === 'movies' ? 'movie' : 'tv');
+  return {
+    id: String(id || item.id || '').trim(),
+    source,
+    type,
+    title: String(item.title || item.name || 'Untitled').trim(),
+    image: getProfileFavoriteLibraryImage(item),
+    rating: getProfileItemRating({ ...item, librarySection: section, mediaCategory: section }),
+    meta: getProfileFavoriteLibraryMeta(item, section) || 'From library',
+    legacyId: String(item.id || '').trim(),
+    _sortRating: getProfileFavoriteLibraryNumericRating(item),
+    _section: section
+  };
+}
+
+function getProfileFavoriteLibraryResults(config = {}) {
+  const source = getProfileDataForStats();
+  const sections = getProfileFavoriteLibrarySections(config);
+  const results = [];
+  sections.forEach(section => {
+    (source[section] || []).forEach(item => {
+      if (!item || !(item.title || item.name)) return;
+      results.push(buildProfileFavoriteHitFromLibraryItem(config, item, section));
+    });
+  });
+  return results.sort((a, b) => {
+    const ratingDiff = Number(b._sortRating || 0) - Number(a._sortRating || 0);
+    if (ratingDiff) return ratingDiff;
+    return String(a.title || '').localeCompare(String(b.title || ''));
+  });
+}
+
+function getProfileFavoritePickerActionLabel(config = {}) {
+  if (config.key === 'overallMedia') return 'your library';
+  if (config.section === 'movies') return 'your movie library';
+  if (config.section === 'shows') return 'your TV library';
+  if (config.section === 'anime') return 'your anime library';
+  if (config.section === 'games') return 'your game library';
+  return 'your library';
+}
+
 function ensureProfileFavoritePickerModal() {
   let overlay = document.getElementById('profile-favorite-picker-modal');
   if (!overlay) {
@@ -1161,7 +1376,7 @@ async function saveProfileFavoritesAuto(message = 'saved', options = {}) {
 }
 
 function openProfileFavoritePicker(event, card) {
-  if (isViewingOtherProfile() || !card) return;
+  if (isViewingOtherProfile() || !card || !profileEditModeOpen) return;
   if (event) event.stopPropagation();
   if (card.classList.contains('profile-manual-slot')) {
     openProfileManualFavoritePicker(event, card);
@@ -1171,20 +1386,88 @@ function openProfileFavoritePicker(event, card) {
   const index = Number(card.dataset.profileDbIndex || 0);
   const config = getProfileFavoriteConfig(section);
   if (!config) return;
-  profileFavoritePickerState = { mode: 'database', section, index, config, card, query: '', results: [], hit: null, rating: card.dataset.profileDbRating || '', libraryRating: '' };
-  renderProfileFavoritePickerSearch();
+  const libraryResults = getProfileFavoriteLibraryResults(config);
+  profileFavoritePickerState = {
+    mode: 'database',
+    section,
+    index,
+    config,
+    card,
+    query: '',
+    results: [],
+    libraryResults,
+    hit: null,
+    rating: card.dataset.profileDbRating || '',
+    libraryRating: '',
+    searchOpen: false
+  };
+  renderProfileFavoriteLibraryPicker();
 }
 
 function renderProfileFavoritePickerShell(inner) {
   const overlay = ensureProfileFavoritePickerModal();
-  overlay.innerHTML = `<div class="profile-favorite-picker-modal" role="dialog" aria-modal="true">
+  const databaseMode = profileFavoritePickerState?.mode === 'database';
+  overlay.classList.toggle('profile-favorite-picker-bottom-sheet', databaseMode);
+  overlay.innerHTML = `<div class="profile-favorite-picker-modal ${databaseMode ? 'profile-library-picker-modal' : ''}" role="dialog" aria-modal="true">
     <div class="profile-picker-head">
       <div><div class="profile-picker-title">${escHtml(profileFavoritePickerState?.title || 'Choose Favorite')}</div><div class="profile-picker-sub">${escHtml(profileFavoritePickerState?.sub || '')}</div></div>
+      ${databaseMode ? `<button type="button" class="profile-library-search-toggle" onclick="toggleProfileFavoriteLibrarySearch()" aria-label="Search database">⌕</button>` : ''}
       <button type="button" class="profile-picker-close" onclick="closeProfileFavoritePicker()" aria-label="Close">×</button>
     </div>
     ${inner}
   </div>`;
   overlay.classList.add('open');
+}
+
+
+function renderProfileFavoriteTileGrid(items = [], clickFunction = 'selectProfileFavoriteLibraryPick') {
+  if (!items.length) return '<div class="profile-picker-message">No titles found.</div>';
+  return `<div class="profile-library-picker-grid">${items.map((hit, i) => {
+    const img = hit.image ? `<img src="${escAttr(hit.image)}" alt="${escAttr(hit.title || 'Title poster')}">` : getProfilePickerImageFallbackHTML();
+    return `<button type="button" class="profile-library-picker-tile" onclick="${clickFunction}(${i})">
+      <span class="profile-library-picker-poster">${img}</span>
+      <span class="profile-library-picker-name">${escHtml(hit.title || 'Untitled')}</span>
+    </button>`;
+  }).join('')}</div>`;
+}
+
+function renderProfileFavoriteLibraryPicker(message = '') {
+  const state = profileFavoritePickerState;
+  if (!state || state.mode !== 'database') return;
+  state.title = state.config?.label || 'Choose Favorite';
+  state.sub = `Choose from ${getProfileFavoritePickerActionLabel(state.config)}. Sorted highest rated first.`;
+  const searchHtml = state.searchOpen ? `<div class="profile-picker-searchbar profile-library-searchbar">
+    <input id="profile-picker-search-input" type="text" placeholder="Search ${escAttr(getProfileDatabaseSearchLabel(state.config))}" value="${escAttr(state.query || '')}" oninput="queueProfileFavoritePickerSearch(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();profileFavoritePickerSearch();}">
+  </div>` : '';
+  const clearHtml = state.card?.dataset.profileDbTitle ? '<button type="button" class="profile-picker-secondary-btn profile-library-clear-btn" onclick="clearProfileFavoriteFromPicker()">Clear this spot</button>' : '';
+  const body = state.searchOpen
+    ? `<div id="profile-picker-results" class="profile-picker-results profile-library-search-results">${message ? `<div class="profile-picker-message">${escHtml(message)}</div>` : '<div class="profile-picker-message">Search the database for this category.</div>'}</div>`
+    : `<div id="profile-picker-results" class="profile-picker-results">${renderProfileFavoriteTileGrid(state.libraryResults || [], 'selectProfileFavoriteLibraryPick')}</div>`;
+  renderProfileFavoritePickerShell(`
+    ${searchHtml}
+    ${body}
+    <div class="profile-picker-actions">${clearHtml}</div>
+  `);
+  if (state.searchOpen) setTimeout(() => document.getElementById('profile-picker-search-input')?.focus(), 30);
+}
+
+function toggleProfileFavoriteLibrarySearch() {
+  const state = profileFavoritePickerState;
+  if (!state || state.mode !== 'database') return;
+  state.searchOpen = !state.searchOpen;
+  state.query = '';
+  state.results = [];
+  renderProfileFavoriteLibraryPicker();
+}
+
+function selectProfileFavoriteLibraryPick(index) {
+  const state = profileFavoritePickerState;
+  if (!state || state.mode !== 'database' || !state.card) return;
+  const hit = state.libraryResults?.[index];
+  if (!hit) return;
+  writeProfileDatabaseFavoriteToCard(state.card, hit, hit.rating || '');
+  closeProfileFavoritePicker();
+  saveProfileFavoritesAuto('saved');
 }
 
 function renderProfileFavoritePickerSearch(message = '') {
@@ -1236,18 +1519,12 @@ async function profileFavoritePickerSearch() {
   try {
     const hits = state.config.source === 'rawg' ? await searchProfileRawgFavorites(query) : await searchProfileTmdbFavorites(state.config, query);
     if (!profileFavoritePickerState || profileFavoritePickerState !== state || searchSeq !== profileFavoritePickerSearchSeq) return;
-    state.results = hits.slice(0, 8);
+    state.results = hits.slice(0, 12);
     if (!state.results.length) {
       resultsEl.innerHTML = '<div class="profile-picker-message">No results found.</div>';
       return;
     }
-    resultsEl.innerHTML = state.results.map((hit, i) => {
-      const thumb = hit.image ? `<img src="${escAttr(hit.image)}" alt="">` : getProfileFavoritePickerResultFallback(state);
-      return `<button type="button" class="profile-picker-result" onclick="selectProfileFavoritePickerResult(${i})">
-        <div class="profile-picker-result-img">${thumb}</div>
-        <div class="profile-picker-result-copy"><strong>${escHtml(hit.title || 'Untitled')}</strong><span>${escHtml(hit.meta || getProfileDatabaseSearchLabel(state.config))}</span></div>
-      </button>`;
-    }).join('');
+    resultsEl.innerHTML = renderProfileFavoriteTileGrid(state.results, 'selectProfileFavoritePickerResult');
   } catch(e) {
     console.error('Profile favorite picker search failed:', e);
     if (!profileFavoritePickerState || profileFavoritePickerState !== state || searchSeq !== profileFavoritePickerSearchSeq) return;
@@ -1257,13 +1534,13 @@ async function profileFavoritePickerSearch() {
 
 function selectProfileFavoritePickerResult(resultIndex) {
   const state = profileFavoritePickerState;
-  if (!state || state.mode !== 'database') return;
+  if (!state || state.mode !== 'database' || !state.card) return;
   const hit = state.results?.[resultIndex];
   if (!hit) return;
-  state.hit = hit;
-  state.libraryRating = getProfileLibraryRatingForFavorite(state.config, hit);
-  state.rating = state.libraryRating || '';
-  renderProfileFavoritePickerConfirm();
+  const libraryRating = getProfileLibraryRatingForFavorite(state.config, hit);
+  writeProfileDatabaseFavoriteToCard(state.card, hit, libraryRating || '');
+  closeProfileFavoritePicker();
+  saveProfileFavoritesAuto('saved');
 }
 
 function renderProfileFavoritePickerConfirm() {
@@ -1302,7 +1579,7 @@ function writeProfileDatabaseFavoriteToCard(card, hit, rating) {
   card.dataset.profileDbTitle = hit.title || '';
   card.dataset.profileDbImage = hit.image || '';
   card.dataset.profileDbMeta = hit.meta || '';
-  card.dataset.profileDbLegacyId = '';
+  card.dataset.profileDbLegacyId = hit.legacyId || '';
   card.dataset.profileDbRating = rating || '';
   updateProfileDatabaseCardPreview(card);
   if (userProfile) readProfileDraftFromPage(userProfile);
@@ -1594,7 +1871,7 @@ function renderDatabaseFavoriteRow(key, pins) {
   const config = getProfileFavoriteConfig(key);
   if (!config) return '';
   const visible = isProfileRowVisible(key);
-  const editing = !isViewingOtherProfile();
+  const editing = !isViewingOtherProfile() && profileEditModeOpen;
   const rowHead = `<div class="profile-fav-row-head"><div class="profile-fav-row-title">${escHtml(config.label)}</div>${renderProfileVisibilityToggle(key)}</div>`;
   if (!visible) return editing ? `<div class="profile-fav-row">${rowHead}<div class="profile-hidden-note">Hidden from profile. Toggle Display to show this row again.</div></div>` : '';
   const slots = [0,1,2].map(i => {
@@ -1605,7 +1882,7 @@ function renderDatabaseFavoriteRow(key, pins) {
     const cover = image ? `style="background-image:url('${escAttr(image)}')"` : '';
     const canOpenProfile = !editing && !!entry.id && !!title;
     const posterClick = editing
-      ? `onclick="openProfileFavoritePicker(event, this.closest('.profile-fav-poster-card'))" title="Click to search title"`
+      ? `onclick="openProfileFavoritePicker(event, this.closest('.profile-fav-poster-card'))" title="Choose from your library"`
       : (canOpenProfile ? `onclick="openProfileDatabaseFavorite(event, this.closest('.profile-fav-poster-card'))" title="Open profile"` : '');
     const openClass = canOpenProfile ? ' profile-db-openable' : '';
     const nameClick = canOpenProfile ? `onclick="openProfileDatabaseFavorite(event, this.closest('.profile-fav-poster-card'))" title="Open profile"` : '';
@@ -1623,7 +1900,7 @@ function renderManualFavoriteRow(key, showcase) {
   const config = getProfileFavoriteConfig(key);
   if (!config) return '';
   const visible = isProfileRowVisible(key);
-  const editing = !isViewingOtherProfile();
+  const editing = !isViewingOtherProfile() && profileEditModeOpen;
   const rowHead = `<div class="profile-fav-row-head"><div class="profile-fav-row-title">${escHtml(config.label)}</div>${renderProfileVisibilityToggle(key)}</div>`;
   if (!visible) return editing ? `<div class="profile-fav-row">${rowHead}<div class="profile-hidden-note">Hidden from profile. Toggle Display to show this row again.</div></div>` : '';
   const entries = showcase[key] || [0,1,2].map(() => getEmptyManualFavorite());
@@ -1643,7 +1920,7 @@ function renderManualFavoriteRow(key, showcase) {
 }
 
 function renderProfileMediaGroup(group, stats, pins, showcase) {
-  const statHtml = group.statKeys.length ? `<div class="profile-group-stats">${group.statKeys.map(key => `<div class="profile-group-stat"><div class="profile-group-stat-value">${getProfileStatValueHTML(stats, key)}</div><div class="profile-group-stat-label">${getProfileStatLabelHTML(key)}</div></div>`).join('')}</div>` : '';
+  const statHtml = group.statKeys.length ? `<div class="profile-group-stats profile-group-stats-showcase-labels">${group.statKeys.map(key => `<div class="profile-group-stat" data-profile-group-stat="${escAttr(key)}"><div class="profile-group-stat-value">${getProfileStatValueHTML(stats, key)}</div><div class="profile-group-stat-label">${getProfileShowcaseStatLabelHTML(key)}</div></div>`).join('')}</div>` : '';
   const rows = group.rows.map(rowKey => PROFILE_DATABASE_FAVORITES.some(item => item.key === rowKey) ? renderDatabaseFavoriteRow(rowKey, pins) : renderManualFavoriteRow(rowKey, showcase)).join('');
   return `<section class="profile-media-group ${group.wide ? 'profile-media-group-wide' : ''}" data-profile-group="${escAttr(group.key)}"><div class="profile-media-head"><div class="profile-media-title-wrap"><div class="profile-media-title">${getProfileGroupTitleHTML(group)}</div><div class="profile-media-sub">${escHtml(group.sub)}</div></div></div>${statHtml}${rows}</section>`;
 }
@@ -1737,7 +2014,7 @@ function renderProfileLinks() {
   if (!grid) return;
   const profile = getActiveProfile();
   const links = normalizeSocialLinks(profile?.socialLinks);
-  const editing = !isViewingOtherProfile();
+  const editing = !isViewingOtherProfile() && profileEditModeOpen;
   grid.innerHTML = PROFILE_LINK_CONFIG.map(link => {
     const val = links[link.key] || '';
     const href = safeProfileUrl(val);
@@ -1786,19 +2063,14 @@ function renderProfileMobileLinks() {
   const profile = getActiveProfile();
   const links = normalizeSocialLinks(profile?.socialLinks);
   const visibility = normalizeProfileVisibility(profile?.profileVisibility);
-  const editing = !isViewingOtherProfile();
+  const editing = !isViewingOtherProfile() && profileEditModeOpen;
   const visibleLinks = PROFILE_MOBILE_LINK_CONFIG.map(link => {
-    const visible = !link.optionalMobile || visibility[link.visibilityKey] !== false;
-    if (!visible && !editing) return '';
+    const visible = editing || !link.optionalMobile || visibility[link.visibilityKey] !== false;
+    if (!visible) return '';
     const href = safeProfileUrl(links[link.key] || '');
-    const hiddenClass = visible ? '' : 'mobile-link-hidden';
     const emptyClass = href ? '' : 'empty';
-    const toggle = link.optionalMobile && editing
-      ? `<label class="profile-mobile-link-toggle" title="Show ${escAttr(link.label)} on profile"><input type="checkbox" class="profile-section-toggle-input" data-profile-visible-key="${escAttr(link.visibilityKey)}" ${visible ? 'checked' : ''} onchange="toggleProfileLinkVisibility('${escAttr(link.visibilityKey)}', this.checked)"></label>`
-      : '';
     return `<div class="profile-mobile-link-wrap">
-      ${toggle}
-      <button type="button" class="profile-mobile-link-badge ${emptyClass} ${hiddenClass}" onclick="handleProfileMobileLinkClick(event, '${escAttr(link.key)}')" aria-label="${escAttr(link.label)} profile link" title="${escAttr(link.label)}">
+      <button type="button" class="profile-mobile-link-badge ${emptyClass}" onclick="handleProfileMobileLinkClick(event, '${escAttr(link.key)}')" aria-label="${escAttr(link.label)} profile link" title="${escAttr(link.label)}">
         <img src="${escAttr(getProfileLinkIconUrl(link))}" alt="${escAttr(link.label)}">
       </button>
     </div>`;
@@ -1815,7 +2087,7 @@ function handleProfileMobileLinkClick(event, key) {
   const profile = getActiveProfile();
   const href = safeProfileUrl(profile?.socialLinks?.[key] || '');
 
-  if (!isViewingOtherProfile()) {
+  if (!isViewingOtherProfile() && profileEditModeOpen) {
     openProfileLinkModal(event, key);
     return;
   }
@@ -1842,15 +2114,9 @@ function openProfileLinkModal(event, key) {
 
   const existing = document.getElementById('profile-link-edit-modal');
   if (existing) existing.remove();
-
-  const toggleHtml = link.optionalMobile ? `
-    <div class="plm-toggle-row">
-      <span class="plm-toggle-label">Show on profile</span>
-      <label class="plm-toggle-track">
-        <input type="checkbox" id="plm-visibility" ${isVisible ? 'checked' : ''}>
-        <span class="plm-toggle-thumb"></span>
-      </label>
-    </div>` : '';
+  const toggleHtml = link.optionalMobile
+    ? `<label class="plm-toggle-row"><input type="checkbox" id="plm-visibility" ${isVisible ? 'checked' : ''}> Show on profile</label>`
+    : '';
 
   const modal = document.createElement('div');
   modal.id = 'profile-link-edit-modal';
@@ -1891,12 +2157,13 @@ function saveProfileLinkModal(key) {
   userProfile.socialLinks[key] = input.value.trim();
   if (visCheck && link.optionalMobile) {
     if (!userProfile.profileVisibility) userProfile.profileVisibility = getDefaultProfileVisibility();
-    userProfile.profileVisibility[link.visibilityKey] = visCheck.checked;
+    userProfile.profileVisibility[link.visibilityKey] = visCheck.checked !== false;
   }
   closeProfileLinkModal();
   renderProfileLinks();
   renderProfileMobileLinks();
   showToast(input.value.trim() ? `${link.label} link updated` : `${link.label} link removed`);
+  saveProfile({ silent: true, keepEditMode: true }).catch(() => {});
 }
 
 function removeProfileLinkModal(key) {
@@ -1908,6 +2175,7 @@ function removeProfileLinkModal(key) {
   renderProfileLinks();
   renderProfileMobileLinks();
   showToast(`${link.label} link removed`);
+  saveProfile({ silent: true, keepEditMode: true }).catch(() => {});
 }
 
 function toggleProfileLinkVisibility(key, checked) {
@@ -1926,6 +2194,36 @@ function toggleProfilePhotoUrl() {
 
 function getProfileFallbackPhoto() {
   return getProfileFallbackPhotoFor(getActiveProfile());
+}
+
+
+function syncProfileEditModeControls() {
+  const page = document.getElementById('profile-page');
+  if (!page || isViewingOtherProfile()) return;
+  page.classList.toggle('profile-edit-mode', !!profileEditModeOpen);
+  const controls = document.querySelectorAll('.profile-stat-toggle, .profile-row-toggle, .profile-mobile-link-toggle, .plm-toggle-row');
+  controls.forEach(control => {
+    if (!control) return;
+    if (profileEditModeOpen) {
+      control.hidden = false;
+      control.style.visibility = 'visible';
+      control.style.opacity = '1';
+    } else {
+      control.style.removeProperty('visibility');
+      control.style.removeProperty('opacity');
+    }
+  });
+  document.querySelectorAll('.profile-section-toggle-input').forEach(input => {
+    if (!input) return;
+    input.hidden = false;
+    if (profileEditModeOpen) {
+      input.style.visibility = 'visible';
+      input.style.opacity = '1';
+    } else {
+      input.style.removeProperty('visibility');
+      input.style.removeProperty('opacity');
+    }
+  });
 }
 
 function renderProfilePage() {
@@ -1960,12 +2258,17 @@ function renderProfilePage() {
     profilePage.classList.toggle('own-creator-profile', !viewingOther && isCreatorAdmin(profile));
     profilePage.classList.toggle('creative-team-profile', creativeTeamProfile);
     profilePage.classList.toggle('settings-open', profileSettingsOpen && !viewingOther);
+    profilePage.classList.toggle('profile-edit-mode', !viewingOther && profileEditModeOpen);
   }
   document.body.classList.toggle('own-profile-active', !!document.body.classList.contains('profile-active') && !viewingOther && !!currentUser);
   if (settingsPage) settingsPage.style.display = profileSettingsOpen && !viewingOther ? 'block' : 'none';
   if (titleEl) titleEl.textContent = viewingOther ? `${getViewingProfileName()}'s Profile` : 'Profile Studio';
   if (subEl) subEl.textContent = viewingOther ? 'Stats, favorites, linked profiles, and personal showcase' : 'Customize your ScreenList home page';
-  if (saveBtn) saveBtn.style.display = viewingOther ? 'none' : '';
+  if (saveBtn) {
+    saveBtn.style.display = viewingOther ? 'none' : '';
+    saveBtn.textContent = profileEditModeOpen ? 'Save Profile' : 'Edit Profile';
+    saveBtn.onclick = profileEditModeOpen ? () => saveProfile() : () => openProfileEditMode();
+  }
   if (viewListsBtn) {
     viewListsBtn.textContent = viewingOther ? 'View Lists' : 'My Lists';
     viewListsBtn.style.display = (profileSettingsOpen && !viewingOther) ? 'none' : '';
@@ -1974,7 +2277,7 @@ function renderProfilePage() {
   if (avatarActions) avatarActions.style.display = viewingOther ? 'none' : '';
   if (nameInput) {
     nameInput.value = profile.name || '';
-    nameInput.readOnly = viewingOther;
+    nameInput.readOnly = viewingOther || !profileEditModeOpen;
     nameInput.setAttribute('aria-label', viewingOther ? 'Profile name' : 'Nickname');
     nameInput.classList.toggle('creator-name-input', isCreatorAdmin(profile));
     nameInput.classList.toggle('creative-team-name-input', creativeTeamProfile);
@@ -2008,7 +2311,7 @@ function renderProfilePage() {
   if (photoInput) photoInput.value = profile.photo || '';
   if (bioInput) {
     bioInput.value = profile.bio || (viewingOther ? 'No bio yet.' : '');
-    bioInput.readOnly = viewingOther;
+    bioInput.readOnly = viewingOther || !profileEditModeOpen;
   }
   if (fileInput) fileInput.value = '';
   if (urlRow) urlRow.style.display = 'none';
@@ -2019,6 +2322,7 @@ function renderProfilePage() {
   renderProfileLinks();
   renderProfileMobileLinks();
   renderProfileSettingsPage();
+  syncProfileEditModeControls();
 }
 
 function renderProfileSettingsPage() {
@@ -2372,6 +2676,7 @@ function openProfilePageShell() {
   const commentsPage = document.getElementById('comments-page');
   const activityPage = document.getElementById('activity-page');
   profileSettingsOpen = false;
+  profileEditModeOpen = false;
   document.body.classList.add('profile-active');
   if (commentsPage) commentsPage.style.display = 'none';
   if (activityPage) activityPage.classList.remove('active');
@@ -2392,9 +2697,27 @@ function openProfile() {
   profileViewingProfile = null;
   profileViewingData = null;
   profileSettingsOpen = false;
+  profileEditModeOpen = false;
   if (!userProfile) userProfile = normalizeUserProfile({});
   profileReturnTab = getActiveMainTab ? getActiveMainTab() : 'mylist';
   openProfilePageShell();
+}
+
+function openProfileEditMode() {
+  if (isViewingOtherProfile()) return;
+  profileEditModeOpen = true;
+  const profilePage = document.getElementById('profile-page');
+  if (profilePage) profilePage.classList.add('profile-edit-mode');
+  renderProfilePage();
+  requestAnimationFrame(syncProfileEditModeControls);
+  const linksCard = document.querySelector('.profile-links-card');
+  const nameInput = document.getElementById('profile-name');
+  const target = linksCard || nameInput || document.querySelector('.profile-hero-card');
+  target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  setTimeout(() => {
+    const firstLinkInput = document.querySelector('#profile-links-grid input');
+    (firstLinkInput || nameInput)?.focus?.();
+  }, 260);
 }
 
 function openProfileSettingsFocus() {
@@ -2611,6 +2934,8 @@ function handleProfileUpload(input) {
       const base64 = canvas.toDataURL('image/jpeg', 0.7);
       document.getElementById("profile-preview").src = base64;
       document.getElementById("profile-photo").value = base64;
+      if (userProfile) userProfile.photo = base64;
+      saveProfile({ silent: true, keepEditMode: true }).catch(() => {});
     };
     img.src = e.target.result;
   };
@@ -2671,14 +2996,15 @@ async function shareProfile() {
   showToast(copied ? 'Profile link copied' : 'Could not copy profile link');
 }
 
-async function saveProfile() {
+async function saveProfile(options = {}) {
   if (isViewingOtherProfile()) { showToast('This is a read-only profile'); return; }
   const nextProfile = readProfileFromPage();
   userProfile = nextProfile;
   if (isPreviewMode() || !currentUser) {
     applyProfile();
+    if (!options.keepEditMode) profileEditModeOpen = false;
     renderProfilePage();
-    showToast("Preview profile updated");
+    if (!options.silent) showToast("Preview profile updated");
     return;
   }
   const accountEmailLower = normalizeEmail(currentUser?.email);
@@ -2733,6 +3059,7 @@ async function saveProfile() {
   } catch(e) { console.error("Profile save failed:", e); }
   applyThemeMode(nextProfile.themeMode || getDefaultThemeMode(), true);
   applyProfile();
+  if (!options.keepEditMode) profileEditModeOpen = false;
   renderProfilePage();
-  showToast("Profile updated");
+  if (!options.silent) showToast("Profile updated");
 }

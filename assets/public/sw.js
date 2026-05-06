@@ -1,57 +1,78 @@
-const CACHE = 'shelfd-v303';
+const CACHE = 'shelfd-v398-profile_top3_library_picker';
 
-const PRECACHE = [
-  '/',
+const STATIC_CACHE_PATHS = [
   '/icon-192.png',
   '/icon-512.png',
   '/apple-touch-icon.png',
-  '/site.webmanifest',
+  '/app-icon-1024.png',
+  '/favicon.ico',
+  '/icon-32.png',
 ];
 
-self.addEventListener('install', e => {
+function isAlwaysFreshAsset(url) {
+  return url.pathname === '/'
+    || url.pathname.endsWith('.html')
+    || url.pathname.endsWith('.js')
+    || url.pathname.endsWith('.css')
+    || url.pathname.endsWith('.json')
+    || url.pathname.endsWith('.webmanifest')
+    || url.pathname === '/script.js'
+    || url.pathname === '/sw.js';
+}
+
+async function fetchFresh(request) {
+  return fetch(request, {
+    cache: 'no-store'
+  });
+}
+
+async function cacheFirstStatic(request) {
+  const cache = await caches.open(CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  if (response && response.ok) {
+    cache.put(request, response.clone()).catch(() => {});
+  }
+  return response;
+}
+
+self.addEventListener('install', event => {
   self.skipWaiting();
-  e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(PRECACHE))
+  event.waitUntil(
+    caches.open(CACHE).then(cache => cache.addAll(STATIC_CACHE_PATHS)).catch(() => {})
   );
 });
 
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
-      .then(() => self.clients.claim())
-  );
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(
+      keys
+        .filter(key => key !== CACHE && /^shelfd-/i.test(key))
+        .map(key => caches.delete(key))
+    );
+    await self.clients.claim();
+  })());
 });
 
-self.addEventListener('fetch', e => {
-  const { request } = e;
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+self.addEventListener('fetch', event => {
+  const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET and cross-origin requests
-  if (request.method !== 'GET' || url.origin !== location.origin) return;
-
-  // API calls — always go to the network, never cache
+  if (request.method !== 'GET' || url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/api/')) return;
 
-  // Navigation (HTML pages) — network first, fall back to cached shell
-  if (request.mode === 'navigate') {
-    e.respondWith(
-      fetch(request).catch(() => caches.match('/'))
-    );
+  if (request.mode === 'navigate' || isAlwaysFreshAsset(url)) {
+    event.respondWith(fetchFresh(request));
     return;
   }
 
-  // Static assets — cache first, then network (cache the response for next time)
-  e.respondWith(
-    caches.match(request).then(cached => {
-      if (cached) return cached;
-      return fetch(request).then(res => {
-        if (res && res.ok) {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(request, clone));
-        }
-        return res;
-      });
-    })
-  );
+  event.respondWith(cacheFirstStatic(request));
 });

@@ -1609,3 +1609,54 @@ body.main-tab-discover .header-dm-btn {
     margin-top: 2px !important;
   }
 }
+
+
+/* v374: footer spacing + desktop/mobile-browser-only layout corrections */
+.screenlist-bottom-link-wrap {
+  padding-top: 37px !important;
+}
+.screenlist-version-footer {
+  margin-top: 9px !important;
+}
+
+@media (min-width: 701px) {
+  #mobile-bottom-nav,
+  .mobile-bottom-nav {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  .header .user-area {
+    transform: translateY(-18px) !important;
+    position: relative !important;
+    z-index: 5 !important;
+  }
+
+  .header .user-avatar {
+    transform: translateY(-2px) !important;
+  }
+}
+
+@media (max-width: 700px) and (not (display-mode: standalone)) {
+  body.main-tab-mylist .header {
+    border-bottom: 0 !important;
+    box-shadow: none !important;
+  }
+
+  body.main-tab-mylist .header::before,
+  body.main-tab-mylist .header::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  body.main-tab-mylist .header .main-nav,
+  body.main-tab-mylist .main-nav {
+    border-bottom: 0 !important;
+    box-shadow: none !important;
+  }
+
+  body.main-tab-mylist #mylist-view .main-content {
+    padding-top: 25px !important;
+  }
+}

@@ -610,6 +610,13 @@ async function postComment() {
       comments: firebase.firestore.FieldValue.arrayUnion(comment),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
+    if (!viewingUser && commentsViewState?.type === 'item' && commentsItemId && typeof findOwnLibraryItemRecord === 'function') {
+      const record = findOwnLibraryItemRecord(commentsItemId, activeSection);
+      if (record.item && typeof markOwnItemLastEdited === 'function') {
+        markOwnItemLastEdited(record.item, record.section || activeSection);
+        save();
+      }
+    }
     setCachedCommentCount(commentsMediaKey, Math.max(getCachedCommentCount(commentsMediaKey), commentsRawItems.length) + 1);
     commentsRawItems = [comment, ...commentsRawItems.filter(c => c && c.id !== comment.id)];
     commentsRawItems.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));

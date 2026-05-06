@@ -1165,7 +1165,13 @@ body.main-tab-mylist .header-import-btn { display: none !important; }
   position: fixed;
   inset: 0;
   z-index: 9000;
-  pointer-events: none;
+  pointer-events: auto;
+  overscroll-behavior: contain;
+}
+html.mylist-settings-open,
+body.mylist-settings-open {
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
 }
 .mylist-settings-panel {
   position: absolute;
@@ -1175,10 +1181,20 @@ body.main-tab-mylist .header-import-btn { display: none !important; }
   border-radius: 16px;
   box-shadow: 0 8px 40px rgba(0,0,0,0.55);
   padding: 16px;
+  font-family: Aptos, 'Aptos Display', 'Segoe UI', sans-serif;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
   pointer-events: all;
   animation: mylistSettingsIn 0.2s cubic-bezier(0.34,1.56,0.64,1) both;
   transform-origin: 20px 0px;
 }
+.mylist-settings-panel::-webkit-scrollbar { display: none; }
+.mylist-settings-panel *,
+.mylist-settings-panel button {
+  font-family: Aptos, 'Aptos Display', 'Segoe UI', sans-serif !important;
+}
+
 .mylist-settings-panel.closing {
   animation: mylistSettingsOut 0.15s ease-in both;
 }
@@ -1351,21 +1367,61 @@ body.main-tab-mylist .header-import-btn { display: none !important; }
 .mylist-vis-toggle.on .mylist-vis-knob { left: 21px; }
 .mylist-settings-divider {
   height: 1px;
-  background: rgba(167,139,250,0.12);
-  margin: 10px 0;
+  background: rgba(244,240,255,0.6);
+  margin: 12px 8px 12px;
+  box-shadow: 0 0 10px rgba(244,240,255,0.18);
 }
 .mylist-settings-action-btn {
-  font-size: 12px;
-  font-weight: 600;
-  color: #a78bfa;
-  background: rgba(124,111,160,0.18);
-  border: none;
+  font-size: 14px;
+  font-weight: 700;
+  color: #031014;
+  background: linear-gradient(135deg, #0891b2, #06b6d4);
+  border: 1px solid rgba(103,232,249,0.46);
   border-radius: 8px;
-  padding: 5px 13px;
+  padding: 7px 15px;
   cursor: pointer;
-  transition: background 0.18s;
+  transition: background 0.18s, transform 0.18s, border-color 0.18s;
 }
-.mylist-settings-action-btn:hover { background: rgba(124,111,160,0.3); }
+.mylist-settings-action-btn:hover { background: linear-gradient(135deg, #0e7490, #0891b2); border-color: rgba(165,243,252,0.68); transform: translateY(-1px); }
+
+
+.mylist-settings-import-box {
+  border: 1px solid rgba(239,68,68,0.78);
+  border-radius: 13px;
+  padding: 8px 10px;
+  background: rgba(239,68,68,0.035);
+  box-shadow: inset 0 0 0 1px rgba(127,29,29,0.16);
+}
+.mylist-settings-milky-divider {
+  height: 1px;
+  background: rgba(244,240,255,0.6);
+  margin: 14px 8px 12px;
+  box-shadow: 0 0 10px rgba(244,240,255,0.18);
+}
+.mylist-settings-clear-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mylist-clear-category-row {
+  padding: 7px 0;
+}
+.mylist-clear-category-row .mylist-settings-row-main {
+  justify-content: space-between;
+}
+
+@media (max-width: 700px) {
+  .mylist-settings-panel {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    left: 0 !important;
+    right: 0 !important;
+    border-left: 0;
+    border-right: 0;
+    border-radius: 18px 18px 0 0;
+    -webkit-overflow-scrolling: touch;
+  }
+}
 
 /* v241: contain mylist page horizontally — stops native browser pan without touching html/body */
 /* overflow-x: clip (not hidden) avoids creating a BFC, so overflow-y stays visible and
@@ -2530,4 +2586,11 @@ body.light-mode #feed-post-replies-composer .feed-reply-input {
   .x-reply-item.feed-reply-threaded {
     padding: 13px 14px !important;
   }
+}
+
+
+/* v372: Patch Notes is dev-only; remove public entrypoints while preserving version footer. */
+button[onclick*="openPatchNotesPage"],
+.screenlist-patch-notes-link {
+  display: none !important;
 }

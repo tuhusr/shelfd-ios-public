@@ -1035,3 +1035,135 @@ body:not(.light-mode):not(.true-dark-mode) #mylist-view #mylist-toolbar {
     padding: 2px 5px;
   }
 }
+
+/* v381: full-page import source subpages + MyAnimeList per-title sorting */
+.screenlist-hidden-import-input {
+  display: none !important;
+}
+
+.import-source-detail-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 5600;
+  display: none;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #000;
+  transform: translate3d(100%, 0, 0);
+  opacity: 0;
+  transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1), opacity 220ms ease;
+  will-change: transform, opacity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.import-source-detail-panel.open {
+  transform: translate3d(0, 0, 0);
+  opacity: 1;
+}
+
+.import-source-detail-shell {
+  width: min(920px, 100%);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: max(90px, calc(env(safe-area-inset-top, 0px) + 46px)) 20px calc(110px + env(safe-area-inset-bottom, 0px));
+}
+
+.import-source-detail-topbar {
+  margin-bottom: 16px;
+}
+
+.import-source-detail-card {
+  display: grid;
+  gap: 12px;
+}
+
+.import-source-detail-file-btn {
+  width: fit-content;
+  min-height: 42px;
+  padding: 0 18px;
+}
+
+.import-preview-row-myanimelist {
+  grid-template-columns: minmax(0, 1fr) minmax(138px, auto) minmax(76px, auto);
+  gap: 10px;
+}
+
+.import-source-raw-status {
+  display: block;
+  margin-top: 3px;
+  color: rgba(232,227,243,0.58);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.import-row-status-control {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: stretch;
+  justify-content: center;
+  min-width: 138px;
+  color: #f8f4ff;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.import-row-status-control select {
+  min-height: 34px;
+  border: 1px solid rgba(34,211,238,0.36);
+  border-radius: 999px;
+  background: rgba(8, 20, 30, 0.94);
+  color: #ffffff;
+  padding: 0 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 900;
+  outline: none;
+}
+
+.import-row-status-control select:focus {
+  border-color: rgba(34,211,238,0.72);
+  box-shadow: 0 0 0 3px rgba(34,211,238,0.12);
+}
+
+@media (max-width: 700px) {
+  .import-source-detail-shell {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .import-preview-row-myanimelist {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .import-row-status-control {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .import-preview-row-myanimelist .import-preview-score {
+    justify-self: start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .import-source-detail-panel {
+    transition: none;
+  }
+}
+.import-preview-row.import-preview-row-myanimelist {
+  display: grid;
+}
+
+
+/* v382: MyAnimeList desktop/laptop helper note */
+.import-source-detail-helper {
+  color: #22d3ee;
+  font-size: 13px;
+  line-height: 1.42;
+  font-weight: 850;
+  font-family: Aptos, 'Aptos Display', 'DM Sans', sans-serif;
+}

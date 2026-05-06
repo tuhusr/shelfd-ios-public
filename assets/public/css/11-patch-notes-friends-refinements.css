@@ -1691,3 +1691,205 @@ body.main-tab-mylist .header-dm-icon svg {
     padding-top: calc(10px + env(safe-area-inset-top, 0px)) !important;
   }
 }
+
+/* v376: Patch Notes cards are now simple dev log entries only. */
+.screenlist-patch-notes-page,
+.screenlist-patch-note-card,
+.screenlist-patch-notes-back {
+  font-family: Aptos, 'DM Sans', sans-serif !important;
+}
+.screenlist-patch-note-card-simple {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  border-color: rgba(245,245,255,0.18);
+  background: rgba(255,255,255,0.026);
+  color: #ffffff;
+}
+.screenlist-patch-note-card-simple .screenlist-patch-note-date {
+  margin: 0;
+  color: #ffffff;
+  font-family: Aptos, 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+.screenlist-patch-note-applied {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+.screenlist-patch-note-version {
+  color: rgba(255,255,255,0.78);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.screenlist-patch-note-card-simple h2,
+.screenlist-patch-note-card-simple ul,
+.screenlist-patch-note-card-simple li,
+.screenlist-patch-note-title-row {
+  display: none !important;
+}
+.screenlist-version-footer {
+  display: block;
+  width: 100%;
+  margin-top: 9px;
+  color: rgba(255,255,255,0.72);
+  font-family: Aptos, 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-align: center;
+}
+body.light-mode .screenlist-version-footer {
+  color: rgba(18,8,46,0.62);
+}
+body.light-mode .screenlist-patch-note-card-simple {
+  background: rgba(8,6,20,0.92) !important;
+  border-color: rgba(245,245,255,0.18) !important;
+}
+body.light-mode .screenlist-patch-note-card-simple .screenlist-patch-note-date,
+body.light-mode .screenlist-patch-note-card-simple .screenlist-patch-note-applied,
+body.light-mode .screenlist-patch-note-card-simple .screenlist-patch-note-version {
+  color: #ffffff !important;
+}
+
+/* v377: Collapsible Activity Feed import batch cards. */
+.import-activity-card {
+  display: grid !important;
+  gap: 13px !important;
+  padding: 16px !important;
+  border: 1px solid rgba(196,181,253,0.22) !important;
+  border-radius: 24px !important;
+  background: linear-gradient(145deg, rgba(24,18,54,0.94), rgba(10,7,26,0.96)) !important;
+  color: #ffffff !important;
+  overflow: hidden !important;
+}
+.import-activity-top {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.import-activity-copy { min-width: 0; }
+.import-activity-title {
+  margin-top: 5px;
+  color: #ffffff;
+  font-family: Aptos, 'DM Sans', sans-serif;
+  font-size: 18px;
+  line-height: 1.16;
+  font-weight: 950;
+  letter-spacing: -0.02em;
+}
+.import-activity-status {
+  margin-top: 5px;
+  color: rgba(255,255,255,0.78);
+  font-family: Aptos, 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+}
+.import-activity-preview {
+  display: flex;
+  gap: 8px;
+  min-height: 52px;
+  overflow: hidden;
+}
+.import-activity-preview-tile {
+  width: 42px;
+  height: 56px;
+  border-radius: 10px;
+  overflow: hidden;
+  flex: 0 0 auto;
+  background: rgba(255,255,255,0.08);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-weight: 900;
+}
+.import-activity-preview-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.import-activity-toggle {
+  width: 100%;
+  min-height: 40px;
+  border-radius: 999px;
+  border: 1px solid rgba(245,245,255,0.28);
+  background: rgba(255,255,255,0.07);
+  color: #ffffff;
+  font-family: Aptos, 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.import-activity-list {
+  display: none;
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 2px;
+  gap: 8px;
+  scrollbar-width: none;
+}
+.import-activity-list::-webkit-scrollbar { display: none; }
+.import-activity-card.expanded .import-activity-list {
+  display: grid;
+}
+.import-activity-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 54px;
+  padding: 7px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.045);
+}
+.import-activity-row-poster {
+  width: 42px;
+  height: 50px;
+  border-radius: 9px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 900;
+}
+.import-activity-row-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.import-activity-row-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.import-activity-row-copy strong {
+  color: #ffffff;
+  font-family: Aptos, 'DM Sans', sans-serif;
+  font-size: 13px;
+  line-height: 1.18;
+  font-weight: 900;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.import-activity-row-copy span {
+  color: rgba(255,255,255,0.62);
+  font-family: Aptos, 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+}
+body.light-mode .import-activity-card {
+  background: linear-gradient(145deg, rgba(24,18,54,0.94), rgba(10,7,26,0.96)) !important;
+  color: #ffffff !important;
+}

@@ -1,4 +1,4 @@
-:root { --shelfd-mylist-css-patch: "v319-media-card-polish"; }
+:root { --shelfd-mylist-css-patch: "v374-footer-desktop-mobile-layout-fix"; }
   /* Section toggle */
   .section-toggle {
     display: flex; margin-top: 20px; background: rgba(255,255,255,0.035); border-radius: 999px;
@@ -117,6 +117,63 @@
   }
   .tab-btn.active .tab-count { background: rgba(255,255,255,0.08); }
   .toolbar-right { display: flex; gap: 8px; }
+  .games-playing-subfilter {
+    width: 100%;
+    margin: -8px 0 18px;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .games-playing-subfilter-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px;
+    border-radius: 18px;
+    border: 1px solid rgba(167,139,250,0.18);
+    background: linear-gradient(145deg, rgba(18,12,38,0.82), rgba(8,6,20,0.92));
+    box-shadow: 0 14px 34px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+  .games-playing-toggle {
+    min-height: 36px;
+    border: 0;
+    border-radius: 14px;
+    padding: 0 13px;
+    background: transparent;
+    color: #a99fc4;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+  }
+  .games-playing-toggle small {
+    min-width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
+    background: rgba(255,255,255,0.07);
+    color: inherit;
+    font-size: 10px;
+    font-weight: 900;
+  }
+  .games-playing-toggle.active {
+    background: linear-gradient(135deg, rgba(124,58,237,0.44), rgba(167,139,250,0.20));
+    color: #fff;
+    transform: translateY(-1px);
+  }
+  body.light-mode .games-playing-subfilter-card {
+    background: rgba(255,255,255,0.86);
+    border-color: rgba(124,58,237,0.16);
+    box-shadow: 0 10px 28px rgba(31,17,64,0.08);
+  }
+  body.light-mode .games-playing-toggle { color: #6b5f86; }
+  body.light-mode .games-playing-toggle.active { color: #fff; }
 
   /* Inputs & buttons */
   input[type="text"], input[type="number"], input[type="url"] {
@@ -166,6 +223,39 @@
       min-width: 210px; width: 78vw; max-width: 300px;
     }
   }
+
+  .sort-direction-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 12px;
+    padding: 10px 12px;
+    margin-bottom: 4px;
+    border: 1px solid rgba(167,139,250,0.24);
+    border-radius: 12px;
+    background: rgba(124,58,237,0.16);
+    color: #f8f4ff;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 850;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .sort-direction-toggle strong {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+    color: #c4b5fd;
+    font-size: 15px;
+    line-height: 1;
+  }
+  .sort-direction-toggle:active { transform: scale(0.985); }
+
   .sort-dropdown-item {
     display: flex; align-items: center; width: 100%; text-align: left;
     padding: 10px 14px; border: none; border-radius: 10px;
@@ -204,6 +294,9 @@
     .tab-count { margin-left: 4px; font-size: 9px; padding: 1px 4px; }
     .toolbar { flex-direction: row; align-items: center; }
     .toolbar-right { width: auto; display: flex; gap: 8px; align-items: center; }
+    .games-playing-subfilter { justify-content: stretch; margin: -4px 0 14px; }
+    .games-playing-subfilter-card { width: 100%; }
+    .games-playing-toggle { flex: 1; justify-content: center; min-height: 38px; padding: 0 10px; }
     .search-input { width: 100px; flex: 0; }
     #add-btn { flex-grow: 1; min-width: 80px; }
     .section-toggle { width: 100%; }
@@ -1316,3 +1409,39 @@ body:not(.main-tab-mylist) .mylist-edge-swipe-rail { display: none !important; }
   pointer-events: auto !important;
   touch-action: manipulation;
 }
+
+/* v374: app version footer cushion + Games Wishlist status */
+.screenlist-bottom-link-wrap {
+  flex-direction: column;
+  gap: 7px;
+  padding-top: 37px !important;
+}
+.screenlist-version-footer {
+  color: rgba(216,207,243,0.62);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  user-select: none;
+}
+body.light-mode .screenlist-version-footer {
+  color: rgba(91,33,182,0.58);
+}
+.tab-btn.active[data-tab="wishlist"] { color: #f472b6; }
+.status-pill.wishlist-active { border-color: #be185d; background: #3b1128; color: #f472b6; }
+#mylist-view #mylist-toolbar .tab-btn[data-tab="watching"] { order: 0 !important; }
+#mylist-view #mylist-toolbar .tab-btn[data-tab="planned"] { order: 1 !important; }
+#mylist-view #mylist-toolbar .tab-btn[data-tab="watched"] { order: 2 !important; }
+#mylist-view #mylist-toolbar .tab-btn[data-tab="wishlist"] { order: 3 !important; }
+#mylist-view #mylist-toolbar .tab-btn[data-tab="live"] { display: none !important; }
+
+.login-legal-links .screenlist-version-footer {
+  flex-basis: 100%;
+  text-align: center;
+  margin-top: -4px;
+}
+body #mylist-view #mylist-toolbar .tabs .tab-btn[data-tab="watching"] { order: 0 !important; }
+body #mylist-view #mylist-toolbar .tabs .tab-btn[data-tab="planned"] { order: 1 !important; }
+body #mylist-view #mylist-toolbar .tabs .tab-btn[data-tab="watched"] { order: 2 !important; }
+body #mylist-view #mylist-toolbar .tabs .tab-btn[data-tab="wishlist"] { order: 3 !important; }
+body #mylist-view #mylist-toolbar .tabs .tab-btn[data-tab="live"] { display: none !important; }
