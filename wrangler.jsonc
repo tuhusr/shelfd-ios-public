@@ -11,7 +11,8 @@
     "run_worker_first": [
       "/api/*",
       "/profile-card/*",
-      "/profile-card-og.svg"
+      "/profile-card-og.svg",
+      "/media/*"
     ]
   },
   "ai": {

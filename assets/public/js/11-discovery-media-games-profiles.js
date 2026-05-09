@@ -3945,10 +3945,14 @@ function getActiveMediaSharePayload() {
 async function shareMediaProfileAnywhere() {
   const payload = getActiveMediaSharePayload();
   if (!payload) return;
-  const shareTitle = payload.title ? `${payload.title} on ScreenList` : 'ScreenList media profile';
+  const shareTitle = payload.title ? `${payload.title} on Shelfd` : 'Shelfd';
+  const urlObj = new URL(payload.url, window.location.origin);
+  if (payload.title) urlObj.searchParams.set('title', payload.title);
+  if (/^https?:\/\//i.test(payload.poster)) urlObj.searchParams.set('poster', payload.poster);
+  const shareUrl = urlObj.toString();
   try {
     if (navigator.share) {
-      await navigator.share({ title: shareTitle, url: payload.url });
+      await navigator.share({ title: shareTitle, url: shareUrl });
       closeMediaProfileShareMenu();
       return;
     }
@@ -3956,7 +3960,7 @@ async function shareMediaProfileAnywhere() {
     if (e?.name === 'AbortError') return;
   }
   try {
-    await navigator.clipboard.writeText(payload.url);
+    await navigator.clipboard.writeText(shareUrl);
     closeMediaProfileShareMenu();
     showToast('Link copied');
   } catch (e) {
