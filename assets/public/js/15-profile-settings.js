@@ -2080,8 +2080,7 @@ function renderDatabaseFavoriteRow(key, pins) {
   if (!config) return '';
   const visible = isProfileRowVisible(key);
   const editing = !isViewingOtherProfile() && profileEditModeOpen;
-  const rowShareBtn = editing ? '' : `<button type="button" class="profile-fav-row-share-btn" onclick="shareProfileFavoriteRow(event, this)" aria-label="Share ${escAttr(config.label)}">${getProfileFavoriteShareIconHTML()}</button>`;
-  const rowHead = `<div class="profile-fav-row-head"><div class="profile-fav-row-title">${escHtml(config.label)}</div>${renderProfileVisibilityToggle(key)}${rowShareBtn}</div>`;
+  const rowHead = `<div class="profile-fav-row-head"><div class="profile-fav-row-title">${escHtml(config.label)}</div>${renderProfileVisibilityToggle(key)}</div>`;
   if (!visible) return editing ? `<div class="profile-fav-row">${rowHead}<div class="profile-hidden-note">Hidden from profile. Toggle Display to show this row again.</div></div>` : '';
   const slots = [0,1,2].map(i => {
     const entry = getProfileDatabaseFavoriteDisplay(config, pins[config.key]?.[i]);
@@ -2110,8 +2109,7 @@ function renderManualFavoriteRow(key, showcase) {
   if (!config) return '';
   const visible = isProfileRowVisible(key);
   const editing = !isViewingOtherProfile() && profileEditModeOpen;
-  const rowShareBtn = editing ? '' : `<button type="button" class="profile-fav-row-share-btn" onclick="shareProfileFavoriteRow(event, this)" aria-label="Share ${escAttr(config.label)}">${getProfileFavoriteShareIconHTML()}</button>`;
-  const rowHead = `<div class="profile-fav-row-head"><div class="profile-fav-row-title">${escHtml(config.label)}</div>${renderProfileVisibilityToggle(key)}${rowShareBtn}</div>`;
+  const rowHead = `<div class="profile-fav-row-head"><div class="profile-fav-row-title">${escHtml(config.label)}</div>${renderProfileVisibilityToggle(key)}</div>`;
   if (!visible) return editing ? `<div class="profile-fav-row">${rowHead}<div class="profile-hidden-note">Hidden from profile. Toggle Display to show this row again.</div></div>` : '';
   const entries = showcase[key] || [0,1,2].map(() => getEmptyManualFavorite());
   const slots = [0,1,2].map(i => {
@@ -2130,9 +2128,11 @@ function renderManualFavoriteRow(key, showcase) {
 }
 
 function renderProfileMediaGroup(group, stats, pins, showcase) {
+  const editing = !isViewingOtherProfile() && profileEditModeOpen;
   const statHtml = group.statKeys.length ? `<div class="profile-group-stats profile-group-stats-showcase-labels">${group.statKeys.map(key => `<div class="profile-group-stat" data-profile-group-stat="${escAttr(key)}"><div class="profile-group-stat-value">${getProfileStatValueHTML(stats, key)}</div><div class="profile-group-stat-label">${getProfileShowcaseStatLabelHTML(key)}</div></div>`).join('')}</div>` : '';
   const rows = group.rows.map(rowKey => PROFILE_DATABASE_FAVORITES.some(item => item.key === rowKey) ? renderDatabaseFavoriteRow(rowKey, pins) : renderManualFavoriteRow(rowKey, showcase)).join('');
-  return `<section class="profile-media-group ${group.wide ? 'profile-media-group-wide' : ''}" data-profile-group="${escAttr(group.key)}"><div class="profile-media-head"><div class="profile-media-title-wrap"><div class="profile-media-title">${getProfileGroupTitleHTML(group)}</div><div class="profile-media-sub">${escHtml(group.sub)}</div></div></div>${statHtml}${rows}</section>`;
+  const sectionShareBtn = editing ? '' : `<button type="button" class="profile-section-share-btn" onclick="shareProfileFavoriteRow(event, this)" aria-label="Share ${escAttr(group.title)}">${getProfileFavoriteShareIconHTML()}</button>`;
+  return `<section class="profile-media-group ${group.wide ? 'profile-media-group-wide' : ''}" data-profile-group="${escAttr(group.key)}">${sectionShareBtn}<div class="profile-media-head"><div class="profile-media-title-wrap"><div class="profile-media-title">${getProfileGroupTitleHTML(group)}</div><div class="profile-media-sub">${escHtml(group.sub)}</div></div></div>${statHtml}${rows}</section>`;
 }
 function readProfileDraftFromPage(target) {
   if (isViewingOtherProfile()) return target || getActiveProfile();
@@ -3505,13 +3505,16 @@ function profileShareRoundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-async function buildProfileFavoriteRowShareImageFile(cardData, profileName, label) {
+async function buildProfileFavoriteRowShareImageFile(cardData, profileName, label, stats) {
   if (!Array.isArray(cardData) || typeof File === 'undefined') return null;
-  const W = 1200, H = 800;
-  const PAD = 48, GAP = 18;
+  const hasStats = Array.isArray(stats) && stats.length > 0;
+  const W = 1200, PAD = 48, GAP = 18;
   const posterW = Math.floor((W - PAD * 2 - GAP * 2) / 3);
   const posterH = Math.floor(posterW * 1.5);
-  const POSTER_Y = 148;
+  const HEADER_H = 124;
+  const STATS_BLOCK = hasStats ? 96 : 0;
+  const POSTER_Y = HEADER_H + STATS_BLOCK;
+  const H = POSTER_Y + posterH + 90;
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
@@ -3529,10 +3532,26 @@ async function buildProfileFavoriteRowShareImageFile(cardData, profileName, labe
   ctx.fillStyle = 'rgba(255,255,255,0.50)';
   ctx.font = '300 26px system-ui, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(`${profileName}'s`, W / 2, 68);
+  ctx.fillText(`${profileName}'s`, W / 2, 62);
   ctx.fillStyle = '#ffffff';
-  ctx.font = '700 40px system-ui, sans-serif';
-  ctx.fillText(label, W / 2, 114);
+  ctx.font = '700 42px system-ui, sans-serif';
+  ctx.fillText(label, W / 2, 110);
+  if (hasStats) {
+    const boxW = 220, boxGap = 60;
+    const totalW = stats.length * boxW + (stats.length - 1) * boxGap;
+    const startX = (W - totalW) / 2;
+    stats.forEach((stat, si) => {
+      const bx = startX + si * (boxW + boxGap);
+      const by = HEADER_H + 8;
+      ctx.fillStyle = '#C9A84C';
+      ctx.font = '700 46px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(stat.value, bx + boxW / 2, by + 50);
+      ctx.fillStyle = 'rgba(255,255,255,0.50)';
+      ctx.font = '300 18px system-ui, sans-serif';
+      ctx.fillText(stat.label, bx + boxW / 2, by + 76);
+    });
+  }
   const images = await Promise.all(cardData.map(c => loadProfileShareImage(c.image)));
   for (let i = 0; i < 3; i++) {
     const x = PAD + i * (posterW + GAP);
@@ -3542,16 +3561,17 @@ async function buildProfileFavoriteRowShareImageFile(cardData, profileName, labe
     ctx.fill();
     const img = images[i];
     if (img) {
-      ctx.save();
-      profileShareRoundRect(ctx, x, y, posterW, posterH, 12);
-      ctx.clip();
-      const sr = img.width / img.height;
-      const tr = posterW / posterH;
-      let sw = img.width, sh = img.height, sx = 0, sy = 0;
-      if (sr > tr) { sw = img.height * tr; sx = (img.width - sw) / 2; }
-      else { sh = img.width / tr; sy = (img.height - sh) / 2; }
-      ctx.drawImage(img, sx, sy, sw, sh, x, y, posterW, posterH);
-      ctx.restore();
+      try {
+        ctx.save();
+        profileShareRoundRect(ctx, x, y, posterW, posterH, 12);
+        ctx.clip();
+        const sr = img.width / img.height, tr = posterW / posterH;
+        let sw = img.width, sh = img.height, sx = 0, sy = 0;
+        if (sr > tr) { sw = img.height * tr; sx = (img.width - sw) / 2; }
+        else { sh = img.width / tr; sy = (img.height - sh) / 2; }
+        ctx.drawImage(img, sx, sy, sw, sh, x, y, posterW, posterH);
+        ctx.restore();
+      } catch (e) { ctx.restore(); }
     }
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
     ctx.beginPath();
@@ -3573,7 +3593,7 @@ async function buildProfileFavoriteRowShareImageFile(cardData, profileName, labe
     if (cardData[i]?.rating) {
       ctx.fillStyle = '#f4d27a';
       ctx.font = '700 17px system-ui, sans-serif';
-      ctx.fillText(cardData[i].rating, x + posterW / 2, y + posterH + 56);
+      ctx.fillText(cardData[i].rating, x + posterW / 2, y + posterH + 58);
     }
   }
   return new Promise(resolve => {
@@ -3589,15 +3609,18 @@ async function buildProfileFavoriteRowShareImageFile(cardData, profileName, labe
 async function shareProfileFavoriteRow(event, btn) {
   event?.preventDefault?.();
   event?.stopPropagation?.();
-  const grid = btn.closest('.profile-fav-row')?.querySelector('.profile-fav-poster-grid');
+  const mediaGroup = btn.closest('.profile-media-group');
+  const grid = mediaGroup?.querySelector('.profile-fav-poster-grid');
   if (!grid) return;
   const uid = getProfileShareUid();
   if (!uid || uid === 'preview-user') { showToast('Save your profile before sharing'); return; }
   const cards = [...grid.querySelectorAll('.profile-fav-poster-card')];
   const firstCard = cards[0];
-  const section = firstCard?.dataset.profileDbSection || firstCard?.dataset.manualSection || '';
-  const config = getProfileFavoriteConfigByKey(section);
-  const label = config?.label || 'Top 3';
+  const sectionKey = firstCard?.dataset.profileDbSection || firstCard?.dataset.manualSection || '';
+  const config = getProfileFavoriteConfigByKey(sectionKey);
+  const groupKey = mediaGroup?.dataset.profileGroup || '';
+  const groupConfig = PROFILE_MEDIA_GROUPS?.find(g => g.key === groupKey);
+  const label = groupConfig?.title || config?.label || 'Top 3';
   const activeProfile = getActiveProfile();
   const profileName = activeProfile?.name || profileViewingUser?.name || currentUser?.displayName || 'ScreenList User';
   const cardData = cards.map(slot => {
@@ -3608,6 +3631,13 @@ async function shareProfileFavoriteRow(event, btn) {
       rating: (isDb ? slot.dataset.profileDbRating : slot.dataset.manualRating || '').trim(),
     };
   });
+  const statEls = [...(mediaGroup?.querySelectorAll('.profile-group-stat') || [])];
+  const stats = statEls.map(el => {
+    const valueSpan = el.querySelector('.profile-group-stat-value span') || el.querySelector('.profile-group-stat-value');
+    const value = (valueSpan?.textContent || '').trim();
+    const lbl = (el.querySelector('.profile-group-stat-label')?.textContent || '').trim();
+    return value && lbl ? { value, label: lbl } : null;
+  }).filter(Boolean);
   const shareUrl = getShareProfileUrl();
   const shareData = {
     title: `${profileName}'s ${label}`,
@@ -3615,8 +3645,10 @@ async function shareProfileFavoriteRow(event, btn) {
     url: shareUrl
   };
   try {
-    const file = await buildProfileFavoriteRowShareImageFile(cardData, profileName, label);
-    if (file && navigator.canShare?.({ files: [file] })) shareData.files = [file];
+    const file = await buildProfileFavoriteRowShareImageFile(cardData, profileName, label, stats);
+    if (file && navigator.canShare?.({ files: [file] })) {
+      shareData.files = [file];
+    }
     if (navigator.share) { await navigator.share(shareData); showToast('Shared!'); return; }
   } catch (e) {
     if (e && e.name === 'AbortError') return;
