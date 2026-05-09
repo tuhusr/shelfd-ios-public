@@ -27,7 +27,10 @@ let friendActivityCache = null;
 let friendActivityPromise = null;
 const FRIEND_ACTIVITY_CACHE_MS = 120000;
 const FRIEND_ACTIVITY_LIVE_MAX = 140;
-const DISCOVER_PAGE_COUNT = 3;
+/* v673: pool size raised from 3 → 5 pages (~100 candidates / category) so
+   the central ranker has enough breadth to apply Bayesian scoring + IMDb
+   re-ranking without TMDB's stock order dictating the final list. */
+const DISCOVER_PAGE_COUNT = 5;
 const DISCOVER_LIMIT = 20;
 const DISCOVER_STREAMING_REGION = 'US';
 const DISCOVER_CACHE_TTL_MS = 6 * 60 * 60 * 1000;

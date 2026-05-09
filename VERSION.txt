@@ -1,1 +1,1 @@
-v672_2026-05-08_imdb_card_rating_cache_bust
+v673_2026-05-08_central_ranking_module

@@ -1602,6 +1602,7 @@ async function getCachedImdbRatingForItem(env, ctx, originUrl, item = {}) {
     rating = await fetchOmdbTitleRating(env, title, type, year, 6500);
   }
 
+  const imdbVotesNumber = parseImdbVotesNumber(rating.imdbVotes);
   const payload = {
     ok: !!rating.ok,
     type,
@@ -1609,9 +1610,12 @@ async function getCachedImdbRatingForItem(env, ctx, originUrl, item = {}) {
     imdbId: rating.imdbId || imdbId || "",
     imdbRating: rating.imdbRating || 0,
     imdbVotes: rating.imdbVotes || "",
-    imdbVotesNumber: parseImdbVotesNumber(rating.imdbVotes),
+    imdbVotesNumber,
+    imdbLogVotes: imdbVotesNumber > 0 ? Math.log10(imdbVotesNumber + 1) : 0,
     title: rating.title || title || "",
     year: rating.year || year || "",
+    ratingSource: rating.ok ? "imdb" : "",
+    ratingFetchedAt: Date.now(),
     error: rating.ok ? "" : (rating.error || "Rating not found.")
   };
 
@@ -1645,7 +1649,10 @@ async function runImdbRatingBatchEndpoint(request, env, ctx) {
 
   const url = new URL(request.url);
   const ratings = {};
-  const concurrency = 8;
+  /* v673: OMDb fair-use guidance suggests modest concurrency. 4 in flight at
+     once is the sweet spot — fast enough to clear a 25-item batch in ~3 hops
+     and gentle on the upstream. */
+  const concurrency = 4;
   let cursor = 0;
 
   async function worker() {
