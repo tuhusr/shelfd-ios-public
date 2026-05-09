@@ -3648,6 +3648,7 @@ async function shareProfileFavoriteRow(event, btn) {
     const file = await buildProfileFavoriteRowShareImageFile(cardData, profileName, label, stats);
     if (file && navigator.canShare?.({ files: [file] })) {
       shareData.files = [file];
+      delete shareData.url;
     }
     if (navigator.share) { await navigator.share(shareData); showToast('Shared!'); return; }
   } catch (e) {
