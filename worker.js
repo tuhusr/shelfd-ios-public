@@ -1753,8 +1753,14 @@ function removeMetaTag(html, attribute, key) {
 
 async function serveProfileCardShareHtml(request, env, url) {
   const indexUrl = new URL("/index.html", url.origin);
-  const assetResponse = await env.ASSETS.fetch(new Request(indexUrl.toString(), request));
+  const assetResponse = await env.ASSETS.fetch(new Request(indexUrl.toString(), { method: "GET" }));
   let html = await assetResponse.text();
+  if (!html || html.length < 100) {
+    return new Response(`<!DOCTYPE html><html><head><title>Shelfd</title></head><body>Asset fetch returned ${html?.length || 0} bytes</body></html>`, {
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8" }
+    });
+  }
   const meta = getProfileCardShareMeta(url);
   html = html.replace(/<title>[^<]*<\/title>/i, `<title>${escapeHtmlMeta(meta.title)}</title>`);
   html = replaceMetaTag(html, "property", "og:title", meta.title);

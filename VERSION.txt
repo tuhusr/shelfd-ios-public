@@ -1,1 +1,1 @@
-v665_2026-05-08_og_image_richcard
+v666_2026-05-08_og_asset_fetch_fix
