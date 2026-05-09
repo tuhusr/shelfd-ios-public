@@ -5084,6 +5084,38 @@ function renderDiscoverMediaProfileShell(seed, type, id) {
   </section>`;
 }
 
+/* v730: Cast card with a heart-favorite button anchored to the bottom-right
+   of the photo. Clicking the heart toggles the favorite via 22-favorite-people
+   without navigating to the person profile (capture-phase handler stops
+   propagation). The data-* attributes are read by the click delegate so we
+   don't need to attach per-element listeners. */
+function renderDiscoverCastCard(person) {
+  const id = person?.id;
+  const name = String(person?.name || '');
+  const character = String(person?.character || '');
+  const profilePath = String(person?.profile_path || '');
+  const photo = profilePath ? getTmdbImageUrl(profilePath, 'w342') : '';
+  const isFav = typeof window.shelfdIsFavoritePerson === 'function'
+    ? window.shelfdIsFavoritePerson(id)
+    : false;
+  const heartHtml = `<span class="cast-fav-btn${isFav ? ' is-favorite' : ''}"
+      aria-label="Favorite ${escAttr(name)}"
+      aria-pressed="${isFav ? 'true' : 'false'}"
+      data-person-id="${escAttr(id)}"
+      data-person-name="${escAttr(name)}"
+      data-person-photo="${escAttr(profilePath)}"
+      data-person-role="actor">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 21s-7.5-4.6-9.6-9.4C1.1 8 3.4 4.5 6.8 4.5c2.1 0 3.9 1.2 5.2 3 1.3-1.8 3.1-3 5.2-3 3.4 0 5.7 3.5 4.4 7.1C19.5 16.4 12 21 12 21z"/>
+      </svg>
+    </span>`;
+  return `<button class="discover-media-cast-card" type="button" onclick="openDiscoverPersonProfile(event, ${id})">
+    <div class="discover-media-cast-photo">${photo ? `<img src="${escAttr(photo)}" alt="">` : ''}${heartHtml}</div>
+    <strong>${escHtml(name)}</strong>
+    <span>${escHtml(character)}</span>
+  </button>`;
+}
+
 function renderDiscoverMediaProfileDetails(type, details, id) {
   const title = getDiscoverMediaTitle(details, type);
   const poster = getDiscoverMediaPoster(details);
@@ -5139,7 +5171,7 @@ function renderDiscoverMediaProfileDetails(type, details, id) {
         ${companies.length || networks.length ? `<div><span>${type === 'tv' ? 'Network' : 'Studio'}</span><strong>${escHtml((networks.length ? networks : companies).join(', '))}</strong></div>` : ''}
       </div>` : ''}
       ${trailer ? `<div class="discover-media-trailer"><iframe src="https://www.youtube.com/embed/${escAttr(trailer.key)}?controls=1&playsinline=1&rel=0&modestbranding=1" allow="encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>` : ''}
-      ${cast.length ? `<div class="discover-media-section"><h3>Cast</h3><div class="discover-media-cast">${cast.map(person => `<button class="discover-media-cast-card" type="button" onclick="openDiscoverPersonProfile(event, ${person.id})"><div class="discover-media-cast-photo">${person.profile_path ? `<img src="${escAttr(getTmdbImageUrl(person.profile_path, 'w342'))}" alt="">` : ''}</div><strong>${escHtml(person.name)}</strong><span>${escHtml(person.character || '')}</span></button>`).join('')}</div></div>` : ''}
+      ${cast.length ? `<div class="discover-media-section"><h3>Cast</h3><div class="discover-media-cast">${cast.map(person => renderDiscoverCastCard(person)).join('')}</div></div>` : ''}
       ${renderDeepSeekMoreLikeThisSection(type, details)}
     </div>
   </section>`;

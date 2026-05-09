@@ -779,6 +779,12 @@ auth.onAuthStateChanged(async (user) => {
     bootstrapUserCountIfNeeded();
     startFriendsDataListener(); // live Friends/Requests badge + request list updates
     startWatchTogetherListener();
+    /* v730: load the user's favoritePeople map (favorited actors/directors)
+       into window.shelfdFavoritePeople so cast-card hearts render with the
+       correct filled/empty state on first paint. */
+    if (typeof window.shelfdLoadFavoritePeople === 'function') {
+      window.shelfdLoadFavoritePeople();
+    }
     if (mediaRoute) {
       await openSharedMediaProfileRoute(mediaRoute);
       markScreenListAppReadyForSplash();
@@ -796,6 +802,11 @@ auth.onAuthStateChanged(async (user) => {
     stopFriendsDataListener();
     stopWatchTogetherListener();
     resetFriendsDataState();
+    /* v730: drop favoritePeople cache so the next signed-in user starts
+       with a clean slate (and signed-out users don't see leftover state). */
+    if (typeof window.shelfdClearFavoritePeopleLocal === 'function') {
+      window.shelfdClearFavoritePeopleLocal();
+    }
     landingPublicProfileActive = false;
     currentUser = null;
     DOC_REF = null;
