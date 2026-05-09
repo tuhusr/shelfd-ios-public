@@ -4952,10 +4952,38 @@ async function hydrateDiscoverPersonRoleFallbacks(details = {}) {
   }
 }
 
+/* v733: Heart-favorite button for the person profile (top-right corner).
+   Shares the .cast-fav-btn class so 22-favorite-people.js's delegated click
+   handler picks it up automatically. The --profile modifier scales it up and
+   positions it absolute in the top-right. */
+function renderPersonProfileFavoriteHeart(person = {}) {
+  const id = person?.id;
+  if (!id) return '';
+  const name = String(person?.name || '');
+  const profilePath = String(person?.profile_path || '');
+  const dept = String(person?.known_for_department || '').toLowerCase();
+  const role = dept.includes('direct') ? 'director' : 'actor';
+  const isFav = typeof window.shelfdIsFavoritePerson === 'function'
+    ? window.shelfdIsFavoritePerson(id)
+    : false;
+  return `<span class="cast-fav-btn cast-fav-btn--profile${isFav ? ' is-favorite' : ''}"
+      aria-label="Favorite ${escAttr(name)}"
+      aria-pressed="${isFav ? 'true' : 'false'}"
+      data-person-id="${escAttr(id)}"
+      data-person-name="${escAttr(name)}"
+      data-person-photo="${escAttr(profilePath)}"
+      data-person-role="${escAttr(role)}">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 21s-7.5-4.6-9.6-9.4C1.1 8 3.4 4.5 6.8 4.5c2.1 0 3.9 1.2 5.2 3 1.3-1.8 3.1-3 5.2-3 3.4 0 5.7 3.5 4.4 7.1C19.5 16.4 12 21 12 21z"/>
+      </svg>
+    </span>`;
+}
+
 function renderDiscoverPersonProfileShell(person = {}) {
   const name = person.name || 'Cast Profile';
   return `<section class="discover-media-page discover-person-page" role="dialog" aria-modal="true" aria-label="${escAttr(name)} details">
     <button class="discover-media-back" type="button" onclick="backToDiscoverTitleProfile()">Back</button>
+    ${renderPersonProfileFavoriteHeart(person)}
     <div class="discover-media-body">
       <div class="discover-media-loading">Building this cast profile...</div>
     </div>
@@ -4988,6 +5016,7 @@ function renderDiscoverPersonProfileDetails(details = {}) {
 
   return `<section class="discover-media-page discover-person-page" role="dialog" aria-modal="true" aria-label="${escAttr(name)} details">
     <button class="discover-media-back" type="button" onclick="backToDiscoverTitleProfile()">Back</button>
+    ${renderPersonProfileFavoriteHeart(details)}
     <div class="discover-media-hero discover-person-hero" style="${photo ? `background-image:url('${escAttr(photo)}')` : ''}">
       <div class="discover-media-hero-shade"></div>
       <div class="discover-media-hero-content">
