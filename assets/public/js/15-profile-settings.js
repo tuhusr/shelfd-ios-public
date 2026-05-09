@@ -3601,8 +3601,8 @@ async function buildProfileFavoriteRowShareImageFile(cardData, profileName, labe
     try {
       canvas.toBlob(blob => {
         if (!blob) { resolve(null); return; }
-        resolve(new File([blob], 'screenlist-top-three.jpg', { type: 'image/jpeg' }));
-      }, 'image/jpeg', 0.92);
+        resolve(new File([blob], 'screenlist-top-three.png', { type: 'image/png' }));
+      }, 'image/png');
     } catch (e) { resolve(null); }
   });
 }
