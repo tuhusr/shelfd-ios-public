@@ -1,18 +1,287 @@
 // Shared Patch Notes page — one central data source for future updates.
 const SCREENLIST_PATCH_NOTES = [
   {
-    id: 'v341-comment-fix-pwa-typing',
+    id: 'v399-game-status-scroll-toggle-gray',
     date: '2026-05-05',
-    time: '12:00 PM UTC',
-    title: 'Comment fixes + PWA typing + patch notes cleanup',
+    time: '11:59 PM EST',
+    title: 'v.399',
+    changes: ['Update applied']
+  },
+  {
+    id: 'v398-profile-top3-library-picker',
+    date: '2026-05-05',
+    time: 'Update applied',
+    title: 'v.398',
+    changes: []
+  },
+
+  {
+    id: 'v397-profile-stat-alignment-card-size-tuning',
+    date: '2026-05-05',
+    time: '10:10 PM EST',
+    title: 'Update applied',
+    changes: []
+  },
+
+
+  {
+    id: 'v395-profile-showcase-labels-under-values',
+    date: '2026-05-05',
+    time: '9:45 PM EST',
+    title: 'Update applied',
+    changes: []
+  },
+
+
+  {
+    id: 'v394-profile-showcase-headers-centered',
+    date: '2026-05-05',
+    time: '9:35 PM EST',
+    title: 'Update applied',
+    changes: []
+  },
+
+
+  {
+    id: 'v392-profile-showcase-stat-label-cleanup',
+    date: '2026-05-05',
+    time: '9:20 PM EST',
+    title: 'Update applied',
+    changes: []
+  },
+
+  {
+    id: 'v391-profile-top3-rank-period-fix',
+    date: '2026-05-05',
+    time: '9:05 PM EST',
+    title: 'Update applied',
+    changes: []
+  },
+
+  {
+    id: 'v391-profile-top3-rank-period-fix',
+    date: '2026-05-05',
+    time: '8:45 PM EST',
+    title: 'Update applied',
+    changes: []
+  },
+  {
+    id: 'v389-profile_stat_average_star_size_adjustment',
+    date: '2026-05-05',
+    time: '2:05 AM UTC',
+    title: 'Update applied',
+    changes: []
+  },
+  {
+    id: 'v387-profile-mobile-follow-counts-stat-card-alignment',
+    date: '2026-05-05',
+    time: '1:55 AM UTC',
+    title: 'Update applied',
+    changes: []
+  },
+  {
+    id: 'v384-profile-edit-polish',
+    date: '2026-05-05',
+    time: '1:35 AM UTC',
+    title: 'Update applied',
+    changes: []
+  },
+  {
+    id: 'v383-profile-mobile-stat-grid-cleanup',
+    date: '2026-05-05',
+    time: '1:20 AM UTC',
+    title: 'Update applied',
+    changes: []
+  },
+  {
+    id: 'v382-myanimelist-desktop-helper',
+    date: '2026-05-05',
+    time: '1:05 AM UTC',
+    title: 'Update applied',
+    changes: []
+  },
+  {
+    id: 'v381-import-subpages-myanimelist-status-mapping',
+    date: '2026-05-05',
+    time: '12:55 AM UTC',
+    title: 'Update applied',
+    changes: []
+  },
+  {
+    id: 'v380-shared-watch-explainer-cyan-scope',
+    date: '2026-05-05',
+    time: '12:40 AM UTC',
+    title: 'Update applied',
+    changes: []
+  },
+    {
+    id: 'v379-friends-discovery-performance-cogwheel-divider',
+    date: '2026-05-05',
+    time: '12:25 AM UTC',
+    title: 'Update applied',
+    changes: []
+  },
+    {
+    id: 'v377-import-activity-shared-watch-episode-activity',
+    date: '2026-05-05',
+    time: '11:58 PM UTC',
+    title: 'Update applied',
+    changes: []
+  },
+{
+    id: 'v376-activity-feed-shared-watch-patch-notes-cleanup',
+    date: '2026-05-05',
+    time: '11:40 PM UTC',
+    title: 'Update applied',
+    changes: []
+  },
+  {
+    id: 'v375-global-igdb-game-cover-override',
+    date: '2026-05-05',
+    time: '11:20 PM UTC',
+    title: 'Global IGDB/Twitch game poster override',
     changes: [
-      'Fixed comment typing blocked in PWA — card overflow:hidden was preventing the iOS keyboard from engaging on the textarea.',
-      'Fixed comment post failures by aligning the inline card comment object structure with the full comments page (added accountEmailLower, isCreatorAdmin, updatedAt).',
-      'Fixed comment delete failures by replacing arrayRemove with a Firestore transaction set, matching the full comments page delete pattern.',
-      'Simplified patch notes cards to show only date, time (Eastern), Update Applied, and version number — no titles or bullet points.',
-      'Added PWA install prompt on the landing page (shows once per session, never when already running as PWA).',
-      'Enabled comment posting when a logged-in user views the Creator Shelf.',
-      'Added current version display below each Patch Notes button in the app.',
+      'Made IGDB/Twitch portrait covers the universal preferred poster source for games.',
+      'Game posters in My Lists, Discovery, Universal Search, Activity Feed, and full game media profiles now force-repair non-IGDB art when an IGDB cover is available.',
+      'RAWG, Steam, TMDB-style, and generic game images are now treated as temporary fallbacks only.',
+      'Discovery game rows no longer skip IGDB cover repair when multiple game sections load at the same time.',
+      'The IGDB cover endpoint now supports forced refresh requests so stale cached covers do not block poster replacement.'
+    ]
+  },
+  {
+    id: 'v374-footer-desktop-mobile-layout-fix',
+    date: '2026-05-05',
+    time: '11:05 PM UTC',
+    title: 'Footer spacing and browser layout fixes',
+    changes: [
+      'Added 9px more cushion before the forced visible version footer.',
+      'Kept the forced visible version footer active while updating this build to v.374-May 5th, 2026.',
+      'Desktop browser only: lifted the header profile area above the main Discovery/Friends/My Lists tabs.',
+      'Desktop browser only: forced the duplicate mobile bottom navigation to stay hidden.',
+      'Mobile browser only: shifted the My Lists page down by 10px and removed the hard header/body divider without changing the PWA layout.',
+      'Updated future ZIP naming to avoid spaces so download links no longer show %20.'
+    ]
+  },
+  {
+    id: 'v373-default-status-sort-map',
+    date: '2026-05-05',
+    time: '11:05 PM UTC',
+    title: 'My Lists default sort map updated',
+    changes: [
+      'Set Games → Playing, Live Games, and Single Player to default to Last Edited.',
+      'Set Games → Backlog, Played, and Wishlist to default to Last Added.',
+      'Set Anime and TV Shows → Watching to default to Last Edited.',
+      'Kept Watchlist/Backlog and Paused defaults on Last Added, with Watched defaulting to Highest Rated where requested.',
+      'Set the visible version for this build to v.373-May 5th, 2026.'
+    ]
+  },
+  {
+    id: 'v372-remove-public-patch-notes',
+    date: '2026-05-05',
+    time: '12:55 AM UTC',
+    title: 'Public Patch Notes button removed',
+    changes: [
+      'Removed the public Patch Notes button from every main page and the logged-out landing legal area.',
+      'Kept the forced visible build version footer active so mobile browser, desktop browser, and PWA users can still verify the running build.',
+      'Added a runtime guard so old cached Patch Notes buttons are removed if they appear from stale HTML.',
+      'Set the visible version for this build to v.372-May 5th, 2026.'
+    ]
+  },
+  {
+    id: 'v371-mylist-settings-scroll-lock-polish',
+    date: '2026-05-05',
+    time: '12:35 AM UTC',
+    title: 'My List cogwheel modal polish',
+    changes: [
+      'Locked the My Lists page behind the cogwheel modal so the modal becomes the active scroll area while it is open.',
+      'Kept the cogwheel modal internally scrollable for future settings additions.',
+      'Applied Aptos font styling across the cogwheel modal controls and labels.',
+      'Changed the Visible Categories divider to the same hard milky white line treatment.',
+      'Changed the Import button to a larger deep-cyan action button.',
+      'Removed the Library header above the Import Lists section.',
+      'Set the visible version for this build to v.371-May 5th, 2026.'
+    ]
+  },
+  {
+    id: 'v370-force-steam-igdb-poster-overwrite',
+    date: '2026-05-05',
+    time: '12:15 AM UTC',
+    title: 'Steam game posters forced to IGDB/Twitch covers',
+    changes: [
+      'Forced Steam-imported games to treat Steam/RAWG artwork as fallback only and overwrite it with IGDB/Twitch portrait covers whenever available.',
+      'Improved the Worker IGDB cover lookup to match Steam imports by Steam App ID first before falling back to title search.',
+      'Updated My Lists game rendering so only real IGDB URLs are trusted as IGDB covers, preventing stale Steam cover URLs from winning.',
+      'Changed the game-cover repair requests to bypass browser cache so existing Steam covers can be corrected after a fresh deploy.',
+      'Set the visible version for this build to v.370-May 5th, 2026.'
+    ]
+  },
+  {
+    id: 'v369-mylist-settings-category-clear',
+    date: '2026-05-05',
+    time: '11:58 PM UTC',
+    title: 'My List settings cleanup and category clearing',
+    changes: [
+      'Removed the separate Import Steam row from the My List cogwheel modal while keeping Steam import available inside Import Lists.',
+      'Expanded the cogwheel modal horizontally on mobile without changing its intended vertical footprint.',
+      'Added a red outline around the Import Lists section and a milky divider beneath it.',
+      'Added scroll support to the cogwheel modal so more settings can be added without clipping.',
+      'Added double-confirm category clearing for every library category: TV Shows, Movies, Anime, Games, Manga, and Books.',
+      'Updated the forced visible version footer format to v.369-May 5th, 2026.'
+    ]
+  },
+  {
+    id: 'v368-sort-direction-last-edited',
+    date: '2026-05-05',
+    time: '11:45 PM UTC',
+    title: 'Sort direction toggle and Last Edited sorting',
+    changes: [
+      'Added a clean ascending / descending direction button to the My Lists sort menu across categories and status pages.',
+      'Added Last Edited sorting for Games, TV Shows, and Anime.',
+      'Last Edited updates when a title rating changes, when a comment is posted from that user\'s own list, or when TV/Anime episode checkmarks are changed.',
+      'Held the current card position while the user is actively editing so Last Edited sorting does not instantly jump the card away.',
+      'The edited title moves to the top after switching status/category and returning when Last Edited is active.',
+      'Set the visible version for this build to 368.'
+    ]
+  },
+  {
+    id: 'v367-version-footer-games-wishlist',
+    date: '2026-05-05',
+    time: '11:20 PM UTC',
+    title: 'Visible version footer and Games Wishlist status',
+    changes: [
+      'Added a permanent version number under the Patch Notes button on every main page so Safari, desktop, and PWA builds can be checked visually.',
+      'Set the visible version for this build to 367.',
+      'Added Wishlist as a new saved Games status separate from Playing, Live Games, Backlog, and Played.',
+      'Updated the Games status order to Playing, Backlog, Played, Wishlist.',
+      'Added Wishlist to the Add to Shelf and Discover add flows for games.',
+      'Removed game empty-state emojis for Playing subcategories, Backlog, Played, and Wishlist.'
+    ]
+  },
+  {
+    id: 'v366-steam-igdb-cover-sync',
+    date: '2026-05-05',
+    time: '10:55 PM UTC',
+    title: 'Steam imported game posters repaired with IGDB covers',
+    changes: [
+      'Added the missing /api/igdb/cover Worker route so Shelfd can actually use the configured Twitch/IGDB credentials for game cover art.',
+      'Steam-imported games now request IGDB/Twitch portrait cover art during import and save that poster as the primary game cover.',
+      'Existing Steam-imported games can now repair weak or missing covers during Steam sync instead of waiting for a manual re-import.',
+      'The My Lists game-cover backfill now replaces old non-IGDB covers with IGDB portrait posters and persists the repaired cover to Firestore.',
+      'Duplicate Steam imports now repair missing IGDB cover fields on the existing saved game instead of skipping the poster update.'
+    ]
+  },
+  {
+    id: 'v365-games-playing-live-merge',
+    date: '2026-05-05',
+    time: '10:35 PM UTC',
+    title: 'Games Playing and Live Games merged',
+    changes: [
+      'Merged the top-level Games status tabs so Live Games now lives inside Playing instead of appearing as its own main status button.',
+      'Added a sleek Single Player / Live Games sub-toggle under Add to Shelf when Games → Playing is selected.',
+      'Kept existing Single Player games stored as Playing and existing Live Games stored as Live Games so no library data is migrated or rewritten.',
+      'Made the Playing count include both Single Player and Live Games.',
+      'Set the merged Playing view to default to Live Games, while search inside Playing checks both Single Player and Live Games together.',
+      'Added precise empty states: No single-player games yet and No live games yet.'
     ]
   },
   {
@@ -739,17 +1008,77 @@ function hasUnreadPatchNotes() {
   return SCREENLIST_PATCH_NOTES.some(entry => !readIds.has(getPatchNoteEntryId(entry)));
 }
 
+const SCREENLIST_VISIBLE_VERSION_FALLBACK = 'v.399-May 5th, 2026';
+let screenListVersionFooterObserver = null;
+
+function formatScreenListOrdinalDay(day) {
+  const n = Number(day || 0);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  const mod100 = n % 100;
+  const suffix = mod100 >= 11 && mod100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th');
+  return `${n}${suffix}`;
+}
+
+function formatScreenListBuildDate(value = '') {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return 'May 5th, 2026';
+  const [, year, month, day] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  if (Number.isNaN(date.getTime())) return 'May 5th, 2026';
+  const monthName = date.toLocaleString('en-US', { month: 'long' });
+  return `${monthName} ${formatScreenListOrdinalDay(Number(day))}, ${year}`;
+}
+
+function getScreenListVisibleVersion() {
+  const explicitVersion = String(window.SCREENLIST_DISPLAY_VERSION || '').trim();
+  if (explicitVersion) return explicitVersion;
+  const build = String(
+    window.SCREENLIST_BUILD_VERSION ||
+    document.querySelector('meta[name="screenlist-build-version"]')?.content ||
+    ''
+  ).trim();
+  const versionMatch = build.match(/v(\d+)/i);
+  if (versionMatch && versionMatch[1]) {
+    return `v.${versionMatch[1]}-${formatScreenListBuildDate(build)}`;
+  }
+  return SCREENLIST_VISIBLE_VERSION_FALLBACK;
+}
+
+function removePublicPatchNotesEntryPoints() {
+  document.querySelectorAll('button[onclick*="openPatchNotesPage"]').forEach(button => {
+    button.remove();
+  });
+}
+
+function ensureScreenListVersionFooters() {
+  removePublicPatchNotesEntryPoints();
+  const version = getScreenListVisibleVersion();
+  document.querySelectorAll('.screenlist-bottom-link-wrap, .login-legal-links').forEach(wrap => {
+    let footer = wrap.querySelector('.screenlist-version-footer');
+    if (!footer) {
+      footer = document.createElement('div');
+      footer.className = 'screenlist-version-footer';
+      footer.setAttribute('aria-label', 'Shelfd build version');
+      wrap.appendChild(footer);
+    }
+    if (footer.textContent !== version) footer.textContent = version;
+    footer.dataset.screenlistVersion = version;
+  });
+}
+
+function startScreenListVersionFooterGuard() {
+  ensureScreenListVersionFooters();
+  if (screenListVersionFooterObserver || !('MutationObserver' in window)) return;
+  screenListVersionFooterObserver = new MutationObserver(() => ensureScreenListVersionFooters());
+  screenListVersionFooterObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
+}
+
 function getPatchNotesLinkButtons() {
   return Array.from(document.querySelectorAll('button[onclick="openPatchNotesPage()"]'));
 }
 
 function updatePatchNotesUnreadPing() {
-  const showPing = hasUnreadPatchNotes();
-  getPatchNotesLinkButtons().forEach(button => {
-    button.classList.add('screenlist-patch-notes-link');
-    button.classList.toggle('screenlist-patch-notes-unread', showPing);
-    button.setAttribute('aria-label', showPing ? 'Patch Notes, new updates available' : 'Patch Notes');
-  });
+  ensureScreenListVersionFooters();
 }
 
 function markPatchNoteRead(id = '') {
@@ -809,19 +1138,27 @@ function getOrCreatePatchNotesPage() {
   return page;
 }
 
-function patchNoteToEasternTime(dateStr, timeStr) {
-  try {
-    if (!timeStr) return '';
-    var dt = new Date((dateStr || '') + ' ' + timeStr);
-    if (isNaN(dt.getTime())) return timeStr;
-    return dt.toLocaleString('en-US', {
-      timeZone: 'America/New_York',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-      timeZoneName: 'short'
-    });
-  } catch (e) { return timeStr; }
+
+function getPatchNoteDisplayVersion(entry = {}) {
+  const raw = [entry.id, entry.title, ...(Array.isArray(entry.changes) ? entry.changes : [])].join(' ');
+  const match = String(raw || '').match(/v\.?\s*(\d+)/i);
+  return match && match[1] ? `v.${match[1]}` : 'v.legacy';
+}
+
+function formatPatchNoteEasternDateTime(entry = {}) {
+  const rawTime = `${entry.date || ''} ${entry.time || ''}`.trim();
+  const parsed = Date.parse(rawTime) || Date.parse(entry.date || '');
+  if (!parsed) return `${entry.date || ''}${entry.time ? ` — ${entry.time}` : ''}`.trim();
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+  return `${formatter.format(new Date(parsed))} EST`;
 }
 
 function renderPatchNotesEntries() {
@@ -832,17 +1169,12 @@ function renderPatchNotesEntries() {
   list.innerHTML = entries.map(entry => {
     const id = getPatchNoteEntryId(entry);
     const unreadClass = readIds.has(id) ? '' : ' screenlist-patch-note-unread';
-    const vMatch = id.match(/^(v\d+)/i);
-    const vStr = vMatch ? vMatch[1].toUpperCase() : '';
-    const etTime = patchNoteToEasternTime(entry.date || '', entry.time || '');
-    return `<article class="screenlist-patch-note-card${unreadClass}" data-patch-note-id="${escAttr(id)}">
-      <div class="screenlist-patch-note-simple">
-        <span class="screenlist-patch-note-entry-ping" aria-label="Unread update"></span>
-        ${entry.date ? `<div class="screenlist-patch-note-s-date">${escHtml(entry.date)}</div>` : ''}
-        ${etTime ? `<div class="screenlist-patch-note-s-time">${escHtml(etTime)}</div>` : ''}
-        <div class="screenlist-patch-note-s-label">Update Applied</div>
-        ${vStr ? `<div class="screenlist-patch-note-s-version">${escHtml(vStr)}</div>` : ''}
-      </div>
+    return `
+    <article class="screenlist-patch-note-card screenlist-patch-note-card-simple${unreadClass}" data-patch-note-id="${escAttr(id)}">
+      <div class="screenlist-patch-note-date">${escHtml(formatPatchNoteEasternDateTime(entry))}</div>
+      <div class="screenlist-patch-note-applied">Update applied</div>
+      <div class="screenlist-patch-note-version">${escHtml(getPatchNoteDisplayVersion(entry))}</div>
+      <span class="screenlist-patch-note-entry-ping" aria-label="Unread update"></span>
     </article>`;
   }).join('');
 }
@@ -871,8 +1203,14 @@ function closePatchNotesPage() {
 }
 
 
-document.addEventListener('DOMContentLoaded', updatePatchNotesUnreadPing);
-window.addEventListener('load', updatePatchNotesUnreadPing);
+document.addEventListener('DOMContentLoaded', () => {
+  startScreenListVersionFooterGuard();
+  updatePatchNotesUnreadPing();
+});
+window.addEventListener('load', () => {
+  startScreenListVersionFooterGuard();
+  updatePatchNotesUnreadPing();
+});
 
 window.addEventListener('resize', () => {
   clearTimeout(discoverResizeTimer);

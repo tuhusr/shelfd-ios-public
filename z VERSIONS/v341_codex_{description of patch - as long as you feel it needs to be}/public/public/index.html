@@ -17,7 +17,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=292-activity-card-smaller-text-halfstar-fix">
 <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png?v=292-activity-card-smaller-text-halfstar-fix">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=292-activity-card-smaller-text-halfstar-fix">
-<link rel="manifest" href="/site.webmanifest?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="manifest" href="/site.webmanifest?v=375-global-igdb-game-cover-override">
 
 <meta property="og:title" content="Shelfd">
 <meta property="og:description" content="Track your shows, movies, anime, games, books, and more.">
@@ -65,24 +65,24 @@
   })();
 </script>
 <link rel="stylesheet" href="/css/00-base-layout.css?v=292-activity-card-smaller-text-halfstar-fix">
-<link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=341-comment-fix-pwa-typing">
-<link rel="stylesheet" href="/css/02-comments-login-theme.css?v=322-aptos-creator-tags-dropdown-watchslot">
+<link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=399-game-status-scroll-toggle-gray">
+<link rel="stylesheet" href="/css/02-comments-login-theme.css?v=292-activity-card-smaller-text-halfstar-fix">
 <link rel="stylesheet" href="/css/03-friends-discovery-base.css?v=292-activity-card-smaller-text-halfstar-fix">
-<link rel="stylesheet" href="/css/04-activity-feed.css?v=322-aptos-creator-tags-dropdown-watchslot">
-<link rel="stylesheet" href="/css/05-messages-early-polish.css?v=330-milky-pill-weight-spacing">
-<link rel="stylesheet" href="/css/06-profile.css?v=293-profile-cleanup">
-<link rel="stylesheet" href="/css/07-imports-discover-rankings.css?v=292-activity-card-smaller-text-halfstar-fix">
-<link rel="stylesheet" href="/css/08-watch-together.css?v=301-mylist-render-recovery-no-swipe">
+<link rel="stylesheet" href="/css/04-activity-feed.css?v=300-mylist-completion-modal-activity-card-actions">
+<link rel="stylesheet" href="/css/05-messages-early-polish.css?v=292-activity-card-smaller-text-halfstar-fix">
+<link rel="stylesheet" href="/css/06-profile.css?v=398-profile-top3-library-picker">
+<link rel="stylesheet" href="/css/07-imports-discover-rankings.css?v=382-myanimelist-desktop-helper">
+<link rel="stylesheet" href="/css/08-watch-together.css?v=380-shared-watch-explainer-cyan-scope">
 <link rel="stylesheet" href="/css/09-direct-messages.css?v=280-dm-plaintext-aptos-composer">
 <link rel="stylesheet" href="/css/10-mobile-transitions-media-profile.css?v=292-activity-card-smaller-text-halfstar-fix">
-<link rel="stylesheet" href="/css/11-patch-notes-friends-refinements.css?v=341-comment-fix-pwa-typing">
+<link rel="stylesheet" href="/css/11-patch-notes-friends-refinements.css?v=377-import-activity-shared-watch-episode-activity">
 <link rel="stylesheet" href="/css/12-pwa-header-continuity.css?v=264-friends-search-nav-fluid">
-<link rel="stylesheet" href="/css/13-e2ee-activity-post.css?v=304-underline-indicator">
-<link rel="stylesheet" href="/css/14-live-update-discover-controls.css?v=330-milky-pill-weight-spacing">
-<link rel="stylesheet" href="/css/15-universal-discovery-search.css?v=292-discover-search-spacing-true-dark-default">
+<link rel="stylesheet" href="/css/13-e2ee-activity-post.css?v=379-friends-discovery-performance-cogwheel-divider">
+<link rel="stylesheet" href="/css/14-live-update-discover-controls.css?v=304-underline-indicator">
+<link rel="stylesheet" href="/css/15-universal-discovery-search.css?v=375-global-igdb-game-cover-override">
 
-<meta name="screenlist-build-version" content="2026-05-05-v341-comment-fix-pwa-typing">
-<script>window.SCREENLIST_BUILD_VERSION = "2026-05-05-v341-comment-fix-pwa-typing";</script>
+<meta name="screenlist-build-version" content="2026-05-05-v399-game_status_scroll_toggle_gray">
+<script>window.SCREENLIST_BUILD_VERSION = "2026-05-05-v399-game_status_scroll_toggle_gray"; window.SCREENLIST_DISPLAY_VERSION = "v.399-May 5th, 2026";</script>
 </head>
 <body>
 
@@ -162,7 +162,6 @@
         <div class="login-legal-links">
           <button class="login-privacy-link" type="button" onclick="openLoginTermsPage()">Terms of Service</button>
           <button class="login-privacy-link" type="button" onclick="openLoginPrivacyPage()">Privacy Policy</button>
-          <button class="login-privacy-link" type="button" onclick="openPatchNotesPage()">Patch Notes</button>
         </div>
   </div>
 </div>
@@ -212,10 +211,10 @@
           <div class="header-logo-block">
             <img class="site-logo-img" src="/site_header_logo.png?v=292-activity-card-smaller-text-halfstar-fix" alt="ScreenList" decoding="async" role="button" tabindex="0" title="Go to My Lists" onclick="goToDefaultMyListsPage()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();goToDefaultMyListsPage();}">
             <img class="site-wordmark-img" src="/shelfd_header_wordmark.png?v=292-activity-card-smaller-text-halfstar-fix" alt="Shelfd" decoding="async" role="button" tabindex="0" title="Go to My Lists" onclick="goToDefaultMyListsPage()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();goToDefaultMyListsPage();}">
-            <button class="header-import-btn" type="button" onclick="openImportPage()">Import Lists</button>
             <button id="mylist-header-cog" class="mylist-header-cog" type="button" onclick="openMyListSettingsModal(this)" aria-label="My List settings" title="My List settings">
               <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18" aria-hidden="true"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
             </button>
+            <button class="header-import-btn" type="button" onclick="openImportPage()">Import</button>
           </div>
         </div>
       </div>
@@ -274,7 +273,7 @@
     <button class="profile-back-btn" type="button" onclick="closeImportPage()">← Back</button>
     <div>
       <div class="import-title">Import Library</div>
-      <div class="import-subtitle">Bring in Letterboxd, IMDb, MyAnimeList, and Backloggd-style lists without leaving ScreenList.</div>
+      <div class="import-subtitle">Bring in Steam, Letterboxd, IMDb, MyAnimeList, and Backloggd-style lists without leaving ScreenList.</div>
     </div>
   </div>
 
@@ -284,30 +283,72 @@
   </div>
 
   <div class="import-source-grid">
-    <label class="import-source-card">
-      <input type="file" accept=".zip,.csv" onchange="handleImportFile('letterboxd', this.files && this.files[0])">
-      <span class="import-source-name">Letterboxd</span>
+    <button id="steam-import-card" class="import-source-card import-source-card-button" type="button" onclick="handleSteamImportAction(event)">
+      <span class="import-source-heading">
+        <span class="import-source-logo"><img src="/assets/import-icons/steam.png" alt=""></span>
+        <span class="import-source-name">Steam</span>
+      </span>
+      <span id="steam-import-copy" class="import-source-copy">Connect your Steam account and pull your owned games with playtime.</span>
+      <span id="steam-import-meta" class="import-source-meta">Uses proper Sign in through Steam, then syncs on demand.</span>
+      <span id="steam-import-action" class="import-source-action">Connect Steam</span>
+    </button>
+    <button class="import-source-card import-source-card-button" type="button" onclick="openImportSourcePage('letterboxd')">
+      <span class="import-source-heading">
+        <span class="import-source-logo"><img src="/assets/import-icons/letterboxd.png" alt=""></span>
+        <span class="import-source-name">Letterboxd</span>
+      </span>
       <span class="import-source-copy">ZIP export or ratings / watched / watchlist CSV.</span>
-      <span class="import-source-action">Choose file</span>
-    </label>
-    <label class="import-source-card">
-      <input type="file" accept=".csv" onchange="handleImportFile('imdb', this.files && this.files[0])">
-      <span class="import-source-name">IMDb</span>
+      <span class="import-source-action">Open import page</span>
+    </button>
+    <button class="import-source-card import-source-card-button" type="button" onclick="openImportSourcePage('imdb')">
+      <span class="import-source-heading">
+        <span class="import-source-logo"><img src="/assets/import-icons/imdb.png" alt=""></span>
+        <span class="import-source-name">IMDb</span>
+      </span>
       <span class="import-source-copy">Ratings, watchlist, or custom list CSV.</span>
-      <span class="import-source-action">Choose file</span>
-    </label>
-    <label class="import-source-card">
-      <input type="file" accept=".xml,.zip" onchange="handleImportFile('myanimelist', this.files && this.files[0])">
-      <span class="import-source-name">MyAnimeList</span>
+      <span class="import-source-action">Open import page</span>
+    </button>
+    <button class="import-source-card import-source-card-button" type="button" onclick="openImportSourcePage('myanimelist')">
+      <span class="import-source-heading">
+        <span class="import-source-logo"><img src="/assets/import-icons/myanimelist.png" alt=""></span>
+        <span class="import-source-name">MyAnimeList</span>
+      </span>
       <span class="import-source-copy">Anime list XML export, zipped or unzipped.</span>
-      <span class="import-source-action">Choose file</span>
-    </label>
-    <label class="import-source-card">
-      <input type="file" accept=".csv" onchange="handleImportFile('backloggd', this.files && this.files[0])">
-      <span class="import-source-name">Backloggd</span>
+      <span class="import-source-action">Open import page</span>
+    </button>
+    <button class="import-source-card import-source-card-button" type="button" onclick="openImportSourcePage('backloggd')">
+      <span class="import-source-heading">
+        <span class="import-source-logo"><img src="/assets/import-icons/backloggd.png" alt=""></span>
+        <span class="import-source-name">Backloggd</span>
+      </span>
       <span class="import-source-copy">Backloggd-style or manual game CSV.</span>
-      <span class="import-source-action">Choose file</span>
-    </label>
+      <span class="import-source-action">Open import page</span>
+    </button>
+  </div>
+
+  <input id="import-file-letterboxd" class="screenlist-hidden-import-input" type="file" accept=".zip,.csv" onchange="handleImportFile('letterboxd', this.files && this.files[0])">
+  <input id="import-file-imdb" class="screenlist-hidden-import-input" type="file" accept=".csv" onchange="handleImportFile('imdb', this.files && this.files[0])">
+  <input id="import-file-myanimelist" class="screenlist-hidden-import-input" type="file" accept=".xml,.zip" onchange="handleImportFile('myanimelist', this.files && this.files[0])">
+  <input id="import-file-backloggd" class="screenlist-hidden-import-input" type="file" accept=".csv" onchange="handleImportFile('backloggd', this.files && this.files[0])">
+
+  <div id="import-source-detail-panel" class="import-source-detail-panel" aria-hidden="true">
+    <div class="import-source-detail-shell">
+      <div class="import-topbar import-source-detail-topbar">
+        <button class="profile-back-btn" type="button" onclick="closeImportSourcePage()">← Back</button>
+        <div>
+          <div id="import-source-detail-title" class="import-title">Import Library</div>
+          <div id="import-source-detail-subtitle" class="import-subtitle">Choose an export file to preview before syncing.</div>
+        </div>
+      </div>
+      <div class="import-intro-card import-source-detail-card">
+        <div id="import-source-detail-card-title" class="import-intro-title">Upload export file</div>
+        <div id="import-source-detail-card-copy" class="import-intro-copy">ScreenList reads your file, previews what it found, then imports only after you confirm.</div>
+        <div id="import-source-detail-helper" class="import-source-detail-helper" hidden></div>
+        <button id="import-source-detail-file-btn" class="btn-primary import-source-detail-file-btn" type="button" onclick="triggerImportFilePicker()">Choose file</button>
+      </div>
+      <div id="import-detail-status" class="import-status" aria-live="polite"></div>
+      <div id="import-detail-preview" class="import-preview"></div>
+    </div>
   </div>
 
   <div class="import-options-card">
@@ -323,6 +364,38 @@
 
   <div id="import-status" class="import-status" aria-live="polite"></div>
   <div id="import-preview" class="import-preview"></div>
+</div>
+</div>
+
+<div id="steam-sync-view" style="display:none">
+<div class="container main-content import-shell steam-sync-shell">
+  <div class="import-topbar steam-sync-topbar">
+    <button class="profile-back-btn" type="button" onclick="closeSteamSyncPage()">← Back</button>
+    <div>
+      <div class="import-title">Steam Library</div>
+      <div class="import-subtitle">Review your synced Steam games before they are added to Shelfd.</div>
+    </div>
+  </div>
+
+  <div class="steam-sync-summary-card">
+    <div class="steam-sync-summary-main">
+      <span class="steam-sync-provider-icon" aria-hidden="true">Steam</span>
+      <div>
+        <div id="steam-sync-summary-title" class="steam-sync-summary-title">Preparing Steam sync</div>
+        <div id="steam-sync-summary-copy" class="steam-sync-summary-copy">Your library preview will appear here after Steam responds.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="import-options-card steam-sync-options-card">
+    <label class="import-option-row">
+      <input type="checkbox" id="steam-sync-skip-duplicates" checked>
+      <span>Skip games already in your Shelfd library</span>
+    </label>
+  </div>
+
+  <div id="steam-sync-status" class="import-status" aria-live="polite"></div>
+  <div id="steam-sync-preview" class="import-preview"></div>
 </div>
 </div>
 
@@ -350,6 +423,7 @@
       <button class="tab-btn active" data-tab="watching" onclick="switchTab('watching')">Watching<span class="tab-count" id="count-watching">0</span></button>
       <button class="tab-btn" data-tab="planned" onclick="switchTab('planned')">Watchlist<span class="tab-count" id="count-planned">0</span></button>
       <button class="tab-btn" data-tab="watched" onclick="switchTab('watched')">Watched<span class="tab-count" id="count-watched">0</span></button>
+      <button class="tab-btn" data-tab="wishlist" onclick="switchTab('wishlist')" style="display:none">Wishlist<span class="tab-count" id="count-wishlist">0</span></button>
       <button class="tab-btn" data-tab="paused" onclick="switchTab('paused')">Paused<span class="tab-count" id="count-paused">0</span></button>
     </div>
     <div class="toolbar-right">
@@ -364,7 +438,7 @@
     <p class="empty-sub">Click the button above to add one</p>
     <button class="btn-primary empty-cta" id="empty-cta" onclick="openModal()">Add your first title</button>
   </div>
-  <div class="screenlist-bottom-link-wrap"><button class="screenlist-bottom-link" type="button" onclick="openPatchNotesPage()">Patch Notes</button></div>
+  <div class="screenlist-bottom-link-wrap"></div>
 </div>
 </div>
 
@@ -463,7 +537,7 @@
       <div class="skeleton-card"></div>
     </div>
 </div>
-  <div class="screenlist-bottom-link-wrap"><button class="screenlist-bottom-link" type="button" onclick="openPatchNotesPage()">Patch Notes</button></div>
+  <div class="screenlist-bottom-link-wrap"></div>
 </div>
 </div>
 
@@ -592,7 +666,7 @@
       <button class="discover-expand-btn" data-discover-target="discover-movie-hidden-gems-grid" onclick="toggleDiscoverSection('discover-movie-hidden-gems-grid')">Show more</button>
     </div>
   </div>
-  <div class="screenlist-bottom-link-wrap"><button class="screenlist-bottom-link" type="button" onclick="openPatchNotesPage()">Patch Notes</button></div>
+  <div class="screenlist-bottom-link-wrap"></div>
 </div>
 </div>
 
@@ -652,7 +726,7 @@
     <div class="discover-grid" id="anime-discover-trending-grid"><div class="discover-message">Open Anime to load trending anime.</div></div>
     <button class="discover-expand-btn" data-discover-target="anime-discover-trending-grid" onclick="toggleDiscoverSection('anime-discover-trending-grid')">Show more</button>
   </div>
-  <div class="screenlist-bottom-link-wrap"><button class="screenlist-bottom-link" type="button" onclick="openPatchNotesPage()">Patch Notes</button></div>
+  <div class="screenlist-bottom-link-wrap"></div>
 </div>
 </div>
 
@@ -737,7 +811,7 @@
     <div class="discover-grid" id="discover-games-hidden-grid"><div class="discover-message">Open Games Discovery to load hidden gems.</div></div>
     <button class="discover-expand-btn" data-discover-target="discover-games-hidden-grid" onclick="toggleDiscoverSection('discover-games-hidden-grid')">Show more</button>
   </div>
-  <div class="screenlist-bottom-link-wrap"><button class="screenlist-bottom-link" type="button" onclick="openPatchNotesPage()">Patch Notes</button></div>
+  <div class="screenlist-bottom-link-wrap"></div>
 </div>
 </div>
 
@@ -850,9 +924,14 @@
         </div>
       </div>
       <div class="profile-topbar-actions">
-        <button class="profile-settings-btn" type="button" onclick="openProfileSettingsFocus()" title="Profile settings" aria-label="Profile settings">⚙</button>
-        <button class="profile-share-btn" onclick="shareProfile()" title="Share profile"><span>↗</span><span>Share Profile</span></button>
-        <button class="profile-save-btn" onclick="saveProfile()">Save Profile</button>
+        <button class="profile-settings-btn" type="button" onclick="openProfileSettingsFocus()" title="Profile settings" aria-label="Profile settings">
+          <svg class="profile-topbar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"></path><path d="M19.4 15a1.75 1.75 0 0 0 .35 1.93l.03.03a2.12 2.12 0 0 1-3 3l-.03-.03a1.75 1.75 0 0 0-1.93-.35 1.75 1.75 0 0 0-1.06 1.61V21a2.12 2.12 0 0 1-4.24 0v-.05a1.75 1.75 0 0 0-1.06-1.61 1.75 1.75 0 0 0-1.93.35l-.03.03a2.12 2.12 0 0 1-3-3l.03-.03A1.75 1.75 0 0 0 4.6 15a1.75 1.75 0 0 0-1.61-1.06H3a2.12 2.12 0 0 1 0-4.24h.05A1.75 1.75 0 0 0 4.66 8.64a1.75 1.75 0 0 0-.35-1.93l-.03-.03a2.12 2.12 0 0 1 3-3l.03.03a1.75 1.75 0 0 0 1.93.35A1.75 1.75 0 0 0 10.3 2.45V2a2.12 2.12 0 0 1 4.24 0v.45a1.75 1.75 0 0 0 1.06 1.61 1.75 1.75 0 0 0 1.93-.35l.03-.03a2.12 2.12 0 0 1 3 3l-.03.03a1.75 1.75 0 0 0-.35 1.93 1.75 1.75 0 0 0 1.61 1.06H22a2.12 2.12 0 0 1 0 4.24h-.2A1.75 1.75 0 0 0 19.4 15Z"></path></svg>
+        </button>
+        <button class="profile-share-btn" onclick="shareProfile()" title="Share profile">
+          <svg class="profile-topbar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"></path><path d="m7 8 5-5 5 5"></path><path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"></path></svg>
+          <span>Share Profile</span>
+        </button>
+        <button class="profile-save-btn" onclick="openProfileEditMode()">Edit Profile</button>
       </div>
     </div>
 
@@ -862,27 +941,24 @@
       <div class="profile-hero-inner">
         <div class="profile-avatar-panel">
           <img class="profile-page-avatar" id="profile-preview" src="" alt="Profile picture">
-          <div class="profile-avatar-actions">
-            <label class="profile-mini-btn" style="cursor:pointer;">
-              Upload
-              <input type="file" accept="image/*" id="profile-file" onchange="handleProfileUpload(this)" style="display:none;">
-            </label>
-            <button class="profile-mini-btn" onclick="toggleProfilePhotoUrl()">Photo URL</button>
-          </div>
+          <label class="profile-avatar-edit-btn" title="Edit profile picture" aria-label="Edit profile picture">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"></path></svg>
+            <input type="file" accept="image/*" id="profile-file" onchange="handleProfileUpload(this)" style="display:none;">
+          </label>
         </div>
         <div class="profile-main-fields">
-          <div class="profile-eyebrow">Your ScreenList home</div>
+          
           <input type="text" id="profile-name" class="profile-name-input" placeholder="Nickname">
           <textarea id="profile-bio" class="profile-bio-input" maxlength="220" placeholder="Write a short bio — favorite genres, what you are watching, your gaming vibe, or anything you want people to know."></textarea>
           <div id="profile-url-row" class="profile-url-inline">
             <input type="url" id="profile-photo" placeholder="Photo URL" oninput="previewProfilePhoto(this.value)">
           </div>
-          <div class="profile-mobile-links-zone" id="profile-mobile-links-zone">
-            <div class="profile-mobile-links-line" aria-hidden="true"></div>
-            <div class="profile-mobile-links-grid" id="profile-mobile-links-grid"></div>
-            <div class="profile-mobile-links-line profile-mobile-links-line-bottom" aria-hidden="true"></div>
-          </div>
         </div>
+      </div>
+      <div class="profile-mobile-links-zone" id="profile-mobile-links-zone">
+        <div class="profile-mobile-links-line" aria-hidden="true"></div>
+        <div class="profile-mobile-links-grid" id="profile-mobile-links-grid"></div>
+        <div class="profile-mobile-links-line profile-mobile-links-line-bottom" aria-hidden="true"></div>
       </div>
       <div class="profile-stats-grid" id="profile-stats-grid"></div>
     </div>
@@ -1116,28 +1192,28 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-<script src="/js/00-live-update-pwa.js?v=303-pwa-reinstall-notice"></script>
+<script src="/js/00-live-update-pwa.js?v=359-aggressive-pwa-refresh"></script>
 <script src="/js/01-firebase-login-state.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
 <script src="/js/02-messages-e2ee.js?v=280-dm-plaintext-aptos-composer"></script>
 <script src="/js/03-watch-together.js?v=294-watch-together-modal-search"></script>
-<script src="/js/04-shared-utils-data.js?v=322-aptos-creator-tags-dropdown-watchslot"></script>
-<script src="/js/05-app-state-preview-routes.js?v=305-game-sort-modal-redesign"></script>
-<script src="/js/06-mylists-render-episodes-ratings.js?v=341-comment-fix-pwa-typing"></script>
-<script src="/js/07-add-shelf-import-search.js?v=315-optimistic-add"></script>
-<script src="/js/08-discovery-state.js?v=292-activity-card-smaller-text-halfstar-fix"></script>
+<script src="/js/04-shared-utils-data.js?v=375-global-igdb-game-cover-override"></script>
+<script src="/js/05-app-state-preview-routes.js?v=375-global-igdb-game-cover-override"></script>
+<script src="/js/06-mylists-render-episodes-ratings.js?v=399-game-status-scroll-toggle-gray"></script>
+<script src="/js/07-add-shelf-import-search.js?v=375-global-igdb-game-cover-override"></script>
+<script src="/js/08-discovery-state.js?v=379-friends-discovery-performance-cogwheel-divider"></script>
 <script src="/js/09-direct-messages.js?v=280-dm-plaintext-aptos-composer"></script>
-<script src="/js/10-activity-feed.js?v=319-own-activity-feed"></script>
-<script src="/js/11-discovery-media-games-profiles.js?v=309-igdb-discover-covers"></script>
-<script src="/js/12-patch-notes.js?v=341-comment-fix-pwa-typing"></script>
-<script src="/js/13-discover-add-imports.js?v=299-completion-post-prompt"></script>
-<script src="/js/14-navigation.js?v=264-friends-search-nav-fluid"></script>
-<script src="/js/15-profile-settings.js?v=322-aptos-creator-tags-dropdown-watchslot"></script>
-<script src="/js/16-friends-requests.js?v=319-own-activity-feed"></script>
-<script src="/js/17-comments-auth-init.js?v=302-splash-until-app-ready"></script>
+<script src="/js/10-activity-feed.js?v=379-friends-discovery-performance-cogwheel-divider"></script>
+<script src="/js/11-discovery-media-games-profiles.js?v=379-friends-discovery-performance-cogwheel-divider"></script>
+<script src="/js/12-patch-notes.js?v=399-game-status-scroll-toggle-gray"></script>
+<script src="/js/13-discover-add-imports.js?v=382-myanimelist-desktop-helper"></script>
+<script src="/js/14-navigation.js?v=379-friends-discovery-performance-cogwheel-divider"></script>
+<script src="/js/15-profile-settings.js?v=398-profile-top3-library-picker"></script>
+<script src="/js/16-friends-requests.js?v=379-friends-discovery-performance-cogwheel-divider"></script>
+<script src="/js/17-comments-auth-init.js?v=375-global-igdb-game-cover-override"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('/sw.js?v=375-global-igdb-game-cover-override', { updateViaCache: 'none' })
         .then(registration => {
           if (registration && typeof registration.update === 'function') {
             registration.update().catch(error => console.warn('Shelfd service worker update check failed:', error));
@@ -1146,162 +1222,6 @@
         .catch(error => console.warn('Shelfd service worker registration failed:', error));
     });
   }
-</script>
-<script>
-(function(){
-  var ver = window.SCREENLIST_BUILD_VERSION || '';
-  var vMatch = ver.match(/v\d+/);
-  var vStr = vMatch ? vMatch[0].toUpperCase() : '';
-  var loadedAt = new Date();
-  var etTime = '';
-  try {
-    etTime = loadedAt.toLocaleString('en-US', {
-      timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit',
-      hour12: true, timeZoneName: 'short'
-    });
-  } catch(e) {
-    etTime = loadedAt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-  }
-  var dateStr = loadedAt.toISOString().slice(0, 10);
-  var badgeText = [dateStr, etTime, vStr].filter(Boolean).join(' · ');
-  var vLabelText = vStr;
-
-  // Inject running version at top of patch notes list
-  function tryInjectPatchBadge() {
-    var list = document.getElementById('screenlist-patch-notes-list');
-    if (!list) return false;
-    if (list.querySelector('#shelfd-version-badge')) return true;
-    if (!list.children.length) return false;
-    var badge = document.createElement('div');
-    badge.id = 'shelfd-version-badge';
-    badge.style.cssText = "font-family:'Aptos','DM Sans',sans-serif;font-size:13px;font-weight:300;color:rgba(255,255,255,0.45);text-align:center;padding:4px 0 18px;letter-spacing:0.3px;pointer-events:none;";
-    badge.textContent = 'Running: ' + badgeText;
-    list.insertBefore(badge, list.firstChild);
-    return true;
-  }
-
-  // Inject version label below each Patch Notes button
-  function tryInjectVersionLabels() {
-    document.querySelectorAll('.screenlist-bottom-link-wrap').forEach(function(wrap) {
-      if (!vLabelText || wrap.querySelector('.shelfd-version-inline')) return;
-      var lbl = document.createElement('div');
-      lbl.className = 'shelfd-version-inline';
-      lbl.textContent = vLabelText;
-      wrap.appendChild(lbl);
-    });
-  }
-
-  function tryInjectAll() {
-    tryInjectPatchBadge();
-    tryInjectVersionLabels();
-  }
-
-  var obs = new MutationObserver(function(){ tryInjectAll(); });
-  obs.observe(document.body, { childList: true, subtree: true });
-  tryInjectAll();
-})();
-</script>
-
-<!-- PWA Install Prompt — v340 -->
-<div id="shelfd-pwa-prompt" style="display:none;" aria-modal="true" role="dialog" aria-label="Get the best experience">
-  <div class="shelfd-pwa-prompt-modal" onclick="event.stopPropagation()">
-    <div class="shelfd-pwa-prompt-title">Best Experienced as an App</div>
-    <div class="shelfd-pwa-prompt-body">Over 300 users are already on the home screen app. If you're on iPhone, open this page in <strong>Safari</strong>, tap the Share icon, then <strong>Add to Home Screen</strong> for the best presentation and full functionality.<br><br>A native app is also coming soon.</div>
-    <button class="shelfd-pwa-prompt-dismiss" type="button" onclick="shelfdDismissPwaPrompt()">Got it</button>
-  </div>
-</div>
-<style>
-#shelfd-pwa-prompt {
-  position: fixed;
-  inset: 0;
-  z-index: 99000;
-  background: rgba(5,4,16,0.72);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  animation: shelfdPwaPromptFadeIn 0.28s ease;
-}
-@keyframes shelfdPwaPromptFadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-.shelfd-pwa-prompt-modal {
-  width: min(420px, 100%);
-  background: linear-gradient(180deg, rgba(22,16,48,0.99), rgba(10,8,28,0.99));
-  border: 1px solid rgba(167,139,250,0.28);
-  border-radius: 24px;
-  padding: 24px 22px 20px;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.56), inset 0 0 0 1px rgba(255,255,255,0.04);
-  animation: shelfdPwaPromptSlideUp 0.32s cubic-bezier(0.22,1,0.36,1);
-}
-@keyframes shelfdPwaPromptSlideUp {
-  from { transform: translateY(22px); opacity: 0; }
-  to   { transform: translateY(0);    opacity: 1; }
-}
-.shelfd-pwa-prompt-title {
-  font-family: 'Aptos', 'DM Sans', sans-serif;
-  font-size: 17px;
-  font-weight: 600;
-  color: #ffffff;
-  margin-bottom: 11px;
-  letter-spacing: -0.01em;
-}
-.shelfd-pwa-prompt-body {
-  font-family: 'Aptos', 'DM Sans', sans-serif;
-  font-size: 14px;
-  font-weight: 300;
-  line-height: 1.6;
-  color: rgba(255,255,255,0.72);
-  margin-bottom: 20px;
-}
-.shelfd-pwa-prompt-body strong {
-  color: #ffffff;
-  font-weight: 500;
-}
-.shelfd-pwa-prompt-dismiss {
-  -webkit-appearance: none;
-  appearance: none;
-  display: block;
-  width: 100%;
-  min-height: 44px;
-  border: 1px solid rgba(167,139,250,0.34);
-  border-radius: 999px;
-  background: linear-gradient(135deg, rgba(124,58,237,0.28), rgba(167,139,250,0.14));
-  color: #ffffff;
-  font-family: 'Aptos', 'DM Sans', sans-serif;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  letter-spacing: 0.01em;
-  -webkit-tap-highlight-color: transparent;
-}
-.shelfd-pwa-prompt-dismiss:active {
-  transform: scale(0.98);
-}
-</style>
-<script>
-(function(){
-  try {
-    if (sessionStorage.getItem('shelfd-pwa-prompt-v1')) return;
-    if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return;
-    setTimeout(function(){
-      var el = document.getElementById('shelfd-pwa-prompt');
-      var ls = document.getElementById('login-screen');
-      if (!el) return;
-      // Only show when login screen is visible (landing page)
-      if (ls && ls.style.display === 'none') return;
-      el.style.display = 'flex';
-    }, 2200);
-  } catch(e) {}
-})();
-function shelfdDismissPwaPrompt() {
-  try { sessionStorage.setItem('shelfd-pwa-prompt-v1', '1'); } catch(e) {}
-  var el = document.getElementById('shelfd-pwa-prompt');
-  if (el) el.style.display = 'none';
-}
 </script>
 </body>
 </html>

@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Shelfd app icon (v637) — modernized.
+  Changes from previous icon:
+   1. Background recolored to #181c20 (matches app dark mode)
+   2. Gold half: vertical amber gradient (#fde68a → #f5d27a → #c89a4d)
+   3. Purple half: vertical gradient stroke (#a78bfa → #8b5cf6 → #7c3aed)
+      with thicker, weight-balanced outline
+   4. Faint purple ambient glow behind the star
+   5. Closed seam — gold's right edge IS the purple outline's left stroke
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Background subtle radial — slightly warmer at center, deeper at edges -->
+    <radialGradient id="bgGrad" cx="50%" cy="48%" r="65%">
+      <stop offset="0%"  stop-color="#1f242b"/>
+      <stop offset="60%" stop-color="#181c20"/>
+      <stop offset="100%" stop-color="#0f1216"/>
+    </radialGradient>
+
+    <!-- Gold vertical gradient for the left half of the star -->
+    <linearGradient id="goldGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#fde68a"/>
+      <stop offset="50%"  stop-color="#f5d27a"/>
+      <stop offset="100%" stop-color="#c89a4d"/>
+    </linearGradient>
+
+    <!-- Subtle inner highlight on the gold (light catching the surface) -->
+    <linearGradient id="goldHighlight" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"  stop-color="rgba(255,255,255,0.18)"/>
+      <stop offset="55%" stop-color="rgba(255,255,255,0)"/>
+    </linearGradient>
+
+    <!-- Purple vertical gradient for the right half stroke -->
+    <linearGradient id="purpleGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#a78bfa"/>
+      <stop offset="50%"  stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+
+    <!-- Soft purple ambient glow behind the star -->
+    <radialGradient id="ambientGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="rgba(139,92,246,0.32)"/>
+      <stop offset="55%"  stop-color="rgba(139,92,246,0.10)"/>
+      <stop offset="100%" stop-color="rgba(139,92,246,0)"/>
+    </radialGradient>
+
+    <!--
+      Star path. Classic five-point star, geometrically correct.
+      Centered at (512, 540) with outer radius 380.
+      The points are computed at 90°, 162°, 234°, 306°, 18° (top-counterclockwise).
+      Inner radius is outer * sin(18°)/sin(54°) ≈ 0.382 * outer.
+    -->
+    <path id="starPath" d="
+      M 512 160
+      L 599.42 415.61
+      L 870 415.61
+      L 651.29 573.29
+      L 734.72 832.18
+      L 512 672
+      L 289.28 832.18
+      L 372.71 573.29
+      L 154 415.61
+      L 424.58 415.61
+      Z"/>
+
+    <!-- Left half clip (mask everything to the left of x=512) -->
+    <clipPath id="leftHalf">
+      <rect x="0" y="0" width="512" height="1024"/>
+    </clipPath>
+
+    <!-- Right half clip (everything to the right of x=512) -->
+    <clipPath id="rightHalf">
+      <rect x="512" y="0" width="512" height="1024"/>
+    </clipPath>
+  </defs>
+
+  <!-- 1. Background -->
+  <rect x="0" y="0" width="1024" height="1024" fill="url(#bgGrad)"/>
+
+  <!-- 4. Ambient purple glow behind the star -->
+  <ellipse cx="512" cy="540" rx="430" ry="430" fill="url(#ambientGlow)"/>
+
+  <!-- 2. GOLD half — solid filled star clipped to left half -->
+  <g clip-path="url(#leftHalf)">
+    <use href="#starPath" fill="url(#goldGrad)"/>
+    <!-- subtle highlight overlay for premium metal feel -->
+    <use href="#starPath" fill="url(#goldHighlight)"/>
+  </g>
+
+  <!-- 3. PURPLE half — outlined star clipped to right half.
+       Stroke is thick (28px on a 1024 canvas ≈ 2.7%) to weight-balance
+       against the solid gold side. stroke-linejoin="miter" preserves
+       the sharp point geometry. -->
+  <g clip-path="url(#rightHalf)">
+    <use href="#starPath"
+         fill="none"
+         stroke="url(#purpleGrad)"
+         stroke-width="28"
+         stroke-linejoin="miter"
+         stroke-miterlimit="10"/>
+  </g>
+
+  <!-- 5. Closed seam — a single 28px-wide vertical purple bar that runs
+       along the star's vertical centerline, from the top point to the
+       bottom V notch. This makes the gold's right edge meet the purple
+       outline cleanly with no gap. -->
+  <g clip-path="url(#rightHalf)">
+    <line x1="512" y1="160" x2="512" y2="672"
+          stroke="url(#purpleGrad)"
+          stroke-width="28"
+          stroke-linecap="square"/>
+  </g>
+</svg>

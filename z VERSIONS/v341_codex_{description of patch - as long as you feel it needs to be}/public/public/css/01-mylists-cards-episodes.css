@@ -1,4 +1,4 @@
-:root { --shelfd-mylist-css-patch: "v341-comment-fix-pwa-typing"; }
+:root { --shelfd-mylist-css-patch: "v374-footer-desktop-mobile-layout-fix"; }
   /* Section toggle */
   .section-toggle {
     display: flex; margin-top: 20px; background: rgba(255,255,255,0.035); border-radius: 999px;
@@ -117,6 +117,63 @@
   }
   .tab-btn.active .tab-count { background: rgba(255,255,255,0.08); }
   .toolbar-right { display: flex; gap: 8px; }
+  .games-playing-subfilter {
+    width: 100%;
+    margin: -8px 0 18px;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .games-playing-subfilter-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px;
+    border-radius: 18px;
+    border: 1px solid rgba(167,139,250,0.18);
+    background: linear-gradient(145deg, rgba(18,12,38,0.82), rgba(8,6,20,0.92));
+    box-shadow: 0 14px 34px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+  .games-playing-toggle {
+    min-height: 36px;
+    border: 0;
+    border-radius: 14px;
+    padding: 0 13px;
+    background: transparent;
+    color: #a99fc4;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+  }
+  .games-playing-toggle small {
+    min-width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
+    background: rgba(255,255,255,0.07);
+    color: inherit;
+    font-size: 10px;
+    font-weight: 900;
+  }
+  .games-playing-toggle.active {
+    background: linear-gradient(135deg, rgba(124,58,237,0.44), rgba(167,139,250,0.20));
+    color: #fff;
+    transform: translateY(-1px);
+  }
+  body.light-mode .games-playing-subfilter-card {
+    background: rgba(255,255,255,0.86);
+    border-color: rgba(124,58,237,0.16);
+    box-shadow: 0 10px 28px rgba(31,17,64,0.08);
+  }
+  body.light-mode .games-playing-toggle { color: #6b5f86; }
+  body.light-mode .games-playing-toggle.active { color: #fff; }
 
   /* Inputs & buttons */
   input[type="text"], input[type="number"], input[type="url"] {
@@ -166,6 +223,39 @@
       min-width: 210px; width: 78vw; max-width: 300px;
     }
   }
+
+  .sort-direction-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 12px;
+    padding: 10px 12px;
+    margin-bottom: 4px;
+    border: 1px solid rgba(167,139,250,0.24);
+    border-radius: 12px;
+    background: rgba(124,58,237,0.16);
+    color: #f8f4ff;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 850;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .sort-direction-toggle strong {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+    color: #c4b5fd;
+    font-size: 15px;
+    line-height: 1;
+  }
+  .sort-direction-toggle:active { transform: scale(0.985); }
+
   .sort-dropdown-item {
     display: flex; align-items: center; width: 100%; text-align: left;
     padding: 10px 14px; border: none; border-radius: 10px;
@@ -204,6 +294,9 @@
     .tab-count { margin-left: 4px; font-size: 9px; padding: 1px 4px; }
     .toolbar { flex-direction: row; align-items: center; }
     .toolbar-right { width: auto; display: flex; gap: 8px; align-items: center; }
+    .games-playing-subfilter { justify-content: stretch; margin: -4px 0 14px; }
+    .games-playing-subfilter-card { width: 100%; }
+    .games-playing-toggle { flex: 1; justify-content: center; min-height: 38px; padding: 0 10px; }
     .search-input { width: 100px; flex: 0; }
     #add-btn { flex-grow: 1; min-width: 80px; }
     .section-toggle { width: 100%; }
@@ -240,10 +333,6 @@
     border: 1px solid #3d3466; transition: border-color 0.2s, box-shadow 0.2s;
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
   }
-  /* v341: when comment dropdown is open, remove overflow:hidden so iOS keyboard works */
-  .card.comment-drop-open {
-    overflow: visible !important;
-  }
   .card:hover { border-color: #3d3466; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06), 0 2px 12px rgba(0,0,0,0.5); }
   .card-header { display: flex; gap: 14px; padding: 14px; }
   .card-cover {
@@ -255,84 +344,10 @@
   .card-cover.no-img { background: linear-gradient(135deg, #2a1f5e 0%, #2d1b4e 100%); }
   .card-info { flex: 1; min-width: 0; }
   .card-title-row { display: flex; justify-content: space-between; align-items: flex-start; }
-  .card-title {
-    font-size: 15px; font-weight: 600; color: #e8e3f3; font-family: 'DM Sans', sans-serif;
-    display: flex; align-items: flex-start; gap: 5px; flex-wrap: nowrap;
-  }
-  /* Title text takes all space and wraps; IMDb link stays pinned top-right of first line */
-  .card-title > button,
-  .card-title > span {
-    flex: 1; min-width: 0; text-align: left;
-  }
-  .card-title > a {
-    flex-shrink: 0; align-self: flex-start; line-height: 1.4; margin-top: 1px;
-  }
-  .card-title .media-link-badge { margin-left: 0; }
+  .card-title { font-size: 15px; font-weight: 600; color: #e8e3f3; font-family: 'DM Sans', sans-serif; }
   .card-genre { font-size: 11px; color: #a99dc6; text-transform: uppercase; letter-spacing: 1.2px; margin-top: 4px; }
   .card-release-date { font-size: 11px; color: rgba(139, 92, 246, 0.85); font-weight: 600; letter-spacing: 0.3px; margin-top: 2px; font-family: 'DM Sans', sans-serif; }
   body.light-mode .card-release-date { color: rgba(109,40,217,0.8); }
-  /* v322: watch slot (streaming / in theaters) — moved below status, bigger font, milky color */
-  .card-watch-slot { min-height: 0; margin-top: 3px; }
-  .card-below-status { margin-top: 12px; }
-  .card-watch-slot-inner { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-  .card-theaters-badge { font-size: 13px; color: #FFFCF1; font-weight: 600; font-family: 'DM Sans', sans-serif; }
-  .card-release-date-badge { font-size: 13px; color: #FFFCF1; font-weight: 600; font-family: 'DM Sans', sans-serif; }
-  .card-watch-label { font-size: 13px; color: #FFFCF1; font-weight: 600; font-family: 'DM Sans', sans-serif; white-space: nowrap; }
-  .card-provider-logos { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-  .card-provider-logo { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; display: block; }
-  body.light-mode .card-watch-label { color: rgba(36,22,64,0.85); }
-  body.light-mode .card-theaters-badge { color: #1c0a3e; }
-  body.light-mode .card-release-date-badge { color: #1c0a3e; }
-  /* v328: IMDb badge in card footer row — aligned with poster left edge */
-  .card-imdb-footer-link {
-    display: inline-flex;
-    align-items: center;
-    text-decoration: none;
-    flex-shrink: 0;
-  }
-  .card-imdb-footer-link .media-link-badge {
-    margin-left: 0;
-  }
-
-  /* v329: non-game action row — left-padded to align with poster, full-width flex */
-  #mylist-view .card:not(.game-library-card) .card-action-row {
-    padding-left: 14px;
-    padding-right: 14px;
-  }
-  #mylist-view .card:not(.game-library-card) .card-footer-actions {
-    display: flex !important;
-    justify-content: flex-start !important;
-    align-items: center !important;
-    flex: 1;
-    gap: 0;
-  }
-  /* Center group: Comments (+ Show Episodes for shows/anime) */
-  .card-footer-center {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-  }
-  /* MAL badge */
-  .card-mal-footer-link {
-    display: inline-flex;
-    align-items: center;
-    text-decoration: none;
-    flex-shrink: 0;
-  }
-  .card-mal-footer-link .media-link-badge,
-  .card-mal-badge {
-    background: rgba(46,81,162,0.18);
-    color: rgba(130,170,255,0.9);
-    border-color: rgba(46,81,162,0.35);
-    margin-left: 0;
-  }
-  body.light-mode .card-mal-badge {
-    background: rgba(46,81,162,0.09);
-    color: #2e51a2;
-    border-color: rgba(46,81,162,0.22);
-  }
   .delete-btn {
     background: none; border: none; color: #9990b3; cursor: pointer;
     font-size: 20px; padding: 4px 8px; min-width: 36px; min-height: 36px;
@@ -353,7 +368,7 @@
   /* Status pills */
   .status-pills { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
   .status-pill {
-    padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 500;
+    padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 600;
     text-transform: uppercase; cursor: pointer; border: 1.5px solid #2a2248;
     background: transparent; color: #a99dc6; transition: all 0.2s;
     letter-spacing: 0.5px;
@@ -412,7 +427,7 @@
   .star-label.label-pop { animation: label-pop 0.5s ease-out; }
   .star-label { font-size: 12px; color: #9990b3; margin-left: 6px; }
   #mylist-view .star-label { color: #ffffff !important; }
-  .rating-area { margin-top: 8px; }
+  .rating-area { margin-top: 6px; }
   .rating-label { font-size: 11px; color: #ffffff; margin-bottom: 2px; font-weight: 300; }
 
   /* Episodes */
@@ -674,13 +689,8 @@
 .game-library-card .card-action-row {
   padding-right: 0;
 }
-.game-library-card .card-action-row {
-  display: flex;
-  justify-content: center;
-}
 .game-library-card .card-footer-actions {
-  display: flex !important;
-  justify-content: center !important;
+  justify-content: center;
   width: 100%;
 }
 .game-card-edit-btn {
@@ -716,7 +726,7 @@
 }
 .game-card-edit-btn:hover { color: #ffffff; opacity: 1; }
 /* v314: expandable single-pill pop-out status selector (all card types) */
-.game-status-pills-wrap, .status-pills-selector-wrap { margin-top: 12px; }
+.game-status-pills-wrap, .status-pills-selector-wrap { margin-top: 6px; }
 .game-status-selector {
   display: inline-flex;
   align-items: center;
@@ -751,7 +761,7 @@
 .game-card-stats-inline {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 3px;
   margin: 4px 0 5px;
 }
 .game-card-stat-row {
@@ -766,6 +776,7 @@
   font-weight: 500;
   white-space: nowrap;
   flex-shrink: 0;
+  min-width: 82px;
 }
 .game-card-stat-val {
   color: #ede8fc;
@@ -825,37 +836,17 @@ body.light-mode .game-card-tracker-icon-link:hover { color: #241640; }
   white-space: nowrap;
 }
 
-/* v331: game card inline comment dropdown — animated */
+/* v318: game card inline comment dropdown */
 .game-card-comment-drop {
-  display: flex;
+  display: none;
   flex-direction: column;
   gap: 8px;
   background: rgba(15, 12, 28, 0.97);
   border-top: 1px solid rgba(139, 92, 246, 0.18);
-  padding: 0 14px;
-  max-height: 0;
-  overflow: hidden;
-  opacity: 0;
-  transform: translateY(-5px);
-  transition:
-    max-height 600ms cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 400ms ease,
-    transform 500ms cubic-bezier(0.4, 0, 0.2, 1),
-    padding 600ms cubic-bezier(0.4, 0, 0.2, 1),
-    overflow 0ms linear 600ms;
+  padding: 10px 14px 12px;
 }
 .game-card-comment-drop.open {
-  max-height: 600px;
-  opacity: 1;
-  transform: translateY(0);
-  padding: 10px 14px 12px;
-  overflow: visible;
-  transition:
-    max-height 600ms cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 400ms ease,
-    transform 500ms cubic-bezier(0.4, 0, 0.2, 1),
-    padding 600ms cubic-bezier(0.4, 0, 0.2, 1),
-    overflow 0ms linear 0ms;
+  display: flex;
 }
 .game-card-comment-list {
   display: flex;
@@ -880,8 +871,6 @@ body.light-mode .game-card-tracker-icon-link:hover { color: #241640; }
   display: flex;
   flex-direction: column;
   gap: 2px;
-  flex: 1;
-  min-width: 0;
 }
 .game-card-comment-name {
   font-size: 11px;
@@ -903,94 +892,6 @@ body.light-mode .game-card-tracker-icon-link:hover { color: #241640; }
   padding: 8px 0 4px;
   font-family: 'DM Sans', sans-serif;
 }
-/* v337: comment delete — two separate pill buttons slide left from X */
-.gc-comment-actions {
-  display: -webkit-flex;
-  display: flex;
-  -webkit-flex-direction: row;
-  flex-direction: row;
-  -webkit-align-items: center;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  -webkit-flex-shrink: 0;
-  align-self: flex-start;
-  margin-left: auto;
-  margin-top: 1px;
-}
-.gc-comment-delete-btn {
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent !important;
-  border: none !important;
-  outline: none;
-  box-shadow: none !important;
-  padding: 2px;
-  cursor: pointer;
-  color: #ef4444 !important;
-  transition: opacity 150ms ease;
-  line-height: 0;
-  -webkit-tap-highlight-color: transparent;
-  flex-shrink: 0;
-  opacity: 0.7;
-}
-.gc-comment-delete-btn:hover,
-.gc-comment-delete-btn:active { opacity: 1; }
-.gc-delete-pill {
-  display: -webkit-flex;
-  display: flex;
-  -webkit-flex-direction: row;
-  flex-direction: row;
-  -webkit-align-items: center;
-  align-items: center;
-  gap: 6px;
-  max-width: 0;
-  opacity: 0;
-  overflow: hidden;
-  pointer-events: none;
-  visibility: hidden;
-  -webkit-transition: max-width 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 220ms ease, visibility 0ms linear 300ms;
-  transition: max-width 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 220ms ease, visibility 0ms linear 300ms;
-  white-space: nowrap;
-}
-.gc-delete-pill.open {
-  max-width: 200px;
-  opacity: 1;
-  pointer-events: auto;
-  visibility: visible;
-  -webkit-transition: max-width 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 220ms ease, visibility 0ms linear 0ms;
-  transition: max-width 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 220ms ease, visibility 0ms linear 0ms;
-}
-.gc-delete-cancel {
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-  border: 1px solid #FFFCF1;
-  border-radius: 999px;
-  outline: none;
-  padding: 3px 10px;
-  font-size: 11px;
-  font-family: 'DM Sans', sans-serif;
-  color: #FFFCF1;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  white-space: nowrap;
-}
-.gc-delete-yes {
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-  border: 1px solid #ef4444;
-  border-radius: 999px;
-  outline: none;
-  padding: 3px 10px;
-  font-size: 11px;
-  font-family: 'DM Sans', sans-serif;
-  color: #ef4444;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  white-space: nowrap;
-}
 .game-card-comment-input-row {
   display: flex;
   gap: 7px;
@@ -999,9 +900,6 @@ body.light-mode .game-card-tracker-icon-link:hover { color: #241640; }
 }
 .game-card-comment-textarea {
   flex: 1;
-  position: relative;
-  z-index: 1;
-  pointer-events: auto;
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(139,92,246,0.25);
   border-radius: 8px;
@@ -1014,10 +912,6 @@ body.light-mode .game-card-tracker-icon-link:hover { color: #241640; }
   max-height: 80px;
   outline: none;
   transition: border-color 140ms ease;
-  touch-action: manipulation;
-  -webkit-user-select: text !important;
-  user-select: text !important;
-  cursor: text;
 }
 .game-card-comment-textarea:focus {
   border-color: rgba(139,92,246,0.55);
@@ -1235,7 +1129,6 @@ body.light-mode .game-card-comment-textarea {
   cursor: pointer;
   text-align: left;
   -webkit-tap-highlight-color: transparent;
-  background: #000000;
 }
 .game-platform-select-btn .placeholder { color: rgba(255,255,255,0.72); }
 .game-platform-select-btn svg {
@@ -1250,11 +1143,11 @@ body.light-mode .game-card-comment-textarea {
   transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .game-platform-select-btn[aria-expanded="true"] svg { transform: rotate(180deg); }
-/* v325: platform trigger = black, dropdown = slightly-off-black */
 .game-platform-options {
   max-height: 0;
   overflow: hidden;
-  background: #1a1a1a;
+  background: #100b22;
+  border-bottom: 1px solid rgba(196,181,253,0.18);
   opacity: 0;
   transform: translate3d(0, -4px, 0);
   transition:
@@ -1266,108 +1159,12 @@ body.light-mode .game-card-comment-textarea {
   max-height: 290px;
   opacity: 1;
   transform: translate3d(0, 0, 0);
-  border: 1px solid rgba(255,252,241,0.6);
-  border-radius: 8px;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
-}
-
-/* v321: platform bottom-sheet modal */
-.game-platform-modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: rgba(0,0,0,0.62);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  animation: gpmo-overlay-in 200ms ease forwards;
-}
-@keyframes gpmo-overlay-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-.game-platform-modal-sheet {
-  background: #000000;
-  border-radius: 18px 18px 0 0;
-  width: 100%;
-  max-width: 480px;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-  animation: gpmo-sheet-in 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  overflow: hidden;
-}
-@keyframes gpmo-sheet-in {
-  from { transform: translateY(100%); }
-  to   { transform: translateY(0); }
-}
-.game-platform-modal-title {
-  font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  color: rgba(255,255,255,0.4);
-  text-align: center;
-  letter-spacing: 0.5px;
-  padding: 14px 16px 10px;
-  text-transform: uppercase;
-}
-.game-platform-modal-options {
-  overflow-y: auto;
-  max-height: 55vh;
-}
-.game-platform-modal-option {
-  display: block;
-  width: 100%;
-  min-height: 50px;
-  background: transparent;
-  border: none;
-  border-top: 1px solid rgba(255,252,241,0.12);
-  color: #ffffff;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 16px;
-  font-weight: 500;
-  text-align: center;
-  cursor: pointer;
-  padding: 0 16px;
-  -webkit-tap-highlight-color: transparent;
-  transition: background 120ms ease;
-}
-.game-platform-modal-option:first-child {
-  border-top: none;
-}
-.game-platform-modal-option.modal-option-selected {
-  color: #a78bfa;
-  font-weight: 700;
-}
-.game-platform-modal-option:active {
-  background: rgba(255,255,255,0.06);
-}
-.game-platform-modal-cancel {
-  display: block;
-  width: 100%;
-  min-height: 52px;
-  background: transparent;
-  border: none;
-  border-top: 1px solid rgba(255,252,241,0.22);
-  color: rgba(255,255,255,0.55);
-  font-family: 'DM Sans', sans-serif;
-  font-size: 15px;
-  font-weight: 600;
-  text-align: center;
-  cursor: pointer;
-  padding: 0 16px;
-  margin-top: 6px;
-  -webkit-tap-highlight-color: transparent;
-}
-.game-platform-modal-cancel:active {
-  background: rgba(255,255,255,0.04);
 }
 .game-platform-option {
   width: 100%;
   min-height: 34px;
   border: 0;
-  border-bottom: 1px solid rgba(255,252,241,0.9);
+  border-bottom: 1px solid rgba(196,181,253,0.08);
   background: transparent;
   color: #ffffff;
   display: flex;
@@ -1611,4 +1408,100 @@ body:not(.main-tab-mylist) .mylist-edge-swipe-rail { display: none !important; }
 #mylist-view .star-btn {
   pointer-events: auto !important;
   touch-action: manipulation;
+}
+
+/* v374: app version footer cushion + Games Wishlist status */
+.screenlist-bottom-link-wrap {
+  flex-direction: column;
+  gap: 7px;
+  padding-top: 37px !important;
+}
+.screenlist-version-footer {
+  color: rgba(216,207,243,0.62);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  user-select: none;
+}
+body.light-mode .screenlist-version-footer {
+  color: rgba(91,33,182,0.58);
+}
+.tab-btn.active[data-tab="wishlist"] { color: #f472b6; }
+.status-pill.wishlist-active { border-color: #be185d; background: #3b1128; color: #f472b6; }
+#mylist-view #mylist-toolbar .tab-btn[data-tab="watching"] { order: 0 !important; }
+#mylist-view #mylist-toolbar .tab-btn[data-tab="planned"] { order: 1 !important; }
+#mylist-view #mylist-toolbar .tab-btn[data-tab="watched"] { order: 2 !important; }
+#mylist-view #mylist-toolbar .tab-btn[data-tab="wishlist"] { order: 3 !important; }
+#mylist-view #mylist-toolbar .tab-btn[data-tab="live"] { display: none !important; }
+
+.login-legal-links .screenlist-version-footer {
+  flex-basis: 100%;
+  text-align: center;
+  margin-top: -4px;
+}
+body #mylist-view #mylist-toolbar .tabs .tab-btn[data-tab="watching"] { order: 0 !important; }
+body #mylist-view #mylist-toolbar .tabs .tab-btn[data-tab="planned"] { order: 1 !important; }
+body #mylist-view #mylist-toolbar .tabs .tab-btn[data-tab="watched"] { order: 2 !important; }
+body #mylist-view #mylist-toolbar .tabs .tab-btn[data-tab="wishlist"] { order: 3 !important; }
+body #mylist-view #mylist-toolbar .tabs .tab-btn[data-tab="live"] { display: none !important; }
+
+
+/* v399: game card status selector horizontal scroll + darker Playing sub-toggle */
+#mylist-view .status-pills-selector-wrap {
+  max-width: 100%;
+  overflow: visible;
+}
+#mylist-view .game-status-selector {
+  max-width: 100%;
+  min-width: 0;
+}
+#mylist-view .game-status-selector.expanded .game-status-options {
+  max-width: min(68vw, 480px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  padding-left: 6px;
+  padding-right: 4px;
+  scroll-snap-type: x proximity;
+}
+#mylist-view .game-status-selector.expanded .game-status-options::-webkit-scrollbar {
+  display: none;
+}
+#mylist-view .game-status-options .status-pill {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  scroll-snap-align: start;
+}
+#mylist-view .game-library-card .game-status-selector.expanded .game-status-options {
+  max-width: min(70vw, 520px);
+}
+@media (max-width: 600px) {
+  #mylist-view .game-library-card .game-status-selector.expanded .game-status-options {
+    max-width: calc(100vw - 176px);
+  }
+}
+#mylist-view .games-playing-subfilter-card,
+body.light-mode #mylist-view .games-playing-subfilter-card {
+  border-color: rgba(255,255,255,0.16);
+  background: linear-gradient(145deg, rgba(36,38,44,0.96), rgba(20,22,27,0.98));
+  box-shadow: 0 12px 30px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.055);
+}
+#mylist-view .games-playing-toggle,
+body.light-mode #mylist-view .games-playing-toggle {
+  background: rgba(255,255,255,0.035);
+  color: #ffffff;
+}
+#mylist-view .games-playing-toggle.active,
+body.light-mode #mylist-view .games-playing-toggle.active {
+  background: linear-gradient(145deg, #3b3f46, #292d33);
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), 0 8px 18px rgba(0,0,0,0.20);
+}
+#mylist-view .games-playing-toggle small,
+body.light-mode #mylist-view .games-playing-toggle small {
+  background: rgba(255,255,255,0.10);
+  color: #ffffff;
 }

@@ -1,0 +1,2098 @@
+/* v139 Pass 3: shared mobile-first Patch Notes link and page. */
+.screenlist-bottom-link-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 28px 0 calc(92px + env(safe-area-inset-bottom, 0px));
+}
+.screenlist-bottom-link {
+  appearance: none;
+  border: 1px solid rgba(196,181,253,0.16);
+  background: rgba(255,255,255,0.025);
+  color: #b8afd1;
+  border-radius: 999px;
+  min-height: 38px;
+  padding: 9px 15px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+}
+.screenlist-bottom-link:active {
+  transform: scale(0.98);
+}
+.screenlist-patch-notes-page {
+  position: fixed;
+  inset: 0;
+  z-index: 6100;
+  overflow-y: auto;
+  background: var(--sl-default-page-bg, linear-gradient(135deg, #050410 0%, #15102d 50%, #050410 100%));
+  color: #f8f4ff;
+  padding: max(22px, calc(env(safe-area-inset-top, 0px) + 16px)) 14px calc(96px + env(safe-area-inset-bottom, 0px));
+}
+.screenlist-patch-notes-shell {
+  width: min(760px, 100%);
+  margin: 0 auto;
+}
+.screenlist-patch-notes-back {
+  border: 1px solid rgba(196,181,253,0.22);
+  background: rgba(11,8,26,0.74);
+  color: #fff;
+  border-radius: 999px;
+  min-height: 38px;
+  padding: 9px 15px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.screenlist-patch-notes-floating-back {
+  position: fixed;
+  top: max(14px, env(safe-area-inset-top, 0px));
+  right: 14px;
+  z-index: 6110;
+  box-shadow: 0 14px 34px rgba(0,0,0,0.32), 0 0 18px rgba(167,139,250,0.12);
+}
+.screenlist-patch-notes-title {
+  margin: 18px 0 14px;
+  font-family: 'Sora', sans-serif;
+  font-size: clamp(24px, 7vw, 34px);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: #fff;
+}
+.screenlist-patch-notes-list {
+  display: grid;
+  gap: 12px;
+}
+.screenlist-patch-note-card {
+  border: 1px solid rgba(196,181,253,0.13);
+  background: rgba(255,255,255,0.028);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.035);
+}
+.screenlist-patch-note-date {
+  color: #b8afd1;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.screenlist-patch-note-card h2 {
+  margin: 0 0 10px;
+  color: #fff;
+  font-size: 16px;
+  line-height: 1.25;
+  font-weight: 900;
+}
+.screenlist-patch-note-card ul {
+  margin: 0;
+  padding-left: 18px;
+  color: #d8cff3;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.screenlist-patch-note-card li {
+  margin-bottom: 6px;
+}
+body.light-mode .screenlist-bottom-link {
+  background: rgba(124,58,237,0.06);
+  border-color: rgba(124,58,237,0.16);
+  color: #5b21b6;
+}
+body.light-mode .screenlist-patch-notes-page {
+  background: linear-gradient(135deg, #f5f2ff 0%, #fff 55%, #f5f2ff 100%);
+  color: #12082e;
+}
+body.light-mode .screenlist-patch-notes-back,
+body.light-mode .screenlist-patch-note-card {
+  background: rgba(255,255,255,0.86);
+  border-color: rgba(124,58,237,0.18);
+}
+body.light-mode .screenlist-patch-notes-title,
+body.light-mode .screenlist-patch-note-card h2,
+body.light-mode .screenlist-patch-notes-back {
+  color: #12082e;
+}
+body.light-mode .screenlist-patch-note-card ul {
+  color: #3b315d;
+}
+@media (max-width: 700px) {
+  .screenlist-bottom-link-wrap {
+    padding-top: 22px;
+  }
+  .screenlist-patch-note-card {
+    border-radius: 16px;
+    padding: 15px;
+  }
+  .screenlist-patch-notes-floating-back {
+    top: max(12px, env(safe-area-inset-top, 0px));
+    right: 12px;
+    min-height: 40px;
+    padding: 9px 14px;
+  }
+}
+
+
+
+/* v140: Friends Requests + mobile Friends List cleanup. */
+#community-view #request-subtabs {
+  justify-content: flex-start;
+}
+#community-view #request-subtab-friends {
+  cursor: default;
+}
+#community-view .friend-action-btn {
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+}
+#community-view .friend-screenlist-btn {
+  border-color: rgba(167,139,250,0.46) !important;
+  background: linear-gradient(135deg, rgba(124,58,237,0.34), rgba(168,85,247,0.18)) !important;
+  color: #fff !important;
+}
+#community-view .friend-message-btn {
+  border-color: rgba(196,181,253,0.26) !important;
+  background: rgba(196,181,253,0.08) !important;
+  color: #efe9ff !important;
+}
+#community-view .friend-mobile-profile-btn,
+#community-view .friend-profile-desktop-btn {
+  border-color: rgba(167,139,250,0.24) !important;
+  background: rgba(255,255,255,0.035) !important;
+  color: #d8cff3 !important;
+}
+@media (max-width: 700px) {
+  #friends-list-view .friend-list-card {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: stretch !important;
+    gap: 13px !important;
+    padding: 15px 40px 15px 15px !important;
+    min-height: 0 !important;
+  }
+  #friends-list-view .friend-list-card .friend-card-main {
+    width: 100% !important;
+    gap: 13px !important;
+    align-items: center !important;
+  }
+  #friends-list-view .friend-list-card .user-card-avatar {
+    width: 48px !important;
+    height: 48px !important;
+  }
+  #friends-list-view .friend-list-card .friend-card-copy {
+    min-width: 0 !important;
+  }
+  #friends-list-view .friend-list-card .user-card-name {
+    font-size: 15px !important;
+    line-height: 1.18 !important;
+    font-weight: 600 !important;
+  }
+  #friends-list-view .friend-list-card .friend-actions-group {
+    width: 100% !important;
+    max-width: none !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin-top: 0 !important;
+  }
+  #friends-list-view .friend-list-card .friend-action-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 1 1 92px !important;
+    min-width: 86px !important;
+    min-height: 38px !important;
+    padding: 0 12px !important;
+    border-radius: 999px !important;
+    font-size: 11.5px !important;
+    font-weight: 500 !important;
+    white-space: nowrap !important;
+  }
+  #friends-list-view .friend-list-card .friend-profile-desktop-btn,
+  #friends-list-view .friend-list-card .friend-remove-desktop-btn,
+  #friends-list-view .friend-list-card .friend-pending-btn {
+    display: none !important;
+  }
+  #friends-list-view .friend-list-card .friend-mobile-remove-x {
+    top: 10px !important;
+    right: 10px !important;
+  }
+  #activity-tab-view .activity-feed-header {
+    align-items: center !important;
+  }
+  #activity-tab-view .activity-feed-actions {
+    width: 100% !important;
+    justify-content: center !important;
+    gap: 9px !important;
+    margin-left: 0 !important;
+    flex-wrap: wrap !important;
+  }
+  #activity-tab-view .activity-shared-watch-pill {
+    min-height: 38px !important;
+    padding: 0 4px 7px !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    border: 0 !important;
+    border-bottom: 2px solid transparent !important;
+    background: transparent !important;
+    color: #efe9ff !important;
+    box-shadow: none !important;
+  }
+  #activity-tab-view .activity-shared-watch-pill.secondary {
+    background: transparent !important;
+    color: #c4b5fd !important;
+  }
+}
+@media (max-width: 390px) {
+  #friends-list-view .friend-list-card .friend-action-btn {
+    flex-basis: calc(50% - 6px) !important;
+    min-width: 0 !important;
+    font-size: 11px !important;
+  }
+  #activity-tab-view .activity-shared-watch-pill {
+    flex: 1 1 132px !important;
+    padding: 0 12px !important;
+  }
+}
+body.light-mode #community-view .friend-screenlist-btn {
+  border-color: rgba(124,58,237,0.30) !important;
+  background: linear-gradient(135deg, #7c3aed, #9333ea) !important;
+  color: #fff !important;
+}
+body.light-mode #community-view .friend-message-btn,
+body.light-mode #community-view .friend-mobile-profile-btn,
+body.light-mode #community-view .friend-profile-desktop-btn {
+  border-color: rgba(124,58,237,0.18) !important;
+  background: rgba(124,58,237,0.06) !important;
+  color: #4c1d95 !important;
+}
+
+
+/* v143: landing Google sign-in uses the media profile Add to Library color treatment. */
+.login-screen .google-btn {
+  border: 1px solid rgba(255, 216, 127, 0.5) !important;
+  background:
+    linear-gradient(135deg, rgba(255, 216, 127, 0.24), rgba(34, 211, 238, 0.12)),
+    rgba(8, 7, 18, 0.66) !important;
+  color: #fff3c6 !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3), 0 0 18px rgba(255, 216, 127, 0.14) !important;
+}
+.login-screen .google-btn:hover {
+  border-color: rgba(255, 216, 127, 0.62) !important;
+  background:
+    linear-gradient(135deg, rgba(255, 216, 127, 0.30), rgba(34, 211, 238, 0.15)),
+    rgba(8, 7, 18, 0.72) !important;
+}
+.login-screen .google-btn img {
+  background: #fff;
+  border-radius: 999px;
+  padding: 2px;
+}
+body.light-mode .login-screen .google-btn {
+  background:
+    linear-gradient(135deg, rgba(255, 216, 127, 0.34), rgba(34, 211, 238, 0.12)),
+    #fff !important;
+  color: #3a2500 !important;
+  border-color: rgba(217, 119, 6, 0.36) !important;
+}
+
+
+/* v146 media-profile share menu/action row + profile swipe-back */
+.discover-media-action-row {
+  position: fixed;
+  top: max(14px, env(safe-area-inset-top, 0px));
+  right: max(14px, calc(50% - 366px));
+  z-index: 45;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  max-width: min(78vw, 520px);
+}
+.discover-media-action-row .discover-media-share-floating,
+.discover-media-action-row .discover-media-add-floating {
+  position: static !important;
+  top: auto !important;
+  right: auto !important;
+  left: auto !important;
+  flex: 0 0 auto;
+}
+.discover-media-action-row .discover-media-share-floating { width: 38px; height: 38px; }
+.discover-media-action-row .discover-media-add-floating { max-width: calc(78vw - 48px); white-space: nowrap; }
+.discover-media-share-floating + .discover-media-add-floating { right: auto !important; }
+.media-share-overlay { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: flex-end; justify-content: center; padding: 18px; background: rgba(5,4,16,0.44); opacity: 0; pointer-events: none; transition: opacity 0.18s ease; }
+.media-share-overlay.open { opacity: 1; pointer-events: auto; }
+.media-share-sheet { width: min(440px, 100%); max-height: min(82vh, 680px); overflow-y: auto; border-radius: 24px 24px 18px 18px; border: 1px solid rgba(167,139,250,0.28); background: linear-gradient(180deg, rgba(19,16,43,0.98), rgba(8,7,18,0.98)); box-shadow: 0 24px 72px rgba(0,0,0,0.52), inset 0 0 0 1px rgba(255,255,255,0.04); padding: 10px 14px 16px; color: #f8f4ff; transform: translate3d(0, 18px, 0); transition: transform 0.22s cubic-bezier(0.22,1,0.36,1); }
+.media-share-overlay.open .media-share-sheet { transform: translate3d(0,0,0); }
+.media-share-handle { width: 42px; height: 4px; border-radius: 999px; background: rgba(255,255,255,0.22); margin: 2px auto 12px; }
+.media-share-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.media-share-head span { display: block; color: #a78bfa; font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+.media-share-head strong { display: block; margin-top: 3px; font-size: 17px; font-weight: 700; color: #fff; }
+.media-share-close { width: 34px; height: 34px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: #fff; font-size: 18px; }
+.media-share-choice { width: 100%; min-height: 58px; border-radius: 16px; border: 1px solid rgba(167,139,250,0.22); background: rgba(255,255,255,0.045); color: #fff; font-family: 'DM Sans', sans-serif; text-align: left; padding: 12px 14px; margin-top: 8px; display: flex; flex-direction: column; gap: 3px; }
+.media-share-choice span { font-size: 14px; font-weight: 700; }
+.media-share-choice em { font-size: 12px; color: #b8afd1; font-style: normal; }
+.media-share-screenlist-panel { margin-top: 12px; border-top: 1px solid rgba(167,139,250,0.16); padding-top: 12px; }
+.media-share-search, .media-share-note { width: 100%; border-radius: 14px; border: 1px solid rgba(167,139,250,0.22); background: rgba(5,4,16,0.68); color: #fff; font-family: 'DM Sans', sans-serif; font-size: 16px; padding: 12px 13px; margin-bottom: 8px; }
+.media-share-note { min-height: 74px; resize: none; }
+.media-share-users { display: grid; gap: 8px; }
+.media-share-user { width: 100%; display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 9px 10px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.04); color: #fff; font-family: 'DM Sans', sans-serif; text-align: left; }
+.media-share-user img { width: 34px; height: 34px; border-radius: 999px; object-fit: cover; }
+.media-share-user span { font-size: 14px; font-weight: 600; }
+.media-share-empty { padding: 13px; border-radius: 14px; background: rgba(255,255,255,0.04); color: #b8afd1; font-size: 13px; }
+.dm-shared-media-card { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; padding: 8px; border-radius: 12px; border: 1px solid rgba(167,139,250,0.22); background: rgba(255,255,255,0.06); color: inherit; text-decoration: none; }
+.dm-shared-media-card img { width: 38px; height: 54px; border-radius: 6px; object-fit: cover; flex: 0 0 auto; }
+.dm-shared-media-card strong, .dm-shared-media-card em { display: block; }
+.dm-shared-media-card strong { font-size: 12px; color: #fff; }
+.dm-shared-media-card em { font-size: 11px; color: #c4b5fd; font-style: normal; margin-top: 2px; }
+.profile-page.profile-swipe-back-dragging, .profile-page.profile-swipe-back-snapping { overflow: hidden !important; background-clip: padding-box; }
+body.profile-swipe-back-active #app-container { display: block !important; }
+body.profile-swipe-back-active .profile-page { z-index: 1600; }
+@media (max-width: 700px) {
+  .discover-media-action-row { right: 12px; gap: 7px; max-width: calc(100vw - 94px); }
+  .discover-media-action-row .discover-media-share-floating { width: 36px; height: 36px; }
+  .discover-media-action-row .discover-media-add-floating { padding: 8px 11px; font-size: 11px; max-width: calc(100vw - 142px); overflow: hidden; text-overflow: ellipsis; }
+  .media-share-overlay { padding: 12px; }
+  .media-share-sheet { border-radius: 22px 22px 16px 16px; }
+}
+
+
+/* v147: isolated profile/Friends mobile cleanup. */
+body.own-profile-active .header .edit-profile-btn,
+body.own-profile-active .header .mobile-edit-profile-btn,
+body.own-profile-active .header .user-avatar {
+  display: none !important;
+}
+body.own-profile-active .header .user-area {
+  gap: 8px;
+}
+
+@media (max-width: 700px) {
+  .profile-stats-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 7px !important;
+  }
+  .profile-stat-card {
+    min-height: 78px !important;
+    padding: 9px 6px 8px !important;
+    border-radius: 13px !important;
+  }
+  .profile-stat-value {
+    font-size: clamp(15px, 4vw, 20px) !important;
+    letter-spacing: -0.35px !important;
+  }
+  .profile-stat-label {
+    margin-top: 5px !important;
+    font-size: 8.5px !important;
+    line-height: 1.12 !important;
+  }
+  .profile-stat-label-main,
+  .profile-stat-label-sub {
+    display: block;
+    white-space: normal;
+  }
+  .profile-stat-toggle {
+    display: none !important;
+  }
+}
+
+body:not(.light-mode):not(.true-dark-mode) #community-view #activity-tab-view .activity-shared-watch-pill.active,
+body:not(.light-mode):not(.true-dark-mode) #community-view #activity-tab-view .activity-shared-watch-pill.secondary,
+body:not(.light-mode):not(.true-dark-mode) #community-view #activity-tab-view .activity-shared-watch-pill {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  font-weight: 500 !important;
+}
+body:not(.light-mode):not(.true-dark-mode) #community-view #activity-tab-view .activity-shared-watch-pill.active {
+  border-bottom-color: rgba(167,139,250,0.86) !important;
+}
+body:not(.light-mode):not(.true-dark-mode) #community-view #activity-tab-view .activity-card {
+  background:
+    linear-gradient(135deg, rgba(124,58,237,0.18), rgba(36,26,76,0.72)),
+    rgba(24,18,54,0.92) !important;
+  border-color: rgba(167,139,250,0.22) !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.045), 0 10px 24px rgba(0,0,0,0.22) !important;
+}
+body:not(.light-mode):not(.true-dark-mode) #community-view #activity-tab-view .activity-card:hover {
+  border-color: rgba(196,181,253,0.30) !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06), 0 12px 28px rgba(0,0,0,0.28) !important;
+}
+body:not(.light-mode):not(.true-dark-mode) #community-view #activity-tab-view .activity-poster-col,
+body:not(.light-mode):not(.true-dark-mode) #community-view #activity-tab-view .activity-poster-placeholder {
+  background: rgba(12,9,30,0.55) !important;
+}
+@media (max-width: 700px) {
+  #activity-tab-view {
+    touch-action: pan-y;
+  }
+  #activity-tab-view .activity-feed-actions {
+    justify-content: center !important;
+  }
+  #activity-tab-view .activity-shared-watch-pill {
+    min-height: 36px !important;
+    padding: 0 14px !important;
+    font-size: 12px !important;
+  }
+}
+
+body:not(.light-mode):not(.true-dark-mode) #community-view #ftab-activity.friends-tab-btn.active {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  text-decoration: underline;
+  text-decoration-color: rgba(167,139,250,0.86);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 7px;
+}
+
+/* v148 surgical: My Lists filter selectors use active-only pills */
+#mylist-view #mylist-header.mylist-section-card,
+body:not(.light-mode):not(.true-dark-mode) #mylist-view #mylist-header.mylist-section-card,
+body.light-mode #mylist-view #mylist-header.mylist-section-card {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#mylist-view #mylist-header.mylist-section-card::before {
+  margin: 0 2px 9px !important;
+}
+
+#mylist-view #mylist-header .section-toggle,
+body:not(.light-mode):not(.true-dark-mode) #mylist-view .section-toggle,
+body.light-mode #mylist-view .section-toggle,
+#mylist-view #mylist-toolbar .tabs,
+body:not(.light-mode):not(.true-dark-mode) #mylist-view .tabs,
+body.light-mode #mylist-view #mylist-toolbar .tabs {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#mylist-view #mylist-toolbar .tabs::before {
+  margin: 0 2px 3px !important;
+}
+
+#mylist-view #mylist-header .section-btn,
+body.light-mode #mylist-view #mylist-header .section-btn,
+#mylist-view #mylist-toolbar .tab-btn,
+body.light-mode #mylist-view #mylist-toolbar .tab-btn {
+  min-height: 31px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: rgba(255,255,255,0.78) !important;
+  font-weight: 650 !important;
+}
+
+#mylist-view #mylist-header .section-btn:not(.active):hover,
+#mylist-view #mylist-toolbar .tab-btn:not(.active):hover {
+  color: #ffffff !important;
+  background: transparent !important;
+}
+
+#mylist-view #mylist-header .section-count-bubble,
+#mylist-view #mylist-toolbar .tab-count {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: rgba(255,255,255,0.62) !important;
+}
+
+#mylist-view #mylist-header .section-btn.active,
+body:not(.light-mode):not(.true-dark-mode) #mylist-view .section-btn.active,
+body.light-mode #mylist-view #mylist-header .section-btn.active,
+#mylist-view #mylist-toolbar .tab-btn.active,
+body:not(.light-mode):not(.true-dark-mode) #mylist-view .tab-btn.active,
+body:not(.light-mode):not(.true-dark-mode) #mylist-view .tab-btn.active[data-tab],
+body.light-mode #mylist-view #mylist-toolbar .tab-btn.active {
+  border: 1px solid rgba(196,181,253,0.28) !important;
+  border-radius: 999px !important;
+  background: linear-gradient(135deg, rgba(124,58,237,0.34), rgba(167,139,250,0.16)) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 20px rgba(124,58,237,0.16), inset 0 1px 0 rgba(255,255,255,0.08) !important;
+}
+
+#mylist-view #mylist-header .section-btn.active .section-count-bubble,
+#mylist-view #mylist-toolbar .tab-btn.active .tab-count {
+  background: rgba(255,255,255,0.12) !important;
+  color: #ffffff !important;
+}
+
+@media (max-width: 700px) {
+  #mylist-view #mylist-header.mylist-section-card,
+  body:not(.light-mode):not(.true-dark-mode) #mylist-view #mylist-header.mylist-section-card {
+    padding: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  #mylist-view #mylist-toolbar .tabs,
+  body:not(.light-mode):not(.true-dark-mode) #mylist-view .tabs {
+    width: min(92%, 330px) !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    margin: 0 auto 10px !important;
+  }
+}
+
+/* v149: Friends Activity swipe-only sections + deep purple Activity backdrop. */
+#community-view #activity-tab-view .activity-shared-watch-pill[aria-disabled="true"] {
+  cursor: default !important;
+}
+#community-view #activity-tab-view .activity-shared-watch-pill[aria-disabled="true"]:active {
+  transform: none !important;
+}
+
+body:not(.light-mode):not(.true-dark-mode) #community-view.friends-activity-active {
+  min-height: 100vh !important;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(124,58,237,0.16), transparent 30%),
+    linear-gradient(135deg, #050410 0%, #15102d 52%, #050410 100%) !important;
+  background-attachment: fixed !important;
+}
+body:not(.light-mode):not(.true-dark-mode) #community-view.friends-activity-active .main-content {
+  min-height: calc(100vh - 40px) !important;
+  background:
+    linear-gradient(180deg, rgba(21,16,45,0.62), rgba(5,4,16,0.18)) !important;
+}
+@media (max-width: 700px) {
+  body:not(.light-mode):not(.true-dark-mode) #community-view.friends-activity-active,
+  body:not(.light-mode):not(.true-dark-mode) #community-view.friends-activity-active .main-content {
+    min-height: 100vh !important;
+  }
+}
+
+
+/* v150: My Lists category/status divider, own profile shortcut, and active-only category counts */
+#mylist-view #mylist-header.mylist-section-card::after {
+  content: '';
+  display: block;
+  width: min(92%, 340px);
+  height: 1px;
+  margin: 10px auto 0;
+  background: linear-gradient(90deg, transparent, rgba(196,181,253,0.28), transparent);
+  pointer-events: none;
+}
+
+#mylist-view #mylist-edit-controls {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 52px !important;
+}
+
+#mylist-view .mylist-own-profile-shortcut {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(196,181,253,0.34);
+  background: rgba(255,255,255,0.04);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.08);
+  transform: translateY(-50%);
+  overflow: hidden;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#mylist-view .mylist-own-profile-shortcut img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+#mylist-view .mylist-own-profile-shortcut:active {
+  transform: translateY(-50%) scale(0.97);
+}
+
+#mylist-view #mylist-header .section-btn:not(.active) .section-count-bubble {
+  display: none !important;
+}
+
+#mylist-view #mylist-header .section-btn.active .section-count-bubble {
+  display: inline-flex !important;
+}
+
+body.light-mode #mylist-view #mylist-header.mylist-section-card::after {
+  background: linear-gradient(90deg, transparent, rgba(124,58,237,0.24), transparent);
+}
+
+body.light-mode #mylist-view .mylist-own-profile-shortcut {
+  background: rgba(124,58,237,0.05);
+  border-color: rgba(124,58,237,0.24);
+  box-shadow: 0 10px 20px rgba(61,36,120,0.08), inset 0 1px 0 rgba(255,255,255,0.7);
+}
+
+@media (max-width: 600px) {
+  #mylist-view #mylist-edit-controls {
+    min-height: 50px !important;
+    padding-left: 54px !important;
+  }
+
+  #mylist-view .mylist-own-profile-shortcut {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+@media (max-width: 370px) {
+  #mylist-view #mylist-edit-controls {
+    padding-left: 50px !important;
+  }
+
+  #mylist-view .mylist-own-profile-shortcut {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* v151: Unread Patch Notes ping. */
+.screenlist-patch-notes-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.screenlist-patch-notes-link.screenlist-patch-notes-unread::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34,197,94,0.16), 0 0 10px rgba(34,197,94,0.45);
+  flex: 0 0 auto;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .screenlist-patch-notes-link.screenlist-patch-notes-unread::after {
+    animation: screenlistPatchNotesPing 1.8s ease-in-out infinite;
+  }
+}
+@keyframes screenlistPatchNotesPing {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 3px rgba(34,197,94,0.16), 0 0 10px rgba(34,197,94,0.45); }
+  50% { transform: scale(1.18); box-shadow: 0 0 0 5px rgba(34,197,94,0.08), 0 0 14px rgba(34,197,94,0.5); }
+}
+
+/* v152: Friends section order, swipe indicators, and Activity Feed backdrop tuning. */
+#activity-tab-view .activity-feed-actions {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+}
+#activity-tab-view .activity-shared-watch-pill[aria-disabled="true"] {
+  cursor: default !important;
+  -webkit-tap-highlight-color: transparent;
+}
+#activity-tab-view .activity-shared-watch-pill[aria-disabled="true"]:active {
+  transform: none !important;
+}
+@media (max-width: 700px) {
+  #activity-tab-view .activity-feed-actions {
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+  }
+  #activity-tab-view .activity-shared-watch-pill {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    min-height: 35px !important;
+    padding: 0 8px !important;
+    font-size: 10.5px !important;
+    line-height: 1.1 !important;
+  }
+  #activity-tab-view .activity-shared-watch-count {
+    margin-left: 3px !important;
+  }
+}
+@media (max-width: 390px) {
+  #activity-tab-view .activity-shared-watch-pill {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    padding: 0 6px !important;
+    font-size: 10px !important;
+  }
+}
+body:not(.light-mode):not(.true-dark-mode) #community-view.friends-activity-active.activity-subtab-feed {
+  min-height: 100vh !important;
+  background: linear-gradient(135deg, #050410 0%, #15102d 52%, #050410 100%) !important;
+  background-attachment: fixed !important;
+}
+body:not(.light-mode):not(.true-dark-mode) #community-view.friends-activity-active.activity-subtab-feed .main-content {
+  min-height: 100vh !important;
+  background: linear-gradient(180deg, rgba(21,16,45,0.18), rgba(5,4,16,0.04)) !important;
+}
+
+
+/* v160: use the page/header background for the mobile safe-area instead of a separate top blocker */
+/* v485: variable updated to #181818 so this rule (which loads AFTER 00-base-layout.css
+   and therefore wins the body background cascade) no longer paints a dark navy
+   layer underneath, which was rendering as a "shadowy" effect through any
+   semi-transparent surfaces on top. */
+:root {
+  --screenlist-mobile-topbar: #181818;
+}
+html,
+body {
+  background-color: var(--screenlist-mobile-topbar);
+}
+@media (display-mode: standalone) {
+  body::before {
+    content: none !important;
+    display: none !important;
+  }
+}
+
+/* v153 Pass 2: Friends top tabs keep the outer container, but individual tabs are text-only */
+body:not(.light-mode):not(.true-dark-mode) #community-view .friends-tabs {
+  background: rgba(255,255,255,0.035) !important;
+  border: 1px solid var(--sl-default-panel-border) !important;
+  border-radius: 20px !important;
+  box-shadow: var(--sl-default-panel-shadow) !important;
+}
+body:not(.light-mode):not(.true-dark-mode) #community-view .friends-tabs .friends-tab-btn {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: rgba(232,227,243,0.72) !important;
+  font-weight: 500 !important;
+  text-decoration: none !important;
+}
+body:not(.light-mode):not(.true-dark-mode) #community-view .friends-tabs .friends-tab-btn.active {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  text-decoration: underline !important;
+  text-decoration-color: rgba(167,139,250,0.9) !important;
+  text-decoration-thickness: 2px !important;
+  text-underline-offset: 7px !important;
+}
+body:not(.light-mode):not(.true-dark-mode) #community-view .friends-tabs .friends-tab-btn:hover {
+  color: #ffffff !important;
+}
+body.light-mode #community-view .friends-tabs .friends-tab-btn {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+body.light-mode #community-view .friends-tabs .friends-tab-btn.active {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  text-decoration: underline !important;
+  text-underline-offset: 7px !important;
+}
+
+/* v153 Pass 3: hide the extra visible Friends tab count without removing friend data */
+#friends-count-badge,
+.friends-count-badge-hidden {
+  display: none !important;
+}
+
+/* v154: Per-entry unread indicators for Patch Notes. */
+.screenlist-patch-note-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.screenlist-patch-note-title-row h2 {
+  flex: 1 1 auto;
+}
+.screenlist-patch-note-entry-ping {
+  display: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34,197,94,0.16), 0 0 10px rgba(34,197,94,0.45);
+  flex: 0 0 auto;
+}
+.screenlist-patch-note-card.screenlist-patch-note-unread .screenlist-patch-note-entry-ping {
+  display: inline-block;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .screenlist-patch-note-card.screenlist-patch-note-unread .screenlist-patch-note-entry-ping {
+    animation: screenlistPatchNotesPing 1.8s ease-in-out infinite;
+  }
+}
+
+
+/* v155: isolated Friends swipe + own-profile header fixes. */
+#activity-tab-view {
+  touch-action: pan-y;
+  overscroll-behavior-x: contain;
+}
+.activity-feed-actions .activity-shared-watch-pill {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.profile-page.own-profile-view .profile-page-avatar {
+  width: 128px;
+  height: 128px;
+  border-radius: 32px;
+}
+body.profile-active .header .edit-profile-btn,
+body.profile-active .header .mobile-edit-profile-btn {
+  display: none !important;
+}
+@media (max-width: 1050px) {
+  .profile-page.own-profile-view .profile-page-avatar {
+    width: 144px;
+    height: 144px;
+  }
+}
+@media (max-width: 700px) {
+  .profile-page.own-profile-view .profile-page-avatar {
+    width: 108px;
+    height: 108px;
+    border-radius: 26px;
+  }
+  .profile-page.own-profile-view .profile-avatar-panel {
+    gap: 12px;
+  }
+}
+
+/* v156: isolated Friends swipe retry + own profile/My Lists header cleanup. */
+#activity-tab-view {
+  touch-action: pan-y pinch-zoom !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+#activity-tab-view #friend-activity-feed,
+#activity-tab-view #shared-watch-feed {
+  touch-action: pan-y pinch-zoom !important;
+}
+.activity-feed-actions .activity-shared-watch-pill {
+  pointer-events: none;
+}
+body.own-profile-active .header .edit-profile-btn,
+body.own-profile-active .header .mobile-edit-profile-btn,
+body.own-profile-active .header .user-avatar {
+  display: none !important;
+}
+.profile-page.own-profile-view .profile-page-avatar {
+  width: 136px !important;
+  height: 136px !important;
+  border-radius: 32px !important;
+}
+@media (max-width: 700px) {
+  .profile-page.own-profile-view .profile-page-avatar {
+    width: 112px !important;
+    height: 112px !important;
+    border-radius: 28px !important;
+  }
+}
+body.main-tab-mylist .header .user-avatar,
+body.main-tab-mylist .header .mobile-edit-profile-btn,
+body.main-tab-mylist .header .edit-profile-btn {
+  display: none !important;
+}
+body.main-tab-mylist .header-logo-block > img.site-logo-img {
+  justify-self: start !important;
+  margin-left: 0 !important;
+}
+#mylist-view #mylist-edit-controls {
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  min-height: 104px !important;
+  gap: 9px !important;
+  padding-left: 0 !important;
+}
+#mylist-view .mylist-own-profile-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+}
+#mylist-view .mylist-own-profile-shortcut {
+  position: static !important;
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+  width: 56px !important;
+  height: 56px !important;
+  flex: 0 0 auto;
+}
+#mylist-view .mylist-own-profile-shortcut:active {
+  transform: scale(0.97) !important;
+}
+#mylist-view .mylist-own-profile-name {
+  max-width: min(70vw, 280px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #f8f4ff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+}
+#mylist-view .mylist-edit-row {
+  justify-content: center !important;
+  width: 100%;
+}
+@media (max-width: 700px) {
+  body.main-tab-mylist .header-top {
+    grid-template-columns: 58px minmax(0, 1fr) 58px !important;
+  }
+  body.main-tab-mylist .header-logo-block > img.site-logo-img {
+    grid-column: 1 !important;
+    grid-row: 1 / span 2 !important;
+    justify-self: start !important;
+    align-self: center !important;
+    width: 44px !important;
+    height: 44px !important;
+    max-width: 44px !important;
+    max-height: 44px !important;
+    transform: none !important;
+    margin: 0 !important;
+  }
+  #mylist-view #mylist-edit-controls {
+    min-height: 102px !important;
+    padding-left: 0 !important;
+  }
+  #mylist-view .mylist-own-profile-shortcut {
+    width: 54px !important;
+    height: 54px !important;
+  }
+}
+@media (max-width: 370px) {
+  #mylist-view #mylist-edit-controls {
+    min-height: 98px !important;
+    padding-left: 0 !important;
+  }
+  #mylist-view .mylist-own-profile-shortcut {
+    width: 50px !important;
+    height: 50px !important;
+  }
+}
+
+
+/* v157: Direct Messages icon cleanup + My Lists header/label polish. */
+.header-dm-btn,
+body.light-mode .header-dm-btn {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.header-dm-btn:hover,
+body.light-mode .header-dm-btn:hover {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  transform: translateY(-1px);
+}
+
+/* v494: Quick-add "+" button — replaces DM icon, same grid slot, same minimal style */
+.header-add-quick-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 43px;
+  height: 43px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: #e8e3f3;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.header-add-quick-btn:hover { opacity: 0.72; transform: translateY(-1px); }
+.header-add-quick-btn:active { transform: scale(0.92); opacity: 1; }
+body.light-mode .header-add-quick-btn { color: #2a1d52; }
+
+/* v502: Per-tab visibility for header right-slot icons.
+   - My Lists → "+" only (Add to Shelf)
+   - Friends   → DM icon only
+   - Discover  → neither */
+.header-add-quick-btn { display: none !important; }
+.header-dm-btn        { display: none !important; }
+body.main-tab-mylist .header-add-quick-btn { display: inline-flex !important; }
+body.main-tab-community .header-dm-btn { display: inline-flex !important; }
+
+/* v495/v498: mobile grid positioning — align-self: end so bottom edge
+   meets the top of the profile picture */
+@media (max-width: 700px) {
+  .header-add-quick-btn {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    justify-self: end !important;
+    align-self: end !important;
+    width: 42px !important;
+    height: 42px !important;
+    margin: 0 -4px 0 0 !important;
+  }
+}
+.header-dm-btn:active {
+  transform: scale(0.96) !important;
+}
+.header-dm-btn.has-ping::after {
+  inset: 1px !important;
+  border-color: rgba(239,68,68,0.42) !important;
+}
+
+#mylist-view #mylist-edit-controls {
+  margin-top: -12px !important;
+  min-height: 116px !important;
+  gap: 7px !important;
+}
+#mylist-view .mylist-own-profile-shortcut {
+  width: 68px !important;
+  height: 68px !important;
+}
+#mylist-view .mylist-own-profile-name {
+  font-size: 14px !important;
+  margin-top: 0 !important;
+}
+
+#mylist-view #mylist-toolbar .tabs::before {
+  justify-self: start !important;
+  text-align: left !important;
+  margin-left: -7px !important;
+}
+#mylist-view #mylist-header.mylist-section-card::before {
+  font-size: 12.5px !important;
+}
+
+@media (max-width: 700px) {
+  #mylist-view #mylist-edit-controls {
+    margin-top: -16px !important;
+    min-height: 118px !important;
+  }
+  #mylist-view .mylist-own-profile-shortcut {
+    width: 68px !important;
+    height: 68px !important;
+  }
+}
+@media (max-width: 370px) {
+  #mylist-view #mylist-edit-controls {
+    margin-top: -14px !important;
+    min-height: 112px !important;
+  }
+  #mylist-view .mylist-own-profile-shortcut {
+    width: 62px !important;
+    height: 62px !important;
+  }
+  #mylist-view .mylist-own-profile-name {
+    font-size: 13px !important;
+  }
+}
+
+
+/* v158: Friends Activity card revamp + My Lists header/action alignment. */
+body:not(.light-mode):not(.true-dark-mode) #community-view #activity-tab-view .activity-card {
+  display: grid !important;
+  grid-template-columns: 42px minmax(0, 1fr) 66px !important;
+  align-items: start !important;
+  gap: 11px !important;
+  min-width: 0 !important;
+  padding: 12px !important;
+  background: #211547 !important;
+  border: 1px solid rgba(148,118,220,0.18) !important;
+  border-radius: 18px !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+  cursor: default !important;
+}
+body:not(.light-mode):not(.true-dark-mode) #community-view #activity-tab-view .activity-card::before {
+  display: none !important;
+}
+body:not(.light-mode):not(.true-dark-mode) #community-view #activity-tab-view .activity-card:hover {
+  border-color: rgba(168,148,230,0.24) !important;
+  box-shadow: none !important;
+}
+#community-view #activity-tab-view .activity-avatar-wrap {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  width: 42px !important;
+  min-width: 42px !important;
+}
+#community-view #activity-tab-view .activity-card-avatar,
+#community-view #activity-tab-view .activity-card-avatar-placeholder {
+  width: 42px !important;
+  height: 42px !important;
+  margin: 0 !important;
+  border: 1px solid rgba(203,190,255,0.30) !important;
+  box-shadow: none !important;
+}
+#community-view #activity-tab-view .activity-content-col {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  gap: 0 !important;
+}
+#community-view #activity-tab-view .activity-who-row {
+  display: block !important;
+  min-width: 0 !important;
+  margin: 0 0 3px !important;
+}
+#community-view #activity-tab-view .activity-card-name {
+  display: block !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  color: #f3edff !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  line-height: 1.16 !important;
+  text-shadow: none !important;
+}
+#community-view #activity-tab-view .activity-action-text {
+  display: block !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  margin: 0 0 3px !important;
+  color: #cfc4ee !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  line-height: 1.22 !important;
+  text-shadow: none !important;
+}
+body:not(.light-mode):not(.true-dark-mode) #community-view #activity-tab-view .activity-card-title-inline,
+#community-view #activity-tab-view .activity-card-title-inline {
+  display: block !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  color: #ffffff !important;
+  font-size: 15px !important;
+  font-weight: 900 !important;
+  line-height: 1.18 !important;
+  text-shadow: none !important;
+}
+#community-view #activity-tab-view .activity-card-bottom {
+  margin-top: 9px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  min-width: 0 !important;
+}
+#community-view #activity-tab-view .activity-card-time {
+  order: 0 !important;
+  color: #a99bd8 !important;
+  font-size: 10.5px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.01em !important;
+  flex-shrink: 0 !important;
+}
+#community-view #activity-tab-view .activity-event-label,
+#community-view #activity-tab-view .activity-card-sep,
+#community-view #activity-tab-view .activity-card-section {
+  color: #9587c8 !important;
+  font-size: 9.5px !important;
+  font-weight: 750 !important;
+  opacity: 0.86 !important;
+}
+#community-view #activity-tab-view .activity-poster-col,
+#community-view #activity-tab-view .activity-poster-placeholder {
+  grid-column: 3 !important;
+  grid-row: 1 !important;
+  width: 66px !important;
+  min-width: 66px !important;
+  height: 92px !important;
+  min-height: 92px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  background: #180f35 !important;
+  align-self: center !important;
+  cursor: pointer !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  box-shadow: none !important;
+}
+#community-view #activity-tab-view .activity-poster-col::after {
+  display: none !important;
+}
+#community-view #activity-tab-view .activity-poster-img {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  object-fit: cover !important;
+  display: block !important;
+}
+#community-view #activity-tab-view .activity-comment-preview {
+  margin: 6px 0 0 !important;
+  color: #cfc4ee !important;
+  border-left-color: rgba(203,190,255,0.25) !important;
+}
+#community-view #activity-tab-view .activity-stars-row {
+  margin: 6px 0 0 !important;
+}
+@media (max-width: 420px) {
+  body:not(.light-mode):not(.true-dark-mode) #community-view #activity-tab-view .activity-card {
+    grid-template-columns: 39px minmax(0, 1fr) 58px !important;
+    gap: 9px !important;
+    padding: 11px !important;
+    border-radius: 16px !important;
+  }
+  #community-view #activity-tab-view .activity-avatar-wrap,
+  #community-view #activity-tab-view .activity-card-avatar,
+  #community-view #activity-tab-view .activity-card-avatar-placeholder {
+    width: 39px !important;
+    height: 39px !important;
+    min-width: 39px !important;
+  }
+  #community-view #activity-tab-view .activity-poster-col,
+  #community-view #activity-tab-view .activity-poster-placeholder {
+    width: 58px !important;
+    min-width: 58px !important;
+    height: 84px !important;
+    min-height: 84px !important;
+  }
+  #community-view #activity-tab-view .activity-card-name { font-size: 13.5px !important; }
+  #community-view #activity-tab-view .activity-card-title-inline { font-size: 14px !important; }
+}
+
+body.main-tab-mylist .header-dm-icon,
+body.main-tab-mylist .header-dm-icon svg {
+  width: 25px !important;
+  height: 25px !important;
+}
+body.main-tab-mylist .header-dm-btn {
+  width: 48px !important;
+  height: 48px !important;
+}
+body.main-tab-mylist #mylist-view #mylist-edit-controls {
+  margin-top: -74px !important;
+  min-height: 82px !important;
+  gap: 5px !important;
+  position: relative !important;
+  z-index: 6 !important;
+  pointer-events: none !important;
+}
+body.main-tab-mylist #mylist-view .mylist-own-profile-center,
+body.main-tab-mylist #mylist-view .mylist-edit-row {
+  pointer-events: auto !important;
+}
+body.main-tab-mylist #mylist-view .mylist-own-profile-shortcut {
+  width: 62px !important;
+  height: 62px !important;
+}
+body.main-tab-mylist #mylist-view .mylist-own-profile-name {
+  font-size: 13px !important;
+  line-height: 1.05 !important;
+  margin-top: -1px !important;
+}
+@media (max-width: 700px) {
+  body.main-tab-mylist .header-top {
+    grid-template-columns: 64px minmax(0, 1fr) 88px !important;
+    grid-template-rows: 48px 24px !important;
+    min-height: 72px !important;
+  }
+  body.main-tab-mylist .header-logo-block > img.site-logo-img {
+    grid-column: 1 !important;
+    grid-row: 1 / span 2 !important;
+    align-self: start !important;
+    justify-self: start !important;
+    width: 46px !important;
+    height: 46px !important;
+    max-width: 46px !important;
+    max-height: 46px !important;
+    margin: 0 !important;
+    transform: none !important;
+  }
+  body.main-tab-mylist .header-dm-btn {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    width: 48px !important;
+    height: 48px !important;
+    justify-self: end !important;
+    align-self: start !important;
+  }
+  body.main-tab-mylist .header-import-btn {
+    grid-column: 3 !important;
+    grid-row: 2 !important;
+    justify-self: end !important;
+    align-self: start !important;
+    max-width: 86px !important;
+    min-width: 0 !important;
+    padding: 4px 7px !important;
+    margin: -1px 0 0 !important;
+    font-size: 9.5px !important;
+    white-space: nowrap !important;
+  }
+  body.main-tab-mylist #mylist-view #mylist-edit-controls {
+    margin-top: -92px !important;
+    min-height: 76px !important;
+  }
+  body.main-tab-mylist #mylist-view .mylist-own-profile-shortcut {
+    width: 56px !important;
+    height: 56px !important;
+  }
+  body.main-tab-mylist #mylist-view .mylist-own-profile-name {
+    max-width: min(44vw, 170px) !important;
+    font-size: 12.5px !important;
+  }
+  body.main-tab-mylist #mylist-view .mylist-edit-row {
+    margin-top: 2px !important;
+  }
+}
+@media (max-width: 370px) {
+  body.main-tab-mylist .header-top {
+    grid-template-columns: 58px minmax(0, 1fr) 82px !important;
+  }
+  body.main-tab-mylist .header-import-btn {
+    max-width: 80px !important;
+    padding-inline: 6px !important;
+    font-size: 9px !important;
+  }
+  body.main-tab-mylist #mylist-view #mylist-edit-controls {
+    margin-top: -88px !important;
+    min-height: 72px !important;
+  }
+  body.main-tab-mylist #mylist-view .mylist-own-profile-shortcut {
+    width: 52px !important;
+    height: 52px !important;
+  }
+}
+
+/* v158 guardrails: keep the new Activity card shape/background across themes. */
+#community-view #activity-tab-view .activity-card {
+  display: grid !important;
+  grid-template-columns: 42px minmax(0, 1fr) 66px !important;
+  align-items: start !important;
+  gap: 11px !important;
+  min-width: 0 !important;
+  padding: 12px !important;
+  background: #211547 !important;
+  border-color: rgba(148,118,220,0.18) !important;
+  border-radius: 18px !important;
+  box-shadow: none !important;
+}
+#community-view #activity-tab-view .activity-card:hover {
+  box-shadow: none !important;
+}
+#community-view #activity-tab-view .activity-card::before {
+  display: none !important;
+}
+@media (max-width: 420px) {
+  #community-view #activity-tab-view .activity-card {
+    grid-template-columns: 39px minmax(0, 1fr) 58px !important;
+    gap: 9px !important;
+    padding: 11px !important;
+  }
+}
+@media (max-width: 700px) {
+  body.main-tab-mylist .header-import-btn {
+    transform: translateX(-4px) !important;
+  }
+}
+
+
+/* v159: mobile-first My Lists header/control spacing cleanup. */
+#mylist-view #mylist-profile-controls:empty {
+  display: none !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+body.main-tab-mylist #mylist-view #mylist-profile-controls {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+  min-height: 104px !important;
+  margin: -88px 0 8px !important;
+  padding: 0 !important;
+  position: relative !important;
+  z-index: 7 !important;
+  pointer-events: none !important;
+}
+
+body.main-tab-mylist #mylist-view #mylist-profile-controls .mylist-own-profile-center {
+  pointer-events: auto !important;
+}
+
+body.main-tab-mylist #mylist-view #mylist-profile-controls .mylist-own-profile-shortcut {
+  width: 78px !important;
+  height: 78px !important;
+}
+
+body.main-tab-mylist #mylist-view #mylist-profile-controls .mylist-own-profile-name {
+  max-width: min(48vw, 190px) !important;
+  font-size: 13px !important;
+  line-height: 1.05 !important;
+  margin-top: 2px !important;
+}
+
+body.main-tab-mylist #mylist-view #mylist-header #mylist-edit-controls,
+#mylist-view #mylist-header #mylist-edit-controls {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+  width: 100% !important;
+  min-height: 0 !important;
+  margin: 0 0 8px !important;
+  padding: 0 2px 9px !important;
+  gap: 8px !important;
+  position: static !important;
+  z-index: auto !important;
+  pointer-events: auto !important;
+  border-bottom: 1px solid rgba(196,181,253,0.16) !important;
+}
+
+#mylist-view #mylist-header .mylist-edit-row {
+  justify-content: flex-start !important;
+  width: auto !important;
+  gap: 8px !important;
+}
+
+#mylist-view #mylist-header .mylist-edit-btn {
+  min-height: 28px !important;
+  padding: 5px 13px !important;
+  width: auto !important;
+  flex: 0 0 auto !important;
+}
+
+#mylist-view #mylist-header .mylist-toggle-bubbles {
+  flex-wrap: wrap !important;
+  justify-content: flex-start !important;
+  min-width: 0 !important;
+}
+
+#mylist-view #mylist-header.mylist-section-card::before,
+#mylist-view #mylist-toolbar .tabs::before {
+  justify-self: start !important;
+  align-self: flex-start !important;
+  text-align: left !important;
+  margin: 0 2px 8px !important;
+  padding: 0 !important;
+  font-size: 12px !important;
+  line-height: 1 !important;
+}
+
+#mylist-view #mylist-header.mylist-section-card::after {
+  content: '' !important;
+  display: block !important;
+  height: 1px !important;
+  margin: 11px 2px -1px !important;
+  background: linear-gradient(90deg, transparent, rgba(196,181,253,0.28), transparent) !important;
+}
+
+#mylist-view #mylist-header .section-toggle,
+body:not(.light-mode):not(.true-dark-mode) #mylist-view .section-toggle,
+#mylist-view #mylist-toolbar .tabs,
+body:not(.light-mode):not(.true-dark-mode) #mylist-view .tabs {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 7px !important;
+}
+
+#mylist-view #mylist-header .section-toggle,
+body:not(.light-mode):not(.true-dark-mode) #mylist-view .section-toggle {
+  width: 100% !important;
+}
+
+#mylist-view #mylist-toolbar .tabs,
+body:not(.light-mode):not(.true-dark-mode) #mylist-view .tabs {
+  width: 100% !important;
+}
+
+#mylist-view #mylist-toolbar .tabs::before {
+  flex: 0 0 100% !important;
+  margin-left: 2px !important;
+}
+
+#mylist-view #mylist-header .section-btn,
+#mylist-view #mylist-toolbar .tab-btn {
+  width: auto !important;
+  min-width: 0 !important;
+  flex: 0 0 auto !important;
+  padding: 0 11px !important;
+  white-space: nowrap !important;
+}
+
+#mylist-view #mylist-header .section-btn.active,
+body:not(.light-mode):not(.true-dark-mode) #mylist-view .section-btn.active,
+#mylist-view #mylist-toolbar .tab-btn.active,
+body:not(.light-mode):not(.true-dark-mode) #mylist-view .tab-btn.active,
+body:not(.light-mode):not(.true-dark-mode) #mylist-view .tab-btn.active[data-tab] {
+  width: auto !important;
+  min-width: 0 !important;
+  flex: 0 0 auto !important;
+  background: rgba(124,58,237,0.22) !important;
+  border-color: rgba(196,181,253,0.30) !important;
+  box-shadow: inset 0 0 0 1px rgba(196,181,253,0.10) !important;
+}
+
+#mylist-view #mylist-toolbar,
+body:not(.light-mode):not(.true-dark-mode) #mylist-view #mylist-toolbar {
+  gap: 12px !important;
+}
+
+#mylist-view #mylist-toolbar .toolbar-right {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+#mylist-view #mylist-toolbar .search-input {
+  flex: 1 1 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+}
+
+#mylist-view #add-btn {
+  flex: 0 0 auto !important;
+}
+
+body.main-tab-mylist .header-dm-btn {
+  width: 44px !important;
+  height: 44px !important;
+}
+
+body.main-tab-mylist .header-dm-icon,
+body.main-tab-mylist .header-dm-icon svg {
+  width: 24px !important;
+  height: 24px !important;
+}
+
+@media (max-width: 700px) {
+  body.main-tab-mylist .header-top {
+    grid-template-columns: 64px minmax(0, 1fr) 104px !important;
+    grid-template-rows: 56px 24px !important;
+    min-height: 82px !important;
+  }
+
+  body.main-tab-mylist .header-dm-btn {
+    width: 56px !important;
+    height: 56px !important;
+  }
+
+  body.main-tab-mylist .header-import-btn {
+    max-width: 94px !important;
+    transform: translateX(-6px) !important;
+  }
+
+  /* v501: header padding back to original — DO NOT use padding-top to
+     shift icons because it also pushes the profile picture below it down.
+     Icons are shifted via transform on themselves (see cogwheel, +, import
+     rules below), which moves them visually without affecting layout flow. */
+  body.main-tab-mylist .header {
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+  }
+  /* v501/v505: cogwheel + plus shifted down 52px.
+     Import gets a larger translateY so it sits below the cogwheel. */
+  body.main-tab-mylist .mylist-header-cog,
+  body.main-tab-mylist .header-add-quick-btn {
+    transform: translateY(52px) !important;
+  }
+  body.main-tab-mylist .header-import-btn {
+    transform: translateY(112px) !important;
+  }
+  body.main-tab-mylist #mylist-view #mylist-profile-controls {
+    min-height: 96px !important;
+    margin-top: -148px !important;
+    margin-bottom: 6px !important;
+  }
+
+  body.main-tab-mylist #mylist-view #mylist-profile-controls .mylist-own-profile-shortcut {
+    width: 76px !important;
+    height: 76px !important;
+  }
+
+  #mylist-view #mylist-header.mylist-section-card,
+  body:not(.light-mode):not(.true-dark-mode) #mylist-view #mylist-header.mylist-section-card {
+    margin-bottom: 12px !important;
+  }
+
+  #mylist-view #mylist-toolbar,
+  body:not(.light-mode):not(.true-dark-mode) #mylist-view #mylist-toolbar {
+    display: block !important;
+  }
+
+  #mylist-view #mylist-toolbar .tabs,
+  body:not(.light-mode):not(.true-dark-mode) #mylist-view .tabs {
+    margin-bottom: 12px !important;
+  }
+
+  #mylist-view #mylist-toolbar .toolbar-right {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 9px !important;
+  }
+
+  #mylist-view #sort-dropdown-btn {
+    grid-column: 1 !important;
+  }
+
+  #mylist-view #sort-dropdown-btn + .search-input {
+    grid-column: 2 / -1 !important;
+  }
+
+  #mylist-view #mylist-toolbar .toolbar-right:not(:has(#sort-dropdown-btn)) .search-input {
+    grid-column: 1 / -1 !important;
+  }
+
+  #mylist-view #mylist-toolbar .search-input {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  #mylist-view #add-btn {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 370px) {
+  body.main-tab-mylist #mylist-view #mylist-profile-controls {
+    min-height: 100px !important;
+    margin-top: -98px !important;
+  }
+
+  body.main-tab-mylist #mylist-view #mylist-profile-controls .mylist-own-profile-shortcut {
+    width: 70px !important;
+    height: 70px !important;
+  }
+
+  body.main-tab-mylist .header-top {
+    grid-template-columns: 58px minmax(0, 1fr) 96px !important;
+  }
+}
+
+
+/* v159 guardrail: keep mobile library search stretched after the sort icon. */
+@media (max-width: 700px) {
+  #mylist-view #mylist-toolbar .toolbar-right {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  #mylist-view #mylist-toolbar .toolbar-right:has(#sort-dropdown-btn) {
+    grid-template-columns: 42px minmax(0, 1fr) !important;
+  }
+
+  #mylist-view #sort-dropdown-btn {
+    grid-column: 1 !important;
+    width: 42px !important;
+    min-width: 42px !important;
+  }
+
+  #mylist-view #sort-dropdown-btn + .search-input {
+    grid-column: 2 / -1 !important;
+  }
+
+  #mylist-view #mylist-toolbar .toolbar-right:not(:has(#sort-dropdown-btn)) .search-input {
+    grid-column: 1 / -1 !important;
+  }
+}
+
+
+/* v159 guardrail: no empty edit-control gap when viewing someone else's lists. */
+#mylist-view #mylist-header #mylist-edit-controls:empty {
+  display: none !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+
+/* v161: iOS Add-to-Home-Screen top surface — one continuous background behind the status area, header, and page */
+@media (display-mode: standalone) {
+  body {
+    padding-top: 0 !important;
+  }
+
+  .header {
+    padding-top: calc(18px + env(safe-area-inset-top, 0px)) !important;
+    background: transparent !important;
+    border-bottom-color: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+@media (display-mode: standalone) and (max-width: 700px) {
+  .header {
+    padding-top: calc(10px + env(safe-area-inset-top, 0px)) !important;
+  }
+}
+
+/* v376: Patch Notes cards are now simple dev log entries only. */
+.screenlist-patch-notes-page,
+.screenlist-patch-note-card,
+.screenlist-patch-notes-back {
+  font-family: Aptos, 'DM Sans', sans-serif !important;
+}
+.screenlist-patch-note-card-simple {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  border-color: rgba(245,245,255,0.18);
+  background: rgba(255,255,255,0.026);
+  color: #ffffff;
+}
+.screenlist-patch-note-card-simple .screenlist-patch-note-date {
+  margin: 0;
+  color: #ffffff;
+  font-family: Aptos, 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+.screenlist-patch-note-applied {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+.screenlist-patch-note-version {
+  color: rgba(255,255,255,0.78);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.screenlist-patch-note-card-simple h2,
+.screenlist-patch-note-card-simple ul,
+.screenlist-patch-note-card-simple li,
+.screenlist-patch-note-title-row {
+  display: none !important;
+}
+.screenlist-version-footer {
+  display: block;
+  width: 100%;
+  margin-top: 9px;
+  color: rgba(255,255,255,0.72);
+  font-family: Aptos, 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-align: center;
+}
+body.light-mode .screenlist-version-footer {
+  color: rgba(18,8,46,0.62);
+}
+body.light-mode .screenlist-patch-note-card-simple {
+  background: rgba(8,6,20,0.92) !important;
+  border-color: rgba(245,245,255,0.18) !important;
+}
+body.light-mode .screenlist-patch-note-card-simple .screenlist-patch-note-date,
+body.light-mode .screenlist-patch-note-card-simple .screenlist-patch-note-applied,
+body.light-mode .screenlist-patch-note-card-simple .screenlist-patch-note-version {
+  color: #ffffff !important;
+}
+
+/* v468: Collapsible Activity Feed import batch cards. */
+.import-activity-card {
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: clamp(250px, 31vw, 318px) !important;
+  gap: 13px !important;
+  padding: 16px !important;
+  border: 1px solid rgba(196,181,253,0.22) !important;
+  border-radius: 24px !important;
+  background: linear-gradient(145deg, rgba(24,18,54,0.94), rgba(10,7,26,0.96)) !important;
+  color: #ffffff !important;
+  overflow: hidden !important;
+}
+.import-activity-top {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.import-activity-copy { min-width: 0; }
+.import-activity-title {
+  margin-top: 5px;
+  color: #ffffff;
+  font-family: Aptos, 'DM Sans', sans-serif;
+  font-size: 18px;
+  line-height: 1.16;
+  font-weight: 950;
+  letter-spacing: -0.02em;
+}
+.import-activity-status {
+  margin-top: 5px;
+  color: rgba(255,255,255,0.78);
+  font-family: Aptos, 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+}
+.import-activity-preview {
+  display: flex;
+  gap: 8px;
+  min-height: 52px;
+  overflow: hidden;
+}
+.import-activity-preview-tile {
+  width: 42px;
+  height: 56px;
+  border-radius: 10px;
+  overflow: hidden;
+  flex: 0 0 auto;
+  background: rgba(255,255,255,0.08);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-weight: 900;
+}
+.import-activity-preview-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.import-activity-toggle {
+  width: 100%;
+  min-height: 40px;
+  border-radius: 999px;
+  border: 1px solid rgba(245,245,255,0.28);
+  background: rgba(255,255,255,0.07);
+  color: #ffffff;
+  font-family: Aptos, 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.import-activity-list {
+  display: none;
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 2px;
+  gap: 8px;
+  scrollbar-width: none;
+}
+.import-activity-list::-webkit-scrollbar { display: none; }
+.import-activity-card.expanded .import-activity-list {
+  display: grid;
+}
+.import-activity-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 54px;
+  padding: 7px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.045);
+}
+.import-activity-row-poster {
+  width: 42px;
+  height: 50px;
+  border-radius: 9px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 900;
+}
+.import-activity-row-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.import-activity-row-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.import-activity-row-copy strong {
+  color: #ffffff;
+  font-family: Aptos, 'DM Sans', sans-serif;
+  font-size: 13px;
+  line-height: 1.18;
+  font-weight: 900;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.import-activity-row-copy span {
+  color: rgba(255,255,255,0.62);
+  font-family: Aptos, 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+}
+body.light-mode .import-activity-card {
+  background: linear-gradient(145deg, rgba(24,18,54,0.94), rgba(10,7,26,0.96)) !important;
+  color: #ffffff !important;
+}
+
+/* v430: import activity card refactor — heart/comment action row + right cluster
+   (count + max 3 preview posters), with inline 3-col grid expansion that reuses the
+   same setScreenListInlineActivityStackExpanded animation pipeline (transform/opacity). */
+.import-activity-card.sl-import-activity-stack-wrap {
+  position: relative !important;
+  isolation: isolate !important;
+}
+.import-activity-card .import-activity-top {
+  display: grid !important;
+  grid-template-columns: 54px minmax(0, 1fr) auto !important;
+  gap: 12px !important;
+  align-items: start !important;
+}
+.import-activity-card .import-activity-right-cluster {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(245,245,255,0.18);
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+  appearance: none;
+  text-align: right;
+  min-width: 96px;
+}
+.import-activity-card .import-activity-right-cluster:hover {
+  background: rgba(255,255,255,0.09);
+  border-color: rgba(245,245,255,0.32);
+}
+.import-activity-card .import-activity-right-cluster:active {
+  transform: translateY(1px);
+}
+.import-activity-card .import-activity-count-label {
+  font-family: Aptos, 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.import-activity-card .import-activity-preview-stack {
+  display: inline-flex;
+  gap: 4px;
+}
+.import-activity-card .import-activity-preview-tile-mini {
+  width: 26px;
+  height: 36px;
+  border-radius: 5px;
+  font-size: 11px;
+}
+.import-activity-card .import-activity-preview-tile-mini img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.import-activity-card .import-activity-actions {
+  display: flex;
+  align-items: center;
+  gap: clamp(15px, 2.4vw, 22px);
+  padding: 0 4px;
+}
+.import-activity-card .sl-activity-stack-inline-list.import-activity-grid-panel {
+  position: relative;
+  z-index: 2;
+  height: 0;
+  overflow: hidden;
+  margin-top: 0;
+}
+.import-activity-card.is-expanded .sl-activity-stack-inline-list.import-activity-grid-panel {
+  height: auto;
+  overflow: hidden;
+  margin-top: clamp(10px, 2.8vw, 14px);
+}
+.import-activity-card .import-activity-grid-inner {
+  display: block;
+  padding: clamp(4px, 1.6vw, 8px) 0 0 0;
+}
+.import-activity-card .import-activity-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(10px, 2.4vw, 14px);
+  padding: 4px 4px 8px;
+}
+.import-activity-card .import-activity-grid-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.import-activity-card .import-activity-grid-poster {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 900;
+  font-size: 18px;
+}
+.import-activity-card .import-activity-grid-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.import-activity-card .import-activity-grid-name {
+  font-family: Aptos, 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.22;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+@media (max-width: 480px) {
+  .import-activity-card .import-activity-top {
+    grid-template-columns: 48px minmax(0, 1fr) auto !important;
+    gap: 10px !important;
+  }
+  .import-activity-card .import-activity-right-cluster {
+    min-width: 84px;
+    padding: 6px 8px;
+  }
+  .import-activity-card .import-activity-count-label { font-size: 10px; }
+  .import-activity-card .import-activity-preview-tile-mini { width: 22px; height: 30px; }
+}

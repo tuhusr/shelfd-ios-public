@@ -1,0 +1,31 @@
+Shelfd v440 - desktop Friends/Discovery logo center
+
+Date: 2026-05-06
+
+Changes saved:
+- assets/public/index.html
+- assets/public/style.css
+- assets/public/css/15-universal-discovery-search.css
+- assets/public/site_header_logo.png
+
+Summary:
+- Replaced the authenticated app header image reference with the current Shelfd logo asset.
+- Copied site_header_logo.png into assets/public so Cloudflare assets can serve it.
+- Added a desktop-only media query for Friends and Discovery body states so the Shelfd star/logo is centered in the top header.
+- Hid the separate wordmark image for those desktop pages to avoid the outdated top-left treatment.
+- Left mobile/PWA-specific header rules untouched.
+
+Verification:
+- Local v440 page loaded from http://127.0.0.1:8765/.
+- Local signed-out screen showed v.440-May 6th, 2026.
+- Friends/Discovery authenticated visual verification was limited because the local browser session was signed out.
+- Confirmed assets/public/assets/public does not exist.
+- Deployed Worker URL returned the v440 build string, v440 logo reference, and v.440-May 6th, 2026 display version.
+- Deployed Worker URL returned /site_header_logo.png at 50,201 bytes.
+- PowerShell verification against myscreenlist.com hit Cloudflare's managed challenge; Wrangler reported the same deployment on myscreenlist.com and www.myscreenlist.com.
+
+Deploy command:
+- npx.cmd wrangler deploy
+
+Deploy result:
+- Current Version ID: 49c6f749-8d55-4e3a-9ac4-fa96b3ad2de5

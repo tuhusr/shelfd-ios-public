@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Shelfd app icon — symmetric rebuild.
+  - 1200 × 1200 viewBox.
+  - Star centered EXACTLY on the canvas at (600, 600).
+  - Outer radius 475, inner radius = 475 × sin(18°)/sin(54°) ≈ 181.43.
+  - Outer points at angles 90°, 162°, 234°, 306°, 18° from center.
+  - Every coordinate is mirror-symmetric about x = 600.
+  - Background ONLY change vs. original: #000 → #181c20 (dark mode color).
+  - Yellow (#f5c842) and purple (#8e3ee0) kept from the original logo.
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1200 1200"
+     width="1200" height="1200"
+     shape-rendering="geometricPrecision">
+  <defs>
+    <path id="starPath" d="
+      M 600.00 125.00
+      L 706.65 453.22
+      L 1051.75 453.22
+      L 772.54 656.07
+      L 879.20 984.28
+      L 600.00 781.43
+      L 320.80 984.28
+      L 427.46 656.07
+      L 148.25 453.22
+      L 493.35 453.22
+      Z"/>
+    <clipPath id="leftHalf">
+      <rect x="0" y="0" width="600" height="1200"/>
+    </clipPath>
+    <clipPath id="rightHalf">
+      <rect x="600" y="0" width="600" height="1200"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background: dark-mode color (was #000 in the original) -->
+  <rect width="1200" height="1200" fill="#181c20"/>
+
+  <!-- Yellow left half — solid fill -->
+  <g clip-path="url(#leftHalf)">
+    <use href="#starPath" fill="#f5c842"/>
+  </g>
+
+  <!-- Purple right half — solid stroke -->
+  <g clip-path="url(#rightHalf)">
+    <use href="#starPath"
+         fill="none"
+         stroke="#8e3ee0"
+         stroke-width="36"
+         stroke-linejoin="miter"
+         stroke-miterlimit="6"/>
+  </g>
+
+  <!-- Closed seam: 36px purple bar fuses the gold's right edge to the
+       purple outline along the star's vertical centerline. -->
+  <g clip-path="url(#rightHalf)">
+    <line x1="600" y1="125" x2="600" y2="781.43"
+          stroke="#8e3ee0"
+          stroke-width="36"
+          stroke-linecap="square"/>
+  </g>
+</svg>

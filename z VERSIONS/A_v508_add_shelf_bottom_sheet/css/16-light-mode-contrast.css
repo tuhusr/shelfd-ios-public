@@ -1,0 +1,1259 @@
+/* =============================================================
+   16-light-mode-contrast.css                              v.480
+   Sleek, modern, minimalistic light-mode contrast pass.
+   Loaded LAST — only overrides color/UI; never functions.
+   White text that sits on coloured (purple/green/red) backgrounds
+   is intentionally preserved.
+   ============================================================= */
+
+/* =============================================================
+   v480: FOUNDATION — html/body background must flip to light.
+   Without this, every per-element rule below sits on a dark
+   page and the user perceives "nothing changed" when they
+   switch to light mode. The base body/html had a hardcoded
+   dark gradient with no body.light-mode override.
+   ============================================================= */
+html:has(body.light-mode),
+html:has(body.light-mode) body.light-mode {
+  background: #f4f1fb !important;
+}
+body.light-mode {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(167,139,250,0.18), transparent 32%),
+    radial-gradient(circle at 88% 6%, rgba(245,158,11,0.10), transparent 38%),
+    linear-gradient(180deg, #f8f4ff 0%, #efe9fb 60%, #faf6ff 100%) !important;
+  background-attachment: scroll !important;
+  color: #12082e !important;
+}
+body.light-mode .header {
+  background: linear-gradient(135deg, #ffffff 0%, #faf6ff 50%, #ffffff 100%) !important;
+  border-bottom: 1px solid rgba(124,58,237,0.18) !important;
+}
+/* Login privacy overlay — also dark by default */
+body.light-mode .login-privacy-page { background: rgba(248,244,255,0.98) !important; }
+body.light-mode .login-privacy-content { background: #ffffff !important; border-color: rgba(124,58,237,0.18) !important; color: #2a1d52 !important; }
+body.light-mode .login-privacy-back { color: #6d28d9 !important; }
+/* Common dark surfaces used across views */
+body.light-mode .header,
+body.light-mode .nav,
+body.light-mode .topbar,
+body.light-mode .app-header,
+body.light-mode .container { color: #12082e !important; }
+/* Headline / brand wordmark */
+body.light-mode .header h1,
+body.light-mode .brand-wordmark { color: #12082e !important; }
+
+/* ----- Light-mode palette tokens ----- */
+body.light-mode {
+  --lm-text:      #12082e;
+  --lm-text-2:    #4a3d70;
+  --lm-text-3:    #7c6fa0;
+  --lm-text-4:    #9a8ec8;
+  --lm-text-5:    #c4b8e8;
+  --lm-line:      rgba(18,8,46,0.10);
+  --lm-line-soft: rgba(18,8,46,0.06);
+  --lm-chip:      rgba(18,8,46,0.045);
+  --lm-chip-h:    rgba(18,8,46,0.075);
+  --lm-surface:   #ffffff;
+  --lm-surface-2: #faf8ff;
+  --lm-surface-3: #f4f1fb;
+}
+
+/* =============================================================
+   1. GLOBAL TEXT FALLBACKS
+   ============================================================= */
+body.light-mode { color: var(--lm-text); }
+body.light-mode .container,
+body.light-mode .view,
+body.light-mode .page,
+body.light-mode .panel,
+body.light-mode .sheet,
+body.light-mode .feed { color: var(--lm-text); }
+body.light-mode .muted,
+body.light-mode .text-muted,
+body.light-mode .secondary,
+body.light-mode .secondary-text,
+body.light-mode .meta,
+body.light-mode .subtle { color: var(--lm-text-3); }
+
+/* =============================================================
+   2. ACTIVITY FEED
+   action lines, names, titles, comments, reactions, footer
+   ============================================================= */
+body.light-mode .activity-card-title-inline { color: var(--lm-text); }
+body.light-mode .activity-name,
+body.light-mode .activity-name strong { color: var(--lm-text); }
+body.light-mode .activity-value,
+body.light-mode .activity-value strong { color: var(--lm-text); }
+body.light-mode .activity-title,
+body.light-mode .activity-title strong { color: var(--lm-text-2); }
+body.light-mode .activity-episode-num { color: var(--lm-text-2); }
+body.light-mode .activity-action,
+body.light-mode .activity-action strong,
+body.light-mode .activity-action-text,
+body.light-mode .sl-activity-action-text { color: var(--lm-text) !important; }
+body.light-mode .activity-time,
+body.light-mode .activity-timestamp,
+body.light-mode .activity-meta { color: var(--lm-text-3); }
+body.light-mode .activity-footer-icon { color: var(--lm-text-3); }
+body.light-mode .activity-interactions,
+body.light-mode .activity-interactions strong,
+body.light-mode .activity-reaction-count { color: var(--lm-text-2); }
+body.light-mode .activity-comment-author { color: var(--lm-text); }
+body.light-mode .activity-comment-text,
+body.light-mode .activity-comment-text strong { color: var(--lm-text-2); }
+body.light-mode .activity-comment-preview,
+body.light-mode .activity-comment-preview strong { color: var(--lm-text-2); }
+body.light-mode .activity-stack-summary,
+body.light-mode .activity-stack-count,
+body.light-mode .activity-stack-label { color: var(--lm-text-2); }
+body.light-mode .activity-rating,
+body.light-mode .activity-stars,
+body.light-mode .activity-star { color: #f59e0b; }
+body.light-mode .activity-feed-empty,
+body.light-mode .activity-feed-empty strong { color: var(--lm-text-3); }
+
+/* =============================================================
+   3. MY LISTS / LIST DETAIL / EPISODES
+   ============================================================= */
+body.light-mode .mylist-card,
+body.light-mode .game-library-card,
+body.light-mode .list-card { color: var(--lm-text); }
+body.light-mode .mylist-card .card-title,
+body.light-mode .game-library-card .card-title,
+body.light-mode .list-title,
+body.light-mode .list-name { color: var(--lm-text); }
+body.light-mode .list-meta,
+body.light-mode .list-subtitle,
+body.light-mode .list-count,
+body.light-mode .episode-count,
+body.light-mode .ep-count,
+body.light-mode .season-count { color: var(--lm-text-3); }
+body.light-mode .ep-title,
+body.light-mode .ep-name,
+body.light-mode .episode-title,
+body.light-mode .episode-name { color: var(--lm-text); }
+body.light-mode .ep-overview,
+body.light-mode .episode-overview,
+body.light-mode .episode-description { color: var(--lm-text-2); }
+body.light-mode .ep-air-date,
+body.light-mode .ep-runtime,
+body.light-mode .episode-meta { color: var(--lm-text-3); }
+
+/* =============================================================
+   4. PROFILE PAGE
+   ============================================================= */
+body.light-mode .profile-display-name,
+body.light-mode .profile-username,
+body.light-mode .profile-name,
+body.light-mode .profile-handle { color: var(--lm-text); }
+body.light-mode .profile-bio,
+body.light-mode .profile-tagline { color: var(--lm-text-2); }
+body.light-mode .profile-stat,
+body.light-mode .profile-stat strong,
+body.light-mode .profile-stat-value { color: var(--lm-text); }
+body.light-mode .profile-stat-label { color: var(--lm-text-3); }
+body.light-mode .profile-tab-name,
+body.light-mode .profile-section-title { color: var(--lm-text); }
+body.light-mode .profile-meta,
+body.light-mode .profile-since,
+body.light-mode .profile-friend-count { color: var(--lm-text-3); }
+
+/* =============================================================
+   5. FRIENDS / DISCOVERY
+   ============================================================= */
+body.light-mode .friend-card,
+body.light-mode .friend-row,
+body.light-mode .friend-list-item { color: var(--lm-text); }
+body.light-mode .friend-name,
+body.light-mode .friend-display-name { color: var(--lm-text); }
+body.light-mode .friend-username,
+body.light-mode .friend-handle,
+body.light-mode .friend-meta,
+body.light-mode .friend-since { color: var(--lm-text-3); }
+body.light-mode .friend-empty-text,
+body.light-mode .friend-empty strong { color: var(--lm-text-3); }
+body.light-mode .friends-page .activity-name { color: var(--lm-text); }
+
+/* =============================================================
+   6. DIRECT MESSAGES
+   ============================================================= */
+body.light-mode .dm-header-card,
+body.light-mode .dm-header-card strong { color: var(--lm-text); }
+body.light-mode .dm-header-stats em,
+body.light-mode .dm-header-stats strong { color: var(--lm-text); }
+body.light-mode .dm-empty-card,
+body.light-mode .dm-empty-card strong { color: var(--lm-text); }
+body.light-mode .dm-empty-card span,
+body.light-mode .dm-empty-card p { color: var(--lm-text-3); }
+body.light-mode .dm-thread-head,
+body.light-mode .dm-thread-head strong { color: var(--lm-text); }
+body.light-mode .dm-thread-head span,
+body.light-mode .dm-thread-time { color: var(--lm-text-3); }
+body.light-mode .dm-chat-row,
+body.light-mode .dm-chat-row strong { color: var(--lm-text); }
+body.light-mode .dm-chat-row span,
+body.light-mode .dm-chat-preview,
+body.light-mode .dm-chat-time { color: var(--lm-text-3); }
+body.light-mode .dm-user-result,
+body.light-mode .dm-user-result strong { color: var(--lm-text); }
+body.light-mode .dm-user-result span { color: var(--lm-text-3); }
+body.light-mode .dm-lite-head strong { color: var(--lm-text); }
+body.light-mode .dm-request-card,
+body.light-mode .dm-request-card strong { color: var(--lm-text) !important; }
+body.light-mode .direct-messages-title-wrap strong { color: var(--lm-text); }
+body.light-mode .direct-messages-title-wrap span { color: var(--lm-text-3); }
+body.light-mode .direct-messages-title-wrap .creator-name-wrap { color: var(--lm-text); }
+body.light-mode .dm-typing-indicator { color: var(--lm-text-3); }
+body.light-mode .dm-compose-label,
+body.light-mode .dm-compose-row label { color: var(--lm-text-2); }
+body.light-mode .dm-thread-message:not(.mine):not([class*="sent"]) { color: var(--lm-text); }
+body.light-mode .dm-search-strip input { color: var(--lm-text); }
+body.light-mode .dm-search-strip input::placeholder { color: var(--lm-text-3); }
+body.light-mode .dm-bubble-row.mine .dm-bubble { color: #ffffff; } /* purple bg → keep white */
+body.light-mode .dm-bubble-row:not(.mine) .dm-bubble { color: var(--lm-text); }
+body.light-mode .dm-bubble-time,
+body.light-mode .dm-bubble-row:not(.mine) .dm-bubble-time { color: var(--lm-text-3); }
+
+/* =============================================================
+   7. COMMENTS
+   ============================================================= */
+body.light-mode .comment-list-item,
+body.light-mode .comment-list-item strong { color: var(--lm-text); }
+body.light-mode .comment-input-name { color: var(--lm-text); }
+body.light-mode .comments-page-back { color: var(--lm-text); }
+body.light-mode .comment-reply-btn,
+body.light-mode .comment-edit-btn,
+body.light-mode .comment-delete-btn { color: var(--lm-text-3); }
+body.light-mode .comment-time,
+body.light-mode .comment-meta { color: var(--lm-text-3); }
+body.light-mode .comment-body,
+body.light-mode .comment-text { color: var(--lm-text); }
+
+/* =============================================================
+   8. DISCOVER / SEARCH / RANKINGS / IMPORTS
+   ============================================================= */
+body.light-mode .discover-card-title { color: var(--lm-text); }
+body.light-mode .discover-card-text,
+body.light-mode .discover-card-meta,
+body.light-mode .discover-card-subtitle { color: var(--lm-text-2); }
+body.light-mode .search-result-name,
+body.light-mode .search-result-title { color: var(--lm-text); }
+body.light-mode .search-result-meta,
+body.light-mode .search-result-subtitle,
+body.light-mode .search-result-year { color: var(--lm-text-3); }
+body.light-mode .ranking-item-title { color: var(--lm-text); }
+body.light-mode .ranking-item-meta,
+body.light-mode .ranking-item-subtitle { color: var(--lm-text-3); }
+body.light-mode .import-source-name { color: var(--lm-text); }
+body.light-mode .import-status,
+body.light-mode .import-progress,
+body.light-mode .import-meta { color: var(--lm-text-2); }
+body.light-mode .universal-search-input,
+body.light-mode .search-input { color: var(--lm-text); }
+body.light-mode .universal-search-input::placeholder,
+body.light-mode .search-input::placeholder { color: var(--lm-text-3); }
+
+/* =============================================================
+   9. WATCH TOGETHER
+   ============================================================= */
+body.light-mode .watch-party-title,
+body.light-mode .watch-party-user-name,
+body.light-mode .watch-party-episode,
+body.light-mode .watch-session-header,
+body.light-mode .watch-invite-code,
+body.light-mode .watch-viewer,
+body.light-mode .watch-viewer strong,
+body.light-mode .watch-controls strong { color: var(--lm-text); }
+body.light-mode .watch-timer,
+body.light-mode .watch-timestamp,
+body.light-mode .watch-progress { color: var(--lm-text-2); }
+body.light-mode .watch-sync-status,
+body.light-mode .watch-party-meta,
+body.light-mode .watch-party-meta strong { color: var(--lm-text-3); }
+body.light-mode .watch-party-meta strong { color: var(--lm-text); }
+
+/* =============================================================
+   10. PATCH NOTES + MEDIA SHARE MODAL
+   ============================================================= */
+body.light-mode .patch-version,
+body.light-mode .patch-title,
+body.light-mode .patch-item-header { color: var(--lm-text) !important; }
+body.light-mode .patch-item-text,
+body.light-mode .patch-item-body { color: var(--lm-text-2) !important; }
+body.light-mode .patch-date { color: var(--lm-text-3) !important; }
+
+body.light-mode .media-share-head,
+body.light-mode .media-share-head strong { color: var(--lm-text); }
+body.light-mode .media-share-close { color: var(--lm-text-2); }
+body.light-mode .media-share-choice,
+body.light-mode .media-share-search,
+body.light-mode .media-share-note,
+body.light-mode .media-share-user { color: var(--lm-text); }
+body.light-mode .media-share-search::placeholder,
+body.light-mode .media-share-note::placeholder { color: var(--lm-text-3); }
+body.light-mode .dm-shared-media-card,
+body.light-mode .dm-shared-media-card strong { color: var(--lm-text); }
+body.light-mode .dm-shared-media-card span { color: var(--lm-text-3); }
+
+/* =============================================================
+   11. ICON BUTTONS / CONTROLS / CHIPS / BADGES
+   keep text dark when the chip background is transparent or
+   light; preserve white when chip is filled with a colour
+   ============================================================= */
+body.light-mode .icon-button:not([style*="background"]):not(.active) { color: var(--lm-text-2) !important; }
+body.light-mode .pill-toggle,
+body.light-mode .segmented-control { color: var(--lm-text-2); }
+body.light-mode .control-label,
+body.light-mode .toggle-label,
+body.light-mode .field-label { color: var(--lm-text-2); }
+body.light-mode .badge-count { color: #ffffff; } /* sits on red/purple bg */
+body.light-mode .pill-toggle.active,
+body.light-mode .segmented-control-active { color: #ffffff !important; } /* gradient bg */
+
+/* =============================================================
+   12. MODAL / SHEET / DROPDOWN / TOAST GENERICS
+   ============================================================= */
+body.light-mode .modal,
+body.light-mode .modal-card,
+body.light-mode .sheet-card,
+body.light-mode .dropdown-menu,
+body.light-mode .popover { color: var(--lm-text); }
+body.light-mode .modal-title,
+body.light-mode .sheet-title,
+body.light-mode .dialog-title { color: var(--lm-text); }
+body.light-mode .modal-subtitle,
+body.light-mode .modal-description,
+body.light-mode .sheet-subtitle { color: var(--lm-text-2); }
+body.light-mode .modal-close,
+body.light-mode .sheet-close,
+body.light-mode .dialog-close { color: var(--lm-text-2); }
+body.light-mode .toast,
+body.light-mode .snackbar { color: var(--lm-text); }
+
+/* =============================================================
+   13. FAINT-WHITE LEAKS (rgba(255,255,255,.6/.7/.8))
+   These read as low-contrast on the lavender body in light mode.
+   Re-map to muted purple tones.
+   ============================================================= */
+body.light-mode [class*="muted"],
+body.light-mode [class*="-meta"]:not([class*="-metadata"]),
+body.light-mode [class*="-time"]:not([class*="-timer"]),
+body.light-mode [class*="-subtitle"],
+body.light-mode [class*="-hint"],
+body.light-mode [class*="-caption"],
+body.light-mode [class*="-helper"] { color: var(--lm-text-3); }
+
+/* =============================================================
+   14. GUARDS — re-assert white on coloured pill/button surfaces
+   that the broad rules above might have darkened by accident
+   ============================================================= */
+body.light-mode .friend-accept-btn,
+body.light-mode .dm-action.accept,
+body.light-mode .dm-compose-row button.dm-send-btn,
+body.light-mode .comment-post-btn,
+body.light-mode .requests-badge,
+body.light-mode .dm-subtabs button.active,
+body.light-mode .activity-action-bubble,
+body.light-mode .button-primary,
+body.light-mode .btn-primary,
+body.light-mode .primary-cta { color: #ffffff; }
+
+/* =============================================================
+   v479: EXTENDED LIGHT-MODE CONTRAST PASS
+   ----------------------------------------------------------------
+   Scope: every page in the app. Goal: every piece of body text
+   reads cleanly on a light surface; white text is preserved ONLY
+   on saturated coloured backgrounds (purple/green/red/amber/blue
+   gradients, solid pills, ringed badges, etc.).
+   Rules live LAST so they override anything earlier in the cascade.
+   No JS, no functions changed — colour and visual refinement only.
+   ============================================================= */
+
+/* ---------- 14a. ACTIVITY FEED (Friends → Activity tab) ----------
+   The big media title is hardcoded #fff in 04-activity-feed.css
+   ("/* Title inline - bigger and white */"). It sits on a lavender
+   card surface in light mode and currently reads invisible.
+   Rebuild the activity-card and shelfd-social-card text for light. */
+body.light-mode .activity-card,
+body.light-mode .shelfd-social-card {
+  background: linear-gradient(145deg, #ffffff 0%, #f7f3ff 100%) !important;
+  border-color: rgba(124,58,237,0.16) !important;
+  box-shadow: 0 12px 28px rgba(31,16,72,0.08) !important;
+}
+body.light-mode .activity-card-title-inline,
+body.light-mode .activity-card-name,
+body.light-mode .sl-activity-name,
+body.light-mode .sl-activity-name .creator-name-wrap,
+body.light-mode .sl-activity-name .creator-name { color: #12082e !important; }
+body.light-mode .activity-card-verb,
+body.light-mode .sl-activity-status { color: #4a3d70 !important; }
+body.light-mode .activity-card-title { color: #5e4d8a !important; }
+body.light-mode .activity-card-time,
+body.light-mode .sl-activity-time,
+body.light-mode .sl-activity-dot,
+body.light-mode .activity-card-section,
+body.light-mode .activity-card-sep { color: #8c83ad !important; }
+body.light-mode .activity-action-text { color: #4a3d70 !important; }
+body.light-mode .activity-comment-preview { color: #4a3d70 !important; border-left-color: rgba(124,58,237,0.22) !important; }
+body.light-mode .sl-activity-comment { color: #2a1d52 !important; }
+body.light-mode .sl-activity-show-more { color: #b97f08 !important; }
+body.light-mode .activity-event-label.el-rated      { color: #b97f08 !important; }
+body.light-mode .activity-event-label.el-added,
+body.light-mode .activity-event-label.el-planned    { color: #6d28d9 !important; }
+body.light-mode .activity-event-label.el-completed  { color: #0e7490 !important; }
+body.light-mode .activity-event-label.el-started    { color: #15803d !important; }
+body.light-mode .activity-event-label.el-paused     { color: #c2410c !important; }
+body.light-mode .activity-event-label.el-dropped    { color: #b91c1c !important; }
+body.light-mode .activity-event-label.el-commented  { color: #4338ca !important; }
+body.light-mode .sl-activity-action-btn { color: #4a3d70 !important; }
+body.light-mode .sl-activity-action-btn[data-activity-action="like"] { color: #4a3d70 !important; }
+body.light-mode .sl-activity-action-btn.liked { color: #4a3d70 !important; }
+body.light-mode .sl-activity-action-btn.liked [data-like-icon-slot] { color: #ef4444 !important; }
+body.light-mode .sl-activity-action-btn.liked [data-activity-like-count] { color: #b91c1c !important; }
+body.light-mode .sl-activity-stack-action-count { color: #4a3d70 !important; border-color: rgba(124,58,237,0.30) !important; }
+body.light-mode .activity-card-avatar-placeholder { background: #f0eafd !important; color: #6d28d9 !important; }
+body.light-mode .sl-activity-avatar-fallback { background: #f0eafd !important; color: #6d28d9 !important; box-shadow: inset 0 0 0 1px rgba(124,58,237,0.18) !important; }
+/* Discover card context line ("/* Title inline - bigger and white */"
+   companion in 04-activity-feed.css line 1498) */
+body.light-mode .discover-card-context { color: #4a3d70 !important; }
+body.light-mode .discover-card-title { color: #12082e !important; }
+body.light-mode .discover-card-meta,
+body.light-mode .discover-card-rating { color: #4a3d70 !important; }
+body.light-mode .discover-rank { color: #050410 !important; }
+
+/* ---------- 14b. IMPORT ACTIVITY CARD ---------- */
+body.light-mode .import-activity-card {
+  background: linear-gradient(145deg, #ffffff 0%, #f5eeff 100%) !important;
+  border-color: rgba(124,58,237,0.18) !important;
+  box-shadow: 0 14px 30px rgba(31,16,72,0.10) !important;
+}
+body.light-mode .import-activity-title { color: #12082e !important; }
+body.light-mode .import-activity-status { color: #5e4d8a !important; }
+body.light-mode .import-activity-right-cluster {
+  background: rgba(124,58,237,0.06) !important;
+  border-color: rgba(124,58,237,0.22) !important;
+  color: #2a1d52 !important;
+}
+body.light-mode .import-activity-count-label { color: #2a1d52 !important; }
+body.light-mode .import-activity-preview-tile-mini { background: #efe9ff !important; color: #6d28d9 !important; }
+body.light-mode .import-activity-grid-cell .import-activity-grid-name { color: #2a1d52 !important; }
+
+/* ---------- 14c. STACKED ACTIVITY (back layers + summary) ---------- */
+body.light-mode .sl-activity-stack-layer {
+  background:
+    radial-gradient(circle at 13% 18%, rgba(167,139,250,0.18), transparent 38%),
+    linear-gradient(145deg, #f5eeff, #ede4ff) !important;
+  border-color: rgba(124,58,237,0.30) !important;
+  box-shadow: 0 14px 28px rgba(31,16,72,0.10) !important;
+}
+
+/* ---------- 14d. MY LISTS — title cards ---------- */
+body.light-mode .card.show-card,
+body.light-mode .card.game-library-card,
+body.light-mode #mylist-view .card {
+  background: linear-gradient(160deg, #ffffff 0%, #f7f3ff 100%) !important;
+  border-color: rgba(124,58,237,0.14) !important;
+  box-shadow: 0 12px 22px rgba(31,16,72,0.08) !important;
+}
+body.light-mode .card-title,
+body.light-mode .card-title-profile-btn { color: #12082e !important; }
+body.light-mode .card-genre,
+body.light-mode .card-genre-text { color: #5e4d8a !important; }
+body.light-mode .card-year,
+body.light-mode .card-watch-availability,
+body.light-mode .progress-meta,
+body.light-mode .progress-meta span { color: #5e4d8a !important; }
+body.light-mode #mylist-view .star-label,
+body.light-mode #mylist-view .rating-label { color: #4a3d70 !important; }
+body.light-mode .ep-toggle-bar,
+body.light-mode .comments-btn,
+body.light-mode .card-footer-btn { color: #4a3d70 !important; }
+body.light-mode .ep-toggle-bar { background: rgba(124,58,237,0.06) !important; border-color: rgba(124,58,237,0.18) !important; }
+body.light-mode .ep-toggle-bar:hover { background: rgba(124,58,237,0.10) !important; }
+body.light-mode .ep-toggle-bar .ep-arrow,
+body.light-mode .ep-toggle-bar #ep-label-,
+body.light-mode .ep-toggle-bar span { color: #4a3d70 !important; }
+body.light-mode .delete-btn { color: #4a3d70 !important; }
+body.light-mode .delete-btn:hover { color: #b91c1c !important; }
+/* Episode rows (light) */
+body.light-mode .ep-list { background: #faf6ff !important; }
+body.light-mode .ep-row { color: #2a1d52 !important; }
+body.light-mode .ep-row .ep-name { color: #2a1d52 !important; }
+body.light-mode .ep-check { color: #4a3d70 !important; border-color: rgba(124,58,237,0.30) !important; }
+body.light-mode .ep-check.checked { color: #ffffff !important; background: #7c3aed !important; border-color: #7c3aed !important; }
+body.light-mode .ep-rating-btn { color: #4a3d70 !important; }
+body.light-mode .ep-rating-btn.has-rating { color: #b97f08 !important; }
+body.light-mode .season-block { background: rgba(124,58,237,0.05) !important; border-color: rgba(124,58,237,0.16) !important; }
+body.light-mode .season-title { color: #12082e !important; }
+body.light-mode .season-progress,
+body.light-mode .season-year,
+body.light-mode .season-card-kicker { color: #5e4d8a !important; }
+body.light-mode .season-rating-chip { color: #b97f08 !important; }
+body.light-mode .edit-ep-link,
+body.light-mode .season-mark-btn { color: #6d28d9 !important; }
+body.light-mode .progress-bar { background: rgba(124,58,237,0.16) !important; }
+body.light-mode .progress-fill { background: linear-gradient(90deg, #7c3aed, #f59e0b) !important; }
+/* Status pill selector inside My Lists card */
+body.light-mode .game-status-current-pill { background: rgba(124,58,237,0.08) !important; border-color: rgba(124,58,237,0.22) !important; color: #2a1d52 !important; }
+body.light-mode .status-pill { color: #2a1d52 !important; }
+body.light-mode .status-pill.watched-active,
+body.light-mode .status-pill.watching-active,
+body.light-mode .status-pill.planned-active,
+body.light-mode .status-pill.paused-active,
+body.light-mode .status-pill.dropped-active,
+body.light-mode .status-pill.live-active,
+body.light-mode .status-pill.wishlist-active { color: #ffffff !important; }
+/* Game card tracker icon, hours stat, etc. */
+body.light-mode .game-card-stats-inline { color: #2a1d52 !important; }
+body.light-mode .game-card-cover-btn { color: #4a3d70 !important; background: rgba(124,58,237,0.06) !important; border-color: rgba(124,58,237,0.20) !important; }
+body.light-mode .friend-card-add-btn { color: #0e7490 !important; }
+
+/* ---------- 14e. MY LISTS — top toolbar / search / sort / pager ---------- */
+body.light-mode #mylist-view .my-list-search-input { background: #ffffff !important; border-color: rgba(124,58,237,0.20) !important; color: #12082e !important; }
+body.light-mode #mylist-view .my-list-search-input::placeholder { color: #8c83ad !important; }
+body.light-mode .mylist-toolbar,
+body.light-mode .mylist-tabs,
+body.light-mode .mylist-pager { color: #2a1d52 !important; }
+body.light-mode .mylist-tab,
+body.light-mode .mylist-pager-btn,
+body.light-mode .mylist-sort-btn { color: #4a3d70 !important; background: rgba(124,58,237,0.05) !important; border-color: rgba(124,58,237,0.18) !important; }
+body.light-mode .mylist-tab.active,
+body.light-mode .mylist-pager-btn.active { color: #ffffff !important; background: linear-gradient(135deg, #7c3aed, #9333ea) !important; }
+body.light-mode .mylist-sort-menu { background: #ffffff !important; border-color: rgba(124,58,237,0.20) !important; color: #2a1d52 !important; box-shadow: 0 18px 36px rgba(31,16,72,0.16) !important; }
+body.light-mode .mylist-sort-menu button { color: #2a1d52 !important; }
+body.light-mode .mylist-sort-menu button:hover,
+body.light-mode .mylist-sort-menu button.active { background: rgba(124,58,237,0.08) !important; color: #2a1d52 !important; }
+
+/* ---------- 14f. PROFILE PAGE ---------- */
+body.light-mode .profile-topbar,
+body.light-mode .profile-hero-card,
+body.light-mode .profile-media-group,
+body.light-mode .profile-fav-poster-card { color: #12082e !important; }
+body.light-mode .profile-topbar-title,
+body.light-mode .profile-name-input,
+body.light-mode .profile-display-name,
+body.light-mode .profile-bio,
+body.light-mode .profile-bio-input,
+body.light-mode .profile-creator-badge,
+body.light-mode .profile-section-title,
+body.light-mode .profile-media-title,
+body.light-mode .profile-fav-row-title,
+body.light-mode .profile-fav-name,
+body.light-mode .profile-stat-value,
+body.light-mode .profile-group-stat-value,
+body.light-mode .profile-summary-card-value { color: #12082e !important; }
+body.light-mode .profile-topbar-sub,
+body.light-mode .profile-bio,
+body.light-mode .profile-media-sub,
+body.light-mode .profile-stat-label,
+body.light-mode .profile-group-stat-label,
+body.light-mode .profile-summary-card-label,
+body.light-mode .profile-fav-empty,
+body.light-mode .profile-eyebrow { color: #5e4d8a !important; }
+body.light-mode .profile-fav-rating-star,
+body.light-mode .profile-rating-star,
+body.light-mode .profile-stat-value-star,
+body.light-mode .profile-fav-empty-rating,
+body.light-mode .profile-fav-empty-rating span { color: #b97f08 !important; }
+body.light-mode .profile-fav-poster {
+  background: linear-gradient(135deg, #ede9fe, #fff) !important;
+  border-color: #d8cfee !important;
+  color: #7c3aed !important;
+  box-shadow: 0 8px 16px rgba(31,16,72,0.10) !important;
+}
+body.light-mode .profile-fav-rank { color: #6d28d9 !important; }
+body.light-mode .profile-empty-rank { color: #b3a8d8 !important; }
+body.light-mode .profile-back-btn,
+body.light-mode .profile-settings-btn,
+body.light-mode .profile-share-btn { color: #2a1d52 !important; background: rgba(124,58,237,0.06) !important; border-color: rgba(124,58,237,0.20) !important; }
+body.light-mode .profile-save-btn { color: #ffffff !important; } /* gradient */
+body.light-mode .profile-mini-btn { color: #2a1d52 !important; background: rgba(124,58,237,0.08) !important; border-color: rgba(124,58,237,0.22) !important; }
+body.light-mode .profile-card-logout-btn { color: #b91c1c !important; background: rgba(239,68,68,0.06) !important; border-color: rgba(239,68,68,0.22) !important; }
+body.light-mode .profile-card-lists-btn { color: #2a1d52 !important; background: rgba(124,58,237,0.08) !important; border-color: rgba(124,58,237,0.22) !important; }
+body.light-mode .profile-row-toggle,
+body.light-mode .profile-row-toggle * { color: #4a3d70 !important; }
+body.light-mode .profile-hidden-note { color: #8c83ad !important; }
+body.light-mode .profile-social-counts strong,
+body.light-mode .profile-social-count strong { color: #12082e !important; }
+body.light-mode .profile-social-counts span,
+body.light-mode .profile-social-count span { color: #5e4d8a !important; }
+body.light-mode .profile-social-avatar { box-shadow: 0 0 0 2px rgba(124,58,237,0.18) !important; }
+
+/* Top 3 character editor modal — added in v475/v476 */
+body.light-mode .profile-character-editor-overlay { background: rgba(31,16,72,0.18) !important; backdrop-filter: blur(6px) !important; -webkit-backdrop-filter: blur(6px) !important; }
+body.light-mode .profile-character-editor-modal {
+  background: linear-gradient(180deg, #ffffff 0%, #faf6ff 100%) !important;
+  border-color: rgba(124,58,237,0.18) !important;
+  box-shadow: 0 30px 70px rgba(31,16,72,0.18) !important;
+}
+body.light-mode .profile-character-editor-kicker { color: #6d28d9 !important; }
+body.light-mode .profile-character-editor-title { color: #12082e !important; }
+body.light-mode .profile-character-editor-close { color: #2a1d52 !important; background: rgba(124,58,237,0.06) !important; border-color: rgba(124,58,237,0.18) !important; }
+body.light-mode .profile-character-section-title { color: #12082e !important; }
+body.light-mode .profile-character-section-sub { color: #5e4d8a !important; }
+body.light-mode .profile-character-section { background: #faf6ff !important; border-color: rgba(124,58,237,0.16) !important; }
+body.light-mode .profile-character-preview-row { background: #faf6ff !important; border-color: rgba(124,58,237,0.16) !important; }
+body.light-mode .profile-character-field-input {
+  background: #ffffff !important;
+  border-color: rgba(124,58,237,0.20) !important;
+  color: #12082e !important;
+}
+body.light-mode .profile-character-field-input:focus { border-color: #7c3aed !important; }
+body.light-mode .profile-character-field-input::placeholder { color: #8c83ad !important; }
+body.light-mode .profile-character-field-label { color: #6d28d9 !important; }
+body.light-mode .profile-character-search-empty { background: #faf6ff !important; color: #5e4d8a !important; border-color: rgba(124,58,237,0.16) !important; }
+body.light-mode .profile-character-upload-btn { background: rgba(124,58,237,0.08) !important; color: #12082e !important; border-color: rgba(124,58,237,0.22) !important; }
+body.light-mode .profile-character-search-tile { background: #ede4ff !important; border-color: rgba(124,58,237,0.18) !important; }
+body.light-mode .profile-character-editor-clear { background: rgba(124,58,237,0.06) !important; color: #4a3d70 !important; border-color: rgba(124,58,237,0.18) !important; }
+body.light-mode .profile-character-editor-actions { background: rgba(255,255,255,0.6) !important; border-top-color: rgba(124,58,237,0.10) !important; }
+
+/* ---------- 14g. FRIENDS / DISCOVERY pages ---------- */
+body.light-mode .friend-card,
+body.light-mode .friend-list-card,
+body.light-mode .user-card {
+  background: linear-gradient(145deg, #ffffff, #f7f3ff) !important;
+  border-color: rgba(124,58,237,0.16) !important;
+  box-shadow: 0 8px 18px rgba(31,16,72,0.06) !important;
+}
+body.light-mode .user-card-name,
+body.light-mode .friend-card-copy { color: #12082e !important; }
+body.light-mode .user-card-stats,
+body.light-mode .user-card-meta,
+body.light-mode .friend-card-sub { color: #5e4d8a !important; }
+body.light-mode .friend-action-btn { color: #2a1d52 !important; background: rgba(124,58,237,0.06) !important; border-color: rgba(124,58,237,0.20) !important; }
+body.light-mode .friend-action-btn:hover { background: rgba(124,58,237,0.12) !important; }
+body.light-mode .friend-screenlist-btn,
+body.light-mode .friend-message-btn { color: #2a1d52 !important; }
+body.light-mode .friend-remove-btn,
+body.light-mode .friend-mobile-remove-x { color: #b91c1c !important; }
+body.light-mode .friends-empty,
+body.light-mode .friends-empty-sub,
+body.light-mode .friends-empty p { color: #5e4d8a !important; }
+body.light-mode .friends-empty-icon { opacity: 0.7; }
+body.light-mode .request-subtab { color: #4a3d70 !important; background: rgba(124,58,237,0.05) !important; border-color: rgba(124,58,237,0.18) !important; }
+body.light-mode .request-subtab.active { color: #ffffff !important; background: linear-gradient(135deg, #7c3aed, #9333ea) !important; border-color: transparent !important; }
+body.light-mode .request-subtab-count { color: #ffffff !important; }
+body.light-mode #incoming-section h3,
+body.light-mode #outgoing-section h3 { color: #5e4d8a !important; }
+body.light-mode .find-search { background: #ffffff !important; border-color: rgba(124,58,237,0.20) !important; color: #12082e !important; }
+body.light-mode .find-search::placeholder { color: #8c83ad !important; }
+
+/* ---------- 14h. DIRECT MESSAGES (extra polish) ---------- */
+body.light-mode .dm-shell { color: #12082e !important; }
+body.light-mode .dm-thread,
+body.light-mode .dm-thread-row,
+body.light-mode .dm-list-item {
+  background: linear-gradient(145deg, #ffffff, #f7f3ff) !important;
+  border-color: rgba(124,58,237,0.14) !important;
+}
+body.light-mode .dm-bubble:not(.mine):not(.dm-bubble--mine) {
+  background: #f4eeff !important;
+  border-color: rgba(124,58,237,0.18) !important;
+  color: #12082e !important;
+}
+body.light-mode .dm-compose-row { background: #ffffff !important; border-top-color: rgba(124,58,237,0.16) !important; }
+body.light-mode .dm-compose-input,
+body.light-mode .dm-message-input,
+body.light-mode .dm-textarea {
+  background: #faf6ff !important;
+  border-color: rgba(124,58,237,0.20) !important;
+  color: #12082e !important;
+}
+body.light-mode .dm-compose-input::placeholder,
+body.light-mode .dm-textarea::placeholder { color: #8c83ad !important; }
+
+/* ---------- 14i. WATCH TOGETHER cards ---------- */
+body.light-mode .friend-watch-request-card {
+  background: linear-gradient(145deg, #ffffff, #f7f3ff) !important;
+  border-color: rgba(124,58,237,0.16) !important;
+  color: #12082e !important;
+}
+body.light-mode .friend-watch-request-card h4 { color: #12082e !important; }
+body.light-mode .friend-watch-request-card p,
+body.light-mode .friend-watch-request-meta-row strong { color: #4a3d70 !important; }
+body.light-mode .friend-watch-request-kicker span,
+body.light-mode .friend-watch-request-kicker em,
+body.light-mode .friend-watch-request-approved span,
+body.light-mode .friend-watch-request-sent-to span { color: #6d28d9 !important; }
+body.light-mode .friend-watch-action.accept { color: #ffffff !important; }
+body.light-mode .friend-watch-action.decline { color: #b91c1c !important; background: rgba(239,68,68,0.06) !important; border-color: rgba(239,68,68,0.20) !important; }
+body.light-mode .friend-watch-request-person-pill { background: rgba(124,58,237,0.06) !important; border-color: rgba(124,58,237,0.20) !important; color: #2a1d52 !important; }
+body.light-mode .friend-watch-request-person-pill em { color: #b91c1c !important; }
+
+/* ---------- 14j. PATCH NOTES (Profile → version) ---------- */
+body.light-mode .patch-notes-modal,
+body.light-mode .patch-notes-card { background: #ffffff !important; border-color: rgba(124,58,237,0.18) !important; }
+body.light-mode .patch-notes-version,
+body.light-mode .patch-version-pill { color: #6d28d9 !important; background: rgba(124,58,237,0.08) !important; border-color: rgba(124,58,237,0.22) !important; }
+body.light-mode .patch-notes-list li { color: #2a1d52 !important; }
+body.light-mode .patch-notes-list li::marker { color: #6d28d9 !important; }
+
+/* ---------- 14k. UNIVERSAL SEARCH / DISCOVER ----------------- */
+body.light-mode .universal-search-shell { background: #ffffff !important; border-color: rgba(124,58,237,0.20) !important; }
+body.light-mode .universal-search-input { color: #12082e !important; }
+body.light-mode .universal-search-input::placeholder { color: #8c83ad !important; }
+body.light-mode .discover-hub-toggle { background: rgba(124,58,237,0.05) !important; border-color: rgba(124,58,237,0.16) !important; }
+body.light-mode .discover-hub-btn { color: #4a3d70 !important; }
+body.light-mode .discover-hub-btn.active { color: #ffffff !important; background: linear-gradient(135deg, #7c3aed, #9333ea) !important; }
+body.light-mode .discover-section-title,
+body.light-mode .discover-section-title-button { color: #12082e !important; }
+body.light-mode .discover-title { color: #12082e !important; }
+body.light-mode .discover-subtitle { color: #5e4d8a !important; }
+body.light-mode .discover-card { background: linear-gradient(145deg, #ffffff, #faf6ff) !important; border-color: rgba(124,58,237,0.14) !important; }
+body.light-mode .discover-card-name { color: #12082e !important; }
+
+/* ---------- 14l. SETTINGS PANEL (My Lists) ---------- */
+body.light-mode .mylist-settings-panel { background: #ffffff !important; border-color: rgba(124,58,237,0.18) !important; color: #12082e !important; }
+body.light-mode .mylist-settings-panel button { color: #2a1d52 !important; }
+
+/* ---------- 14m. STATUS PILLS, CATEGORY PILLS, NAV PILLS ----------
+   Section nav (Movies/TV/Anime/Games/Books/Manga) is the central
+   navigation; on light mode the inactive pills should read clearly
+   while the active gradient pill keeps white text. */
+body.light-mode .nav-tab,
+body.light-mode .section-nav-pill,
+body.light-mode .mobile-nav-tab { color: #4a3d70 !important; }
+body.light-mode .nav-tab.active,
+body.light-mode .section-nav-pill.active,
+body.light-mode .mobile-nav-tab.active,
+body.light-mode .nav-pill.active { color: #ffffff !important; }
+
+/* ---------- 14n. INPUTS / FORMS GLOBAL ---------- */
+body.light-mode input[type="text"],
+body.light-mode input[type="search"],
+body.light-mode input[type="url"],
+body.light-mode input[type="email"],
+body.light-mode input[type="number"],
+body.light-mode input[type="password"],
+body.light-mode textarea,
+body.light-mode select {
+  color: #12082e !important;
+  caret-color: #7c3aed !important;
+}
+body.light-mode input::placeholder,
+body.light-mode textarea::placeholder { color: #8c83ad !important; }
+
+/* ---------- 14o. TOAST + TOP RIGHT CHIPS ---------- */
+body.light-mode .toast,
+body.light-mode .shelfd-toast { background: #ffffff !important; border-color: rgba(124,58,237,0.18) !important; color: #12082e !important; box-shadow: 0 16px 30px rgba(31,16,72,0.14) !important; }
+
+/* ---------- 14p. FRIEND ACTIVITY POST FEED COMPOSER ---------- */
+body.light-mode .feed-composer { background: #ffffff !important; border-color: rgba(124,58,237,0.18) !important; }
+body.light-mode .feed-composer textarea,
+body.light-mode .feed-composer input[type="text"] { color: #12082e !important; }
+body.light-mode .feed-composer textarea::placeholder { color: #8c83ad !important; }
+
+/* ---------- 14q. FRIEND HEART/REPLY/BUTTON FALLBACK ---------- */
+body.light-mode .activity-interaction-btn { color: #4a3d70 !important; }
+body.light-mode .activity-interaction-btn.liked { color: #ef4444 !important; }
+body.light-mode .activity-interaction-btn.liked [data-activity-like-count] { color: #b91c1c !important; }
+body.light-mode .activity-interaction-btn:not(.liked) [data-activity-like-count],
+body.light-mode .activity-interaction-btn [data-activity-reply-count] { color: #4a3d70 !important; }
+
+/* ---------- 14r. FINAL SAFETY NET — translucent-white backgrounds
+   inherit a faint surface; force their child text to dark unless
+   the immediate background is a saturated colour. ---------- */
+body.light-mode .activity-card *,
+body.light-mode .shelfd-social-card *,
+body.light-mode .import-activity-card *,
+body.light-mode .friend-watch-request-card *,
+body.light-mode .friend-card *,
+body.light-mode .user-card *,
+body.light-mode .profile-character-editor-modal *,
+body.light-mode .mylist-settings-panel *,
+body.light-mode #mylist-view .card * {
+  /* Re-assert dark default — but ONLY where the child has no explicit
+     background and isn't a button-with-gradient. We cannot inspect bg
+     from CSS, so we rely on prior rules to opt-in white via class. */
+}
+body.light-mode .activity-card .activity-event-label,
+body.light-mode .shelfd-social-card .sl-activity-status,
+body.light-mode .activity-card .activity-comment-preview {
+  /* Allow strong color preservation handled by earlier rules. */
+}
+
+/* ---------- 14s. KEEP WHITE — gradient/saturated chip & button
+   safety list (final). These get hit by some broad rules above
+   because of class-name patterns; force white back. ---------- */
+body.light-mode .friend-watch-action.accept,
+body.light-mode .feed-post-submit-btn,
+body.light-mode .profile-character-editor-save,
+body.light-mode .profile-character-search-btn,
+body.light-mode .mylist-pager-btn.active,
+body.light-mode .mylist-tab.active,
+body.light-mode .nav-tab.active,
+body.light-mode .request-subtab.active,
+body.light-mode .discover-hub-btn.active,
+body.light-mode .status-pill.watched-active,
+body.light-mode .status-pill.watching-active,
+body.light-mode .status-pill.planned-active,
+body.light-mode .status-pill.paused-active,
+body.light-mode .status-pill.dropped-active,
+body.light-mode .status-pill.live-active,
+body.light-mode .status-pill.wishlist-active,
+body.light-mode .ep-check.checked,
+body.light-mode .badge-count,
+body.light-mode .request-subtab-count,
+body.light-mode .nav-badge,
+body.light-mode .friend-activity-dot { color: #ffffff !important; }
+
+/* =============================================================
+   v481: My Lists header — explicit fixes for elements visible in
+   user screenshot that were still rendering near-white text on
+   the new light page background.
+   ============================================================= */
+
+/* "King_Kooom" display name under the avatar shortcut. Had NO
+   light-mode override anywhere — text inherited the dark-mode
+   pale-purple body color. */
+body.light-mode .mylist-own-profile-name {
+  color: #12082e !important;
+  font-weight: 800 !important;
+}
+body.light-mode .mylist-own-profile-shortcut {
+  border-color: rgba(124,58,237,0.25) !important;
+  box-shadow: 0 6px 14px rgba(31,16,72,0.10) !important;
+}
+
+/* "Categories" label */
+body.light-mode .mylist-categories-label {
+  color: #6d28d9 !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.08em !important;
+}
+
+/* Section toggle (Games / Anime / Manga / Books / Movies / TV Shows).
+   #mylist-view selector adds extra specificity to defeat earlier
+   light-mode rules that left the inactive text too pale and the
+   active text white-on-lavender. */
+body.light-mode #mylist-view .section-btn {
+  color: #4a3d70 !important;
+  background: transparent !important;
+}
+body.light-mode #mylist-view .section-btn.active {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #7c3aed, #9333ea) !important;
+  box-shadow: 0 6px 14px rgba(124,58,237,0.32) !important;
+}
+body.light-mode #mylist-view .section-btn:not(.active):hover {
+  color: #2a1d52 !important;
+  background: rgba(124,58,237,0.06) !important;
+}
+body.light-mode #mylist-view .section-count-bubble {
+  background: rgba(124,58,237,0.12) !important;
+  color: #2a1d52 !important;
+  border-color: rgba(124,58,237,0.20) !important;
+}
+body.light-mode #mylist-view .section-btn.active .section-count-bubble {
+  background: rgba(255,255,255,0.22) !important;
+  color: #ffffff !important;
+}
+
+/* My Lists section card surface */
+body.light-mode .mylist-section-card {
+  background: linear-gradient(145deg, #ffffff, #faf6ff) !important;
+  border-color: rgba(124,58,237,0.16) !important;
+  box-shadow: 0 10px 22px rgba(31,16,72,0.06) !important;
+}
+
+/* Status filter tabs (Watching / Watchlist / Watched / Paused).
+   Inactive was nearly transparent; active was white on translucent
+   lavender. Repaint for clean contrast and use the section's accent
+   color on the active state. */
+body.light-mode #mylist-view .tab-btn {
+  color: #4a3d70 !important;
+  background: transparent !important;
+  font-weight: 700 !important;
+}
+body.light-mode #mylist-view .tab-btn:hover {
+  color: #2a1d52 !important;
+  background: rgba(124,58,237,0.06) !important;
+}
+body.light-mode #mylist-view .tab-btn.active {
+  background: rgba(124,58,237,0.10) !important;
+  font-weight: 800 !important;
+}
+body.light-mode #mylist-view .tab-btn.active[data-tab="watching"] { color: #6d28d9 !important; }
+body.light-mode #mylist-view .tab-btn.active[data-tab="planned"]  { color: #b97f08 !important; }
+body.light-mode #mylist-view .tab-btn.active[data-tab="watched"]  { color: #0e7490 !important; }
+body.light-mode #mylist-view .tab-btn.active[data-tab="paused"]   { color: #c2410c !important; }
+body.light-mode #mylist-view .tab-btn.active[data-tab="dropped"]  { color: #b91c1c !important; }
+body.light-mode #mylist-view .tab-btn.active[data-tab="live"]     { color: #15803d !important; }
+body.light-mode #mylist-view .tab-btn.active[data-tab="wishlist"] { color: #be185d !important; }
+
+/* Tab count chip (the small number after each tab name) */
+body.light-mode #mylist-view .tab-count {
+  background: rgba(124,58,237,0.10) !important;
+  color: #4a3d70 !important;
+  border: 1px solid rgba(124,58,237,0.18) !important;
+}
+body.light-mode #mylist-view .tab-btn.active .tab-count {
+  background: rgba(124,58,237,0.18) !important;
+  color: #2a1d52 !important;
+  border-color: rgba(124,58,237,0.28) !important;
+}
+
+/* Underline indicator under the active tab — already exists in dark
+   mode via gradient. Keep it visible on light too. */
+body.light-mode #mylist-view .tab-btn.active::after,
+body.light-mode #mylist-view .section-btn.active::after {
+  background: linear-gradient(90deg, #7c3aed, #9333ea) !important;
+}
+
+/* Toolbar wrapper */
+body.light-mode #mylist-toolbar { color: #2a1d52 !important; }
+body.light-mode #mylist-toolbar .tabs { border-bottom-color: rgba(124,58,237,0.16) !important; }
+
+/* Search-library input row + sort toggle */
+body.light-mode #mylist-view input[type="text"][placeholder*="library" i],
+body.light-mode #mylist-view .my-list-search,
+body.light-mode #mylist-view .search-row input {
+  background: #ffffff !important;
+  border: 1px solid rgba(124,58,237,0.20) !important;
+  color: #12082e !important;
+  box-shadow: 0 4px 10px rgba(31,16,72,0.05) !important;
+}
+
+/* "+ Add to Shelf" button is already a purple gradient — keep white text. */
+body.light-mode .add-button,
+body.light-mode .add-to-shelf-btn,
+body.light-mode .add-shelf-btn { color: #ffffff !important; }
+
+/* Import pill in top corner — currently a teal pill. Make sure the
+   text reads cleanly. */
+body.light-mode .import-shortcut-pill,
+body.light-mode .nav-import-pill {
+  color: #ffffff !important;
+}
+
+/* Comment chat icon at top right of My Lists header (purple speech
+   bubble in screenshot). Make hover state pop. */
+body.light-mode .mylist-comment-icon,
+body.light-mode .mylist-header-action {
+  color: #6d28d9 !important;
+}
+
+/* Final guard — anything inside #mylist-view that's still inheriting
+   the dark-mode pale color (#e8e3f3 / #d8cff3) gets a sane default. */
+body.light-mode #mylist-view {
+  color: #2a1d52 !important;
+}
+
+/* =============================================================
+   v487: DEFAULT THEME FLAT-MODE — My Lists page
+   Remove every shadow, glow, blur, translucent surface, and
+   animation filter. Everything is a solid hex colour.
+   Progress bar is explicitly excluded from this reset.
+   ============================================================= */
+
+/* ── 1. Nuclear shadow/filter/blur wipe on the whole My Lists view ── */
+body.true-dark-mode #mylist-view *:not(.progress-fill):not(.progress-bar) {
+  box-shadow: none !important;
+  text-shadow: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ── 2. Star rating animations — kill glow keyframes by preventing
+        the animation classes from running. The star still changes
+        colour on click; it just doesn't pop or glow. ── */
+body.true-dark-mode .star-btn.star-pop,
+body.true-dark-mode .star-label.label-pop,
+body.true-dark-mode .ep-rating-btn {
+  animation: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+/* ── 3. Episode watch-sweep glow ── */
+body.true-dark-mode .ep-row.episode-watch-glow,
+body.true-dark-mode .ep-check.ep-check-pop {
+  animation: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+/* ── 4. Profile avatar — solid border, no shadow ── */
+body.true-dark-mode #mylist-view .mylist-own-profile-shortcut {
+  box-shadow: none !important;
+  border: 1px solid #3a3a3a !important;
+  background: #1a1a1a !important;
+}
+
+/* ── 5. Cards — no border, let the tone shift carry it ── */
+body.true-dark-mode #mylist-view .card {
+  box-shadow: none !important;
+  border: none !important;
+  background: #272727 !important;
+}
+
+/* ── 6. Section header card — no border ── */
+body.true-dark-mode #mylist-view .mylist-section-card {
+  box-shadow: none !important;
+  border: none !important;
+  background: #272727 !important;
+}
+
+/* ── 7. Section toggle buttons (Games / Anime / Movies / TV Shows) ── */
+body.true-dark-mode #mylist-view .section-btn {
+  box-shadow: none !important;
+  filter: none !important;
+  background: transparent !important;
+}
+body.true-dark-mode #mylist-view .section-btn.active {
+  box-shadow: none !important;
+  background: #6d28d9 !important;
+  border: none !important;
+}
+
+/* ── 8. Status/filter tabs (Watching / Watchlist / Watched / Paused) ── */
+body.true-dark-mode #mylist-view .tab-btn {
+  box-shadow: none !important;
+  filter: none !important;
+  background: transparent !important;
+}
+body.true-dark-mode #mylist-view .tab-btn.active {
+  box-shadow: none !important;
+  background: #2c2c2c !important;
+}
+body.true-dark-mode #mylist-view .tab-count {
+  background: #2c2c2c !important;
+  border: 1px solid #3e3e3e !important;
+  box-shadow: none !important;
+}
+
+/* ── 9. Status pill selector inside cards ── */
+body.true-dark-mode #mylist-view .game-status-current-pill,
+body.true-dark-mode #mylist-view .status-pill {
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+/* ── 10. Episode list + season blocks ── */
+body.true-dark-mode #mylist-view .ep-list {
+  box-shadow: none !important;
+  background: #2c2c2c !important;
+  border: 1px solid #3e3e3e !important;
+}
+body.true-dark-mode #mylist-view .season-block {
+  box-shadow: none !important;
+  border: 1px solid #3e3e3e !important;
+}
+body.true-dark-mode #mylist-view .ep-check {
+  box-shadow: none !important;
+  border: 1px solid #3a3a3a !important;
+}
+body.true-dark-mode #mylist-view .ep-check.checked {
+  box-shadow: none !important;
+  background: #6d28d9 !important;
+  border-color: #6d28d9 !important;
+}
+
+/* ── 11. Action row buttons — transparent, just text + thin outline ── */
+body.true-dark-mode #mylist-view .ep-toggle-bar,
+body.true-dark-mode #mylist-view .comments-btn,
+body.true-dark-mode #mylist-view .card-footer-btn {
+  box-shadow: none !important;
+  filter: none !important;
+  background: transparent !important;
+  border: 1px solid #4a4a4a !important;
+  color: #a0a0a0 !important;
+}
+
+/* ── 12. Add to shelf button — flat purple, no shadow ── */
+body.true-dark-mode #mylist-view .add-button,
+body.true-dark-mode #mylist-view [class*="add-shelf"],
+body.true-dark-mode #mylist-view [class*="add-to-shelf"] {
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+/* ── 13. Header — no shadow, flat grey ── */
+body.true-dark-mode .header {
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+/* ── 14. Bottom nav pill — solid dark for contrast against #242424 ── */
+body.true-dark-mode .mobile-bottom-nav {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  background: #141414 !important;
+  border: 1px solid #2c2c2c !important;
+}
+
+/* ── 15. Sort button / search bar ── */
+body.true-dark-mode #mylist-view .my-list-search,
+body.true-dark-mode #mylist-view input[type="text"] {
+  box-shadow: none !important;
+}
+
+/* ── 16. Inset glows on hover states ── */
+body.true-dark-mode #mylist-view .card:hover,
+body.true-dark-mode #mylist-view .section-btn:hover,
+body.true-dark-mode #mylist-view .tab-btn:hover {
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+/* =============================================================
+   v490: MINIMAL POLISH — status pills, Add to Shelf, ep-list
+   ============================================================= */
+
+/* ── Status pills: outline-only, no filled background ── */
+body.true-dark-mode #mylist-view .status-pill.watching-active {
+  background: transparent !important;
+  border-color: #634981 !important;
+  color: #634981 !important;
+}
+/* Watching tab text also uses the underline purple */
+body.true-dark-mode #mylist-view .tab-btn.active[data-tab="watching"] {
+  color: #634981 !important;
+}
+body.true-dark-mode #mylist-view .status-pill.planned-active {
+  background: transparent !important;
+  border-color: #d97706 !important;
+  color: #fbbf24 !important;
+}
+body.true-dark-mode #mylist-view .status-pill.watched-active {
+  background: transparent !important;
+  border-color: #0891b2 !important;
+  color: #67e8f9 !important;
+}
+body.true-dark-mode #mylist-view .status-pill.paused-active {
+  background: transparent !important;
+  border-color: #c2410c !important;
+  color: #f97316 !important;
+}
+body.true-dark-mode #mylist-view .status-pill.dropped-active {
+  background: transparent !important;
+  border-color: #dc2626 !important;
+  color: #ef4444 !important;
+}
+body.true-dark-mode #mylist-view .status-pill.live-active {
+  background: transparent !important;
+  border-color: #16a34a !important;
+  color: #22c55e !important;
+}
+body.true-dark-mode #mylist-view .status-pill.wishlist-active {
+  background: transparent !important;
+  border-color: #be185d !important;
+  color: #f472b6 !important;
+}
+/* Inactive options in the status pop-out */
+body.true-dark-mode #mylist-view .game-status-options .status-pill {
+  background: transparent !important;
+  border-color: #3e3e3e !important;
+  color: #a0a0a0 !important;
+}
+
+/* ── "+ Add to Shelf" — flat, no gradient, no shadow ── */
+body.true-dark-mode #add-btn,
+body.true-dark-mode #mylist-view .btn-primary {
+  background: #634981 !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+body.true-dark-mode #add-btn:hover,
+body.true-dark-mode #mylist-view .btn-primary:hover {
+  background: #573f72 !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+/* ── Episode list — no border, just tone shift ── */
+body.true-dark-mode #mylist-view .ep-list {
+  border: none !important;
+}
+body.true-dark-mode #mylist-view .season-block {
+  border-color: #3a3a3a !important;
+}
+
+/* ── ep-check unchecked — subtle outline ── */
+body.true-dark-mode #mylist-view .ep-check {
+  border: 1px solid #4a4a4a !important;
+}
+
+/* =============================================================
+   v505/v507: Import button — flat cyan, all effects removed,
+   and translateY overridden here (file 16 = last loaded) so it
+   beats the "transform: none !important" in 12-pwa-header-continuity.css
+   ============================================================= */
+body.true-dark-mode .header-import-btn,
+body.main-tab-mylist .header-import-btn {
+  background: #06b6d4 !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  text-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  display: inline-flex !important;
+}
+body.true-dark-mode .header-import-btn:hover,
+body.main-tab-mylist .header-import-btn:hover {
+  background: #0891b2 !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+/* v507: force translateY here — file 16 wins over the
+   "transform: none !important" in 12-pwa-header-continuity.css */
+@media (max-width: 700px) {
+  body.main-tab-mylist .header-import-btn {
+    transform: translateY(112px) !important;
+  }
+}
+
+/* =============================================================
+   v508: Add to Shelf — full-page bottom sheet (dark charcoal)
+   When triggered from the + button, slides up from the bottom
+   instead of appearing as a centered popup.
+   ============================================================= */
+@keyframes addShelfSlideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+body.true-dark-mode #modal.modal-overlay {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  align-items: flex-end !important;
+  justify-content: center !important;
+  padding: 0 !important;
+}
+
+body.true-dark-mode #modal .add-title-modal {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  min-height: 100dvh !important;
+  border-radius: 0 !important;
+  background: #181818 !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: max(env(safe-area-inset-top, 20px), 20px) 20px 20px !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  animation: addShelfSlideUp 0.34s cubic-bezier(0.22, 1, 0.36, 1) both !important;
+}
+
+/* Title and text colours on the dark sheet */
+body.true-dark-mode #modal .add-title-modal h3,
+body.true-dark-mode #modal .add-title-modal .modal-title {
+  color: #f5f5f5 !important;
+}
+body.true-dark-mode #modal .add-title-modal input[type="text"] {
+  background: #272727 !important;
+  border: 1px solid #3e3e3e !important;
+  color: #f5f5f5 !important;
+  border-radius: 14px !important;
+}
+body.true-dark-mode #modal .add-title-modal input[type="text"]::placeholder {
+  color: #6a6a6a !important;
+}

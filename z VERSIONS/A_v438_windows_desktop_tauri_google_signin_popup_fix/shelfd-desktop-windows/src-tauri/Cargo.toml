@@ -1,0 +1,12 @@
+[package]
+name = "shelfd"
+version = "0.1.0"
+description = "Shelfd desktop wrapper for Windows"
+authors = ["Shelfd"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }

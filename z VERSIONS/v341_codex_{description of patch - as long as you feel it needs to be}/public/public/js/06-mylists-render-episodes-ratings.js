@@ -1,24 +1,89 @@
-window.__SHELFD_MYLIST_PATCH_VERSION = 'v339-textarea-overflow-keyboard';
+window.__SHELFD_MYLIST_PATCH_VERSION = 'v399-game-status-scroll-toggle-gray';
 window.__SHELFD_MYLIST_SWIPE_REMOVED = true;
 window.__SHELFD_MYLIST_RENDER_RECOVERY = true;
 window.__SHELFD_MYLIST_CONTROLS_STAR_CACHE_BUSTER = true;
+let activeGamePlayingFilter = 'live';
+
+function isGamesPlayingMergedView(section = activeSection, tab = activeTab) {
+  return section === 'games' && tab === 'watching';
+}
+
+function normalizeGamePlayingFilter(value = '') {
+  return value === 'watching' ? 'watching' : 'live';
+}
+
+function getGamePlayingVisibleStatuses() {
+  if (!isGamesPlayingMergedView()) return [activeTab];
+  if (String(searchQuery || '').trim()) return ['watching', 'live'];
+  return [normalizeGamePlayingFilter(activeGamePlayingFilter)];
+}
+
+function itemMatchesActiveListStatus(item = {}) {
+  if (isGamesPlayingMergedView()) return getGamePlayingVisibleStatuses().includes(item.status);
+  return item.status === activeTab;
+}
+
+function switchGamePlayingFilter(filter = 'live') {
+  activeGamePlayingFilter = normalizeGamePlayingFilter(filter);
+  closeSortDropdown();
+  render();
+}
+
+function renderGamePlayingSubfilter(items = []) {
+  const toolbar = document.getElementById('mylist-toolbar');
+  if (!toolbar) return;
+  let wrap = document.getElementById('games-playing-subfilter');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'games-playing-subfilter';
+    wrap.className = 'games-playing-subfilter';
+    toolbar.insertAdjacentElement('afterend', wrap);
+  }
+
+  const visible = isGamesPlayingMergedView();
+  wrap.style.display = visible ? '' : 'none';
+  if (!visible) return;
+
+  activeGamePlayingFilter = normalizeGamePlayingFilter(activeGamePlayingFilter);
+  const singleCount = items.filter(i => i.status === 'watching').length;
+  const liveCount = items.filter(i => i.status === 'live').length;
+  const searchActive = !!String(searchQuery || '').trim();
+  wrap.classList.toggle('search-active', searchActive);
+  wrap.innerHTML = `
+    <div class="games-playing-subfilter-card" role="group" aria-label="Playing game type">
+      <button class="games-playing-toggle${activeGamePlayingFilter === 'watching' ? ' active' : ''}" type="button" onclick="switchGamePlayingFilter('watching')">
+        <span>Single Player</span><small>${singleCount}</small>
+      </button>
+      <button class="games-playing-toggle${activeGamePlayingFilter === 'live' ? ' active' : ''}" type="button" onclick="switchGamePlayingFilter('live')">
+        <span>Live Games</span><small>${liveCount}</small>
+      </button>
+    </div>
+  `;
+}
+
+function ensureGameWishlistStatusTab() {
+  if (document.getElementById('count-wishlist')) return;
+  const tabs = document.querySelector('#mylist-toolbar .tabs');
+  if (!tabs) return;
+  const button = document.createElement('button');
+  button.className = 'tab-btn';
+  button.dataset.tab = 'wishlist';
+  button.type = 'button';
+  button.style.display = 'none';
+  button.onclick = () => switchTab('wishlist');
+  button.innerHTML = 'Wishlist<span class="tab-count" id="count-wishlist">0</span>';
+  const watchedBtn = tabs.querySelector('.tab-btn[data-tab="watched"]');
+  if (watchedBtn && watchedBtn.nextSibling) tabs.insertBefore(button, watchedBtn.nextSibling);
+  else tabs.appendChild(button);
+}
 // Load from Firestore
 async function load() {
   if (!DOC_REF) return;
   try {
-    const snap = await DOC_REF.get();
-    if (snap.exists) {
-      const d = snap.data();
-      data = normalizeListData({
-        shows: d.shows ? JSON.parse(d.shows) : [],
-        movies: d.movies ? JSON.parse(d.movies) : [],
-        anime: d.anime ? JSON.parse(d.anime) : [],
-        games: d.games ? JSON.parse(d.games) : [],
-        manga: d.manga ? JSON.parse(d.manga) : [],
-        books: d.books ? JSON.parse(d.books) : []
-      });
-    } else {
-      data = getEmptyListData();
+    data = await loadWatchlistDataFromDocRef(DOC_REF);
+    if (listDataItemCount(data) === 0) {
+      const backup = readOwnLocalBackup(data);
+      if (backup) data = await writeOwnDataDirect(backup);
     }
     data = await autoSortAnimeBuckets(data, true);
     ownDataCache = cloneListData(data);
@@ -28,8 +93,8 @@ async function load() {
     console.error("Load failed:", e);
     // Fallback to localStorage
     try {
-      const raw = localStorage.getItem("watchlist-tracker-data");
-      if (raw) data = normalizeListData(JSON.parse(raw));
+      const backup = readOwnLocalBackup();
+      if (backup) data = backup;
       activeSection = "shows";
       activeTab = "watching";
       ownDataCache = cloneListData(data);
@@ -49,28 +114,25 @@ function save() {
   // Debounce Firestore writes
   clearTimeout(saveTimeout);
   saveTimeout = setTimeout(async () => {
+    saveTimeout = null;
     try {
-      await DOC_REF.set({
-        shows: JSON.stringify(safeData.shows),
-        movies: JSON.stringify(safeData.movies),
-        anime: JSON.stringify(safeData.anime),
-        games: JSON.stringify(safeData.games),
-        manga: JSON.stringify(safeData.manga),
-        books: JSON.stringify(safeData.books),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
+      await persistOwnDataToFirestore(safeData);
       if (currentUser?.uid === CREATOR_PUBLIC_UID) {
         await syncCreatorPublicProfileMirror(currentUser, userProfile, safeData);
       }
     } catch(e) {
       console.error("Save failed:", e);
-      showToast('Save failed. Your library may be too large or offline. Try again.');
+      const message = typeof formatOwnDataSaveError === 'function'
+        ? formatOwnDataSaveError(e, safeData)
+        : 'Save failed. Your library may be too large or offline. Try again.';
+      showToast(message);
     }
   }, 500);
 }
 
 // Render
 function render() {
+  ensureGameWishlistStatusTab();
   ensureActiveSectionVisible();
   renderMyListEditControls();
   const visibleData = getVisibleListData();
@@ -79,7 +141,7 @@ function render() {
   const stateKey = getSortStateKey();
   const activeSortKey = getActiveSortKey();
   const baseFiltered = items
-    .filter(i => i.status === activeTab)
+    .filter(itemMatchesActiveListStatus)
     .filter(i => !searchQuery || (i.title || '').toLowerCase().includes(searchQuery.toLowerCase()));
   const filtered = applySortOrder(baseFiltered, activeSortKey, stateKey);
 
@@ -102,16 +164,21 @@ function render() {
   });
 
   // Tab counts
-  document.getElementById("count-live").textContent = items.filter(i => i.status === "live").length;
-  document.getElementById("count-watching").textContent = items.filter(i => i.status === "watching").length;
+  const gamesPlayingCount = items.filter(i => i.status === "watching").length;
+  const gamesLiveCount = items.filter(i => i.status === "live").length;
+  document.getElementById("count-live").textContent = gamesLiveCount;
+  document.getElementById("count-watching").textContent = activeSection === 'games' ? gamesPlayingCount + gamesLiveCount : gamesPlayingCount;
   document.getElementById("count-planned").textContent = items.filter(i => i.status === "planned").length;
   document.getElementById("count-watched").textContent = items.filter(i => i.status === "watched").length;
+  const wishlistCountEl = document.getElementById("count-wishlist");
+  if (wishlistCountEl) wishlistCountEl.textContent = items.filter(i => i.status === "wishlist").length;
   document.getElementById("count-paused").textContent = items.filter(i => i.status === "paused").length;
   const droppedCountEl = document.getElementById("count-dropped");
   if (droppedCountEl) droppedCountEl.textContent = items.filter(i => i.status === "dropped").length;
 
   // Add button label
   document.getElementById("add-btn").textContent = '+ Add to Shelf';
+  renderGamePlayingSubfilter(items);
 
   // Section buttons
   document.querySelectorAll(".section-btn").forEach(b => {
@@ -131,10 +198,15 @@ function render() {
     }
 
     if (b.dataset.tab === "live") {
-      b.style.display = activeSection === "games" ? "" : "none";
+      b.style.display = "none";
+      b.classList.remove("active");
     }
     if (b.dataset.tab === "paused") {
       b.style.display = activeSection === "games" ? "none" : "";
+    }
+    if (b.dataset.tab === "wishlist") {
+      b.style.display = activeSection === "games" ? "" : "none";
+      b.childNodes[0].textContent = "Wishlist";
     }
     if (b.dataset.tab === "watching") {
       b.style.display = activeSection === "movies" ? "none" : "";
@@ -168,17 +240,35 @@ function render() {
     if (toolbarRight) toolbarRight.insertBefore(sortBtn, toolbarRight.firstChild);
   }
   const isDefaultSort = activeSortKey === getDefaultSortKeyFor();
-  const sortLabel = SORT_OPTIONS.find(o => o.key === activeSortKey)?.label || 'Sort';
+  const sortOptions = typeof getSortOptionsForSection === 'function' ? getSortOptionsForSection(activeSection) : SORT_OPTIONS;
+  const sortLabel = sortOptions.find(o => o.key === activeSortKey)?.label || 'Sort';
   sortBtn.title = sortLabel;
   sortBtn.innerHTML = `<span class="sort-btn-icon${isDefaultSort ? '' : ' sort-active'}">⇅</span><span class="sort-btn-label">${isDefaultSort ? '' : sortLabel}</span>`;
 
   if (filtered.length === 0) {
     grid.innerHTML = "";
     empty.style.display = "block";
-    document.getElementById("empty-icon").textContent = getSectionIcon(activeSection);
+    const emptyIcon = document.getElementById("empty-icon");
+    if (emptyIcon) {
+      emptyIcon.textContent = activeSection === 'games' ? '' : getSectionIcon(activeSection);
+      emptyIcon.style.display = activeSection === 'games' ? 'none' : '';
+    }
     const statusLabel = activeTab === "planned" ? "planned" : activeTab;
     const sectionLabel = getSectionLabel(activeSection);
-    document.getElementById("empty-text").textContent = `No ${statusLabel} ${sectionLabel} yet`;
+    const emptyText = isGamesPlayingMergedView()
+      ? (searchQuery
+          ? 'No matching games yet'
+          : activeGamePlayingFilter === 'watching'
+            ? 'No single-player games yet'
+            : 'No live games yet')
+      : activeSection === 'games' && activeTab === 'planned'
+        ? 'No backlog games yet'
+        : activeSection === 'games' && activeTab === 'watched'
+          ? 'No played games yet'
+          : activeSection === 'games' && activeTab === 'wishlist'
+            ? 'No wishlist games yet'
+            : `No ${statusLabel} ${sectionLabel} yet`;
+    document.getElementById("empty-text").textContent = emptyText;
     if (emptySub) {
       emptySub.textContent = searchQuery
         ? "No matches for your search. Try a shorter title or clear the search field."
@@ -194,15 +284,17 @@ function render() {
   }
 
   empty.style.display = "none";
+  const hiddenEmptyIcon = document.getElementById("empty-icon");
+  if (hiddenEmptyIcon) hiddenEmptyIcon.style.display = "";
 
   if (activeSortKey === 'custom') {
     grid.innerHTML = filtered.map(item => renderCard(item, true)).join("");
   } else {
     grid.innerHTML = filtered.map(item => renderCard(item)).join("");
   }
+  if (typeof rememberRenderedSortOrder === 'function') rememberRenderedSortOrder(stateKey, filtered);
 
   refreshVisibleCommentCounts();
-  scheduleCardWatchSlotHydration();
 
   // Restore open episode lists and seasons
   Object.keys(openStates).forEach(key => {
@@ -447,49 +539,6 @@ function selectGameDetailsPlatform(id = '', value = '', event = null) {
   if (trigger) trigger.setAttribute('aria-expanded', 'false');
 }
 
-// v321: Platform bottom-sheet modal (replaces inline dropdown)
-let _gamePlatformModalActiveId = null;
-
-function openGamePlatformModal(id = '') {
-  const key = String(id || '').trim();
-  if (!key) return;
-  _gamePlatformModalActiveId = key;
-  const existing = document.getElementById('game-platform-modal-overlay');
-  if (existing) existing.remove();
-  const { item } = getScreenListGameById(key);
-  const draft = getGameDetailsDraftValues(key, item || {});
-  const currentPlatform = draft.platform || '';
-  const optionsHtml = SCREENLIST_GAME_PLATFORM_OPTIONS.map(opt => {
-    const isSel = opt === currentPlatform;
-    return `<button class="game-platform-modal-option${isSel ? ' modal-option-selected' : ''}" type="button" onclick="selectGamePlatformFromModal(${JSON.stringify(key)},${JSON.stringify(opt)})">${escHtml(opt)}</button>`;
-  }).join('');
-  const overlay = document.createElement('div');
-  overlay.id = 'game-platform-modal-overlay';
-  overlay.className = 'game-platform-modal-overlay';
-  overlay.setAttribute('role', 'dialog');
-  overlay.setAttribute('aria-modal', 'true');
-  overlay.addEventListener('click', function(e) {
-    if (e.target === overlay) closeGamePlatformModal();
-  });
-  overlay.innerHTML = `<div class="game-platform-modal-sheet">
-    <div class="game-platform-modal-title">Platform</div>
-    <div class="game-platform-modal-options">${optionsHtml}</div>
-    <button class="game-platform-modal-cancel" type="button" onclick="closeGamePlatformModal()">Cancel</button>
-  </div>`;
-  document.body.appendChild(overlay);
-}
-
-function closeGamePlatformModal() {
-  const overlay = document.getElementById('game-platform-modal-overlay');
-  if (overlay) overlay.remove();
-  _gamePlatformModalActiveId = null;
-}
-
-function selectGamePlatformFromModal(id = '', value = '') {
-  closeGamePlatformModal();
-  selectGameDetailsPlatform(id, value, null);
-}
-
 function getGameDetailsSelectorById(id = '', field = '') {
   const key = String(id || '').trim();
   const cleanField = String(field || '').trim();
@@ -583,15 +632,7 @@ async function persistOwnListDataImmediate(nextData = null) {
   if (typeof writeOwnDataDirect === 'function') {
     await writeOwnDataDirect(safeData);
   } else if (DOC_REF) {
-    await DOC_REF.set({
-      shows: JSON.stringify(safeData.shows || []),
-      movies: JSON.stringify(safeData.movies || []),
-      anime: JSON.stringify(safeData.anime || []),
-      games: JSON.stringify(safeData.games || []),
-      manga: JSON.stringify(safeData.manga || []),
-      books: JSON.stringify(safeData.books || []),
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
+    await persistOwnDataToFirestore(safeData);
   } else {
     save();
   }
@@ -750,23 +791,15 @@ function changeGameStatusFromSelector(itemId, newStatus, event) {
 })();
 
 // v318: Game card inline comment dropdown functions
-// v341: Add/remove comment-drop-open on parent .card so overflow:hidden is lifted for iOS keyboard
 function toggleGameCardComments(itemId, mediaKey, triggerEl, event) {
   event && event.stopPropagation && event.stopPropagation();
   const drop = document.getElementById('game-card-comments-' + itemId);
   if (!drop) return;
   const isOpen = drop.classList.contains('open');
-  // Close all open dropdowns and restore overflow on parent cards
-  document.querySelectorAll('.game-card-comment-drop.open').forEach(function(el) {
-    el.classList.remove('open');
-    var parentCard = el.closest('.card');
-    if (parentCard) parentCard.classList.remove('comment-drop-open');
-  });
+  // Close all open dropdowns first
+  document.querySelectorAll('.game-card-comment-drop.open').forEach(el => el.classList.remove('open'));
   if (!isOpen) {
     drop.classList.add('open');
-    // Lift overflow:hidden on the parent card so iOS keyboard can open
-    var parentCard = drop.closest('.card');
-    if (parentCard) parentCard.classList.add('comment-drop-open');
     loadGameCardComments(itemId, mediaKey);
   }
 }
@@ -790,7 +823,7 @@ async function loadGameCardComments(itemId, mediaKey) {
           return true;
         })
       : allComments.filter(function(c) { return (c.scope || 'global') !== 'friends'; });
-    renderGameCardCommentsList(listEl, visible, mediaKey);
+    renderGameCardCommentsList(listEl, visible);
     if (typeof setCachedCommentCount === 'function') setCachedCommentCount(mediaKey, allComments.length);
     if (typeof updateCommentCountBadges === 'function') updateCommentCountBadges(mediaKey, allComments.length);
   } catch (err) {
@@ -799,7 +832,7 @@ async function loadGameCardComments(itemId, mediaKey) {
   }
 }
 
-function renderGameCardCommentsList(listEl, comments, mediaKey) {
+function renderGameCardCommentsList(listEl, comments) {
   if (!comments || !comments.length) {
     listEl.innerHTML = '<div class="game-card-comment-empty">No comments yet.</div>';
     return;
@@ -809,13 +842,12 @@ function renderGameCardCommentsList(listEl, comments, mediaKey) {
     const text = typeof escHtml === 'function' ? escHtml(c.text || '') : (c.text || '');
     const fallbackAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(c.name || '?') + '&background=1e2028&color=60a5fa&size=32';
     const photo = c.photo || fallbackAvatar;
-    const isOwn = currentUser && c.uid === currentUser.uid;
-    const cId = typeof escAttr === 'function' ? escAttr(c.id || '') : (c.id || '');
-    const mKey = typeof escAttr === 'function' ? escAttr(mediaKey || '') : (mediaKey || '');
-    const actions = isOwn
-      ? `<div class="gc-comment-actions"><div class="gc-delete-pill" id="gc-pill-${cId}"><button class="gc-delete-cancel" onclick="event.stopPropagation();gcCancelDelete('${cId}')">Cancel</button><button class="gc-delete-yes" onclick="event.stopPropagation();gcDoDelete('${cId}','${mKey}',this)">Delete</button></div><button class="gc-comment-delete-btn" onclick="event.stopPropagation();gcConfirmDelete('${cId}')" aria-label="Delete comment"><svg viewBox="0 0 12 12" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="1" y1="1" x2="11" y2="11"/><line x1="11" y1="1" x2="1" y2="11"/></svg></button></div>`
-      : '';
-    return `<div class="game-card-comment-item"><img class="game-card-comment-avatar" src="${photo}" alt="" onerror="this.src='${fallbackAvatar}'"><div class="game-card-comment-body"><div class="game-card-comment-name">${name}</div><div class="game-card-comment-text">${text}</div></div>${actions}</div>`;
+    return '<div class="game-card-comment-item">'
+      + '<img class="game-card-comment-avatar" src="' + photo + '" alt="" onerror="this.src=\'' + fallbackAvatar + '\'">'
+      + '<div class="game-card-comment-body">'
+      + '<div class="game-card-comment-name">' + name + '</div>'
+      + '<div class="game-card-comment-text">' + text + '</div>'
+      + '</div></div>';
   }).join('');
 }
 
@@ -833,19 +865,19 @@ async function postGameCardComment(itemId, mediaKey, btnEl) {
       uid: currentUser.uid,
       name: name,
       photo: photo,
-      accountEmailLower: typeof normalizeEmail === 'function' ? normalizeEmail(currentUser.email || '') : (currentUser.email || '').toLowerCase(),
-      isCreatorAdmin: (typeof CREATOR_ADMIN_EMAIL !== 'undefined' && typeof normalizeEmail === 'function') ? normalizeEmail(currentUser.email || '') === CREATOR_ADMIN_EMAIL : false,
       text: text,
       timestamp: Date.now(),
       scope: 'friends'
     };
     await db.collection('comments').doc(mediaKey).set(
-      {
-        comments: firebase.firestore.FieldValue.arrayUnion(newComment),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      },
+      { comments: firebase.firestore.FieldValue.arrayUnion(newComment) },
       { merge: true }
     );
+    const record = findOwnLibraryItemRecord(itemId, 'games');
+    if (record.item && typeof markOwnItemLastEdited === 'function') {
+      markOwnItemLastEdited(record.item, record.section || 'games');
+      save();
+    }
     ta.value = '';
     await loadGameCardComments(itemId, mediaKey);
   } catch (err) {
@@ -854,158 +886,6 @@ async function postGameCardComment(itemId, mediaKey, btnEl) {
   } finally {
     btnEl.disabled = false;
   }
-}
-
-// v334: Comment delete — slide-out pill
-function gcConfirmDelete(commentId) {
-  document.querySelectorAll('.gc-delete-pill.open').forEach(function(p) { p.classList.remove('open'); });
-  const pill = document.getElementById('gc-pill-' + commentId);
-  if (pill) pill.classList.add('open');
-}
-
-function gcCancelDelete(commentId) {
-  const pill = document.getElementById('gc-pill-' + commentId);
-  if (pill) pill.classList.remove('open');
-}
-
-async function gcDoDelete(commentId, mediaKey, btn) {
-  btn.disabled = true;
-  try {
-    const ref = db.collection('comments').doc(mediaKey);
-    await db.runTransaction(async function(transaction) {
-      const doc = await transaction.get(ref);
-      if (!doc.exists) return;
-      const comments = Array.isArray(doc.data().comments) ? doc.data().comments : [];
-      const target = comments.find(function(c) { return c.id === commentId; });
-      if (!target || target.uid !== currentUser.uid) return;
-      transaction.set(ref, {
-        comments: comments.filter(function(c) { return c.id !== commentId; }),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
-    });
-    if (typeof setCachedCommentCount === 'function' && typeof getCachedCommentCount === 'function') {
-      var newCount = Math.max(0, getCachedCommentCount(mediaKey) - 1);
-      setCachedCommentCount(mediaKey, newCount);
-      if (typeof updateCommentCountBadges === 'function') updateCommentCountBadges(mediaKey, newCount);
-    }
-    const item = btn.closest('.game-card-comment-item');
-    const listEl = item ? item.closest('.game-card-comment-list') : null;
-    if (listEl) {
-      const itemId = listEl.id.replace('game-card-comment-list-', '');
-      await loadGameCardComments(itemId, mediaKey);
-    }
-  } catch (err) {
-    console.error('Delete comment failed:', err);
-    if (typeof showToast === 'function') showToast('Could not delete. Try again.');
-    btn.disabled = false;
-  }
-}
-
-// v320: Watchlist card watch-slot — show streaming providers, In Theaters, or nothing
-const cardWatchInfoCache = {};
-
-async function fetchCardWatchInfo(tmdbId, section, year, title) {
-  const cacheKey = section + ':' + (String(tmdbId || '').trim() || String(title || '').trim().toLowerCase());
-  if (cardWatchInfoCache[cacheKey] !== undefined) return cardWatchInfoCache[cacheKey];
-  if (!tmdbId) { cardWatchInfoCache[cacheKey] = null; return null; }
-  const type = (section === 'movies') ? 'movie' : 'tv';
-  try {
-    // v321: fetch details + providers in parallel to get actual release date
-    const [detailsRes, providersRes] = await Promise.all([
-      fetchTmdbProxy(`${type}/${tmdbId}`),
-      fetchTmdbProxy(`${type}/${tmdbId}/watch/providers`)
-    ]);
-
-    // Determine if the title has been released yet
-    let isReleased = true;
-    let releaseDateStr = null;
-    if (detailsRes && detailsRes.ok) {
-      try {
-        const detailsJson = await detailsRes.json();
-        const rawDate = type === 'movie' ? detailsJson.release_date : detailsJson.first_air_date;
-        if (rawDate) {
-          const releaseDate = new Date(rawDate + 'T00:00:00');
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          if (releaseDate > today) {
-            isReleased = false;
-            releaseDateStr = releaseDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-          }
-        }
-      } catch (e) { /* ignore parse errors */ }
-    }
-
-    if (!isReleased) {
-      cardWatchInfoCache[cacheKey] = { type: 'upcoming', date: releaseDateStr };
-      return cardWatchInfoCache[cacheKey];
-    }
-
-    // Title is released — check streaming providers
-    if (providersRes && providersRes.ok) {
-      const json = await providersRes.json();
-      const usData = (json.results || {}).US || {};
-      const flatrate = Array.isArray(usData.flatrate) ? usData.flatrate : [];
-      const free = Array.isArray(usData.free) ? usData.free : [];
-      const ads = Array.isArray(usData.ads) ? usData.ads : [];
-      const seen = new Set();
-      const allProviders = [...flatrate, ...free, ...ads].filter(p => {
-        if (!p || seen.has(p.provider_id)) return false;
-        seen.add(p.provider_id);
-        return true;
-      });
-      if (allProviders.length > 0) {
-        cardWatchInfoCache[cacheKey] = { type: 'streaming', providers: allProviders };
-        return cardWatchInfoCache[cacheKey];
-      }
-      if (type === 'movie') {
-        cardWatchInfoCache[cacheKey] = { type: 'theaters' };
-        return cardWatchInfoCache[cacheKey];
-      }
-    }
-  } catch (e) { console.warn('Card watch info fetch failed:', e); }
-  cardWatchInfoCache[cacheKey] = null;
-  return null;
-}
-
-function renderCardWatchSlotContent(info) {
-  if (!info) return '';
-  if (info.type === 'upcoming') {
-    const dateText = info.date || 'N/A';
-    return '<div class="card-watch-slot-inner card-release-date-badge">Release Date: ' + escHtml(dateText) + '</div>';
-  }
-  if (info.type === 'theaters') {
-    return '<div class="card-watch-slot-inner card-theaters-badge">In Theaters</div>';
-  }
-  if (info.type === 'streaming' && Array.isArray(info.providers) && info.providers.length) {
-    const logos = info.providers.slice(0, 4).map(function(p) {
-      const lp = p.logo_path || '';
-      const logoUrl = lp ? ('https://image.tmdb.org/t/p/w154' + (lp.startsWith('/') ? lp : '/' + lp)) : (typeof getMediaProviderFallbackIconUrl === 'function' ? getMediaProviderFallbackIconUrl(p) : '');
-      const name = escAttr(p.provider_name || '');
-      return logoUrl ? '<img class="card-provider-logo" src="' + escAttr(logoUrl) + '" alt="' + name + '" title="' + name + '" loading="lazy">' : '';
-    }).filter(Boolean).join('');
-    return logos ? '<div class="card-watch-slot-inner"><span class="card-watch-label">Stream:</span><span class="card-provider-logos">' + logos + '</span></div>' : '';
-  }
-  return '';
-}
-
-async function hydrateCardWatchSlot(slotEl) {
-  if (!slotEl || slotEl.dataset.watchSlotHydrated === '1') return;
-  slotEl.dataset.watchSlotHydrated = '1';
-  const tmdbId = slotEl.dataset.watchSlotTmdbId;
-  const section = slotEl.dataset.watchSlotSection;
-  const year = slotEl.dataset.watchSlotYear;
-  const title = slotEl.dataset.watchSlotTitle;
-  const info = await fetchCardWatchInfo(tmdbId, section, year, title);
-  const html = renderCardWatchSlotContent(info);
-  if (html && slotEl.isConnected) slotEl.innerHTML = html;
-}
-
-function scheduleCardWatchSlotHydration() {
-  requestAnimationFrame(function() {
-    document.querySelectorAll('.card-watch-slot:not([data-watch-slot-hydrated="1"])').forEach(function(slot) {
-      hydrateCardWatchSlot(slot);
-    });
-  });
 }
 
 function cancelGameDetailsEdit(id = '') {
@@ -1128,15 +1008,7 @@ async function saveGameDetailsEdit(id = '', triggerEl = null, event = null) {
     if (currentUser) localStorage.setItem('screenlist-own-data-backup-' + currentUser.uid, JSON.stringify(data));
 
     if (DOC_REF) {
-      await DOC_REF.set({
-        shows: JSON.stringify(data.shows || []),
-        movies: JSON.stringify(data.movies || []),
-        anime: JSON.stringify(data.anime || []),
-        games: JSON.stringify(data.games || []),
-        manga: JSON.stringify(data.manga || []),
-        books: JSON.stringify(data.books || []),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
+      await persistOwnDataToFirestore(compactImportedAnimeForStorage(data));
     }
 
     if (currentUser?.uid === CREATOR_PUBLIC_UID && typeof syncCreatorPublicProfileMirror === 'function') {
@@ -1177,7 +1049,7 @@ function renderCard(item, isDraggable) {
   const commentCount = isPreviewMode() && !currentUser
     ? getPreviewCommentsForMedia(mediaKey).length
     : getCachedCommentCount(mediaKey);
-  const cardCoverSrc = (activeSection === 'games' && item.igdbCoverUrl) ? item.igdbCoverUrl : (item.cover || '');
+  const cardCoverSrc = activeSection === 'games' && typeof getScreenListPreferredGameCover === 'function' ? getScreenListPreferredGameCover(item) : (item.cover || '');
   const coverStyle = cardCoverSrc
     ? `background-image:url('${cardCoverSrc}');background-size:cover;background-position:top center;`
     : "";
@@ -1224,7 +1096,7 @@ function renderCard(item, isDraggable) {
 
   let episodeToggleButton = "";
   let episodeSection = "";
-  const hasFullEpisodeRows = type === "show" && item.status !== 'planned' && Array.isArray(item.episodes) && item.episodes.length > 0;
+  const hasFullEpisodeRows = type === "show" && Array.isArray(item.episodes) && item.episodes.length > 0;
   if (hasFullEpisodeRows) {
     episodeToggleButton = `
       <button type="button" class="ep-toggle-bar card-footer-btn" onclick="toggleEpisodes('${item.id}')">
@@ -1258,30 +1130,23 @@ function renderCard(item, isDraggable) {
   const gameStatPlatform = _igs ? (_igs.platform || '—') : '';
   const gameStatTracker = _igs ? _igs.tracker : '';
   const gameStatsHtml = isGameCard ? `<div class="game-card-stats-inline">
-    <div class="game-card-stat-row"><span class="game-card-stat-label">Platform:</span><span class="game-card-stat-val">${escHtml(gameStatPlatform)}</span></div>
     <div class="game-card-stat-row"><span class="game-card-stat-label">Hours played:</span><span class="game-card-stat-val">${escHtml(gameStatHours)}</span></div>
+    <div class="game-card-stat-row"><span class="game-card-stat-label">Platform:</span><span class="game-card-stat-val">${escHtml(gameStatPlatform)}</span></div>
     <div class="game-card-stat-row"><span class="game-card-stat-label">Tracker/Stats:</span>${gameStatTracker ? `<a class="game-card-tracker-icon-link" href="${escAttr(gameStatTracker)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" aria-label="Open Tracker/Stats">${getScreenListGameTrackerIconSvg()}</a>` : '<span class="game-card-stat-val">—</span>'}</div>
   </div>` : '';
 
-  // v329: left badge — IMDb for movies/shows, MAL for anime, none for games/manga/books
-  const _malUrl = activeSection === 'anime'
-    ? (item.malId ? `https://myanimelist.net/anime/${escAttr(String(item.malId))}` : `https://myanimelist.net/search/all?q=${encodeURIComponent(item.title || '')}`)
-    : '';
-  const leftBadge = activeSection === 'anime'
-    ? `<a href="${_malUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="card-mal-footer-link"><span class="media-link-badge card-mal-badge">MAL</span></a>`
-    : (!isGameCard && item.imdbId
-      ? `<a href="https://www.imdb.com/title/${escAttr(item.imdbId)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="card-imdb-footer-link"><span class="media-link-badge">IMDb</span></a>`
-      : '');
-
-  // v328: all cards use inline comment dropdown
-  const commentsOnclick = `toggleGameCardComments('${escAttr(item.id)}','${escAttr(mediaKey)}',this,event)`;
-  const gameCommentDropHtml = `<div class="game-card-comment-drop" id="game-card-comments-${escAttr(item.id)}">
+  // v318: game cards get inline comment dropdown; other cards navigate to comments page
+  const commentsOnclick = isGameCard
+    ? `toggleGameCardComments('${escAttr(item.id)}','${escAttr(mediaKey)}',this,event)`
+    : `openCommentsPage('${item.id}', this)`;
+  // v318: game card inline comment dropdown HTML
+  const gameCommentDropHtml = isGameCard ? `<div class="game-card-comment-drop" id="game-card-comments-${escAttr(item.id)}">
     <div class="game-card-comment-list" id="game-card-comment-list-${escAttr(item.id)}"></div>
-    ${currentUser ? `<div class="game-card-comment-input-row">
-      <textarea class="game-card-comment-textarea" id="game-card-comment-ta-${escAttr(item.id)}" placeholder="Write a comment..." rows="1" onclick="event.stopPropagation();this.focus();" ontouchend="event.stopPropagation();this.focus();" oninput="event.stopPropagation()"></textarea>
+    ${!viewingUser && currentUser ? `<div class="game-card-comment-input-row">
+      <textarea class="game-card-comment-textarea" id="game-card-comment-ta-${escAttr(item.id)}" placeholder="Write a comment..." rows="1" onclick="event.stopPropagation()" oninput="event.stopPropagation()"></textarea>
       <button class="game-card-comment-post-btn" type="button" onclick="event.stopPropagation();postGameCardComment('${escAttr(item.id)}','${escAttr(mediaKey)}',this)">Post</button>
     </div>` : ''}
-  </div>`;
+  </div>` : '';
 
   const dragAttrs = isDraggable
     ? `draggable="true" ondragstart="onCardDragStart(event,'${item.id}')" ondragover="onCardDragOver(event)" ondragleave="onCardDragLeave(event)" ondrop="onCardDrop(event,'${item.id}')"`
@@ -1290,19 +1155,20 @@ function renderCard(item, isDraggable) {
     <div class="card ${type === "show" ? "show-card" : ""}${isGameCard ? " game-library-card" : ""} ${viewingUser ? "friend-view-card" : ""}${isDraggable ? ' card-draggable' : ''}" id="card-${item.id}" ${dragAttrs}>
       <div class="card-header">
         <div class="${coverClass}${coverProfileClass}" style="${coverStyle}" ${coverProfileAttrs}>
-          ${!item.cover ? emoji : ''}
+          ${!cardCoverSrc ? emoji : ''}
         </div>
         <div class="card-info">
           <div class="card-title-row">
-            <div class="card-title">${gameTitleMarkup}</div>
+            <div class="card-title">${gameTitleMarkup}${item.imdbId ? ` <a href="https://www.imdb.com/title/${item.imdbId}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;text-decoration:none;vertical-align:middle;">
+            <span class="media-link-badge">IMDb</span>
+          </a>` : ''}</div>
             ${!viewingUser ? `<button class="delete-btn" onclick="deleteItem(event,'${item.id}')" title="Delete">×</button>` : (currentUser ? `<button class="friend-card-add-btn${friendAlreadyAdded ? ' added' : ''}" data-friend-item-id="${escHtml(item.id)}" onclick="event.stopPropagation();openFriendAddModal(this.dataset.friendItemId, this)" title="Add to my list">+</button>` : '')}
           </div>
           ${gameStatsHtml}
-          ${(item.genre && item.status === 'planned' && (activeSection === 'movies' || isShowSection(activeSection))) ? `<div class="card-genre">${escHtml(item.genre)}</div>` : ''}
+          ${item.genre ? `<div class="card-genre">${escHtml(item.genre)}</div>` : ''}
+          ${(item.year && Number(item.year) > new Date().getFullYear()) ? `<div class="card-release-date">Releases: ${escHtml(String(item.year))}</div>` : ''}
           ${!viewingUser ? `<div class="status-pills status-pills-selector-wrap" id="status-pills-${item.id}">${statusSelectorHtml}</div>` : ''}
-          ${(item.status === 'planned' && (activeSection === 'movies' || isShowSection(activeSection)) && item.year && Number(item.year) > new Date().getFullYear()) ? `<div class="card-release-date card-below-status">Releases: ${escHtml(String(item.year))}</div>` : ''}
-          ${(item.status === 'planned' && (activeSection === 'movies' || isShowSection(activeSection)) && item.tmdbId && !(item.year && Number(item.year) > new Date().getFullYear())) ? `<div class="card-watch-slot card-below-status" id="card-watch-slot-${escAttr(item.id)}" data-watch-slot-item-id="${escAttr(item.id)}" data-watch-slot-tmdb-id="${escAttr(String(item.tmdbId || ''))}" data-watch-slot-section="${escAttr(activeSection)}" data-watch-slot-year="${escAttr(String(item.year || ''))}" data-watch-slot-title="${escAttr(item.title || '')}"></div>` : ''}
-          ${type === "show" && item.status !== 'planned' ? `
+          ${type === "show" ? `
             <div class="progress-area">
               <div class="progress-meta"><span id="progress-count-${item.id}">${watchedCount}/${totalEps} episodes</span><span id="progress-percent-${item.id}">${Math.round(progress)}%</span></div>
               <div class="progress-bar"><div class="progress-fill" id="progress-fill-${item.id}" style="width:${progress}%"></div></div>
@@ -1315,21 +1181,12 @@ function renderCard(item, isDraggable) {
         </div>
       </div>
       <div class="card-action-row">
-        ${isGameCard ? `
         <div class="card-footer-actions">
           <button class="comments-btn" onclick="event.stopPropagation();${commentsOnclick}">
             <span class="comments-btn-label">Comments (<span class="comment-count" data-media-key="${escAttr(mediaKey)}">${commentCount}</span>)</span>
           </button>
-        </div>` : `
-        <div class="card-footer-actions">
-          ${leftBadge}
-          <div class="card-footer-center">
-            <button class="comments-btn" onclick="event.stopPropagation();${commentsOnclick}">
-              <span class="comments-btn-label">Comments (<span class="comment-count" data-media-key="${escAttr(mediaKey)}">${commentCount}</span>)</span>
-            </button>
-            ${episodeToggleButton}
-          </div>
-        </div>`}
+          ${episodeToggleButton}
+        </div>
         ${renderWatchTogetherCardControl(item, activeSection)}
       </div>
       ${gameCommentDropHtml}
@@ -1677,6 +1534,7 @@ function rateEpPopup(itemId, epId, score) {
   if (!ep) return;
   preserveEpisodeScroll(itemId, () => {
     ep.rating = (ep.rating === score && score !== 0) ? 0 : score;
+    if (typeof markOwnItemLastEdited === 'function') markOwnItemLastEdited(item, activeSection);
     closeEpRating();
     save(); render();
   });
@@ -1722,9 +1580,12 @@ function markSeasonEps(itemId, sNum, val) {
   if (!item) return;
   preserveViewport(() => {
     preserveEpisodeScroll(itemId, () => {
+      const affectedEpisodes = item.episodes.filter(e => e.seasonNum === sNum);
       item.episodes.forEach(e => { if (e.seasonNum === sNum) e.watched = val; });
+      if (val) markEpisodeWatchActivity(item, activeSection, { count: affectedEpisodes.length, label: `season ${sNum} watched` });
       const statusChangedNow = applyScreenListEpisodeStatusOrDefer(item);
-      touchItem(item);
+      if (typeof markOwnItemLastEdited === 'function') markOwnItemLastEdited(item, activeSection);
+      else touchItem(item);
       save();
       if (statusChangedNow && !itemMatchesCurrentView(item)) {
         render();
@@ -2243,7 +2104,9 @@ function handleGameMediaProfileEsc(event) {
 }
 
 function getGameMediaImage(gameLike = null) {
-  return gameLike?.background_image || gameLike?.cover || gameLike?.poster || '';
+  return typeof getScreenListPreferredGameCover === 'function'
+    ? getScreenListPreferredGameCover(gameLike || {})
+    : (gameLike?.igdbCoverUrl || gameLike?.cover || gameLike?.poster || gameLike?.image || gameLike?.background_image || '');
 }
 
 function formatGameReleaseDate(value) {
@@ -2795,7 +2658,7 @@ async function openGameMediaProfile(event, rawgId = '', seedOverride = null, tra
     const resolvedId = rawgId || await resolveRawgIdForGameSeed(initialSeed);
     if (!resolvedId) {
       if (!document.getElementById('discover-media-profile')) return;
-      const mergedGameDetails = { ...initialSeed, rawgId: '' };
+      const mergedGameDetails = await ensureScreenListIgdbCoverOnGameDetails({ ...initialSeed, rawgId: '' });
       overlay.innerHTML = renderGameMediaProfileDetails(mergedGameDetails, '');
       bindGameMediaProfileActions(overlay);
       hydrateDeepSeekMoreLikeThis('game', mergedGameDetails);
@@ -2816,14 +2679,14 @@ async function openGameMediaProfile(event, rawgId = '', seedOverride = null, tra
       gameMediaProfileCache.set(String(resolvedId), details);
     }
     if (!document.getElementById('discover-media-profile')) return;
-    const mergedGameDetails = { ...initialSeed, ...details, rawgId: String(resolvedId) };
+    const mergedGameDetails = await ensureScreenListIgdbCoverOnGameDetails({ ...initialSeed, ...details, rawgId: String(resolvedId) });
     overlay.innerHTML = renderGameMediaProfileDetails(mergedGameDetails, String(resolvedId));
     bindGameMediaProfileActions(overlay);
     hydrateDeepSeekMoreLikeThis('game', mergedGameDetails);
   } catch (e) {
     console.error('Game media profile failed:', e);
     if (!document.getElementById('discover-media-profile')) return;
-    const mergedGameDetails = { ...initialSeed, rawgId: rawgId || getGameRawgIdValue(initialSeed) };
+    const mergedGameDetails = await ensureScreenListIgdbCoverOnGameDetails({ ...initialSeed, rawgId: rawgId || getGameRawgIdValue(initialSeed) });
     overlay.innerHTML = renderGameMediaProfileDetails(mergedGameDetails, rawgId || getGameRawgIdValue(initialSeed));
     bindGameMediaProfileActions(overlay);
     hydrateDeepSeekMoreLikeThis('game', mergedGameDetails);
@@ -3172,6 +3035,9 @@ function chooseInitialListView(listData) {
   for (const section of sectionOrder) {
     const statuses = statusOrderBySection[section];
     const items = Array.isArray(listData[section]) ? listData[section] : [];
+    if (section === 'games' && items.some(item => item.status === 'watching' || item.status === 'live')) {
+      return { section, tab: 'watching' };
+    }
     for (const status of statuses) {
       if (items.some(item => item.status === status)) {
         return { section, tab: status };
@@ -3239,10 +3105,12 @@ function runMyListInternalPageJump(callback) {
 
 // Actions
 function switchSection(s) {
+  if (typeof clearLastEditedResortHold === 'function') clearLastEditedResortHold();
   if (!isSectionVisibleInMyLists(s)) return;
   if (activeSection === s) return;
   activeSection = s;
   activeTab = getDefaultTabForSection(s);
+  if (s === 'games') activeGamePlayingFilter = 'live';
   closeSortDropdown();
   runMyListInternalPageJump(() => {
     render();
@@ -3251,9 +3119,12 @@ function switchSection(s) {
   });
 }
 function switchTab(t) {
+  if (typeof clearLastEditedResortHold === 'function') clearLastEditedResortHold();
   if (!isVisibleMyListStatusTab(t, activeSection)) return;
-  if (activeTab === t) return;
-  activeTab = t;
+  const nextTab = activeSection === 'games' && t === 'live' ? 'watching' : t;
+  if (activeTab === nextTab && !(activeSection === 'games' && t === 'live')) return;
+  activeTab = nextTab;
+  if (activeSection === 'games' && (t === 'watching' || t === 'live')) activeGamePlayingFilter = 'live';
   closeSortDropdown();
   runMyListInternalPageJump(() => {
     render();
@@ -3384,28 +3255,138 @@ function updateSlidingPills() {
 }
 
 
-// Backfill IGDB portrait covers for existing game items that only have the RAWG landscape image.
-// Runs lazily after render, batches requests, writes back to Firebase so covers persist.
+// Backfill IGDB/Twitch portrait covers for game items.
+// Global rule: every game poster treats IGDB/Twitch portrait art as the source of truth.
+// RAWG, Steam, TMDB-style, or generic images are temporary fallbacks only.
 let _igdbBackfillRunning = false;
+const SCREENLIST_IGDB_COVER_LOOKUP_CACHE = new Map();
+function isScreenListIgdbCoverUrl(value = '') {
+  return /images\.igdb\.com\/igdb\/image\/upload/i.test(String(value || ''));
+}
+function isScreenListSteamGameItem(item = {}) {
+  return !!(item && (String(item.source || '').trim().toLowerCase() === 'steam' || String(item.steamAppId || '').trim()));
+}
+function getScreenListPreferredGameCover(item = {}) {
+  if (!item || typeof item !== 'object') return '';
+  const candidates = [item.igdbCoverUrl, item.cover, item.poster, item.image, item.background_image, item.backgroundImage]
+    .map(value => String(value || '').trim())
+    .filter(Boolean);
+  return candidates.find(isScreenListIgdbCoverUrl) || candidates[0] || '';
+}
+function getScreenListGameCoverLookupTitle(item = {}) {
+  return String(item?.title || item?.name || item?.gameTitle || '').trim();
+}
+function getScreenListGameCoverLookupKey(item = {}) {
+  return [
+    String(item?.steamAppId || item?.appId || '').trim(),
+    String(item?.rawgId || item?.id || '').trim(),
+    getScreenListGameCoverLookupTitle(item).toLowerCase()
+  ].join('|');
+}
+function shouldForceIgdbCoverBackfill(item = {}) {
+  if (!item || !getScreenListGameCoverLookupTitle(item)) return false;
+  return !isScreenListIgdbCoverUrl(item.igdbCoverUrl || '') || !isScreenListIgdbCoverUrl(item.cover || getScreenListPreferredGameCover(item));
+}
+async function fetchScreenListIgdbCoverForGame(item = {}) {
+  const title = getScreenListGameCoverLookupTitle(item);
+  if (!title) return null;
+  const cacheKey = getScreenListGameCoverLookupKey(item);
+  if (SCREENLIST_IGDB_COVER_LOOKUP_CACHE.has(cacheKey)) return SCREENLIST_IGDB_COVER_LOOKUP_CACHE.get(cacheKey);
+  try {
+    const igdbParams = new URLSearchParams({ title, force: '1' });
+    const steamAppId = String(item.steamAppId || item.appId || '').trim();
+    if (steamAppId) igdbParams.set('steamAppId', steamAppId);
+    const res = await fetch('/api/igdb/cover?' + igdbParams.toString(), { cache: 'no-store' });
+    const json = res.ok ? await res.json() : null;
+    const payload = json?.ok && json.coverUrl ? json : null;
+    SCREENLIST_IGDB_COVER_LOOKUP_CACHE.set(cacheKey, payload);
+    return payload;
+  } catch (error) {
+    console.warn('IGDB/Twitch game cover lookup failed:', title, error);
+    SCREENLIST_IGDB_COVER_LOOKUP_CACHE.set(cacheKey, null);
+    return null;
+  }
+}
+function applyScreenListIgdbCoverToGameItem(item = {}, cover = {}) {
+  const coverUrl = String(cover?.coverUrl || '').trim();
+  if (!item || !coverUrl || !isScreenListIgdbCoverUrl(coverUrl)) return false;
+  const changed = item.igdbCoverUrl !== coverUrl || item.cover !== coverUrl || item.background_image !== coverUrl;
+  item.igdbCoverUrl = coverUrl;
+  item.cover = coverUrl;
+  item.poster = coverUrl;
+  item.image = coverUrl;
+  item.background_image = coverUrl;
+  item.coverProvider = 'igdb';
+  item.coverSource = 'igdb';
+  item.igdbMatchedName = cover.matchedName || item.igdbMatchedName || '';
+  item.igdbSlug = cover.slug || item.igdbSlug || '';
+  item.igdbCoverUpdatedAt = new Date().toISOString();
+  return changed;
+}
+function updateScreenListGamePosterElement(posterEl, coverUrl = '') {
+  if (!posterEl || !coverUrl) return;
+  const img = posterEl.matches?.('img') ? posterEl : posterEl.querySelector?.('img');
+  if (img) img.src = coverUrl;
+  if (!posterEl.matches?.('img')) {
+    posterEl.style.backgroundImage = `url('${coverUrl}')`;
+    posterEl.style.backgroundSize = 'cover';
+    posterEl.style.backgroundPosition = 'top center';
+    posterEl.classList.remove('no-img');
+  }
+  posterEl.dataset.igdbCoverApplied = '1';
+  posterEl.dataset.poster = coverUrl;
+}
+async function forceHydrateScreenListGamePosterElement(posterEl, gameLike = {}) {
+  if (!posterEl) return null;
+  const title = getScreenListGameCoverLookupTitle(gameLike) || posterEl.dataset?.discoverTitle || posterEl.dataset?.gameTitle || '';
+  if (!title) return null;
+  const payload = {
+    ...gameLike,
+    title,
+    name: gameLike.name || title,
+    rawgId: gameLike.rawgId || posterEl.dataset?.mediaId || posterEl.dataset?.rawgId || '',
+    id: gameLike.id || posterEl.dataset?.mediaId || posterEl.dataset?.rawgId || '',
+    steamAppId: gameLike.steamAppId || posterEl.dataset?.steamAppId || ''
+  };
+  const cover = await fetchScreenListIgdbCoverForGame(payload);
+  if (!cover?.coverUrl) return null;
+  applyScreenListIgdbCoverToGameItem(payload, cover);
+  updateScreenListGamePosterElement(posterEl, cover.coverUrl);
+  const rawgId = String(payload.rawgId || payload.id || '').trim();
+  if (rawgId && typeof setGameMediaProfileSeed === 'function') {
+    const existing = getGameMediaProfileSeed(rawgId, {}) || {};
+    setGameMediaProfileSeed(rawgId, { ...existing, ...payload, igdbCoverUrl: cover.coverUrl, cover: cover.coverUrl, poster: cover.coverUrl, image: cover.coverUrl, background_image: cover.coverUrl });
+  }
+  return cover;
+}
+async function ensureScreenListIgdbCoverOnGameDetails(details = {}) {
+  const cover = await fetchScreenListIgdbCoverForGame(details);
+  if (!cover?.coverUrl) return details;
+  applyScreenListIgdbCoverToGameItem(details, cover);
+  const rawgId = String(details.rawgId || details.id || '').trim();
+  if (rawgId) {
+    const existing = getGameMediaProfileSeed(rawgId, {}) || {};
+    setGameMediaProfileSeed(rawgId, { ...existing, ...details });
+  }
+  return details;
+}
 async function backfillIgdbGameCovers() {
   if (_igdbBackfillRunning) return;
   if (activeSection !== 'games') return;
   if (typeof data === 'undefined' || !Array.isArray(data.games)) return;
 
-  const missing = data.games.filter(item => item && item.title && !item.igdbCoverUrl);
+  const missing = data.games.filter(shouldForceIgdbCoverBackfill);
   if (!missing.length) return;
 
   _igdbBackfillRunning = true;
   try {
     for (const item of missing) {
       try {
-        const res = await fetch('/api/igdb/cover?title=' + encodeURIComponent(item.title));
-        if (!res.ok) continue;
-        const json = await res.json();
-        if (!json.ok || !json.coverUrl) continue;
+        const json = await fetchScreenListIgdbCoverForGame(item);
+        if (!json?.coverUrl) continue;
 
         // Write to live data
-        item.igdbCoverUrl = json.coverUrl;
+        applyScreenListIgdbCoverToGameItem(item, json);
 
         // Update the DOM card directly without a full re-render
         const coverEl = document.querySelector(`#card-${CSS.escape(item.id)} .card-cover`);
@@ -3418,12 +3399,15 @@ async function backfillIgdbGameCovers() {
 
         // Persist to Firebase
         if (typeof writeOwnDataDirect === 'function') {
-          const targetData = typeof getOwnData === 'function' ? await getOwnData() : null;
+          const targetData = ownDataCache
+            ? cloneListData(ownDataCache)
+            : (typeof loadOwnDataFromFirestore === 'function' ? await loadOwnDataFromFirestore() : cloneListData(data));
           if (targetData && Array.isArray(targetData.games)) {
             const idx = targetData.games.findIndex(g => g.id === item.id);
             if (idx !== -1) {
-              targetData.games[idx].igdbCoverUrl = json.coverUrl;
+              applyScreenListIgdbCoverToGameItem(targetData.games[idx], json);
               await writeOwnDataDirect(targetData);
+              ownDataCache = cloneListData(targetData);
             }
           }
         }
@@ -3467,10 +3451,12 @@ async function goToDefaultMyListsPage() {
   if (typeof clearListSearch === 'function') clearListSearch();
   activeSection = 'shows';
   activeTab = 'watching';
+  activeGamePlayingFilter = 'live';
   if (viewingUser && typeof backToMyList === 'function') {
     await backToMyList('mylist');
     activeSection = 'shows';
     activeTab = 'watching';
+    activeGamePlayingFilter = 'live';
   }
   setBottomNavVisibility(true);
   syncMainNavButtons('mylist');
@@ -3483,20 +3469,48 @@ async function goToDefaultMyListsPage() {
   window.scrollTo({ top: 0, behavior: 'auto' });
 }
 function onSearch(q) {
+  if (typeof clearLastEditedResortHold === 'function') clearLastEditedResortHold();
   searchQuery = q;
   render();
 }
 
-function applyMyListStatusChange(id, status, rating = null) {
-  const items = data[activeSection];
-  const item = items.find(i => i.id === id);
-  if (!item) return null;
+function findOwnLibraryItemRecord(id = '', sectionHint = '') {
+  const key = String(id || '').trim();
+  if (!key || !data) return { item: null, index: -1, section: '', items: null };
+  const candidates = [];
+  const hint = String(sectionHint || '').trim();
+  if (hint) candidates.push(hint);
+  if (activeSection && !candidates.includes(activeSection)) candidates.push(activeSection);
+  (SCREENLIST_SECTIONS || []).forEach(section => {
+    if (!candidates.includes(section)) candidates.push(section);
+  });
+  for (const section of candidates) {
+    const items = Array.isArray(data[section]) ? data[section] : [];
+    const index = items.findIndex(entry =>
+      String(entry?.id || '') === key ||
+      (section === 'games' && getScreenListGameStableKey(entry) === key)
+    );
+    if (index >= 0) {
+      return { item: items[index], index, section, items };
+    }
+  }
+  return { item: null, index: -1, section: '', items: null };
+}
+
+function applyMyListStatusChange(id, status, rating = null, sectionHint = '') {
+  const record = findOwnLibraryItemRecord(id, sectionHint);
+  const item = record.item;
+  if (!item || !record.section) return null;
+  const validStatuses = getMyListStatusButtonConfigs(record.section).map(entry => entry.status);
+  if (!validStatuses.includes(status)) return null;
   item.status = status;
-  if (rating !== null && rating !== undefined && Number(rating || 0) > 0) {
+  const hasRatingEdit = rating !== null && rating !== undefined && Number(rating || 0) > 0;
+  if (hasRatingEdit) {
     item.rating = Number(rating || 0);
   }
-  item.dateModified = new Date().toISOString();
-  if (isShowSection(activeSection)) {
+  if (hasRatingEdit && typeof markOwnItemLastEdited === 'function') markOwnItemLastEdited(item, record.section);
+  else touchItem(item);
+  if (isShowSection(record.section)) {
     const total = Number(item.totalEps || item.totalEpisodes || item.episodes?.length || 0);
     if (Array.isArray(item.episodes) && item.episodes.length) {
       if (status === "watched") item.episodes.forEach(e => e.watched = true);
@@ -3515,25 +3529,25 @@ function applyMyListStatusChange(id, status, rating = null) {
 }
 
 function changeStatus(id, status) {
-  const items = data[activeSection];
-  const item = items.find(i => i.id === id);
-  if (!item) return;
-  const validStatuses = getMyListStatusButtonConfigs(activeSection).map(entry => entry.status);
+  const record = findOwnLibraryItemRecord(id, activeSection);
+  const item = record.item;
+  if (!item || !record.section) return;
+  const validStatuses = getMyListStatusButtonConfigs(record.section).map(entry => entry.status);
   if (!validStatuses.includes(status)) return;
   const wasCompleted = item.status === "watched";
   if (status === "watched" && !wasCompleted && typeof openScreenListCompletionRatingPrompt === 'function') {
     openScreenListCompletionRatingPrompt({
       item: { ...item },
-      section: activeSection,
+      section: record.section,
       status,
       initialRating: Number(item.rating || 0),
       source: 'my-list-status',
       onApply: async (rating) => {
-        const updated = applyMyListStatusChange(id, status, rating);
+        const updated = applyMyListStatusChange(id, status, rating, record.section);
         return {
           ok: !!updated,
           item: updated ? { ...updated } : item,
-          section: activeSection,
+          section: record.section,
           status,
           rating: Number(rating || updated?.rating || 0) || 0
         };
@@ -3541,7 +3555,7 @@ function changeStatus(id, status) {
     });
     return;
   }
-  applyMyListStatusChange(id, status, null);
+  applyMyListStatusChange(id, status, null, record.section);
 }
 
 function removeWatchTogetherGroupFromLocalState(groupId = '') {
@@ -3702,8 +3716,8 @@ function rate(itemId, prefix, score) {
   if (_lastRate.key === key && now - _lastRate.time < 350) return;
   _lastRate = { key, time: now };
 
-  const items = data[activeSection];
-  const item = items.find(i => i.id === itemId);
+  const record = findOwnLibraryItemRecord(itemId, activeSection);
+  const item = record.item;
   if (!item) return;
   if (prefix === "overall") {
     item.rating = item.rating === score ? 0 : score;
@@ -3716,14 +3730,16 @@ function rate(itemId, prefix, score) {
     const ep = (item.episodes || []).find(e => e.id === epId);
     if (ep) ep.rating = ep.rating === score ? 0 : score;
   }
-  touchItem(item);
+  if (typeof markOwnItemLastEdited === 'function') markOwnItemLastEdited(item, record.section || activeSection);
+  else touchItem(item);
   save(); render();
   if (score > 0) playRatingAnimation(itemId, prefix);
 }
 
 function playRatingAnimation(itemId, prefix) {
   // Look up the actual score from the data so animation intensity matches
-  const item = data[activeSection].find(i => i.id === itemId);
+  const record = findOwnLibraryItemRecord(itemId, activeSection);
+  const item = record.item;
   if (!item) return;
   let score = 0;
   if (prefix === 'overall') score = item.rating || 0;
@@ -4036,7 +4052,7 @@ function preserveViewport(action) {
 }
 
 function itemMatchesCurrentView(item) {
-  return item.status === activeTab &&
+  return itemMatchesActiveListStatus(item) &&
     (!searchQuery || (item.title || '').toLowerCase().includes(searchQuery.toLowerCase()));
 }
 
@@ -4159,6 +4175,16 @@ function animateEpisodeWatchSweep(epId) {
   });
 }
 
+
+function markEpisodeWatchActivity(item, section = activeSection, details = {}) {
+  if (!item || (section !== 'shows' && section !== 'anime')) return;
+  const now = new Date().toISOString();
+  const count = Math.max(1, Number(details.count || 1));
+  item.lastEpisodeActivityAt = now;
+  item.lastEpisodeActivityCount = count;
+  item.lastEpisodeActivityLabel = String(details.label || (count === 1 ? 'episode watched' : `${count} episodes watched`));
+}
+
 function toggleEp(itemId, epId) {
   const item = data[activeSection].find(i => i.id === itemId);
   if (!item) return;
@@ -4169,8 +4195,10 @@ function toggleEp(itemId, epId) {
   preserveEpisodeScroll(itemId, () => {
     ep.watched = !ep.watched;
     becameWatched = ep.watched;
+    if (becameWatched) markEpisodeWatchActivity(item, activeSection, { count: 1, label: ep.title || ep.name || 'episode watched' });
     const statusChangedNow = applyScreenListEpisodeStatusOrDefer(item);
-    touchItem(item);
+    if (typeof markOwnItemLastEdited === 'function') markOwnItemLastEdited(item, activeSection);
+    else touchItem(item);
     save();
     if (statusChangedNow && !itemMatchesCurrentView(item)) {
       render();
@@ -4189,9 +4217,12 @@ function markAllEps(id, val) {
   if (!item) return;
   preserveViewport(() => {
     preserveEpisodeScroll(id, () => {
+      const affectedEpisodes = item.episodes.length;
       item.episodes.forEach(e => e.watched = val);
+      if (val) markEpisodeWatchActivity(item, activeSection, { count: affectedEpisodes, label: 'all episodes watched' });
       const statusChangedNow = applyScreenListEpisodeStatusOrDefer(item);
-      touchItem(item);
+      if (typeof markOwnItemLastEdited === 'function') markOwnItemLastEdited(item, activeSection);
+      else touchItem(item);
       save();
       if (statusChangedNow && !itemMatchesCurrentView(item)) {
         render();

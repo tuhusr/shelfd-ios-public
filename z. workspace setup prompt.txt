@@ -1,0 +1,22 @@
+This is the project folder. This is the live website folder. You have access to the CSS, the JS, the index, the styles, the script, the SW, the worker, the package JSON, the Wrangler JSON. You have access to the entire folder. when you finish editing the appropriate files, make a copy of the files you edited and place them in this file path 
+
+C:\Users\kingk\Desktop\websites\chat gpt edits\7\z VERSIONS>make the new folder here
+
+
+the naming of the folder will be 
+
+A_v415_the description of the update being made
+
+this is so we have a copy and fall back of every version output we did 
+
+
+
+
+If you deem it necessary, with all of your knowledge, whatever task I ask you to do, if it is not understandable in a coding or scripting sense and it is too much of a vibe code, then follow up with as many questions as you need to clearly understand exactly what it is I want done. Do not hesitate to ask questions. Make sure to ask questions. I'd rather you ask questions. If you truly understand what I'm asking for, then you do not need to ask questions, but you can get specific so you can understand the code and the script that needs to be executed, what I'm asking for.
+
+does this make sense
+
+when you are finished go back to the 7 folder and run powershell and the command is npx wrangler deploy.
+
+
+when the PowerShell finishes and closes, then finish your message. 
