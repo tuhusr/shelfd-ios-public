@@ -3640,9 +3640,22 @@ async function shareProfileFavoriteRow(event, btn) {
     return value && lbl ? { value, label: lbl } : null;
   }).filter(Boolean);
   const sectionPayload = { uid, section: sectionKey, index: 0, title: cardData[0]?.title || '', image: cardData[0]?.image || '', profileName, label: config?.shortLabel || label, fullLabel: label };
-  const shareUrl = getShareProfileUrl(sectionPayload);
+  let shareUrl = getShareProfileUrl(sectionPayload);
   const baseTitle = `${profileName}'s ${label}`;
   try {
+    const file = await buildProfileFavoriteRowShareImageFile(cardData, profileName, label, stats);
+    if (file && typeof firebase !== 'undefined' && firebase.storage) {
+      try {
+        const storageRef = firebase.storage().ref(`share-previews/${uid}/${encodeURIComponent(sectionKey)}.png`);
+        const snapshot = await storageRef.put(file, { contentType: 'image/png' });
+        const downloadUrl = await snapshot.ref.getDownloadURL();
+        const urlObj = new URL(shareUrl);
+        urlObj.searchParams.set('shareImg', downloadUrl);
+        shareUrl = urlObj.toString();
+      } catch (uploadErr) {
+        // fall through — share with single-poster og:image
+      }
+    }
     if (navigator.share) {
       await navigator.share({ title: baseTitle, url: shareUrl });
       return;

@@ -1723,10 +1723,13 @@ function getProfileCardShareMeta(url) {
   const profileName = url.searchParams.get("profileName") || "ScreenList User";
   const label = url.searchParams.get("label") || "Top 3";
   const cardImage = url.searchParams.get("cardImage") || "";
+  const shareImg = url.searchParams.get("shareImg") || "";
   const shareTitle = `${profileName}'s ${label}`;
   const shareDescription = `${profileName}'s top picks on Shelfd.`;
   let image;
-  if (/^https?:\/\//i.test(cardImage)) {
+  if (/^https?:\/\//i.test(shareImg)) {
+    image = shareImg;
+  } else if (/^https?:\/\//i.test(cardImage)) {
     image = cardImage;
   } else {
     image = new URL("/og-image-v216.png", url.origin).toString();
