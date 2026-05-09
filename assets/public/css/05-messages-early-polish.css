@@ -1062,9 +1062,12 @@ body.light-mode .discover-status-btn.planned-option:hover {
       right: 6px;
       width: 28px;
       height: 28px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
+      /* v730.1: grid + place-items reliably centers the SVG without the
+         baseline offset that inline-flex + inline SVG can leave behind. */
+      display: grid;
+      place-items: center;
+      line-height: 0;
+      padding: 0;
       background: rgba(0, 0, 0, 0.55);
       -webkit-backdrop-filter: blur(6px);
       backdrop-filter: blur(6px);
@@ -1075,6 +1078,7 @@ body.light-mode .discover-status-btn.planned-option:hover {
       -webkit-tap-highlight-color: transparent;
     }
     .cast-fav-btn svg {
+      display: block; /* kills inline baseline offset */
       width: 16px;
       height: 16px;
       fill: none;
@@ -1082,6 +1086,7 @@ body.light-mode .discover-status-btn.planned-option:hover {
       stroke-width: 1.8;
       stroke-linejoin: round;
       transition: fill 0.18s ease, stroke 0.18s ease, transform 0.18s ease;
+      pointer-events: none; /* clicks land on the .cast-fav-btn span, not the path */
     }
     .cast-fav-btn:hover {
       background: rgba(0, 0, 0, 0.7);

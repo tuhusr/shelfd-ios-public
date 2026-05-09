@@ -5085,10 +5085,13 @@ function renderDiscoverMediaProfileShell(seed, type, id) {
 }
 
 /* v730: Cast card with a heart-favorite button anchored to the bottom-right
-   of the photo. Clicking the heart toggles the favorite via 22-favorite-people
-   without navigating to the person profile (capture-phase handler stops
-   propagation). The data-* attributes are read by the click delegate so we
-   don't need to attach per-element listeners. */
+   of the photo. The inline onclick early-returns when the click came from a
+   heart so we DON'T navigate to the person profile on a heart tap.
+   22-favorite-people.js handles the actual toggle via delegated listener. */
+function handleDiscoverCastCardClick(event, personId) {
+  if (event?.target?.closest?.('.cast-fav-btn')) return;
+  openDiscoverPersonProfile(event, personId);
+}
 function renderDiscoverCastCard(person) {
   const id = person?.id;
   const name = String(person?.name || '');
@@ -5109,12 +5112,13 @@ function renderDiscoverCastCard(person) {
         <path d="M12 21s-7.5-4.6-9.6-9.4C1.1 8 3.4 4.5 6.8 4.5c2.1 0 3.9 1.2 5.2 3 1.3-1.8 3.1-3 5.2-3 3.4 0 5.7 3.5 4.4 7.1C19.5 16.4 12 21 12 21z"/>
       </svg>
     </span>`;
-  return `<button class="discover-media-cast-card" type="button" onclick="openDiscoverPersonProfile(event, ${id})">
+  return `<button class="discover-media-cast-card" type="button" onclick="handleDiscoverCastCardClick(event, ${id})">
     <div class="discover-media-cast-photo">${photo ? `<img src="${escAttr(photo)}" alt="">` : ''}${heartHtml}</div>
     <strong>${escHtml(name)}</strong>
     <span>${escHtml(character)}</span>
   </button>`;
 }
+window.handleDiscoverCastCardClick = handleDiscoverCastCardClick;
 
 function renderDiscoverMediaProfileDetails(type, details, id) {
   const title = getDiscoverMediaTitle(details, type);
