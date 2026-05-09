@@ -1561,6 +1561,115 @@ async function runImdbRatingEndpoint(request, env, ctx) {
   return response;
 }
 
+/* v671: Parse OMDb's "imdbVotes" string ("828,114") into a number. */
+function parseImdbVotesNumber(value = "") {
+  const clean = String(value || "").replace(/[^0-9]/g, "");
+  if (!clean) return 0;
+  const n = Number(clean);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/* v671: Single-item rating fetcher used by the batch endpoint. Hits the
+   per-item Cloudflare cache (same key as /api/imdb/rating) so an item that's
+   already been resolved once is served from cache here too. Returns a small
+   object — not a Response. */
+async function getCachedImdbRatingForItem(env, ctx, originUrl, item = {}) {
+  const type = normalizeImdbMediaType(item.type);
+  const tmdbId = String(item.tmdbId || item.id || "").trim();
+  let imdbId = normalizeImdbTitleId(item.imdbId || "");
+  const title = String(item.title || item.name || "").trim();
+  const year = String(item.year || "").trim().match(/^(18|19|20)\d{2}$/)?.[0] || "";
+
+  if (!tmdbId && !imdbId && !title) {
+    return { ok: false, error: "Missing tmdbId, imdbId, or title.", tmdbId, imdbId, type };
+  }
+
+  const cacheKey = new Request(`${originUrl.origin}/__screenlist_imdb_rating_batch/v1/${type}/${tmdbId || "no-tmdb"}/${imdbId || "no-imdb"}/${encodeURIComponent(title || "no-title")}/${year || "no-year"}`, { method: "GET" });
+  try {
+    const cached = await caches.default.match(cacheKey);
+    if (cached) {
+      const data = await cached.json();
+      return { ...data, cache: "HIT" };
+    }
+  } catch (e) { /* fall through */ }
+
+  if (!imdbId && tmdbId) {
+    try { imdbId = await fetchTmdbExternalImdbId(env, type, tmdbId, 6500); } catch (e) {}
+  }
+
+  let rating = imdbId ? await fetchOmdbImdbRating(env, imdbId, 6500) : { ok: false };
+  if (!rating.ok && title) {
+    rating = await fetchOmdbTitleRating(env, title, type, year, 6500);
+  }
+
+  const payload = {
+    ok: !!rating.ok,
+    type,
+    tmdbId,
+    imdbId: rating.imdbId || imdbId || "",
+    imdbRating: rating.imdbRating || 0,
+    imdbVotes: rating.imdbVotes || "",
+    imdbVotesNumber: parseImdbVotesNumber(rating.imdbVotes),
+    title: rating.title || title || "",
+    year: rating.year || year || "",
+    error: rating.ok ? "" : (rating.error || "Rating not found.")
+  };
+
+  if (payload.ok && ctx?.waitUntil) {
+    const response = new Response(JSON.stringify(payload), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": `public, max-age=${SCREENLIST_IMDB_RATING_CACHE_TTL_SECONDS}`
+      }
+    });
+    ctx.waitUntil(caches.default.put(cacheKey, response));
+  }
+
+  return { ...payload, cache: "MISS" };
+}
+
+/* v671: Batch endpoint — POST {items: [{tmdbId, imdbId, type, title, year}]}.
+   Returns {ratings: {[tmdbId|imdbId]: {imdbRating, imdbVotes, imdbVotesNumber, ok}}}
+   Concurrency capped to 8 in-flight to avoid hammering OMDb. Per-item 7-day
+   Cloudflare cache + this routing endpoint means subsequent calls for the
+   same items are served from cache. */
+async function runImdbRatingBatchEndpoint(request, env, ctx) {
+  if (request.method !== "POST") {
+    return jsonResponse({ ok: false, error: "POST required." }, 405);
+  }
+  let body = {};
+  try { body = await request.json(); } catch (e) { body = {}; }
+  const items = Array.isArray(body?.items) ? body.items.slice(0, 50) : [];
+  if (!items.length) return jsonResponse({ ok: false, error: "Missing items array." }, 400);
+
+  const url = new URL(request.url);
+  const ratings = {};
+  const concurrency = 8;
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < items.length) {
+      const i = cursor++;
+      const item = items[i] || {};
+      const result = await getCachedImdbRatingForItem(env, ctx, url, item);
+      const key = String(item.tmdbId || item.id || item.imdbId || `idx:${i}`);
+      ratings[key] = result;
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => worker()));
+
+  return jsonResponse({
+    ok: true,
+    count: items.length,
+    ratings,
+    sources: { imdb: getOmdbPublicStatus(env) }
+  }, 200, {
+    "Cache-Control": "no-store"
+  });
+}
+
 function jsonResponse(body, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(body), {
     status,
@@ -3574,6 +3683,10 @@ export default {
 
     if (url.pathname === "/api/imdb/rating") {
       return runImdbRatingEndpoint(request, env, ctx);
+    }
+
+    if (url.pathname === "/api/imdb/rating-batch") {
+      return runImdbRatingBatchEndpoint(request, env, ctx);
     }
 
     if (url.pathname.startsWith("/api/tmdb/")) {

@@ -401,11 +401,12 @@ async function fetchTmdbWeeklyTrendingMedia(type = 'tv') {
       media_type: mediaType
     }))
     .slice(0, Math.max(DISCOVER_LIMIT * 2, 24));
+  await window.enrichItemsWithImdbRatings?.(filtered, mediaType);
   return filtered
     .map((item, index) => ({
       ...item,
       calculatedScore: scoreDiscoverTmdbItem(filtered, item, 'trending', type, index, filtered.length),
-      discoverContext: buildDiscoverTmdbContext('TMDB weekly trending', item)
+      discoverContext: buildDiscoverTmdbContext('Weekly trending', item)
     }))
     .sort(compareDiscoverCalculatedScoreDesc)
     .slice(0, DISCOVER_LIMIT);
@@ -749,7 +750,8 @@ function compareDiscoverCalculatedScoreDesc(a = {}, b = {}) {
 function buildDiscoverTmdbContext(prefix = '', item = {}) {
   const parts = [];
   if (prefix) parts.push(prefix);
-  if (Number(item.vote_average || 0) > 0) parts.push(`${Number(item.vote_average).toFixed(1)} TMDB`);
+  const sourceLabel = item.imdbRating ? 'IMDb' : 'TMDB';
+  if (Number(item.vote_average || 0) > 0) parts.push(`${Number(item.vote_average).toFixed(1)} ${sourceLabel}`);
   if (Number(item.vote_count || 0) > 0) parts.push(`${Number(item.vote_count).toLocaleString()} votes`);
   return parts.join(' · ');
 }
@@ -910,6 +912,7 @@ async function fetchNewReleasesByDate(range = 'week', limit = DISCOVER_LIMIT, pa
   const combined = (await Promise.all(requests)).flat();
   const candidates = normalizeDiscoverTypedItems(combined, type)
     .filter(item => hasUsableDiscoverReleaseItem(item) && (type !== 'anime' || isAnimeDiscoverCandidate(item)));
+  await window.enrichItemsWithImdbRatings?.(candidates, type);
   return candidates
     .map(item => ({
       ...item,
@@ -958,6 +961,7 @@ async function fetchAndRankAnticipated(limit = DISCOVER_LIMIT, pageCount = DISCO
   const candidates = normalizeDiscoverTypedItems(combined, type)
     .filter(item => hasUsableDiscoverUpcomingItem(item) && (type !== 'anime' || isAnimeDiscoverCandidate(item)));
 
+  await window.enrichItemsWithImdbRatings?.(candidates, type);
   return candidates
     .map(item => {
       const popularity = Number(item.popularity || 0);
@@ -1001,6 +1005,7 @@ async function fetchReleasingSoonByDate(limit = DISCOVER_LIMIT, pageCount = DISC
   const combined = (await Promise.all(requests)).flat();
   const candidates = normalizeDiscoverTypedItems(combined, type)
     .filter(hasUsableDiscoverUpcomingItem);
+  await window.enrichItemsWithImdbRatings?.(candidates, type);
   return candidates
     .map(item => ({
       ...item,
@@ -1085,13 +1090,15 @@ async function fetchAndRankThisYearsBest(mediaType = 'mixed') {
     isDiscoverThisYearBestCandidate(item, year) &&
     (type !== 'anime' || isAnimeDiscoverCandidate(item))
   );
+  await window.enrichItemsWithImdbRatings?.(candidates, type);
   return candidates.map(item => {
     const rating = Number(item.vote_average || 0);
     const votes = Number(item.vote_count || 0);
+    const sourceLabel = item.imdbRating ? 'IMDb' : 'TMDB';
     return {
       ...item,
       calculatedScore: scoreDiscoverTmdbItem(candidates, item, 'yearsBest', type),
-      discoverContext: `${year} release · ${rating.toFixed(1)} TMDB · ${votes.toLocaleString()} votes`
+      discoverContext: `${year} release · ${rating.toFixed(1)} ${sourceLabel} · ${votes.toLocaleString()} votes`
     };
   })
     .filter(item => Number(item.vote_average || 0) >= 6.5)
@@ -1121,11 +1128,12 @@ async function fetchDiscoverPopularMedia(mediaType = 'tv') {
   const items = await fetchTmdbPages(path, params, DISCOVER_PAGE_COUNT);
   const candidates = normalizeDiscoverTypedItems(items, isMovie ? 'movie' : 'tv')
     .filter(item => hasUsableDiscoverReleaseItem(item) && (type !== 'anime' || isAnimeDiscoverCandidate(item)));
+  await window.enrichItemsWithImdbRatings?.(candidates, type);
   return candidates
     .map(item => ({
       ...item,
       calculatedScore: scoreDiscoverTmdbItem(candidates, item, 'popular', type),
-      discoverContext: buildDiscoverTmdbContext('TMDB popularity', item)
+      discoverContext: buildDiscoverTmdbContext('Popularity', item)
     }))
     .sort(compareDiscoverCalculatedScoreDesc)
     .slice(0, DISCOVER_LIMIT);
@@ -1155,14 +1163,16 @@ async function fetchDiscoverTopRatedMedia(mediaType = 'tv') {
   const items = await fetchTmdbPages(path, params, DISCOVER_PAGE_COUNT);
   const candidates = normalizeDiscoverTypedItems(items, isMovie ? 'movie' : 'tv')
     .filter(item => item.poster_path && getDiscoverSortTitle(item) && item.overview && (type !== 'anime' || isAnimeDiscoverCandidate(item)));
+  await window.enrichItemsWithImdbRatings?.(candidates, type);
   return candidates
     .map(item => {
       const rating = Number(item.vote_average || 0);
       const votes = Number(item.vote_count || 0);
+      const sourceLabel = item.imdbRating ? 'IMDb' : 'TMDB';
       return {
         ...item,
         calculatedScore: scoreDiscoverTmdbItem(candidates, item, 'topRated', type),
-        discoverContext: `${rating.toFixed(1)} TMDB · ${votes.toLocaleString()} votes`
+        discoverContext: `${rating.toFixed(1)} ${sourceLabel} · ${votes.toLocaleString()} votes`
       };
     })
     .sort(compareDiscoverCalculatedScoreDesc)
@@ -1180,6 +1190,7 @@ async function fetchInTheatersMovies(limit = DISCOVER_LIMIT) {
   }, DISCOVER_PAGE_COUNT);
   const candidates = normalizeDiscoverTypedItems(items, 'movie')
     .filter(item => hasUsableDiscoverReleaseItem(item));
+  await window.enrichItemsWithImdbRatings?.(candidates, 'movie');
   return candidates.map(item => ({
     ...item,
     calculatedScore: scoreDiscoverInTheaters(candidates, item),
@@ -1215,12 +1226,16 @@ async function fetchAndRankHiddenGems(mediaType = 'mixed') {
     }, DISCOVER_PAGE_COUNT).then(items => items.map(item => markDiscoverMediaType(item, 'tv'))));
   }
   const allGems = normalizeDiscoverTypedItems((await Promise.all(requests)).flat(), type);
+  await window.enrichItemsWithImdbRatings?.(allGems, type);
   return allGems
-    .map(item => ({
-      ...item,
-      calculatedScore: scoreDiscoverTmdbItem(allGems, item, 'hiddenGems', type),
-      discoverContext: `${Number(item.vote_average || 0).toFixed(1)} TMDB · ${Number(item.vote_count || 0).toLocaleString()} votes`
-    }))
+    .map(item => {
+      const sourceLabel = item.imdbRating ? 'IMDb' : 'TMDB';
+      return {
+        ...item,
+        calculatedScore: scoreDiscoverTmdbItem(allGems, item, 'hiddenGems', type),
+        discoverContext: `${Number(item.vote_average || 0).toFixed(1)} ${sourceLabel} · ${Number(item.vote_count || 0).toLocaleString()} votes`
+      };
+    })
     .filter(item => item.poster_path && getDiscoverSortTitle(item) && item.overview)
     .sort(compareDiscoverCalculatedScoreDesc)
     .slice(0, DISCOVER_LIMIT);
@@ -3487,7 +3502,8 @@ function getDiscoverMediaFacts(type, details) {
 function getDiscoverSimilarMeta(item) {
   const year = (item?.release_date || item?.first_air_date || '').slice(0, 4);
   const score = item?.vote_average ? Number(item.vote_average).toFixed(1) : '';
-  return [year, score ? `${score} TMDB` : ''].filter(Boolean).join(' · ');
+  const sourceLabel = item?.imdbRating ? 'IMDb' : 'TMDB';
+  return [year, score ? `${score} ${sourceLabel}` : ''].filter(Boolean).join(' · ');
 }
 
 function getDiscoverSimilarType(item, fallbackType) {
@@ -4970,7 +4986,13 @@ function renderDiscoverMediaProfileDetails(type, details, id) {
   const year = getDiscoverMediaDate(details, type).slice(0, 4);
   const genres = (details.genres || []).map(g => g.name).filter(Boolean).slice(0, 4);
   const facts = getDiscoverMediaFacts(type, details);
-  const score = details.vote_average ? Number(details.vote_average).toFixed(1) : 'N/A';
+  /* v671: prefer IMDb rating from OMDb if it has been resolved on this
+     details object; otherwise fall back to TMDB vote_average. */
+  const imdbScore = Number(details.imdbRating || 0);
+  const tmdbScore = Number(details.vote_average || 0);
+  const score = imdbScore > 0
+    ? imdbScore.toFixed(1)
+    : (tmdbScore > 0 ? tmdbScore.toFixed(1) : 'N/A');
   const tagline = String(details.tagline || '').trim();
   const overview = details.overview || 'No overview is available yet.';
   const cast = (details.credits?.cast || []).filter(person => person?.name).slice(0, 8);
@@ -5044,6 +5066,37 @@ async function openDiscoverMediaProfile(event, type, id, transitionOrigin = null
       if (!res.ok) throw new Error(`TMDB detail request failed: ${res.status}`);
       details = await res.json();
       discoverMediaProfileCache.set(key, details);
+    }
+    /* v671: resolve IMDb rating + votes from OMDb so the hero score reflects
+       IMDb instead of TMDB. Cached client-side for 7 days, server-side for 7
+       days, so subsequent opens are instant. */
+    if (!details.imdbRating && typeof window.getImdbRatingForMedia === 'function') {
+      try {
+        const imdbId = details.external_ids?.imdb_id || details.imdbID || '';
+        const titleForLookup = type === 'movie'
+          ? (details.title || details.original_title || '')
+          : (details.name || details.original_name || '');
+        const yearForLookup = (details.release_date || details.first_air_date || '').slice(0, 4);
+        const imdbInfo = await window.getImdbRatingForMedia({
+          tmdbId: id,
+          imdbId,
+          type,
+          title: titleForLookup,
+          year: yearForLookup
+        });
+        if (imdbInfo && imdbInfo.ok) {
+          details.imdbRating = imdbInfo.imdbRating;
+          details.imdbVotes = imdbInfo.imdbVotesNumber;
+          details.imdbVotesText = imdbInfo.imdbVotes;
+          details.imdbId = imdbInfo.imdbId;
+          /* Overwrite TMDB rating fields so anything reading vote_average
+             on this details object now sees IMDb. */
+          details.vote_average = imdbInfo.imdbRating;
+          details.vote_count = imdbInfo.imdbVotesNumber;
+          details.ratingSource = 'imdb';
+          discoverMediaProfileCache.set(key, details);
+        }
+      } catch (e) { /* silent — fall back to TMDB rating already in details */ }
     }
     const watchProviderDisplay = details.watchProviderDisplay || await fetchDiscoverWatchProviderDisplay(type, id, { ...seed, ...details });
     if (watchProviderDisplay) {
@@ -5864,7 +5917,8 @@ function getDiscoverFilteredContextLine(item = {}) {
   const rating = Number(item.vote_average || 0);
   const votes = Number(item.vote_count || 0);
   const year = String(getDiscoverReleaseDate(item) || '').slice(0, 4);
-  return [year, rating ? `${rating.toFixed(1)} TMDB` : '', votes ? `${votes.toLocaleString()} votes` : '']
+  const sourceLabel = item.imdbRating ? 'IMDb' : 'TMDB';
+  return [year, rating ? `${rating.toFixed(1)} ${sourceLabel}` : '', votes ? `${votes.toLocaleString()} votes` : '']
     .filter(Boolean)
     .join(' · ');
 }
@@ -5903,11 +5957,12 @@ async function fetchDiscoverFilteredMediaItems() {
   const candidates = combined
     .filter(item => item?.poster_path && getDiscoverSortTitle(item) && item.overview)
     .filter(item => baseScope !== 'anime' || isAnimeDiscoverCandidate(item));
+  await window.enrichItemsWithImdbRatings?.(candidates, baseScope);
   return candidates
     .map(item => ({
       ...item,
       calculatedScore: scoreDiscoverTmdbItem(candidates, item, 'popular', baseScope === 'anime' ? 'anime' : (item.media_type || mediaTypes[0] || 'tv')),
-      discoverContext: item.discoverContext || getDiscoverFilteredContextLine(item)
+      discoverContext: getDiscoverFilteredContextLine(item)
     }))
     .sort(compareDiscoverCalculatedScoreDesc)
     .slice(0, DISCOVER_CATEGORY_FILTER_LIMIT);

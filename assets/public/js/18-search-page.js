@@ -163,6 +163,14 @@
 
     if (myToken !== queryToken) return;
 
+    /* v671: Enrich movie/TV results with IMDb rating before normalizing so
+       r.rating reflects IMDb (display + sort by IMDb rating). Games keep
+       RAWG's own rating. */
+    if (typeof window.enrichItemsWithImdbRatings === 'function' && tmdbItems.length) {
+      try { await window.enrichItemsWithImdbRatings(tmdbItems); } catch (e) { /* fall through with TMDB */ }
+      if (myToken !== queryToken) return;
+    }
+
     /* Apply filter */
     let rows = [];
     if (activeFilter === 'all') {

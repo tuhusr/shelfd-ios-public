@@ -1561,6 +1561,115 @@ async function runImdbRatingEndpoint(request, env, ctx) {
   return response;
 }
 
+/* v671: Parse OMDb's "imdbVotes" string ("828,114") into a number. */
+function parseImdbVotesNumber(value = "") {
+  const clean = String(value || "").replace(/[^0-9]/g, "");
+  if (!clean) return 0;
+  const n = Number(clean);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/* v671: Single-item rating fetcher used by the batch endpoint. Hits the
+   per-item Cloudflare cache (same key as /api/imdb/rating) so an item that's
+   already been resolved once is served from cache here too. Returns a small
+   object — not a Response. */
+async function getCachedImdbRatingForItem(env, ctx, originUrl, item = {}) {
+  const type = normalizeImdbMediaType(item.type);
+  const tmdbId = String(item.tmdbId || item.id || "").trim();
+  let imdbId = normalizeImdbTitleId(item.imdbId || "");
+  const title = String(item.title || item.name || "").trim();
+  const year = String(item.year || "").trim().match(/^(18|19|20)\d{2}$/)?.[0] || "";
+
+  if (!tmdbId && !imdbId && !title) {
+    return { ok: false, error: "Missing tmdbId, imdbId, or title.", tmdbId, imdbId, type };
+  }
+
+  const cacheKey = new Request(`${originUrl.origin}/__screenlist_imdb_rating_batch/v1/${type}/${tmdbId || "no-tmdb"}/${imdbId || "no-imdb"}/${encodeURIComponent(title || "no-title")}/${year || "no-year"}`, { method: "GET" });
+  try {
+    const cached = await caches.default.match(cacheKey);
+    if (cached) {
+      const data = await cached.json();
+      return { ...data, cache: "HIT" };
+    }
+  } catch (e) { /* fall through */ }
+
+  if (!imdbId && tmdbId) {
+    try { imdbId = await fetchTmdbExternalImdbId(env, type, tmdbId, 6500); } catch (e) {}
+  }
+
+  let rating = imdbId ? await fetchOmdbImdbRating(env, imdbId, 6500) : { ok: false };
+  if (!rating.ok && title) {
+    rating = await fetchOmdbTitleRating(env, title, type, year, 6500);
+  }
+
+  const payload = {
+    ok: !!rating.ok,
+    type,
+    tmdbId,
+    imdbId: rating.imdbId || imdbId || "",
+    imdbRating: rating.imdbRating || 0,
+    imdbVotes: rating.imdbVotes || "",
+    imdbVotesNumber: parseImdbVotesNumber(rating.imdbVotes),
+    title: rating.title || title || "",
+    year: rating.year || year || "",
+    error: rating.ok ? "" : (rating.error || "Rating not found.")
+  };
+
+  if (payload.ok && ctx?.waitUntil) {
+    const response = new Response(JSON.stringify(payload), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": `public, max-age=${SCREENLIST_IMDB_RATING_CACHE_TTL_SECONDS}`
+      }
+    });
+    ctx.waitUntil(caches.default.put(cacheKey, response));
+  }
+
+  return { ...payload, cache: "MISS" };
+}
+
+/* v671: Batch endpoint — POST {items: [{tmdbId, imdbId, type, title, year}]}.
+   Returns {ratings: {[tmdbId|imdbId]: {imdbRating, imdbVotes, imdbVotesNumber, ok}}}
+   Concurrency capped to 8 in-flight to avoid hammering OMDb. Per-item 7-day
+   Cloudflare cache + this routing endpoint means subsequent calls for the
+   same items are served from cache. */
+async function runImdbRatingBatchEndpoint(request, env, ctx) {
+  if (request.method !== "POST") {
+    return jsonResponse({ ok: false, error: "POST required." }, 405);
+  }
+  let body = {};
+  try { body = await request.json(); } catch (e) { body = {}; }
+  const items = Array.isArray(body?.items) ? body.items.slice(0, 50) : [];
+  if (!items.length) return jsonResponse({ ok: false, error: "Missing items array." }, 400);
+
+  const url = new URL(request.url);
+  const ratings = {};
+  const concurrency = 8;
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < items.length) {
+      const i = cursor++;
+      const item = items[i] || {};
+      const result = await getCachedImdbRatingForItem(env, ctx, url, item);
+      const key = String(item.tmdbId || item.id || item.imdbId || `idx:${i}`);
+      ratings[key] = result;
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => worker()));
+
+  return jsonResponse({
+    ok: true,
+    count: items.length,
+    ratings,
+    sources: { imdb: getOmdbPublicStatus(env) }
+  }, 200, {
+    "Cache-Control": "no-store"
+  });
+}
+
 function jsonResponse(body, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(body), {
     status,
@@ -1702,6 +1811,156 @@ function isHtmlNavigationRequest(request, url) {
   if (destination === "document") return true;
   const accept = request.headers.get("accept") || "";
   return accept.includes("text/html");
+}
+
+function escapeHtmlMeta(value = "") {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function isProfileCardSharePath(url) {
+  return /^\/profile-card\/[^/]+\/[^/]+\/[1-3]\/?$/i.test(url.pathname);
+}
+
+function getProfileCardShareMeta(url) {
+  const pathMatch = url.pathname.match(/^\/profile-card\/([^/]+)\/([^/]+)\/([1-3])\/?$/i);
+  const rank = Number(pathMatch?.[3] || url.searchParams.get("rank") || 1);
+  const title = url.searchParams.get("cardTitle") || "ScreenList Top 3";
+  const profileName = url.searchParams.get("profileName") || "ScreenList User";
+  const label = url.searchParams.get("label") || "Top 3";
+  const cardImage = url.searchParams.get("cardImage") || "";
+  const shareImg = url.searchParams.get("shareImg") || "";
+  const shareTitle = `${profileName}'s ${label}`;
+  const shareDescription = `${profileName}'s top picks on Shelfd.`;
+  let image;
+  if (/^https?:\/\//i.test(shareImg)) {
+    image = shareImg;
+  } else if (/^https?:\/\//i.test(cardImage)) {
+    image = cardImage;
+  } else {
+    image = new URL("/og-image-v216.png", url.origin).toString();
+  }
+  return {
+    title: shareTitle,
+    description: shareDescription,
+    url: url.toString(),
+    image
+  };
+}
+
+function replaceMetaTag(html, attribute, key, content) {
+  const escaped = escapeHtmlMeta(content);
+  const pattern = new RegExp(`<meta\\s+${attribute}="${key}"\\s+content="[^"]*"\\s*\\/?>`, "i");
+  const replacement = `<meta ${attribute}="${key}" content="${escaped}">`;
+  return pattern.test(html) ? html.replace(pattern, replacement) : html.replace("</head>", `${replacement}\n</head>`);
+}
+
+function removeMetaTag(html, attribute, key) {
+  const pattern = new RegExp(`<meta\\s+${attribute}="${key}"\\s+content="[^"]*"\\s*\\/?>\\s*`, "ig");
+  return html.replace(pattern, "");
+}
+
+async function serveProfileCardShareHtml(request, env, url) {
+  const indexUrl = new URL("/index.html", url.origin);
+  const assetResponse = await env.ASSETS.fetch(new Request(indexUrl.toString(), { method: "GET" }));
+  let html = await assetResponse.text();
+  if (!html || html.length < 100) {
+    return new Response(`<!DOCTYPE html><html><head><title>Shelfd</title></head><body>Asset fetch returned ${html?.length || 0} bytes</body></html>`, {
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8" }
+    });
+  }
+  const meta = getProfileCardShareMeta(url);
+  html = html.replace(/<title>[^<]*<\/title>/i, `<title>${escapeHtmlMeta(meta.title)}</title>`);
+  html = replaceMetaTag(html, "property", "og:title", meta.title);
+  html = replaceMetaTag(html, "property", "og:description", meta.description);
+  html = replaceMetaTag(html, "property", "og:url", meta.url);
+  html = removeMetaTag(html, "property", "og:image:width");
+  html = removeMetaTag(html, "property", "og:image:height");
+  html = replaceMetaTag(html, "property", "og:image", meta.image);
+  html = replaceMetaTag(html, "property", "og:image:alt", meta.title);
+  html = replaceMetaTag(html, "name", "twitter:title", meta.title);
+  html = replaceMetaTag(html, "name", "twitter:description", meta.description);
+  html = replaceMetaTag(html, "name", "twitter:image", meta.image);
+  return new Response(html, {
+    status: 200,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store, no-cache, must-revalidate, max-age=0"
+    }
+  });
+}
+
+function isMediaSharePath(url) {
+  return /^\/media\/(movie|tv|anime|game)\/[^/]+\/?$/i.test(url.pathname);
+}
+
+async function serveMediaShareHtml(request, env, url) {
+  const title = url.searchParams.get("title") || "Shelfd";
+  const poster = url.searchParams.get("poster") || "";
+  const shareTitle = title ? `${title} on Shelfd` : "Shelfd";
+  const shareDescription = title ? `Check out ${title} on Shelfd.` : "Track your shows, movies, anime, and games.";
+  const image = /^https?:\/\//i.test(poster) ? poster : new URL("/og-image-v216.png", url.origin).toString();
+  const indexUrl = new URL("/index.html", url.origin);
+  const assetResponse = await env.ASSETS.fetch(new Request(indexUrl.toString(), { method: "GET" }));
+  let html = await assetResponse.text();
+  if (!html || html.length < 100) html = `<!DOCTYPE html><html><head><title>${escapeHtmlMeta(shareTitle)}</title></head><body></body></html>`;
+  html = html.replace(/<title>[^<]*<\/title>/i, `<title>${escapeHtmlMeta(shareTitle)}</title>`);
+  html = replaceMetaTag(html, "property", "og:title", shareTitle);
+  html = replaceMetaTag(html, "property", "og:description", shareDescription);
+  html = replaceMetaTag(html, "property", "og:url", url.toString());
+  html = removeMetaTag(html, "property", "og:image:width");
+  html = removeMetaTag(html, "property", "og:image:height");
+  html = replaceMetaTag(html, "property", "og:image", image);
+  html = replaceMetaTag(html, "property", "og:image:alt", shareTitle);
+  html = replaceMetaTag(html, "name", "twitter:title", shareTitle);
+  html = replaceMetaTag(html, "name", "twitter:description", shareDescription);
+  html = replaceMetaTag(html, "name", "twitter:image", image);
+  return new Response(html, {
+    status: 200,
+    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store, no-cache, must-revalidate, max-age=0" }
+  });
+}
+
+function serveProfileCardOgSvg(url) {
+  const title = escapeHtmlMeta(url.searchParams.get("title") || "ScreenList Top 3");
+  const profileName = escapeHtmlMeta(url.searchParams.get("profileName") || "ScreenList User");
+  const label = escapeHtmlMeta(url.searchParams.get("label") || "Top 3");
+  const rank = escapeHtmlMeta(url.searchParams.get("rank") || "1");
+  const image = url.searchParams.get("image") || "";
+  const safeImage = /^https?:\/\//i.test(image) ? escapeHtmlMeta(image) : "";
+  const poster = safeImage
+    ? `<image href="${safeImage}" x="82" y="82" width="360" height="466" preserveAspectRatio="xMidYMid slice" clip-path="url(#posterClip)"/>`
+    : `<rect x="82" y="82" width="360" height="466" rx="28" fill="#2a1f5e"/><text x="262" y="336" fill="#8f7fd0" font-size="112" font-weight="300" text-anchor="middle">${rank}</text>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#2a1f5e"/>
+      <stop offset="0.55" stop-color="#151025"/>
+      <stop offset="1" stop-color="#090712"/>
+    </linearGradient>
+    <clipPath id="posterClip"><rect x="82" y="82" width="360" height="466" rx="28"/></clipPath>
+  </defs>
+  <rect width="1200" height="630" fill="#120d22"/>
+  <rect x="36" y="36" width="1128" height="558" rx="44" fill="url(#bg)" stroke="#C9A84C" stroke-opacity="0.72" stroke-width="4"/>
+  ${poster}
+  <text x="498" y="158" fill="#ffffff" font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="34" font-weight="300">${profileName}'s ${label}</text>
+  <text x="498" y="240" fill="#ffffff" font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="66" font-weight="600">#${rank}</text>
+  <foreignObject x="498" y="270" width="590" height="180">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#fff;font-size:54px;font-weight:600;line-height:1.08;overflow:hidden;">${title}</div>
+  </foreignObject>
+  <text x="498" y="530" fill="#C9A84C" font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="30" font-weight="300">ScreenList Top 3 Card</text>
+</svg>`;
+  return new Response(svg, {
+    status: 200,
+    headers: {
+      "content-type": "image/svg+xml; charset=utf-8",
+      "cache-control": "public, max-age=300"
+    }
+  });
 }
 
 function buildVisitorCookie(visitorId) {
@@ -3341,6 +3600,18 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
+    if (url.pathname === "/profile-card-og.svg" && request.method === "GET") {
+      return serveProfileCardOgSvg(url);
+    }
+
+    if (isProfileCardSharePath(url) && isHtmlNavigationRequest(request, url)) {
+      return serveProfileCardShareHtml(request, env, url);
+    }
+
+    if (isMediaSharePath(url) && isHtmlNavigationRequest(request, url)) {
+      return serveMediaShareHtml(request, env, url);
+    }
+
     if ((url.pathname === "/api/ai/import-match" || url.pathname === "/api/deepseek/import-match") && request.method === "POST") {
       return runScreenListAi(request, env, ctx);
     }
@@ -3412,6 +3683,10 @@ export default {
 
     if (url.pathname === "/api/imdb/rating") {
       return runImdbRatingEndpoint(request, env, ctx);
+    }
+
+    if (url.pathname === "/api/imdb/rating-batch") {
+      return runImdbRatingBatchEndpoint(request, env, ctx);
     }
 
     if (url.pathname.startsWith("/api/tmdb/")) {
