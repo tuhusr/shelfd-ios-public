@@ -1,12 +1,13 @@
 /* =============================================================================
-   20-imdb-ratings.js  (v673)
+   20-imdb-ratings.js  (v674)
    Client-side IMDb rating layer for movies + TV shows.
    - Replaces TMDB vote_average / vote_count with IMDb imdbRating / imdbVotes
      while PRESERVING the originals as item.tmdbVoteAverage / tmdbVoteCount so
      ranking helpers can use both signals.
-   - In-memory Map cache + localStorage persistence with split TTLs:
-       - hits cached for 7 days
-       - misses cached briefly (6h) to avoid retry spam
+   - Recency-aware TTL: new/trending titles refresh in 24h, classics in 30 days.
+   - Two-key cache: primary (type, tmdbId), secondary (imdbId). The same
+     title hits the same entry no matter which path the lookup came in from.
+   - Negative results cached briefly (6h) to avoid retry spam.
    - Source-agnostic helper boundary: enrichWithImdbData(item) /
      enrichItemsWithImdbRatings(items) — implementation here is OMDb but the
      caller doesn't care. Replacing OMDb with a local IMDb dataset later means
@@ -17,9 +18,9 @@
 (function() {
   'use strict';
 
-  const LS_PREFIX = 'shelfd:imdb-rating:v2:';
-  const TTL_HIT_MS = 7 * 24 * 60 * 60 * 1000;     /* 7 days for successful lookups */
-  const TTL_MISS_MS = 6 * 60 * 60 * 1000;          /* 6 hours for failed lookups   */
+  const LS_PREFIX = 'shelfd:imdb-rating:v3:';
+  const TTL_DEFAULT_MS = 7 * 24 * 60 * 60 * 1000;
+  const TTL_MISS_MS = 6 * 60 * 60 * 1000;
   const memCache = new Map();
   const inflight = new Map();
 
@@ -28,32 +29,81 @@
     return `${t}:${String(tmdbId || '').trim()}`;
   }
 
-  function ttlForEntry(entry) {
-    return entry && entry.data && entry.data.ok === false ? TTL_MISS_MS : TTL_HIT_MS;
+  function getImdbCacheKey(imdbId) {
+    return `imdb:${String(imdbId || '').trim()}`;
   }
 
-  function readCache(tmdbId, type) {
-    const key = getCacheKey(tmdbId, type);
-    if (key.endsWith(':')) return null;
+  /* Variable TTL by title recency — matches the worker policy:
+       current year + future        → 24h
+       last year                    → 3 days
+       last 5 years                 → 7 days
+       older / classics             → 30 days
+       unknown / unparseable        → 7 days (default) */
+  function ttlForData(data) {
+    if (!data) return TTL_DEFAULT_MS;
+    if (data.ok === false) return TTL_MISS_MS;
+    const year = parseInt(String(data.year || '').slice(0, 4), 10);
+    if (!Number.isFinite(year) || year < 1900) return TTL_DEFAULT_MS;
+    const currentYear = new Date().getUTCFullYear();
+    if (year >= currentYear) return 24 * 60 * 60 * 1000;
+    if (year >= currentYear - 1) return 3 * 24 * 60 * 60 * 1000;
+    if (year >= currentYear - 5) return TTL_DEFAULT_MS;
+    return 30 * 24 * 60 * 60 * 1000;
+  }
+
+  function isEntryFresh(entry) {
+    if (!entry) return false;
+    if (entry.expiresAt) return Date.now() <= entry.expiresAt;
+    /* Legacy entries without expiresAt — treat as default TTL. */
+    if (entry.savedAt) return Date.now() - Number(entry.savedAt) < TTL_DEFAULT_MS;
+    return false;
+  }
+
+  function readEntry(key) {
     const mem = memCache.get(key);
-    if (mem && Date.now() - mem.savedAt < ttlForEntry(mem)) return mem.data;
+    if (mem) {
+      if (isEntryFresh(mem)) return mem.data;
+      memCache.delete(key);
+    }
     try {
       const raw = localStorage.getItem(LS_PREFIX + key);
       if (!raw) return null;
       const entry = JSON.parse(raw);
-      if (!entry || !entry.savedAt || !entry.data) return null;
-      if (Date.now() - Number(entry.savedAt) > ttlForEntry(entry)) return null;
+      if (!entry || !entry.data) return null;
+      if (!isEntryFresh(entry)) {
+        try { localStorage.removeItem(LS_PREFIX + key); } catch (_) {}
+        return null;
+      }
       memCache.set(key, entry);
       return entry.data;
     } catch (e) { return null; }
   }
 
+  function writeEntry(key, entry) {
+    if (!key) return;
+    memCache.set(key, entry);
+    try { localStorage.setItem(LS_PREFIX + key, JSON.stringify(entry)); } catch (e) { /* quota */ }
+  }
+
+  function readCache(tmdbId, type) {
+    const key = getCacheKey(tmdbId, type);
+    if (key.endsWith(':')) return null;
+    return readEntry(key);
+  }
+
+  function readCacheByImdbId(imdbId) {
+    if (!imdbId) return null;
+    return readEntry(getImdbCacheKey(imdbId));
+  }
+
   function writeCache(tmdbId, type, data) {
     const key = getCacheKey(tmdbId, type);
     if (key.endsWith(':')) return;
-    const entry = { savedAt: Date.now(), data };
-    memCache.set(key, entry);
-    try { localStorage.setItem(LS_PREFIX + key, JSON.stringify(entry)); } catch (e) { /* quota */ }
+    const ttl = ttlForData(data);
+    const entry = { savedAt: Date.now(), expiresAt: Date.now() + ttl, data };
+    writeEntry(key, entry);
+    /* Secondary IMDb-ID-keyed copy so a future direct-imdb lookup hits cache. */
+    if (data && data.imdbId) writeEntry(getImdbCacheKey(data.imdbId), entry);
   }
 
   function parseImdbVotes(value) {
@@ -197,6 +247,10 @@
     const t = String(type || '').toLowerCase() === 'movie' ? 'movie' : 'tv';
     if (tmdbId) {
       const cached = readCache(tmdbId, t);
+      if (cached && cached.ok) return cached;
+    }
+    if (imdbId) {
+      const cached = readCacheByImdbId(imdbId);
       if (cached && cached.ok) return cached;
     }
     try {

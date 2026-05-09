@@ -1544,6 +1544,8 @@ async function runImdbRatingEndpoint(request, env, ctx) {
 
   const rating = await fetchOmdbImdbRating(env, imdbId, 6500);
   const status = rating.ok ? 200 : (rating.status >= 400 && rating.status < 600 ? rating.status : 502);
+  /* v674: same recency-aware TTL as the batch endpoint. */
+  const ttl = rating.ok ? getImdbCacheTtlSeconds(rating.year) : 60 * 30;
   const response = jsonResponse({
     ...rating,
     type,
@@ -1553,7 +1555,7 @@ async function runImdbRatingEndpoint(request, env, ctx) {
       imdb: getOmdbPublicStatus(env)
     }
   }, status, {
-    "Cache-Control": `public, max-age=${SCREENLIST_IMDB_RATING_CACHE_TTL_SECONDS}`,
+    "Cache-Control": `public, max-age=${ttl}`,
     "x-screenlist-imdb-cache": "MISS"
   });
 
@@ -1567,6 +1569,24 @@ function parseImdbVotesNumber(value = "") {
   if (!clean) return 0;
   const n = Number(clean);
   return Number.isFinite(n) ? n : 0;
+}
+
+/* v674: Variable cache TTL based on title recency. New/trending titles
+   churn fast (rating + vote-count drift daily during release week), so
+   keep them fresh; older titles barely move and can be cached aggressively.
+        current year + future        → 24h
+        last year                    → 3 days
+        last 5 years                 → 7 days
+        older / classics             → 30 days
+        unknown / unparseable        → 7 days (default) */
+function getImdbCacheTtlSeconds(year) {
+  const y = parseInt(String(year || "").trim().slice(0, 4), 10);
+  if (!Number.isFinite(y) || y < 1900) return 60 * 60 * 24 * 7;
+  const currentYear = new Date().getUTCFullYear();
+  if (y >= currentYear) return 60 * 60 * 24 * 1;
+  if (y >= currentYear - 1) return 60 * 60 * 24 * 3;
+  if (y >= currentYear - 5) return 60 * 60 * 24 * 7;
+  return 60 * 60 * 24 * 30;
 }
 
 /* v671: Single-item rating fetcher used by the batch endpoint. Hits the
@@ -1584,17 +1604,46 @@ async function getCachedImdbRatingForItem(env, ctx, originUrl, item = {}) {
     return { ok: false, error: "Missing tmdbId, imdbId, or title.", tmdbId, imdbId, type };
   }
 
-  const cacheKey = new Request(`${originUrl.origin}/__screenlist_imdb_rating_batch/v1/${type}/${tmdbId || "no-tmdb"}/${imdbId || "no-imdb"}/${encodeURIComponent(title || "no-title")}/${year || "no-year"}`, { method: "GET" });
-  try {
-    const cached = await caches.default.match(cacheKey);
-    if (cached) {
-      const data = await cached.json();
-      return { ...data, cache: "HIT" };
-    }
-  } catch (e) { /* fall through */ }
+  /* v674: Two-step cache lookup so the same title hits the same entry no
+     matter which discover rail it came from.
+        1. Check the imdbId-keyed cache if we already have an imdbId.
+        2. Otherwise fall back to the (type, tmdbId) key.
+     After OMDb resolves we write under BOTH keys so a future direct-imdbId
+     lookup (e.g. from the media profile) finds the same entry. */
+  const tmdbCacheKey = new Request(
+    `${originUrl.origin}/__screenlist_imdb_rating_batch/v2/${type}/${tmdbId || "no-tmdb"}`,
+    { method: "GET" }
+  );
+  function imdbCacheKey(id) {
+    return new Request(`${originUrl.origin}/__screenlist_imdb_rating_batch/v2/by-imdb/${id}`, { method: "GET" });
+  }
+
+  async function tryCache(key) {
+    try {
+      const cached = await caches.default.match(key);
+      if (cached) {
+        const data = await cached.json();
+        return { ...data, cache: "HIT" };
+      }
+    } catch (e) { /* fall through */ }
+    return null;
+  }
+
+  const tmdbHit = await tryCache(tmdbCacheKey);
+  if (tmdbHit) return tmdbHit;
+  if (imdbId) {
+    const imdbHit = await tryCache(imdbCacheKey(imdbId));
+    if (imdbHit) return imdbHit;
+  }
 
   if (!imdbId && tmdbId) {
     try { imdbId = await fetchTmdbExternalImdbId(env, type, tmdbId, 6500); } catch (e) {}
+    /* Now that we resolved imdbId, check the imdbId-keyed cache before
+       hitting OMDb — another rail may have already populated it. */
+    if (imdbId) {
+      const imdbHit = await tryCache(imdbCacheKey(imdbId));
+      if (imdbHit) return imdbHit;
+    }
   }
 
   let rating = imdbId ? await fetchOmdbImdbRating(env, imdbId, 6500) : { ok: false };
@@ -1619,15 +1668,19 @@ async function getCachedImdbRatingForItem(env, ctx, originUrl, item = {}) {
     error: rating.ok ? "" : (rating.error || "Rating not found.")
   };
 
-  if (payload.ok && ctx?.waitUntil) {
+  if (ctx?.waitUntil) {
+    /* Recency-aware TTL: new/trending titles refresh daily, classics monthly.
+       Negative results are cached briefly (30 min) to avoid retry spam. */
+    const ttl = payload.ok ? getImdbCacheTtlSeconds(payload.year) : 60 * 30;
     const response = new Response(JSON.stringify(payload), {
       status: 200,
       headers: {
         "Content-Type": "application/json; charset=utf-8",
-        "Cache-Control": `public, max-age=${SCREENLIST_IMDB_RATING_CACHE_TTL_SECONDS}`
+        "Cache-Control": `public, max-age=${ttl}`
       }
     });
-    ctx.waitUntil(caches.default.put(cacheKey, response));
+    if (tmdbId) ctx.waitUntil(caches.default.put(tmdbCacheKey, response.clone()));
+    if (payload.imdbId) ctx.waitUntil(caches.default.put(imdbCacheKey(payload.imdbId), response.clone()));
   }
 
   return { ...payload, cache: "MISS" };
