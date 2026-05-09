@@ -3638,7 +3638,8 @@ async function shareProfileFavoriteRow(event, btn) {
     const lbl = (el.querySelector('.profile-group-stat-label')?.textContent || '').trim();
     return value && lbl ? { value, label: lbl } : null;
   }).filter(Boolean);
-  const shareUrl = getShareProfileUrl();
+  const sectionPayload = { uid, section: sectionKey, index: 0, title: cardData[0]?.title || '', image: cardData[0]?.image || '', profileName, label: config?.shortLabel || label, fullLabel: label };
+  const shareUrl = getShareProfileUrl(sectionPayload);
   const shareData = {
     title: `${profileName}'s ${label}`,
     text: `Check out ${profileName}'s ${label} on ScreenList.`,
@@ -3648,7 +3649,6 @@ async function shareProfileFavoriteRow(event, btn) {
     const file = await buildProfileFavoriteRowShareImageFile(cardData, profileName, label, stats);
     if (file && navigator.canShare?.({ files: [file] })) {
       shareData.files = [file];
-      delete shareData.url;
     }
     if (navigator.share) { await navigator.share(shareData); showToast('Shared!'); return; }
   } catch (e) {
