@@ -1723,19 +1723,19 @@ function getProfileCardShareMeta(url) {
   const profileName = url.searchParams.get("profileName") || "ScreenList User";
   const label = url.searchParams.get("label") || "Top 3";
   const cardImage = url.searchParams.get("cardImage") || "";
-  const shareTitle = `${profileName}'s #${rank} ${label}: ${title}`;
-  const shareDescription = `Open ${profileName}'s ScreenList profile directly to this ranked top-three card.`;
-  const imageUrl = new URL("/profile-card-og.svg", url.origin);
-  imageUrl.searchParams.set("title", title);
-  imageUrl.searchParams.set("profileName", profileName);
-  imageUrl.searchParams.set("label", label);
-  imageUrl.searchParams.set("rank", String(rank));
-  if (/^https?:\/\//i.test(cardImage)) imageUrl.searchParams.set("image", cardImage);
+  const shareTitle = `${profileName}'s ${label}`;
+  const shareDescription = `${profileName}'s top picks on Shelfd.`;
+  let image;
+  if (/^https?:\/\//i.test(cardImage)) {
+    image = cardImage;
+  } else {
+    image = new URL("/og-image-v216.png", url.origin).toString();
+  }
   return {
     title: shareTitle,
     description: shareDescription,
     url: url.toString(),
-    image: imageUrl.toString()
+    image
   };
 }
 
@@ -1744,6 +1744,11 @@ function replaceMetaTag(html, attribute, key, content) {
   const pattern = new RegExp(`<meta\\s+${attribute}="${key}"\\s+content="[^"]*"\\s*\\/?>`, "i");
   const replacement = `<meta ${attribute}="${key}" content="${escaped}">`;
   return pattern.test(html) ? html.replace(pattern, replacement) : html.replace("</head>", `${replacement}\n</head>`);
+}
+
+function removeMetaTag(html, attribute, key) {
+  const pattern = new RegExp(`<meta\\s+${attribute}="${key}"\\s+content="[^"]*"\\s*\\/?>\\s*`, "ig");
+  return html.replace(pattern, "");
 }
 
 async function serveProfileCardShareHtml(request, env, url) {
@@ -1755,9 +1760,9 @@ async function serveProfileCardShareHtml(request, env, url) {
   html = replaceMetaTag(html, "property", "og:title", meta.title);
   html = replaceMetaTag(html, "property", "og:description", meta.description);
   html = replaceMetaTag(html, "property", "og:url", meta.url);
+  html = removeMetaTag(html, "property", "og:image:width");
+  html = removeMetaTag(html, "property", "og:image:height");
   html = replaceMetaTag(html, "property", "og:image", meta.image);
-  html = replaceMetaTag(html, "property", "og:image:width", "1200");
-  html = replaceMetaTag(html, "property", "og:image:height", "630");
   html = replaceMetaTag(html, "property", "og:image:alt", meta.title);
   html = replaceMetaTag(html, "name", "twitter:title", meta.title);
   html = replaceMetaTag(html, "name", "twitter:description", meta.description);

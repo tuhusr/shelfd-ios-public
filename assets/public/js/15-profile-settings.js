@@ -3643,22 +3643,12 @@ async function shareProfileFavoriteRow(event, btn) {
   const shareUrl = getShareProfileUrl(sectionPayload);
   const baseTitle = `${profileName}'s ${label}`;
   try {
-    const file = await buildProfileFavoriteRowShareImageFile(cardData, profileName, label, stats);
-    const fileInfo = file ? `${Math.round(file.size/1024)}KB` : 'null';
-    const csFile = file ? !!navigator.canShare?.({ files: [file] }) : false;
-    const csBoth = file ? !!navigator.canShare?.({ title: baseTitle, url: shareUrl, files: [file] }) : false;
-    showToast(`f:${fileInfo} csF:${csFile} csB:${csBoth}`);
     if (navigator.share) {
-      if (file && csFile) {
-        await navigator.share({ title: baseTitle, files: [file] });
-        return;
-      }
       await navigator.share({ title: baseTitle, url: shareUrl });
       return;
     }
   } catch (e) {
     if (e && e.name === 'AbortError') return;
-    showToast(`err:${e?.name || 'unknown'}`);
   }
   const copied = await copyProfileLink(shareUrl);
   showToast(copied ? 'Link copied' : 'Could not copy link');
