@@ -849,6 +849,11 @@ async function fetchOmdbImdbRating(env, imdbId = "", timeoutMs = 6500) {
     imdbVotes: data.imdbVotes || "",
     title: data.Title || "",
     year: data.Year || "",
+    /* v734: extra OMDb fields used by the filmography page card layout. */
+    runtime: data.Runtime || "",
+    rated: data.Rated || "",
+    genre: data.Genre || "",
+    plot: data.Plot || "",
     source: "IMDb",
     provider: "OMDb",
     omdb: getOmdbPublicStatus(env)
@@ -900,6 +905,10 @@ async function fetchOmdbTitleRating(env, title = "", type = "tv", year = "", tim
     imdbVotes: data.imdbVotes || "",
     title: data.Title || cleanTitle,
     year: data.Year || cleanYear,
+    runtime: data.Runtime || "",
+    rated: data.Rated || "",
+    genre: data.Genre || "",
+    plot: data.Plot || "",
     source: "IMDb",
     provider: "OMDb",
     lookup: "title",
@@ -1663,6 +1672,11 @@ async function getCachedImdbRatingForItem(env, ctx, originUrl, item = {}) {
     imdbLogVotes: imdbVotesNumber > 0 ? Math.log10(imdbVotesNumber + 1) : 0,
     title: rating.title || title || "",
     year: rating.year || year || "",
+    /* v734: extra metadata shipped to the client filmography card layout. */
+    runtime: rating.runtime || "",
+    rated: rating.rated || "",
+    genre: rating.genre || "",
+    plot: rating.plot || "",
     ratingSource: rating.ok ? "imdb" : "",
     ratingFetchedAt: Date.now(),
     error: rating.ok ? "" : (rating.error || "Rating not found.")

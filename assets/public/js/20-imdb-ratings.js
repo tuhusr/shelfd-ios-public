@@ -146,6 +146,11 @@
       item.ratingSource = 'imdb';
       item.ratingFetchedAt = Number(rating.ratingFetchedAt) || Date.now();
 
+      /* v734: extra metadata used by the filmography card layout. */
+      if (rating.runtime) item.imdbRuntime = String(rating.runtime);
+      if (rating.rated) item.imdbRated = String(rating.rated);
+      if (rating.year) item.imdbYear = String(rating.year);
+
       /* Overwrite TMDB fields so existing display code uses IMDb. */
       item.vote_average = r;
       item.vote_count = v;

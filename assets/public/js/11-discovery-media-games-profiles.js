@@ -4798,19 +4798,102 @@ function calculateDiscoverPersonAge(birthday = '', deathday = '') {
   return age > 0 ? String(age) : '';
 }
 
-function getDiscoverPersonCreditFameScore(item = {}) {
+/* v734: "Most Known For" representativeness score.
+   Goal: pick the 3 titles MOST associated with this actor in the public
+   imagination. Not just popular, not just well-rated — the intersection.
+
+   Inputs (all available on the TMDB combined_credits.cast entries):
+     - popularity        : how much current attention the title gets
+     - vote_count        : mass-awareness signal (how many people have rated it)
+     - vote_average      : quality / how-well-it-landed signal
+     - order             : the actor's billing order on this title (lower = lead)
+     - release year      : recency tie-breaker; classics shouldn't dominate but
+                           a single recent role shouldn't alone override a long
+                           catalog of acclaimed work either
+
+   Each component is normalized inside the candidate pool so a quiet career
+   doesn't get crushed by a single blockbuster outlier. Final score is a
+   weighted sum, billing-order applies a multiplicative boost (lead role
+   counts more than 14th-billed). */
+function buildPersonCreditPoolStats(items = []) {
+  let maxPop = 0;
+  let maxLogVotes = 0;
+  items.forEach(item => {
+    const pop = Number(item.popularity || 0);
+    const votes = Math.max(0, Number(item.vote_count || 0));
+    const lv = votes > 0 ? Math.log10(votes + 1) : 0;
+    if (pop > maxPop) maxPop = pop;
+    if (lv > maxLogVotes) maxLogVotes = lv;
+  });
+  return { maxPop: maxPop || 1, maxLogVotes: maxLogVotes || 1 };
+}
+
+function getPersonCreditYear(item = {}) {
+  const raw = item?.release_date || item?.first_air_date || '';
+  const y = parseInt(String(raw).slice(0, 4), 10);
+  return Number.isFinite(y) && y >= 1900 ? y : 0;
+}
+
+function scorePersonMostKnownForCredit(item, stats) {
   const popularity = Number(item.popularity || 0);
-  const votes = Math.min(Number(item.vote_count || 0), 20000) / 250;
-  const rating = Number(item.vote_average || 0) * 1.5;
-  const orderBoost = Number.isFinite(Number(item.order)) && Number(item.order) <= 5 ? 10 : 0;
-  return popularity + votes + rating + orderBoost;
+  const voteCount = Math.max(0, Number(item.vote_count || 0));
+  const voteAvg = Number(item.vote_average || 0);
+  const order = Number.isFinite(Number(item.order)) ? Number(item.order) : 99;
+
+  const popN = popularity / Math.max(1, stats.maxPop);
+  const logVotes = voteCount > 0 ? Math.log10(voteCount + 1) : 0;
+  const votesN = logVotes / Math.max(1, stats.maxLogVotes);
+  const ratingN = Math.max(0, Math.min(1, voteAvg / 10));
+
+  /* Billing-order multiplier: 1.0 for lead/co-lead, gracefully decays as the
+     actor sits further down the cast list. A 14th-billed role on a megahit
+     shouldn't out-rank their lead role on a hit. */
+  const billingMultiplier = order <= 1 ? 1.20
+    : order <= 3 ? 1.10
+    : order <= 5 ? 1.00
+    : order <= 10 ? 0.85
+    : 0.65;
+
+  /* Recency lift — small. The point is to break ties, not to overrule
+     decades of an actor's defining work. */
+  const year = getPersonCreditYear(item);
+  const yearsAgo = year ? (new Date().getUTCFullYear() - year) : 50;
+  const recencyN = Math.max(0, 1 - Math.min(yearsAgo, 30) / 30);
+
+  /* Weights chosen to surface "mass-awareness × quality" (the actual
+     definition of "what they're known for") rather than raw popularity
+     spikes. */
+  return (
+    popN * 0.30 +
+    votesN * 0.40 +
+    ratingN * 0.20 +
+    recencyN * 0.10
+  ) * billingMultiplier;
 }
 
 function getDiscoverPersonMostKnownFor(details = {}) {
+  const candidates = (details.combined_credits?.cast || [])
+    .filter(item => item && (item.poster_path || item.backdrop_path) && (item.title || item.name) && Number(item.vote_count || 0) > 0);
+  if (!candidates.length) return [];
+  const stats = buildPersonCreditPoolStats(candidates);
+  return candidates
+    .slice()
+    .sort((a, b) => scorePersonMostKnownForCredit(b, stats) - scorePersonMostKnownForCredit(a, stats))
+    .slice(0, 3);
+}
+
+/* v734: Filmography preview list — recent → oldest, capped at 9 for the
+   inline section. Full filmography (everything, paginated) lives in the
+   slide-in page opened from the section header. */
+function getDiscoverPersonFilmographyAll(details = {}) {
   return (details.combined_credits?.cast || [])
     .filter(item => item && (item.poster_path || item.backdrop_path) && (item.title || item.name))
-    .sort((a, b) => getDiscoverPersonCreditFameScore(b) - getDiscoverPersonCreditFameScore(a))
-    .slice(0, 6);
+    .slice()
+    .sort((a, b) => getPersonCreditYear(b) - getPersonCreditYear(a));
+}
+
+function getDiscoverPersonFilmographyPreview(details = {}) {
+  return getDiscoverPersonFilmographyAll(details).slice(0, 9);
 }
 
 function normalizeDeepSeekPersonBioFactsResponse(raw) {
@@ -5007,11 +5090,11 @@ function renderDiscoverPersonProfileDetails(details = {}) {
   const age = calculateDiscoverPersonAge(details.birthday, details.deathday);
   const birthplace = details.place_of_birth || '';
   const biography = String(details.biography || 'No biography is available yet.').trim();
-  const credits = getDiscoverPersonKnownFor(details);
   const mostKnownFor = getDiscoverPersonMostKnownFor(details);
-  const mostKnownIds = new Set(mostKnownFor.map(item => `${item.media_type || ''}:${item.id}`));
-  const appearedCredits = credits.filter(item => !mostKnownIds.has(`${item.media_type || ''}:${item.id}`));
-  const shownAppearedCredits = appearedCredits.length ? appearedCredits : credits;
+  /* v734: filmography preview = 9 most-recent credits. Tapping the heading
+     opens the full-page filmography view (every credit, paginated). */
+  const filmographyPreview = getDiscoverPersonFilmographyPreview(details);
+  const personId = details?.id;
   const genderLabel = Number(details.gender) === 1 ? 'Actress Profile' : (Number(details.gender) === 2 ? 'Actor Profile' : 'Performer Profile');
 
   return `<section class="discover-media-page discover-person-page" role="dialog" aria-modal="true" aria-label="${escAttr(name)} details">
@@ -5043,10 +5126,223 @@ function renderDiscoverPersonProfileDetails(details = {}) {
         ${department ? `<div><strong>${escHtml(department)}</strong><span>Department</span></div>` : ''}
       </div>
       ${mostKnownFor.length ? `<div class="discover-media-section discover-person-most-known"><h3>Most Known For</h3><div class="discover-media-similar">${mostKnownFor.map(renderDiscoverPersonCreditCard).join('')}</div></div>` : ''}
-      ${shownAppearedCredits.length ? `<div class="discover-media-section"><h3>Media They Appeared In</h3><div class="discover-media-similar">${shownAppearedCredits.map(renderDiscoverPersonCreditCard).join('')}</div></div>` : ''}
+      ${filmographyPreview.length ? `<div class="discover-media-section discover-person-filmography">
+        <button class="discover-person-filmography-header" type="button" onclick="openPersonFilmographyPage('${escAttr(personId)}')" aria-label="Open full filmography">
+          <h3>Filmography</h3>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <div class="discover-media-similar">${filmographyPreview.map(renderDiscoverPersonCreditCard).join('')}</div>
+      </div>` : ''}
     </div>
   </section>`;
 }
+
+/* v734: Filmography full-page overlay.
+   Slides in from the right covering the person profile. Lists every credit,
+   recent → oldest, with filter chips (All / Movies / TV) and a 3-column
+   grid. Initial render shows 21 cards; "Load More" appends 9 at a time.
+   Each card progressively enriches with OMDb metadata (IMDb rating, runtime,
+   content rating).
+
+   The filmography state is kept in module-scope so Load More can keep
+   appending without re-fetching anything; OMDb enrichment fires only for the
+   visible chunk. */
+const FILMOGRAPHY_INITIAL_COUNT = 21;
+const FILMOGRAPHY_LOAD_STEP = 9;
+let filmographyPageState = null;
+
+function getFilmographyMediaTypeLabel(item) {
+  const t = String(item?.media_type || '').toLowerCase();
+  if (t === 'movie') return 'Movie';
+  if (t === 'tv') return 'TV';
+  return '';
+}
+
+function filmographyMatchesFilter(item, filter) {
+  if (!filter || filter === 'all') return true;
+  const t = String(item?.media_type || '').toLowerCase();
+  if (filter === 'movie') return t === 'movie';
+  if (filter === 'tv') return t === 'tv';
+  return true;
+}
+
+function renderFilmographyCard(item) {
+  const mediaType = String(item?.media_type || '').toLowerCase() === 'tv' ? 'tv' : 'movie';
+  const title = item?.title || item?.name || 'Untitled';
+  const poster = item?.poster_path ? getTmdbImageUrl(item.poster_path, 'w342') : '';
+  const character = String(getDiscoverPersonCreditRole(item) || '').trim();
+  const year = (item?.release_date || item?.first_air_date || '').slice(0, 4);
+  /* IMDb rating + runtime + content rating come from OMDb enrichment. While
+     loading they show a quiet placeholder, replaced in-place when data lands. */
+  const imdbRating = Number(item?.imdbRating || 0);
+  const ratingText = imdbRating > 0 ? imdbRating.toFixed(1) : '—';
+  const runtime = String(item?.imdbRuntime || '').trim();
+  const contentRating = String(item?.imdbRated || '').trim();
+  const metaParts = [year, contentRating, runtime].filter(Boolean);
+  const metaText = metaParts.length ? metaParts.join(' · ') : ' ';
+  return `<button class="filmography-card" type="button" data-tmdb-id="${escAttr(item?.id || '')}" data-media-type="${escAttr(mediaType)}" onclick="openDiscoverMediaProfile(event, '${mediaType}', ${item?.id || 0})">
+    <div class="filmography-card-poster">${poster ? `<img src="${escAttr(poster)}" alt="" loading="lazy" decoding="async">` : ''}</div>
+    <div class="filmography-card-title">${escHtml(title)}</div>
+    <div class="filmography-card-rating"><span aria-hidden="true">★</span><span data-card-imdb-rating>${escHtml(ratingText)}</span></div>
+    <div class="filmography-card-meta" data-card-meta>${escHtml(metaText)}</div>
+    <div class="filmography-card-character">${character ? `as ${escHtml(character)}` : ' '}</div>
+  </button>`;
+}
+
+function renderFilmographyPageMarkup(state) {
+  const filter = state.filter || 'all';
+  const filtered = state.allCredits.filter(item => filmographyMatchesFilter(item, filter));
+  const visible = filtered.slice(0, state.visibleCount);
+  const hasMore = filtered.length > visible.length;
+  return `<section class="filmography-page" role="dialog" aria-modal="true" aria-label="${escAttr(state.personName || 'Filmography')}">
+    <div class="filmography-page-header">
+      <button class="discover-media-back filmography-page-back" type="button" onclick="closePersonFilmographyPage()">Back</button>
+      <h2 class="filmography-page-title">${escHtml(state.personName || 'Filmography')}</h2>
+    </div>
+    <div class="filmography-page-chips" role="tablist" aria-label="Filter filmography by media type">
+      <button type="button" class="filmography-chip${filter === 'all' ? ' active' : ''}" data-filmography-filter="all" role="tab" aria-selected="${filter === 'all' ? 'true' : 'false'}">All</button>
+      <button type="button" class="filmography-chip${filter === 'movie' ? ' active' : ''}" data-filmography-filter="movie" role="tab" aria-selected="${filter === 'movie' ? 'true' : 'false'}">Movies</button>
+      <button type="button" class="filmography-chip${filter === 'tv' ? ' active' : ''}" data-filmography-filter="tv" role="tab" aria-selected="${filter === 'tv' ? 'true' : 'false'}">TV</button>
+    </div>
+    <div class="filmography-page-body">
+      ${visible.length
+        ? `<div class="filmography-grid">${visible.map(renderFilmographyCard).join('')}</div>`
+        : `<div class="discover-message">No credits in this category.</div>`}
+      ${hasMore ? `<button class="filmography-load-more" type="button" onclick="loadMoreFilmographyItems()">Load More</button>` : ''}
+    </div>
+  </section>`;
+}
+
+async function openPersonFilmographyPage(personIdRaw) {
+  const personId = String(personIdRaw || '').trim();
+  if (!personId) return;
+
+  /* Reuse the cached person details if the profile already opened; else fetch. */
+  let details = activeDiscoverMediaProfileState?.view === 'person'
+    && String(activeDiscoverMediaProfileState.personId) === personId
+    ? activeDiscoverMediaProfileState.details
+    : null;
+
+  if (!details) {
+    try {
+      const res = await fetchTmdbProxy(`person/${personId}`, { append_to_response: 'combined_credits' });
+      if (res.ok) details = await res.json();
+    } catch (e) { /* fall through with empty details */ }
+  }
+
+  const allCredits = getDiscoverPersonFilmographyAll(details || {});
+
+  filmographyPageState = {
+    personId,
+    personName: details?.name || 'Filmography',
+    allCredits,
+    filter: 'all',
+    visibleCount: FILMOGRAPHY_INITIAL_COUNT,
+    enriched: new Set()
+  };
+
+  let overlay = document.getElementById('filmography-page-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'filmography-page-overlay';
+    overlay.className = 'filmography-page-overlay';
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML = renderFilmographyPageMarkup(filmographyPageState);
+  document.body.classList.add('filmography-page-open');
+  bindFilmographyPageActions(overlay);
+  /* Two RAFs: append + paint, then add .open so the slide-in transition fires. */
+  requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('open')));
+  enrichVisibleFilmographyCards();
+  document.addEventListener('keydown', handleFilmographyEsc);
+}
+
+function bindFilmographyPageActions(overlay) {
+  if (!overlay) return;
+  overlay.querySelectorAll('.filmography-chip[data-filmography-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!filmographyPageState) return;
+      filmographyPageState.filter = btn.getAttribute('data-filmography-filter') || 'all';
+      filmographyPageState.visibleCount = FILMOGRAPHY_INITIAL_COUNT;
+      overlay.innerHTML = renderFilmographyPageMarkup(filmographyPageState);
+      bindFilmographyPageActions(overlay);
+      const body = overlay.querySelector('.filmography-page-body');
+      if (body) body.scrollTop = 0;
+      enrichVisibleFilmographyCards();
+    });
+  });
+}
+
+function loadMoreFilmographyItems() {
+  if (!filmographyPageState) return;
+  filmographyPageState.visibleCount += FILMOGRAPHY_LOAD_STEP;
+  const overlay = document.getElementById('filmography-page-overlay');
+  if (!overlay) return;
+  overlay.innerHTML = renderFilmographyPageMarkup(filmographyPageState);
+  bindFilmographyPageActions(overlay);
+  enrichVisibleFilmographyCards();
+}
+
+/* Progressive OMDb enrichment for the visible card window. Items already
+   enriched in a previous pass are skipped via the `enriched` Set. After
+   enrichment the rating + meta line of each card is patched in place. */
+async function enrichVisibleFilmographyCards() {
+  if (!filmographyPageState || typeof window.enrichItemsWithImdbRatings !== 'function') return;
+  const filtered = filmographyPageState.allCredits.filter(item =>
+    filmographyMatchesFilter(item, filmographyPageState.filter));
+  const visible = filtered.slice(0, filmographyPageState.visibleCount);
+  const toEnrich = visible.filter(item => {
+    const key = `${item.media_type || 'movie'}:${item.id}`;
+    if (filmographyPageState.enriched.has(key)) return false;
+    filmographyPageState.enriched.add(key);
+    return true;
+  });
+  if (!toEnrich.length) return;
+  try {
+    await window.enrichItemsWithImdbRatings(toEnrich);
+  } catch (e) { /* ignore — cards keep placeholder text */ }
+  patchFilmographyCardEnrichment(visible);
+}
+
+function patchFilmographyCardEnrichment(items = []) {
+  const overlay = document.getElementById('filmography-page-overlay');
+  if (!overlay) return;
+  items.forEach(item => {
+    const id = String(item.id);
+    const card = overlay.querySelector(`.filmography-card[data-tmdb-id="${CSS.escape(id)}"]`);
+    if (!card) return;
+    const ratingEl = card.querySelector('[data-card-imdb-rating]');
+    const metaEl = card.querySelector('[data-card-meta]');
+    const r = Number(item.imdbRating || 0);
+    if (ratingEl) ratingEl.textContent = r > 0 ? r.toFixed(1) : '—';
+    const year = (item.release_date || item.first_air_date || '').slice(0, 4);
+    const contentRating = String(item.imdbRated || '').trim();
+    const runtime = String(item.imdbRuntime || '').trim();
+    const metaParts = [year, contentRating, runtime].filter(Boolean);
+    if (metaEl) metaEl.textContent = metaParts.join(' · ') || ' ';
+  });
+}
+
+function closePersonFilmographyPage() {
+  const overlay = document.getElementById('filmography-page-overlay');
+  if (overlay) {
+    overlay.classList.remove('open');
+    setTimeout(() => {
+      if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }, 280);
+  }
+  document.body.classList.remove('filmography-page-open');
+  document.removeEventListener('keydown', handleFilmographyEsc);
+  filmographyPageState = null;
+}
+
+function handleFilmographyEsc(event) {
+  if (event.key === 'Escape') closePersonFilmographyPage();
+}
+
+window.openPersonFilmographyPage = openPersonFilmographyPage;
+window.closePersonFilmographyPage = closePersonFilmographyPage;
+window.loadMoreFilmographyItems = loadMoreFilmographyItems;
 
 async function openDiscoverPersonProfile(event, personId) {
   event?.preventDefault?.();
