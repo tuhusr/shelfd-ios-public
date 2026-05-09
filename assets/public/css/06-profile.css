@@ -4906,8 +4906,11 @@ body.light-mode .profile-avatar-edit-btn {
   font-feature-settings: 'lnum' 1, 'tnum' 1;
 }
 .profile-page .profile-group-stat-value {
-  font-weight: 760 !important;
+  font-weight: 500 !important;
   letter-spacing: -0.03em !important;
+}
+.profile-page .profile-media-group .profile-media-title {
+  font-weight: 600 !important;
 }
 .profile-page .screenlist-gold-star-icon {
   font-family: inherit !important;
