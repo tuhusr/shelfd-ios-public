@@ -972,8 +972,11 @@
   .profile-hidden-note { border: 1px dashed rgba(167,139,250,0.22); border-radius: 16px; padding: 14px; color: #8f86aa; font-size: 12px; text-align: center; background: rgba(255,255,255,0.025); }
   .profile-fav-poster-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
   .profile-fav-poster-card { position: relative; min-width: 0; border: 1px solid rgba(167,139,250,0.13); border-radius: 18px; padding: 8px; background: rgba(255,255,255,0.035); text-align: center; }
-  .profile-fav-share-btn { position: absolute; top: 8px; right: 8px; z-index: 4; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 0; background: transparent; color: #fff; font-size: 10px; font-weight: 300; line-height: 1; cursor: pointer; }
+  .profile-fav-share-btn { display: none; }
   .profile-fav-share-icon { width: 10px; height: 10px; display: block; }
+  .profile-fav-row-share-btn { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 26px; height: 26px; padding: 0; border: 1px solid rgba(167,139,250,0.25); border-radius: 8px; background: rgba(255,255,255,0.06); color: #a78bfa; cursor: pointer; transition: background 0.18s, border-color 0.18s, color 0.18s; }
+  .profile-fav-row-share-btn:hover { background: rgba(167,139,250,0.16); border-color: rgba(167,139,250,0.5); color: #fff; }
+  .profile-fav-row-share-btn .profile-fav-share-icon { width: 13px; height: 13px; }
   .profile-fav-poster { width: 100%; aspect-ratio: 2 / 3; border-radius: 13px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #2a1f5e, #151025); border: 1px solid rgba(255,255,255,0.08); color: #8f7fd0; font-size: 24px; background-size: cover; background-position: center; box-shadow: 0 12px 22px rgba(0,0,0,0.26); }
   .profile-fav-poster-action { cursor: pointer; transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease; }
   .profile-fav-poster-action:hover { transform: translateY(-2px); border-color: rgba(244,210,122,0.55); box-shadow: 0 16px 28px rgba(0,0,0,0.32), 0 0 0 1px rgba(244,210,122,0.12); }
@@ -4942,6 +4945,12 @@ body.light-mode .profile-avatar-edit-btn {
   text-align: center !important;
 }
 .profile-page .profile-media-group .profile-fav-row-head .profile-row-toggle {
+  position: absolute !important;
+  right: 0 !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+}
+.profile-page .profile-media-group .profile-fav-row-head .profile-fav-row-share-btn {
   position: absolute !important;
   right: 0 !important;
   top: 50% !important;

@@ -45,4 +45,3 @@ git push origin main
 
 echo.
 echo Done.
-pause

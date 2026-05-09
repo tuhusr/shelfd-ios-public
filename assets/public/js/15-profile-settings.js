@@ -2080,7 +2080,8 @@ function renderDatabaseFavoriteRow(key, pins) {
   if (!config) return '';
   const visible = isProfileRowVisible(key);
   const editing = !isViewingOtherProfile() && profileEditModeOpen;
-  const rowHead = `<div class="profile-fav-row-head"><div class="profile-fav-row-title">${escHtml(config.label)}</div>${renderProfileVisibilityToggle(key)}</div>`;
+  const rowShareBtn = editing ? '' : `<button type="button" class="profile-fav-row-share-btn" onclick="shareProfileFavoriteRow(event, this)" aria-label="Share ${escAttr(config.label)}">${getProfileFavoriteShareIconHTML()}</button>`;
+  const rowHead = `<div class="profile-fav-row-head"><div class="profile-fav-row-title">${escHtml(config.label)}</div>${renderProfileVisibilityToggle(key)}${rowShareBtn}</div>`;
   if (!visible) return editing ? `<div class="profile-fav-row">${rowHead}<div class="profile-hidden-note">Hidden from profile. Toggle Display to show this row again.</div></div>` : '';
   const slots = [0,1,2].map(i => {
     const entry = getProfileDatabaseFavoriteDisplay(config, pins[config.key]?.[i]);
@@ -2095,7 +2096,6 @@ function renderDatabaseFavoriteRow(key, pins) {
     const openClass = canOpenProfile ? ' profile-db-openable' : '';
     const nameClick = canOpenProfile ? `onclick="openProfileDatabaseFavorite(event, this.closest('.profile-fav-poster-card'))" title="Open profile"` : '';
     return `<div class="profile-fav-poster-card profile-db-slot${openClass}${getProfileFavoriteNoRatingInput(config)}" data-profile-share-section="${escAttr(config.key)}" data-profile-share-index="${i}" data-profile-db-section="${escAttr(config.key)}" data-profile-db-index="${i}" data-profile-db-id="${escAttr(entry.id)}" data-profile-db-source="${escAttr(entry.source)}" data-profile-db-type="${escAttr(entry.type)}" data-profile-db-title="${escAttr(title)}" data-profile-db-image="${escAttr(image)}" data-profile-db-meta="${escAttr(entry.meta)}" data-profile-db-legacy-id="${escAttr(entry.legacyId)}" data-profile-db-rating="${escAttr(rating)}">
-      ${getProfileFavoriteShareButtonHTML(config.key, i)}
       ${getProfileCardRankHTML(i)}
       <div class="profile-fav-poster ${editing ? 'profile-fav-poster-action' : ''}" ${getProfileFavoritePosterAttrs(i)} ${cover} ${posterClick}>${getProfileFavoritePosterContent(image, i)}</div>
       <div class="profile-fav-name ${title ? '' : 'profile-fav-empty'}" data-db-name-preview ${nameClick}>${getProfileTitleHtml(title, editing, false)}</div>
@@ -2110,7 +2110,8 @@ function renderManualFavoriteRow(key, showcase) {
   if (!config) return '';
   const visible = isProfileRowVisible(key);
   const editing = !isViewingOtherProfile() && profileEditModeOpen;
-  const rowHead = `<div class="profile-fav-row-head"><div class="profile-fav-row-title">${escHtml(config.label)}</div>${renderProfileVisibilityToggle(key)}</div>`;
+  const rowShareBtn = editing ? '' : `<button type="button" class="profile-fav-row-share-btn" onclick="shareProfileFavoriteRow(event, this)" aria-label="Share ${escAttr(config.label)}">${getProfileFavoriteShareIconHTML()}</button>`;
+  const rowHead = `<div class="profile-fav-row-head"><div class="profile-fav-row-title">${escHtml(config.label)}</div>${renderProfileVisibilityToggle(key)}${rowShareBtn}</div>`;
   if (!visible) return editing ? `<div class="profile-fav-row">${rowHead}<div class="profile-hidden-note">Hidden from profile. Toggle Display to show this row again.</div></div>` : '';
   const entries = showcase[key] || [0,1,2].map(() => getEmptyManualFavorite());
   const slots = [0,1,2].map(i => {
@@ -2119,7 +2120,6 @@ function renderManualFavoriteRow(key, showcase) {
     const cover = entry.image ? `style="background-image:url('${escAttr(entry.image)}')"` : '';
     const posterClick = editing ? `onclick="openProfileFavoritePicker(event, this.closest('.profile-fav-poster-card'))" title="Click to edit"` : '';
     return `<div class="profile-fav-poster-card profile-manual-slot${getProfileFavoriteNoRatingInput(config)}" data-profile-share-section="${escAttr(key)}" data-profile-share-index="${i}" data-manual-section="${escAttr(key)}" data-manual-index="${i}" data-manual-name="${escAttr(entry.name)}" data-manual-image="${escAttr(entry.image)}" data-manual-rating="${escAttr(rating)}">
-      ${getProfileFavoriteShareButtonHTML(key, i)}
       ${getProfileCardRankHTML(i)}
       <div class="profile-fav-poster ${editing ? 'profile-fav-poster-action' : ''} profile-manual-preview" ${getProfileFavoritePosterAttrs(i)} ${cover} ${posterClick}>${getProfileFavoritePosterContent(entry.image, i)}</div>
       <div class="profile-fav-name ${entry.name ? '' : 'profile-fav-empty'}" data-manual-name-preview>${getProfileTitleHtml(entry.name, editing, true)}</div>
@@ -3489,6 +3489,140 @@ async function shareProfileFavoriteCard(event, card) {
   }
   const copied = await copyProfileLink(shareUrl);
   showToast(copied ? 'Card link copied' : 'Could not copy card link');
+}
+
+function profileShareRoundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+async function buildProfileFavoriteRowShareImageFile(cardData, profileName, label) {
+  if (!Array.isArray(cardData) || typeof File === 'undefined') return null;
+  const W = 1200, H = 800;
+  const PAD = 48, GAP = 18;
+  const posterW = Math.floor((W - PAD * 2 - GAP * 2) / 3);
+  const posterH = Math.floor(posterW * 1.5);
+  const POSTER_Y = 148;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, '#2a1f5e');
+  bg.addColorStop(0.5, '#151025');
+  bg.addColorStop(1, '#090712');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(201,168,76,0.72)';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(22, 22, W - 44, H - 44);
+  ctx.fillStyle = 'rgba(255,255,255,0.50)';
+  ctx.font = '300 26px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${profileName}'s`, W / 2, 68);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '700 40px system-ui, sans-serif';
+  ctx.fillText(label, W / 2, 114);
+  const images = await Promise.all(cardData.map(c => loadProfileShareImage(c.image)));
+  for (let i = 0; i < 3; i++) {
+    const x = PAD + i * (posterW + GAP);
+    const y = POSTER_Y;
+    ctx.fillStyle = 'rgba(255,255,255,0.07)';
+    profileShareRoundRect(ctx, x, y, posterW, posterH, 12);
+    ctx.fill();
+    const img = images[i];
+    if (img) {
+      ctx.save();
+      profileShareRoundRect(ctx, x, y, posterW, posterH, 12);
+      ctx.clip();
+      const sr = img.width / img.height;
+      const tr = posterW / posterH;
+      let sw = img.width, sh = img.height, sx = 0, sy = 0;
+      if (sr > tr) { sw = img.height * tr; sx = (img.width - sw) / 2; }
+      else { sh = img.width / tr; sy = (img.height - sh) / 2; }
+      ctx.drawImage(img, sx, sy, sw, sh, x, y, posterW, posterH);
+      ctx.restore();
+    }
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.beginPath();
+    ctx.arc(x + 22, y + 22, 17, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#C9A84C';
+    ctx.font = '700 15px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(['#1','#2','#3'][i] || `#${i+1}`, x + 22, y + 27);
+    const title = String(cardData[i]?.title || '');
+    ctx.fillStyle = '#f7f3ff';
+    ctx.font = '600 20px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    const maxTW = posterW - 8;
+    let dTitle = title;
+    while (dTitle.length > 1 && ctx.measureText(dTitle).width > maxTW) dTitle = dTitle.slice(0, -1);
+    if (dTitle !== title) dTitle += '…';
+    ctx.fillText(dTitle, x + posterW / 2, y + posterH + 30);
+    if (cardData[i]?.rating) {
+      ctx.fillStyle = '#f4d27a';
+      ctx.font = '700 17px system-ui, sans-serif';
+      ctx.fillText(cardData[i].rating, x + posterW / 2, y + posterH + 56);
+    }
+  }
+  return new Promise(resolve => {
+    try {
+      canvas.toBlob(blob => {
+        if (!blob) { resolve(null); return; }
+        resolve(new File([blob], 'screenlist-top-three.png', { type: 'image/png' }));
+      }, 'image/png', 0.92);
+    } catch (e) { resolve(null); }
+  });
+}
+
+async function shareProfileFavoriteRow(event, btn) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const grid = btn.closest('.profile-fav-row')?.querySelector('.profile-fav-poster-grid');
+  if (!grid) return;
+  const uid = getProfileShareUid();
+  if (!uid || uid === 'preview-user') { showToast('Save your profile before sharing'); return; }
+  const cards = [...grid.querySelectorAll('.profile-fav-poster-card')];
+  const firstCard = cards[0];
+  const section = firstCard?.dataset.profileDbSection || firstCard?.dataset.manualSection || '';
+  const config = getProfileFavoriteConfigByKey(section);
+  const label = config?.label || 'Top 3';
+  const activeProfile = getActiveProfile();
+  const profileName = activeProfile?.name || profileViewingUser?.name || currentUser?.displayName || 'ScreenList User';
+  const cardData = cards.map(slot => {
+    const isDb = slot.classList.contains('profile-db-slot');
+    return {
+      title: (isDb ? slot.dataset.profileDbTitle : slot.dataset.manualName || '').trim(),
+      image: (isDb ? slot.dataset.profileDbImage : slot.dataset.manualImage || '').trim(),
+      rating: (isDb ? slot.dataset.profileDbRating : slot.dataset.manualRating || '').trim(),
+    };
+  });
+  const shareUrl = getShareProfileUrl();
+  const shareData = {
+    title: `${profileName}'s ${label}`,
+    text: `Check out ${profileName}'s ${label} on ScreenList.`,
+    url: shareUrl
+  };
+  try {
+    const file = await buildProfileFavoriteRowShareImageFile(cardData, profileName, label);
+    if (file && navigator.canShare?.({ files: [file] })) shareData.files = [file];
+    if (navigator.share) { await navigator.share(shareData); showToast('Shared!'); return; }
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;
+  }
+  const copied = await copyProfileLink(shareUrl);
+  showToast(copied ? 'Link copied' : 'Could not copy link');
 }
 
 async function saveProfile(options = {}) {

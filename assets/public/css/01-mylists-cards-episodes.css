@@ -380,7 +380,7 @@
     background: transparent; color: #a99dc6; transition: all 0.2s;
     letter-spacing: 0.5px;
   }
-  .status-pill.watching-active { border-color: #7c3aed; background: #2a1f5e; color: #a78bfa; }
+  .status-pill.watching-active { border-color: transparent; background: linear-gradient(135deg, #7c3aed, #9333ea); color: #fff; }
   .status-pill.planned-active { border-color: #d97706; background: #352a1a; color: #fbbf24; }
   .status-pill.watched-active { border-color: #0891b2; background: #0c1f2e; color: #67e8f9; }
   .status-pill.paused-active { border-color: #c2410c; background: #3b2313; color: #f97316; }
