@@ -3508,13 +3508,14 @@ function profileShareRoundRect(ctx, x, y, w, h, r) {
 async function buildProfileFavoriteRowShareImageFile(cardData, profileName, label, stats) {
   if (!Array.isArray(cardData) || typeof File === 'undefined') return null;
   const hasStats = Array.isArray(stats) && stats.length > 0;
-  const W = 1200, PAD = 48, GAP = 18;
+  const S = 2;
+  const W = 1200 * S, PAD = 48 * S, GAP = 18 * S;
   const posterW = Math.floor((W - PAD * 2 - GAP * 2) / 3);
   const posterH = Math.floor(posterW * 1.5);
-  const HEADER_H = 124;
-  const STATS_BLOCK = hasStats ? 96 : 0;
+  const HEADER_H = 124 * S;
+  const STATS_BLOCK = hasStats ? 96 * S : 0;
   const POSTER_Y = HEADER_H + STATS_BLOCK;
-  const H = POSTER_Y + posterH + 90;
+  const H = POSTER_Y + posterH + 90 * S;
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
@@ -3527,29 +3528,29 @@ async function buildProfileFavoriteRowShareImageFile(cardData, profileName, labe
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
   ctx.strokeStyle = 'rgba(201,168,76,0.72)';
-  ctx.lineWidth = 3;
-  ctx.strokeRect(22, 22, W - 44, H - 44);
+  ctx.lineWidth = 3 * S;
+  ctx.strokeRect(22 * S, 22 * S, W - 44 * S, H - 44 * S);
   ctx.fillStyle = 'rgba(255,255,255,0.50)';
-  ctx.font = '300 26px system-ui, sans-serif';
+  ctx.font = `300 ${26 * S}px system-ui, sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText(`${profileName}'s`, W / 2, 62);
+  ctx.fillText(`${profileName}'s`, W / 2, 62 * S);
   ctx.fillStyle = '#ffffff';
-  ctx.font = '700 42px system-ui, sans-serif';
-  ctx.fillText(label, W / 2, 110);
+  ctx.font = `700 ${42 * S}px system-ui, sans-serif`;
+  ctx.fillText(label, W / 2, 110 * S);
   if (hasStats) {
-    const boxW = 220, boxGap = 60;
+    const boxW = 220 * S, boxGap = 60 * S;
     const totalW = stats.length * boxW + (stats.length - 1) * boxGap;
     const startX = (W - totalW) / 2;
     stats.forEach((stat, si) => {
       const bx = startX + si * (boxW + boxGap);
-      const by = HEADER_H + 8;
+      const by = HEADER_H + 8 * S;
       ctx.fillStyle = '#C9A84C';
-      ctx.font = '700 46px system-ui, sans-serif';
+      ctx.font = `700 ${46 * S}px system-ui, sans-serif`;
       ctx.textAlign = 'center';
-      ctx.fillText(stat.value, bx + boxW / 2, by + 50);
+      ctx.fillText(stat.value, bx + boxW / 2, by + 50 * S);
       ctx.fillStyle = 'rgba(255,255,255,0.50)';
-      ctx.font = '300 18px system-ui, sans-serif';
-      ctx.fillText(stat.label, bx + boxW / 2, by + 76);
+      ctx.font = `300 ${18 * S}px system-ui, sans-serif`;
+      ctx.fillText(stat.label, bx + boxW / 2, by + 76 * S);
     });
   }
   const images = await Promise.all(cardData.map(c => loadProfileShareImage(c.image)));
@@ -3557,13 +3558,13 @@ async function buildProfileFavoriteRowShareImageFile(cardData, profileName, labe
     const x = PAD + i * (posterW + GAP);
     const y = POSTER_Y;
     ctx.fillStyle = 'rgba(255,255,255,0.07)';
-    profileShareRoundRect(ctx, x, y, posterW, posterH, 12);
+    profileShareRoundRect(ctx, x, y, posterW, posterH, 12 * S);
     ctx.fill();
     const img = images[i];
     if (img) {
       try {
         ctx.save();
-        profileShareRoundRect(ctx, x, y, posterW, posterH, 12);
+        profileShareRoundRect(ctx, x, y, posterW, posterH, 12 * S);
         ctx.clip();
         const sr = img.width / img.height, tr = posterW / posterH;
         let sw = img.width, sh = img.height, sx = 0, sy = 0;
@@ -3575,33 +3576,33 @@ async function buildProfileFavoriteRowShareImageFile(cardData, profileName, labe
     }
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
     ctx.beginPath();
-    ctx.arc(x + 22, y + 22, 17, 0, Math.PI * 2);
+    ctx.arc(x + 22 * S, y + 22 * S, 17 * S, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#C9A84C';
-    ctx.font = '700 15px system-ui, sans-serif';
+    ctx.font = `700 ${15 * S}px system-ui, sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillText(['#1','#2','#3'][i] || `#${i+1}`, x + 22, y + 27);
+    ctx.fillText(['#1','#2','#3'][i] || `#${i+1}`, x + 22 * S, y + 27 * S);
     const title = String(cardData[i]?.title || '');
     ctx.fillStyle = '#f7f3ff';
-    ctx.font = '600 20px system-ui, sans-serif';
+    ctx.font = `600 ${20 * S}px system-ui, sans-serif`;
     ctx.textAlign = 'center';
-    const maxTW = posterW - 8;
+    const maxTW = posterW - 8 * S;
     let dTitle = title;
     while (dTitle.length > 1 && ctx.measureText(dTitle).width > maxTW) dTitle = dTitle.slice(0, -1);
     if (dTitle !== title) dTitle += '…';
-    ctx.fillText(dTitle, x + posterW / 2, y + posterH + 30);
+    ctx.fillText(dTitle, x + posterW / 2, y + posterH + 30 * S);
     if (cardData[i]?.rating) {
       ctx.fillStyle = '#f4d27a';
-      ctx.font = '700 17px system-ui, sans-serif';
-      ctx.fillText(cardData[i].rating, x + posterW / 2, y + posterH + 58);
+      ctx.font = `700 ${17 * S}px system-ui, sans-serif`;
+      ctx.fillText(cardData[i].rating, x + posterW / 2, y + posterH + 58 * S);
     }
   }
   return new Promise(resolve => {
     try {
       canvas.toBlob(blob => {
         if (!blob) { resolve(null); return; }
-        resolve(new File([blob], 'screenlist-top-three.png', { type: 'image/png' }));
-      }, 'image/png', 0.92);
+        resolve(new File([blob], 'screenlist-top-three.jpg', { type: 'image/jpeg' }));
+      }, 'image/jpeg', 0.92);
     } catch (e) { resolve(null); }
   });
 }
@@ -3642,7 +3643,6 @@ async function shareProfileFavoriteRow(event, btn) {
   const shareUrl = getShareProfileUrl(sectionPayload);
   const shareData = {
     title: `${profileName}'s ${label}`,
-    text: `Check out ${profileName}'s ${label} on ScreenList.`,
     url: shareUrl
   };
   try {
