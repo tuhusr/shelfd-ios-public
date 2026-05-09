@@ -3508,7 +3508,7 @@ function profileShareRoundRect(ctx, x, y, w, h, r) {
 async function buildProfileFavoriteRowShareImageFile(cardData, profileName, label, stats) {
   if (!Array.isArray(cardData) || typeof File === 'undefined') return null;
   const hasStats = Array.isArray(stats) && stats.length > 0;
-  const S = 2;
+  const S = 1;
   const W = 1200 * S, PAD = 48 * S, GAP = 18 * S;
   const posterW = Math.floor((W - PAD * 2 - GAP * 2) / 3);
   const posterH = Math.floor(posterW * 1.5);
