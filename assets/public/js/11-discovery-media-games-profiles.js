@@ -5246,13 +5246,22 @@ async function openPersonFilmographyPage(personIdRaw) {
     overlay = document.createElement('div');
     overlay.id = 'filmography-page-overlay';
     overlay.className = 'filmography-page-overlay';
+    /* Set initial offscreen transform inline so the very first paint shows
+       it offscreen, then the .open class can transition it in. Without this
+       a freshly-created element can sometimes paint at translateX(0) before
+       the CSS transform from the class kicks in. */
+    overlay.style.transform = 'translateX(100%)';
     document.body.appendChild(overlay);
   }
   overlay.innerHTML = renderFilmographyPageMarkup(filmographyPageState);
   document.body.classList.add('filmography-page-open');
   bindFilmographyPageActions(overlay);
-  /* Two RAFs: append + paint, then add .open so the slide-in transition fires. */
-  requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('open')));
+  /* Force reflow so the next style change is treated as a transition,
+     not as initial styles. Reading offsetWidth is the canonical pattern. */
+  void overlay.offsetWidth;
+  /* Clear inline transform so the .open class's CSS transform takes effect. */
+  overlay.style.transform = '';
+  overlay.classList.add('open');
   enrichVisibleFilmographyCards();
   document.addEventListener('keydown', handleFilmographyEsc);
 }
