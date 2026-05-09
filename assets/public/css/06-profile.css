@@ -961,7 +961,7 @@
   .profile-media-sub { margin-top: 4px; color: #8f86aa; font-size: 11px; line-height: 1.35; }
   .profile-group-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
   .profile-group-stat { border: 0; border-radius: 0; padding: 10px 0; background: transparent; }
-  .profile-group-stat-value { color: #f7f3ff; font-size: 19px; line-height: 1; font-weight: 950; letter-spacing: -0.4px; }
+  .profile-group-stat-value { color: #f7f3ff; font-size: 19px; line-height: 1; font-weight: 500; letter-spacing: -0.4px; }
   .profile-group-stat-label { color: #bdb4d8; font-size: 9px; line-height: 1.25; text-transform: uppercase; letter-spacing: 0.85px; font-weight: 900; margin-top: 6px; }
   .profile-fav-row { margin-top: 13px; padding-top: 12px; border-top: 1px solid rgba(196,181,253,0.11); }
   .profile-fav-row:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
@@ -4891,7 +4891,6 @@ body.light-mode .profile-avatar-edit-btn {
   text-align: center !important;
 }
 .profile-page .profile-stat-value,
-.profile-page .profile-group-stat-value,
 .profile-page .profile-fav-rank,
 .profile-page .profile-fav-rating,
 .profile-page .profile-follow-number,
@@ -4906,8 +4905,11 @@ body.light-mode .profile-avatar-edit-btn {
   font-feature-settings: 'lnum' 1, 'tnum' 1;
 }
 .profile-page .profile-group-stat-value {
+  font-family: 'Aptos Display', Aptos, 'SF Pro Display', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
   font-weight: 500 !important;
   letter-spacing: -0.03em !important;
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: 'lnum' 1, 'tnum' 1;
 }
 .profile-page .profile-media-group .profile-media-title {
   font-weight: 600 !important;

@@ -1,1 +1,1 @@
-v669_2026-05-08_profile_stat_title_weights
+v670_2026-05-08_stat_weight_500_clean
