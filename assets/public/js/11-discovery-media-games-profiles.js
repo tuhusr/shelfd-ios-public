@@ -658,7 +658,7 @@ function compareDiscoverReleaseDateAsc(a = {}, b = {}) {
   return compareDiscoverTitleAsc(a, b);
 }
 
-const DISCOVER_RANKING_CACHE_VERSION = 'v217';
+const DISCOVER_RANKING_CACHE_VERSION = 'v218';
 
 function clampDiscoverUnit(value) {
   const num = Number(value);
@@ -6353,10 +6353,13 @@ function renderRankedDiscoverCards(type, items, gridId) {
     const metaHtml = isNewReleaseGrid
       ? `<div class="discover-card-meta discover-new-release-date">Released: ${escHtml(releaseLine || formatDiscoverReleaseDate(getDiscoverReleaseDate(item)))}</div>`
       : '';
-    const tmdbRating = Number(item.vote_average || 0);
+    /* v671: vote_average is overwritten with IMDb's imdbRating during
+       enrichment (window.enrichItemsWithImdbRatings), so this card score
+       displays IMDb when OMDb knew the title, else falls back to TMDB. */
+    const cardRating = Number(item.vote_average || 0);
     /* v568: rating line first, then title, then genre, date only for new-release / upcoming grids */
-    const ratingHtmlRanked = tmdbRating > 0
-      ? `<div class="dc-rating"><span class="dc-rating-star" aria-hidden="true">★</span>${tmdbRating.toFixed(1)}</div>`
+    const ratingHtmlRanked = cardRating > 0
+      ? `<div class="dc-rating"><span class="dc-rating-star" aria-hidden="true">★</span>${cardRating.toFixed(1)}</div>`
       : '';
     const cardReleaseLine = isDateOnlyGrid ? getDiscoverCardReleaseLine(item) : '';
 
