@@ -3540,6 +3540,14 @@ body.light-mode .shelfd-search-browse-icon {
 .shelfd-search-row-poster--placeholder {
   background: linear-gradient(140deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
 }
+/* v732: Actors filter — circular avatar, square aspect ratio. */
+.shelfd-search-row-poster--person {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  align-self: center;
+  object-position: center 20%;
+}
 .shelfd-search-row-body {
   display: flex;
   flex-direction: column;

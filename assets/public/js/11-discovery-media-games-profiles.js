@@ -1699,6 +1699,27 @@ function clearDiscoverDatabaseSearch(source) {
   setDiscoverSearchSection(source, false);
 }
 
+/* v732: TMDB person search — used by the search page's Actors filter chip. */
+async function fetchTmdbPersonSearchResults(query) {
+  const cleanQuery = String(query || '').trim();
+  if (!cleanQuery) return [];
+  try {
+    const res = await fetchTmdbProxy('search/person', { query: cleanQuery, include_adult: 'false', page: '1' });
+    if (!res.ok) return [];
+    const json = await res.json();
+    const results = Array.isArray(json?.results) ? json.results : [];
+    /* Filter out people without a name AND without a photo — they're useless
+       to display. Sort by TMDB popularity (their primary search relevance
+       signal for people). */
+    return results
+      .filter(p => p && p.id && p.name)
+      .sort((a, b) => Number(b.popularity || 0) - Number(a.popularity || 0));
+  } catch (e) {
+    return [];
+  }
+}
+window.fetchTmdbPersonSearchResults = fetchTmdbPersonSearchResults;
+
 async function fetchTmdbSearchResults(query) {
   const pages = Array.from({ length: DISCOVER_PAGE_COUNT }, (_, i) => i + 1);
   const settled = await Promise.allSettled(pages.map(async page => {

@@ -129,6 +129,37 @@
     };
   }
 
+  /* v732: Person row normalizer for the Actors filter chip. */
+  function normalizePersonItem(item) {
+    const dept = String(item?.known_for_department || '').trim();
+    /* Map TMDB dept strings to a clean role label. */
+    const roleLabel = dept === 'Acting' ? 'Actor'
+      : dept === 'Directing' ? 'Director'
+      : dept === 'Writing' ? 'Writer'
+      : dept === 'Production' ? 'Producer'
+      : (dept || 'Person');
+    /* Known-for blurb: top 3 titles they're recognized for. */
+    const known = Array.isArray(item.known_for) ? item.known_for : [];
+    const knownTitles = known
+      .map(k => k?.title || k?.name || '')
+      .filter(Boolean)
+      .slice(0, 3);
+    const popularity = Number(item.popularity || 0);
+    return {
+      key: `person:${item.id}`,
+      kind: 'person',
+      id: item.id,
+      title: item.name || '',
+      year: '',
+      rating: popularity > 0 ? popularity.toFixed(1) : '',
+      poster: item.profile_path ? tmdbPoster(item.profile_path, 'w185') : '',
+      overview: '',
+      role: roleLabel,
+      knownFor: knownTitles.join(', '),
+      raw: item
+    };
+  }
+
   /* ---------- Search ---------- */
   async function runSearch(rawQuery) {
     const query = String(rawQuery || '').trim();
@@ -157,14 +188,19 @@
     let tmdbItems = [];
     let gameItems = [];
     let jikanItems = [];
+    let personItems = [];
     try {
       const tasks = [];
       /* v654: anime filter no longer pulls TMDB. Only the 'all' tab and the
          non-anime TMDB filters touch TMDB. Anime is fetched from Jikan in
-         parallel for both 'all' and 'anime'. */
+         parallel for both 'all' and 'anime'.
+         v732: 'person' is its own filter — Actors chip — and only pulls TMDB
+         search/person. The 'all' tab does NOT include people (would dilute
+         media results); switch to the chip explicitly to find people. */
       const wantTmdb = activeFilter === 'all' || activeFilter === 'movie' || activeFilter === 'tv';
       const wantJikanAnime = activeFilter === 'all' || activeFilter === 'anime';
       const wantGames = activeFilter === 'all' || activeFilter === 'game';
+      const wantPeople = activeFilter === 'person';
 
       if (wantTmdb && typeof window.fetchTmdbSearchResults === 'function') {
         tasks.push(window.fetchTmdbSearchResults(query).then(arr => { tmdbItems = Array.isArray(arr) ? arr : []; }).catch(() => {}));
@@ -176,6 +212,9 @@
       }
       if (wantGames && typeof window.fetchRawgSearchResults === 'function') {
         tasks.push(window.fetchRawgSearchResults(query).then(arr => { gameItems = Array.isArray(arr) ? arr : []; }).catch(() => {}));
+      }
+      if (wantPeople && typeof window.fetchTmdbPersonSearchResults === 'function') {
+        tasks.push(window.fetchTmdbPersonSearchResults(query).then(arr => { personItems = Array.isArray(arr) ? arr : []; }).catch(() => {}));
       }
       await Promise.all(tasks);
     } catch (_) { /* swallowed; will show no-results */ }
@@ -212,6 +251,8 @@
       rows = jikanItems.map(normalizeTmdbItem);
     } else if (activeFilter === 'game') {
       rows = gameItems.map(normalizeGameItem);
+    } else if (activeFilter === 'person') {
+      rows = personItems.map(normalizePersonItem);
     }
 
     /* Sort: prefix match first, then rating, then title */
@@ -255,31 +296,49 @@
            for games). The credit name is fetched lazily after render
            and patched into the DOM via [data-row-cred-key].
     */
-    /* v654: Jikan-sourced anime rows route to the Jikan profile path. */
+    /* v654: Jikan-sourced anime rows route to the Jikan profile path.
+       v732: person rows route to the existing TMDB person profile. */
     const handler = r.kind === 'game'
       ? `handleSearchPageGameClick(event, '${escAttr(r.id)}')`
-      : (r.isJikan
-        ? `handleSearchPageJikanClick(event, '${escAttr(r.malId)}')`
-        : `handleSearchPageMediaClick(event, '${escAttr(r.tmdbType)}', '${escAttr(r.id)}')`);
+      : r.kind === 'person'
+        ? `handleSearchPagePersonClick(event, '${escAttr(r.id)}')`
+        : (r.isJikan
+          ? `handleSearchPageJikanClick(event, '${escAttr(r.malId)}')`
+          : `handleSearchPageMediaClick(event, '${escAttr(r.tmdbType)}', '${escAttr(r.id)}')`);
     const typeLabel = r.kind === 'movie' ? 'Movie'
       : r.kind === 'tv' ? 'TV Show'
       : r.kind === 'anime' ? 'Anime'
       : r.kind === 'game' ? 'Game'
+      : r.kind === 'person' ? (r.role || 'Actor')
       : '';
-    const yearTypeText = [r.year, typeLabel].filter(Boolean).join(' · ');
-    const yearTypeHtml = yearTypeText
-      ? `<span class="shelfd-search-row-meta">${escHtml(yearTypeText)}</span>`
+    /* People show "Actor · Known for: …" instead of "Year · Type". */
+    const metaText = r.kind === 'person'
+      ? typeLabel
+      : [r.year, typeLabel].filter(Boolean).join(' · ');
+    const yearTypeHtml = metaText
+      ? `<span class="shelfd-search-row-meta">${escHtml(metaText)}</span>`
       : '';
-    const credPrefix = r.kind === 'movie' ? 'Directed by'
-      : (r.kind === 'tv' || r.kind === 'anime') ? 'Created by'
-      : r.kind === 'game' ? 'Developed by'
-      : '';
-    const credHtml = credPrefix
-      ? `<span class="shelfd-search-row-credit" data-row-cred-key="${escAttr(r.key)}"><span class="shelfd-search-row-credit-prefix">${escHtml(credPrefix)} </span><span class="shelfd-search-row-credit-name">&hellip;</span></span>`
-      : '';
+    /* Person rows show "Known for: A, B, C" instead of the lazy credits line. */
+    let credHtml = '';
+    if (r.kind === 'person') {
+      credHtml = r.knownFor
+        ? `<span class="shelfd-search-row-credit"><span class="shelfd-search-row-credit-prefix">Known for </span><span class="shelfd-search-row-credit-name">${escHtml(r.knownFor)}</span></span>`
+        : '';
+    } else {
+      const credPrefix = r.kind === 'movie' ? 'Directed by'
+        : (r.kind === 'tv' || r.kind === 'anime') ? 'Created by'
+        : r.kind === 'game' ? 'Developed by'
+        : '';
+      credHtml = credPrefix
+        ? `<span class="shelfd-search-row-credit" data-row-cred-key="${escAttr(r.key)}"><span class="shelfd-search-row-credit-prefix">${escHtml(credPrefix)} </span><span class="shelfd-search-row-credit-name">&hellip;</span></span>`
+        : '';
+    }
+    const posterClass = r.kind === 'person'
+      ? 'shelfd-search-row-poster shelfd-search-row-poster--person'
+      : 'shelfd-search-row-poster';
     const posterHtml = r.poster
-      ? `<img class="shelfd-search-row-poster" src="${escAttr(r.poster)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">`
-      : `<div class="shelfd-search-row-poster shelfd-search-row-poster--placeholder" aria-hidden="true"></div>`;
+      ? `<img class="${posterClass}" src="${escAttr(r.poster)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">`
+      : `<div class="${posterClass} shelfd-search-row-poster--placeholder" aria-hidden="true"></div>`;
     /* Stagger up to 8 rows. After that they appear instantly to keep scrolling responsive. */
     const delayMs = Math.min(index, 7) * 28;
     return `
@@ -348,6 +407,9 @@
   }
   function backfillResultCredits(rows = [], forToken = 0) {
     rows.forEach(r => {
+      /* v732: person rows already render their own "Known for" line —
+         no async credit lookup needed. */
+      if (r.kind === 'person') return;
       fetchCreditFor(r).then(name => {
         /* Stop applying if a newer search has started */
         if (forToken !== queryToken) return;
@@ -444,6 +506,15 @@
       try {
         window.openJikanAnimeProfile(event, malId);
       } catch (e) { console.error('Open Jikan anime profile failed:', e); }
+    }
+  };
+  /* v732: Actors filter row click → existing TMDB person profile. */
+  window.handleSearchPagePersonClick = function(event, personId) {
+    pushRecent(activeQuery);
+    if (typeof window.openDiscoverPersonProfile === 'function') {
+      try {
+        window.openDiscoverPersonProfile(event, personId);
+      } catch (e) { console.error('Open person profile failed:', e); }
     }
   };
 
