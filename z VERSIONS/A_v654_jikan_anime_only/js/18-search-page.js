@@ -182,16 +182,8 @@
 
     if (myToken !== queryToken) return;
 
-    /* v671: Enrich movie/TV results with IMDb rating before normalizing so
-       r.rating reflects IMDb (display + sort by IMDb rating). Games keep
-       RAWG's own rating. */
-    if (typeof window.enrichItemsWithImdbRatings === 'function' && tmdbItems.length) {
-      try { await window.enrichItemsWithImdbRatings(tmdbItems); } catch (e) { /* fall through with TMDB */ }
-      if (myToken !== queryToken) return;
-    }
-
-    /* v654: Filter out anime from TMDB results so we don't double-list when
-       'all' is active (Jikan handles anime exclusively). */
+    /* Filter out anime from TMDB results so we don't double-list when 'all'
+       is active (Jikan handles anime exclusively). */
     const dropAnimeFromTmdb = (arr) => arr.filter(x =>
       !(typeof window.isAnimeDiscoverCandidate === 'function' && window.isAnimeDiscoverCandidate(x))
     );
