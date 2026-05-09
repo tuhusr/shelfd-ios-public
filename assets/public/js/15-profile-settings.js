@@ -3641,18 +3641,24 @@ async function shareProfileFavoriteRow(event, btn) {
   }).filter(Boolean);
   const sectionPayload = { uid, section: sectionKey, index: 0, title: cardData[0]?.title || '', image: cardData[0]?.image || '', profileName, label: config?.shortLabel || label, fullLabel: label };
   const shareUrl = getShareProfileUrl(sectionPayload);
-  const shareData = {
-    title: `${profileName}'s ${label}`,
-    url: shareUrl
-  };
+  const baseTitle = `${profileName}'s ${label}`;
   try {
     const file = await buildProfileFavoriteRowShareImageFile(cardData, profileName, label, stats);
-    if (file && navigator.canShare?.({ files: [file] })) {
-      shareData.files = [file];
+    const fileInfo = file ? `${Math.round(file.size/1024)}KB` : 'null';
+    const csFile = file ? !!navigator.canShare?.({ files: [file] }) : false;
+    const csBoth = file ? !!navigator.canShare?.({ title: baseTitle, url: shareUrl, files: [file] }) : false;
+    showToast(`f:${fileInfo} csF:${csFile} csB:${csBoth}`);
+    if (navigator.share) {
+      if (file && csFile) {
+        await navigator.share({ title: baseTitle, files: [file] });
+        return;
+      }
+      await navigator.share({ title: baseTitle, url: shareUrl });
+      return;
     }
-    if (navigator.share) { await navigator.share(shareData); showToast('Shared!'); return; }
   } catch (e) {
     if (e && e.name === 'AbortError') return;
+    showToast(`err:${e?.name || 'unknown'}`);
   }
   const copied = await copyProfileLink(shareUrl);
   showToast(copied ? 'Link copied' : 'Could not copy link');
