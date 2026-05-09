@@ -26,11 +26,14 @@ echo.
 echo Adding files...
 git add .
 
+set "BUILD_VERSION=unknown"
+if exist "%TARGET%\VERSION.txt" set /p BUILD_VERSION=<"%TARGET%\VERSION.txt"
+
 echo.
 echo Checking for changes...
 git diff --cached --quiet
 if errorlevel 1 (
-    git commit -m "Update Shelfd laptop files - %date% %time%"
+    git commit -m "%BUILD_VERSION%"
 ) else (
     echo No file changes to commit.
 )
