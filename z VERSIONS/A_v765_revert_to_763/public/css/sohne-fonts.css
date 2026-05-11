@@ -1,0 +1,132 @@
+/* =============================================================
+   Söhne (Sohne) — Klim Type Foundry
+   Local @font-face declarations served from /fonts/sohne/
+
+   Weight mapping (Söhne's German naming → CSS numeric weight):
+     Extraleicht       → 200  (Extra Light)
+     Leicht            → 300  (Light)
+     Buch              → 400  (Book / Regular)
+     Kräftig           → 500  (Medium)
+     Dreiviertelfett   → 600  (Semibold)
+     Halbfett          → 700  (Bold)
+     Fett              → 800  (Heavy)
+     Extrafett         → 900  (Black)
+
+   Italics: each weight has a Kursiv (Italic) counterpart.
+
+   ⚠ License note: replace Test* trial files with licensed Sohne-* files
+   before public production. File paths below are foundry-agnostic.
+   ============================================================= */
+
+@font-face {
+  font-family: 'Sohne';
+  src: url('/fonts/sohne/Sohne-Extraleicht.otf') format('opentype');
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sohne';
+  src: url('/fonts/sohne/Sohne-Extraleicht-Italic.otf') format('opentype');
+  font-weight: 200;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sohne';
+  src: url('/fonts/sohne/Sohne-Leicht.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sohne';
+  src: url('/fonts/sohne/Sohne-Leicht-Italic.otf') format('opentype');
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sohne';
+  src: url('/fonts/sohne/Sohne-Buch.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sohne';
+  src: url('/fonts/sohne/Sohne-Buch-Italic.otf') format('opentype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sohne';
+  src: url('/fonts/sohne/Sohne-Kraftig.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sohne';
+  src: url('/fonts/sohne/Sohne-Kraftig-Italic.otf') format('opentype');
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sohne';
+  src: url('/fonts/sohne/Sohne-Dreiviertelfett.otf') format('opentype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sohne';
+  src: url('/fonts/sohne/Sohne-Dreiviertelfett-Italic.otf') format('opentype');
+  font-weight: 600;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sohne';
+  src: url('/fonts/sohne/Sohne-Halbfett.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sohne';
+  src: url('/fonts/sohne/Sohne-Halbfett-Italic.otf') format('opentype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sohne';
+  src: url('/fonts/sohne/Sohne-Fett.otf') format('opentype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sohne';
+  src: url('/fonts/sohne/Sohne-Fett-Italic.otf') format('opentype');
+  font-weight: 800;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sohne';
+  src: url('/fonts/sohne/Sohne-Extrafett.otf') format('opentype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sohne';
+  src: url('/fonts/sohne/Sohne-Extrafett-Italic.otf') format('opentype');
+  font-weight: 900;
+  font-style: italic;
+  font-display: swap;
+}

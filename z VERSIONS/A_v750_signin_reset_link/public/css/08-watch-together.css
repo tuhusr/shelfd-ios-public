@@ -1,0 +1,1703 @@
+/* v51: My Lists Watch Together / Plan Together tagging */
+.watch-together-slot {
+  margin-left: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+.watch-together-stack,
+.watch-together-add {
+  border: 1px solid rgba(255,255,255,0.22);
+  background: rgba(5,5,10,0.94);
+  color: #f7f3ff;
+  border-radius: 999px;
+  min-height: 32px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), background 0.18s ease, border-color 0.18s ease, opacity 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.watch-together-stack {
+  padding: 3px 8px 3px 4px;
+}
+.watch-together-stack img,
+.watch-together-member-row img,
+.watch-together-result img,
+.watch-together-chip img,
+.watch-together-request-main img {
+  object-fit: cover;
+  background: #17102c;
+}
+.watch-together-stack img {
+  width: 25px;
+  height: 25px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(7,5,18,0.92);
+  box-shadow: 0 0 0 1px rgba(196,181,253,0.24);
+}
+.watch-together-stack img + img { margin-left: -9px; }
+.watch-together-more {
+  margin-left: 4px;
+  color: #d8cff3;
+  font-size: 10px;
+  font-weight: 800;
+}
+.watch-together-add {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  border-radius: 50%;
+  border-color: rgba(255,255,255,0.30);
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1;
+}
+.watch-together-stack:active,
+.watch-together-add:active { transform: scale(0.94); }
+.watch-together-stack:hover,
+.watch-together-add:hover {
+  border-color: rgba(255,255,255,0.34);
+  background: rgba(12,12,18,0.98);
+}
+.watch-together-pending {
+  border-radius: 999px;
+  padding: 6px 8px;
+  background: rgba(251,191,36,0.10);
+  color: #fde68a;
+  border: 1px solid rgba(251,191,36,0.22);
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.watch-together-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 7000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(3, 2, 10, 0.68);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  animation: watchTogetherFadeIn 0.18s ease both;
+}
+.watch-together-modal,
+.watch-together-info-modal {
+  width: min(520px, calc(100vw - 20px));
+  max-height: min(82vh, 720px);
+  overflow-y: auto;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 24px;
+  background: #05050a;
+  box-shadow: 0 22px 58px rgba(0,0,0,0.58);
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+  animation: watchTogetherSheetIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.watch-together-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.watch-together-kicker {
+  color: #a78bfa;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  margin-bottom: 5px;
+}
+.watch-together-modal-head h3 {
+  color: #fff;
+  font-size: 20px;
+  line-height: 1.15;
+  margin: 0 0 5px;
+}
+.watch-together-modal-head p {
+  color: #a99dc6;
+  font-size: 13px;
+  line-height: 1.35;
+  margin: 0;
+}
+.watch-together-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.05);
+  color: #b8afd1;
+  font-size: 22px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.watch-together-mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.14);
+  margin-bottom: 12px;
+}
+.watch-together-mode-btn {
+  min-height: 36px;
+  border-radius: 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #9f94bd;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+  transition: color 0.18s, background 0.18s, transform 0.18s;
+}
+.watch-together-mode-btn.active {
+  background: transparent;
+  color: #fff;
+  border-bottom-color: rgba(255,255,255,0.82);
+  box-shadow: none;
+}
+.watch-together-selected {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+}
+.watch-together-selected-empty,
+.watch-together-empty {
+  color: #8f84aa;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.watch-together-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 7px 4px 4px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  color: #efe9ff;
+  font-size: 12px;
+  font-weight: 800;
+  border: 1px solid rgba(167,139,250,0.18);
+}
+.watch-together-chip img {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+}
+.watch-together-chip button {
+  border: 0;
+  background: transparent;
+  color: #a99dc6;
+  font-size: 16px;
+  cursor: pointer;
+}
+.watch-together-search {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid rgba(167,139,250,0.22);
+  border-radius: 16px;
+  background: rgba(6,5,16,0.78);
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  outline: none;
+  padding: 0 14px;
+  margin: 4px 0 10px;
+}
+.watch-together-search:focus {
+  border-color: rgba(255,255,255,0.38);
+  box-shadow: none;
+}
+.watch-together-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 238px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.watch-together-result,
+.watch-together-member-row,
+.watch-together-request-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.watch-together-result {
+  border-radius: 16px;
+  padding: 9px;
+  background: rgba(255,255,255,0.045);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.watch-together-result img,
+.watch-together-member-row img,
+.watch-together-request-main img {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.watch-together-result-copy {
+  flex: 1;
+  min-width: 0;
+}
+.watch-together-result-copy strong {
+  display: block;
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.2;
+}
+.watch-together-result-copy span {
+  display: block;
+  color: #9f94bd;
+  font-size: 11px;
+  margin-top: 2px;
+}
+.watch-together-result-add,
+.watch-together-save {
+  border: 0;
+  border-radius: 999px;
+  background: #7c3aed;
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 850;
+  cursor: pointer;
+  min-height: 34px;
+  padding: 0 14px;
+}
+.watch-together-result-add:disabled,
+.watch-together-save:disabled {
+  opacity: 0.44;
+  cursor: default;
+}
+.watch-together-save {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 12px;
+  font-size: 14px;
+}
+.watch-together-member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.watch-together-member-row {
+  width: 100%;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.045);
+  color: #fff;
+  border-radius: 18px;
+  padding: 10px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 850;
+  text-align: left;
+  cursor: pointer;
+}
+.watch-together-member-row {
+  justify-content: space-between;
+  cursor: default;
+}
+.watch-together-member-profile {
+  min-width: 0;
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+}
+.watch-together-member-profile span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.watch-together-member-remove {
+  border: 1px solid rgba(248,113,113,0.24);
+  background: rgba(239,68,68,0.10);
+  color: #fecaca;
+  border-radius: 999px;
+  min-height: 30px;
+  padding: 0 10px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.watch-together-manage-block {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(167,139,250,0.14);
+}
+.watch-together-manage-title {
+  color: #efe9ff;
+  font-size: 12px;
+  font-weight: 900;
+  margin-bottom: 9px;
+  letter-spacing: 0.2px;
+}
+.watch-together-request-card {
+  border-color: rgba(255,255,255,0.16);
+  background: #05050a;
+}
+.watch-together-request-copy {
+  min-width: 0;
+}
+.watch-together-request-copy .user-card-stats {
+  line-height: 1.35;
+}
+@keyframes watchTogetherFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes watchTogetherSheetIn {
+  from { transform: translate3d(0, 18px, 0); opacity: 0.7; }
+  to { transform: translate3d(0, 0, 0); opacity: 1; }
+}
+@media (min-width: 720px) {
+  .watch-together-modal-overlay { align-items: center; }
+  .watch-together-modal,
+  .watch-together-info-modal {
+    border-radius: 26px;
+    padding-bottom: 18px;
+  }
+}
+@media (max-width: 700px) {
+  .watch-together-slot { gap: 5px; }
+  .watch-together-pending { display: none; }
+  .watch-together-stack { min-height: 30px; padding-right: 7px; }
+  .watch-together-add { width: 30px; height: 30px; min-width: 30px; min-height: 30px; }
+  .watch-together-stack img { width: 24px; height: 24px; }
+  .watch-together-modal,
+  .watch-together-info-modal { width: calc(100vw - 24px); }
+  .watch-together-modal-head h3 { font-size: 19px; }
+  .watch-together-member-remove { min-height: 28px; padding: 0 9px; font-size: 10px; }
+  .watch-together-manage-block { margin-top: 14px; }
+  .watch-together-request-card { align-items: flex-start; gap: 10px; }
+}
+
+/* V295: center My Lists watch-together control and prevent Show Episodes wrapping. */
+#mylist-view .card-action-row {
+  justify-content: center;
+}
+#mylist-view .card-action-row .watch-together-slot {
+  margin-left: 0;
+}
+#mylist-view .card-action-row .ep-toggle-bar,
+#mylist-view .card-action-row .ep-toggle-bar span:first-child {
+  white-space: nowrap;
+}
+
+body.light-mode .watch-together-stack,
+body.light-mode .watch-together-add {
+  background: rgba(124,58,237,0.08);
+  border-color: rgba(124,58,237,0.22);
+  color: #4c1d95;
+}
+body.light-mode .watch-together-modal,
+body.light-mode .watch-together-info-modal {
+  background: #fff;
+  border-color: rgba(21,16,45,0.14);
+  color: #160b2d;
+}
+body.light-mode .watch-together-modal-head h3,
+body.light-mode .watch-together-result-copy strong,
+body.light-mode .watch-together-member-row,
+body.light-mode .watch-together-manage-title { color: #160b2d; }
+body.light-mode .watch-together-search { background: #fff; color: #160b2d; }
+body.light-mode .watch-together-member-remove {
+  background: rgba(239,68,68,0.08);
+  border-color: rgba(239,68,68,0.20);
+  color: #991b1b;
+}
+
+/* Discover add buttons stay pill/oval on mobile and desktop. */
+.discover-add-btn,
+.discover-media-add-floating {
+  border-radius: 999px;
+}
+
+/* v54: Requests split into Friend Requests and Watch/Plan Together approvals */
+.request-subtabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  margin: 0 0 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(167,139,250,0.18);
+  background: rgba(255,255,255,0.035);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.request-subtabs::-webkit-scrollbar { display: none; }
+.request-subtab {
+  flex: 1 0 auto;
+  min-height: 38px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 14px;
+  background: transparent;
+  color: #a99dc6;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.request-subtab.active {
+  color: #fff;
+  background: linear-gradient(135deg, rgba(124,58,237,0.42), rgba(168,85,247,0.28));
+  box-shadow: 0 8px 24px rgba(124,58,237,0.16);
+}
+.request-subtab:active { transform: scale(0.97); }
+.request-subtab-count {
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(239,68,68,0.95);
+  color: #fff;
+  font-size: 10px;
+  line-height: 18px;
+  font-weight: 900;
+}
+.watch-together-request-card {
+  flex-direction: column;
+  align-items: stretch;
+}
+.watch-together-request-top {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.watch-together-pending-user-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+  padding-left: 48px;
+}
+.watch-together-pending-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  max-width: 100%;
+  border: 1px solid rgba(167,139,250,0.18);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.055);
+  color: #efe9ff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 850;
+  padding: 3px 8px 3px 3px;
+  cursor: pointer;
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), background 0.18s ease, border-color 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.watch-together-pending-user img {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  object-fit: cover;
+  background: #17102c;
+}
+.watch-together-pending-user span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 150px;
+}
+.watch-together-pending-user em {
+  color: #c4b5fd;
+  font-style: normal;
+  font-size: 14px;
+  line-height: 1;
+}
+.watch-together-pending-user:active { transform: scale(0.96); }
+.watch-together-pending-user:hover {
+  border-color: rgba(216,180,254,0.48);
+  background: rgba(139,92,246,0.16);
+}
+
+@media (max-width: 700px) {
+  .request-subtabs {
+    gap: 5px;
+    padding: 4px;
+    margin-bottom: 16px;
+    border-radius: 18px;
+    background: rgba(10,7,26,0.82);
+  }
+  .request-subtab {
+    min-height: 36px;
+    padding: 0 11px;
+    font-size: 11px;
+  }
+  .watch-together-request-top {
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .watch-together-request-card .friend-actions-group {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  .watch-together-pending-user-list {
+    padding-left: 0;
+    margin-top: 12px;
+  }
+  .watch-together-pending-user span { max-width: 118px; }
+}
+
+body.light-mode .request-subtabs {
+  background: rgba(124,58,237,0.06);
+  border-color: rgba(124,58,237,0.18);
+}
+body.light-mode .request-subtab { color: #5a4780; }
+body.light-mode .request-subtab.active {
+  color: #fff;
+  background: linear-gradient(135deg, #7c3aed, #9333ea);
+}
+body.light-mode .watch-together-pending-user {
+  background: rgba(124,58,237,0.08);
+  border-color: rgba(124,58,237,0.18);
+  color: #160b2d;
+}
+
+/* v55: Activity > Shared Watch approvals, mobile-first */
+.activity-subtabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  margin: 0 0 14px;
+  max-width: 100%;
+  border-radius: 999px;
+  border: 1px solid rgba(167,139,250,0.18);
+  background: rgba(255,255,255,0.035);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.activity-subtabs::-webkit-scrollbar { display: none; }
+.activity-subtab {
+  min-height: 36px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 14px;
+  background: transparent;
+  color: #a99dc6;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.activity-subtab.active {
+  color: #fff;
+  background: linear-gradient(135deg, rgba(124,58,237,0.42), rgba(168,85,247,0.28));
+  box-shadow: 0 8px 24px rgba(124,58,237,0.16);
+}
+.activity-subtab:active { transform: scale(0.97); }
+.activity-subtab-count {
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(239,68,68,0.95);
+  color: #fff;
+  font-size: 10px;
+  line-height: 18px;
+  font-weight: 900;
+}
+.shared-watch-activity-wrap {
+  display: grid;
+  gap: 16px;
+}
+.shared-watch-section .activity-feed-header {
+  margin-bottom: 10px;
+}
+.watch-together-avatar-pending {
+  opacity: 0.58;
+  filter: saturate(0.78);
+  outline: 1px dashed rgba(216,180,254,0.68);
+  outline-offset: 1px;
+}
+.watch-together-member-row.pending {
+  opacity: 0.72;
+}
+.watch-together-member-row em {
+  margin-left: auto;
+  color: #c4b5fd;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+@media (max-width: 700px) {
+  .activity-subtabs {
+    width: 100%;
+    justify-content: flex-start;
+    margin-bottom: 12px;
+    background: rgba(10,7,26,0.82);
+  }
+  .activity-subtab {
+    min-height: 34px;
+    padding: 0 12px;
+    font-size: 11px;
+  }
+  .shared-watch-activity-wrap { gap: 14px; }
+}
+body.light-mode .activity-subtabs {
+  background: rgba(124,58,237,0.06);
+  border-color: rgba(124,58,237,0.18);
+}
+body.light-mode .activity-subtab { color: #5a4780; }
+body.light-mode .activity-subtab.active {
+  color: #fff;
+  background: linear-gradient(135deg, #7c3aed, #9333ea);
+}
+
+
+/* v57: Shared Watch lives as an Activity header pill, not a separate Activity toggle row */
+.activity-subtabs { display: none !important; }
+.activity-feed-header {
+  gap: 10px;
+}
+.activity-feed-header.compact {
+  margin-bottom: 8px;
+}
+.activity-feed-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.activity-shared-watch-pill {
+  min-height: 30px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 0 4px 7px;
+  background: transparent;
+  color: #c4b5fd;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.15px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  box-shadow: none;
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.18s ease, color 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.activity-shared-watch-pill.secondary {
+  background: transparent;
+  color: #c4b5fd;
+}
+.activity-shared-watch-pill:active {
+  transform: scale(0.96);
+}
+@media (hover:hover) {
+  .activity-shared-watch-pill:hover {
+    border-bottom-color: rgba(216,180,254,0.58);
+  }
+}
+.activity-shared-watch-count {
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(239,68,68,0.95);
+  color: #fff;
+  font-size: 10px;
+  line-height: 17px;
+  font-weight: 950;
+}
+@media (max-width: 700px) {
+  .activity-feed-header {
+    align-items: center;
+    gap: 8px;
+  }
+  .activity-feed-heading {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .activity-feed-actions {
+    gap: 7px;
+  }
+  .activity-shared-watch-pill {
+    min-height: 32px;
+    padding: 0 13px;
+    font-size: 11px;
+  }
+  .activity-feed-refresh {
+    padding: 6px 0;
+  }
+}
+body.light-mode .activity-shared-watch-pill {
+  background: transparent;
+  border-bottom-color: transparent;
+  color: #5b21b6;
+}
+body.light-mode .activity-shared-watch-pill.secondary {
+  background: transparent;
+  color: #5b21b6;
+}
+body.true-dark-mode .activity-shared-watch-pill {
+  background: transparent;
+  border-bottom-color: transparent;
+}
+
+
+/* v58: Activity pills replace Refresh; Shared Watch ping clears with pending requests */
+.activity-feed-refresh { display: none !important; }
+.activity-shared-watch-pill.active {
+  background: transparent;
+  border-bottom-color: rgba(167,139,250,0.9);
+  color: #fff;
+  box-shadow: none;
+}
+.activity-shared-watch-pill.friend-watch-pill {
+  padding-left: 13px;
+  padding-right: 13px;
+}
+@media (max-width: 700px) {
+  .activity-feed-actions { gap: 6px; }
+  .activity-shared-watch-pill {
+    min-height: 31px;
+    padding: 0 11px;
+    font-size: 10.5px;
+  }
+}
+body.light-mode .activity-shared-watch-pill.active {
+  background: transparent;
+  border-bottom-color: rgba(124,58,237,0.78);
+  color: #4c1d95;
+}
+
+
+/* v61: Friend Watch handles approvals; Shared Watch is the confirmed-watch dashboard */
+.friend-watch-request-wrap {
+  animation: sharedWatchPanelIn 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.shared-watch-dashboard {
+  display: grid;
+  gap: 14px;
+  padding-bottom: 12px;
+  animation: sharedWatchPanelIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform: translateZ(0);
+}
+
+@keyframes sharedWatchPanelIn {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+.shared-watch-hero {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 24px;
+  border: 1px solid rgba(167,139,250,0.24);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(168,85,247,0.24), transparent 38%),
+    linear-gradient(135deg, rgba(18,11,45,0.96), rgba(8,6,22,0.92));
+  box-shadow: 0 18px 48px rgba(7,4,18,0.32);
+  overflow: hidden;
+}
+
+.shared-watch-hero span,
+.shared-watch-dashboard-kicker {
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 1.45px;
+  text-transform: uppercase;
+  color: #a78bfa;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.shared-watch-hero strong {
+  display: block;
+  margin-top: 4px;
+  color: #fff;
+  font-size: clamp(22px, 6vw, 34px);
+  line-height: 0.98;
+  font-family: 'Sora', sans-serif;
+  letter-spacing: -0.9px;
+}
+
+.shared-watch-hero p {
+  margin-top: 8px;
+  max-width: 430px;
+  color: #c9bff0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.shared-watch-hero-stats {
+  min-width: 88px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px;
+  justify-items: center;
+  align-content: center;
+  padding: 10px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.055);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.shared-watch-hero-stats em {
+  color: #fff;
+  font-style: normal;
+  font-size: 23px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.shared-watch-hero-stats small {
+  margin-bottom: 8px;
+  color: #8f84b0;
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.85px;
+}
+
+.shared-watch-dashboard-lane {
+  display: grid;
+  gap: 10px;
+}
+
+.shared-watch-lane-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 2px;
+  color: #f8f4ff;
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: 0.1px;
+}
+
+.shared-watch-lane-title em {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(167,139,250,0.16);
+  color: #d8b4fe;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.shared-watch-dashboard-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 112px;
+  padding: 10px;
+  border-radius: 22px;
+  border: 1px solid rgba(167,139,250,0.16);
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.07), rgba(255,255,255,0.025)),
+    rgba(11,8,28,0.88);
+  box-shadow: 0 12px 34px rgba(0,0,0,0.22);
+  overflow: hidden;
+  transform: translateZ(0);
+}
+
+.shared-watch-dashboard-card::after {
+  content: "";
+  position: absolute;
+  inset: auto -24px -36px auto;
+  width: 92px;
+  height: 92px;
+  border-radius: 999px;
+  background: rgba(124,58,237,0.12);
+  pointer-events: none;
+}
+
+.shared-watch-dashboard-poster {
+  width: 72px;
+  height: 96px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(145deg, rgba(124,58,237,0.24), rgba(8,6,22,0.95));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #d8b4fe;
+  font-size: 26px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.24);
+}
+
+.shared-watch-dashboard-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.shared-watch-dashboard-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 7px;
+}
+
+.shared-watch-dashboard-kicker {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.shared-watch-dashboard-kicker em {
+  font-style: normal;
+  color: #7c6caa;
+}
+
+.shared-watch-dashboard-title {
+  color: #fff;
+  font-size: 17px;
+  line-height: 1.08;
+  font-weight: 950;
+  letter-spacing: -0.2px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.shared-watch-dashboard-people {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.shared-watch-dashboard-stack {
+  display: inline-flex;
+  align-items: center;
+  padding-left: 6px;
+}
+
+.shared-watch-dashboard-stack img,
+.shared-watch-dashboard-stack span {
+  width: 27px;
+  height: 27px;
+  margin-left: -6px;
+  border-radius: 999px;
+  border: 2px solid #0b081c;
+  background: #211642;
+  object-fit: cover;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.24);
+}
+
+.shared-watch-dashboard-stack span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #f8f4ff;
+  font-size: 10px;
+  font-weight: 950;
+}
+
+.shared-watch-dashboard-people strong {
+  min-width: 0;
+  color: #cfc4ef;
+  font-size: 12px;
+  font-weight: 850;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shared-watch-dashboard-meta {
+  color: #7f73a7;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.shared-watch-dashboard-empty-card {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed rgba(167,139,250,0.2);
+  border-radius: 20px;
+  background: rgba(255,255,255,0.025);
+  color: #7f73a7;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+@media (max-width: 700px) {
+  .activity-feed-header {
+    align-items: flex-start;
+  }
+
+  .activity-feed-actions {
+    max-width: 68%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .activity-feed-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .shared-watch-hero {
+    padding: 15px;
+    border-radius: 22px;
+  }
+
+  .shared-watch-hero strong {
+    font-size: 25px;
+  }
+
+  .shared-watch-hero p {
+    font-size: 12px;
+  }
+
+  .shared-watch-dashboard-card {
+    grid-template-columns: 66px minmax(0, 1fr);
+    min-height: 106px;
+    border-radius: 21px;
+  }
+
+  .shared-watch-dashboard-poster {
+    width: 66px;
+    height: 88px;
+    border-radius: 15px;
+  }
+
+  .shared-watch-dashboard-title {
+    font-size: 16px;
+  }
+}
+
+body.light-mode .shared-watch-hero {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(124,58,237,0.12), transparent 42%),
+    linear-gradient(135deg, #ffffff, #f4efff);
+  border-color: rgba(124,58,237,0.16);
+  box-shadow: 0 16px 38px rgba(42,24,92,0.09);
+}
+
+body.light-mode .shared-watch-hero strong,
+body.light-mode .shared-watch-dashboard-title,
+body.light-mode .shared-watch-lane-title {
+  color: #12082e;
+}
+
+body.light-mode .shared-watch-hero p,
+body.light-mode .shared-watch-dashboard-people strong {
+  color: #5e537a;
+}
+
+body.light-mode .shared-watch-dashboard-card {
+  background: #fff;
+  border-color: rgba(124,58,237,0.12);
+  box-shadow: 0 12px 30px rgba(42,24,92,0.08);
+}
+
+body.light-mode .shared-watch-dashboard-stack img,
+body.light-mode .shared-watch-dashboard-stack span {
+  border-color: #fff;
+}
+
+body.true-dark-mode .shared-watch-hero,
+body.true-dark-mode .shared-watch-dashboard-card {
+  background: rgba(8,6,22,0.92);
+  border-color: rgba(167,139,250,0.18);
+}
+
+/* v63: Clean Friend Watch request page */
+.friend-watch-clean-shell {
+  display: grid;
+  gap: 14px;
+  padding-bottom: 12px;
+  animation: sharedWatchPanelIn 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform: translateZ(0);
+}
+.friend-watch-clean-hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 24px;
+  border: 1px solid rgba(167,139,250,0.24);
+  background:
+    radial-gradient(circle at 10% 0%, rgba(168,85,247,0.22), transparent 40%),
+    linear-gradient(135deg, rgba(18,11,45,0.96), rgba(8,6,22,0.92));
+  box-shadow: 0 16px 44px rgba(7,4,18,0.30);
+}
+.friend-watch-clean-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: rgba(124,58,237,0.18);
+  border: 1px solid rgba(216,180,254,0.20);
+  font-size: 22px;
+}
+.friend-watch-clean-hero span {
+  display: block;
+  color: #c4b5fd;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+.friend-watch-clean-hero strong {
+  display: block;
+  color: #fff;
+  font-size: 17px;
+  line-height: 1.12;
+  font-weight: 950;
+}
+.friend-watch-clean-hero p {
+  color: #a99dc6;
+  font-size: 12px;
+  line-height: 1.35;
+  margin-top: 5px;
+}
+.friend-watch-clean-section {
+  display: grid;
+  gap: 10px;
+}
+.friend-watch-clean-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+.friend-watch-clean-section-head span {
+  color: #efe9ff;
+  font-size: 13px;
+  font-weight: 950;
+}
+.friend-watch-clean-section-head em {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(167,139,250,0.14);
+  border: 1px solid rgba(167,139,250,0.20);
+  color: #ddd6fe;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 950;
+}
+.friend-watch-clean-section.priority .friend-watch-clean-section-head em {
+  background: rgba(239,68,68,0.16);
+  border-color: rgba(248,113,113,0.26);
+  color: #fecaca;
+}
+.friend-watch-request-list {
+  display: grid;
+  gap: 10px;
+}
+.friend-watch-request-card {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr);
+  gap: 11px;
+  position: relative;
+  padding: 11px;
+  border-radius: 22px;
+  border: 1px solid rgba(167,139,250,0.20);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(124,58,237,0.18), transparent 42%),
+    rgba(12,9,29,0.86);
+  box-shadow: 0 12px 34px rgba(7,4,18,0.22);
+  overflow: hidden;
+}
+.friend-watch-request-card.needs-approval {
+  border-color: rgba(216,180,254,0.34);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(168,85,247,0.24), transparent 42%),
+    rgba(12,9,29,0.92);
+}
+.friend-watch-request-poster {
+  width: 62px;
+  height: 88px;
+  border-radius: 15px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.055);
+  border: 1px solid rgba(255,255,255,0.08);
+  display: grid;
+  place-items: center;
+  color: #c4b5fd;
+  font-size: 22px;
+}
+.friend-watch-request-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.friend-watch-request-body {
+  min-width: 0;
+  padding-right: 2px;
+}
+.friend-watch-request-kicker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.friend-watch-request-kicker span,
+.friend-watch-request-kicker em {
+  min-height: 20px;
+  border-radius: 999px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9.5px;
+  font-weight: 950;
+  line-height: 1;
+  letter-spacing: 0.25px;
+  text-transform: uppercase;
+  font-style: normal;
+}
+.friend-watch-request-kicker span {
+  background: rgba(124,58,237,0.22);
+  color: #f8f4ff;
+  border: 1px solid rgba(167,139,250,0.20);
+}
+.friend-watch-request-kicker em {
+  background: rgba(255,255,255,0.055);
+  color: #b8afd1;
+}
+.friend-watch-request-body h4 {
+  color: #fff;
+  font-size: 15.5px;
+  line-height: 1.14;
+  font-weight: 950;
+  margin: 0 0 5px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.friend-watch-request-body p {
+  color: #b8afd1;
+  font-size: 12px;
+  line-height: 1.34;
+  margin: 0 0 8px;
+}
+.friend-watch-request-meta-row,
+.friend-watch-request-approved {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.friend-watch-request-meta-row strong,
+.friend-watch-request-approved span {
+  color: #ddd6fe;
+  font-size: 11px;
+  font-weight: 900;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.friend-watch-request-people-stack {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.friend-watch-request-people-stack img,
+.friend-watch-request-people-stack span {
+  width: 25px;
+  height: 25px;
+  border-radius: 999px;
+  border: 2px solid #0c091d;
+  margin-left: -7px;
+  object-fit: cover;
+  background: #1c1535;
+}
+.friend-watch-request-people-stack img:first-child,
+.friend-watch-request-people-stack span:first-child { margin-left: 0; }
+.friend-watch-request-people-stack span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 950;
+}
+.friend-watch-request-people-stack.mini img,
+.friend-watch-request-people-stack.mini span {
+  width: 20px;
+  height: 20px;
+  border-width: 1.5px;
+}
+.friend-watch-request-approved {
+  margin-top: 7px;
+}
+.friend-watch-request-sent-to {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 9px;
+}
+.friend-watch-request-sent-to > span {
+  flex-basis: 100%;
+  color: #8f83ad;
+  font-size: 10px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+}
+.friend-watch-request-person-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  max-width: 100%;
+  border: 1px solid rgba(167,139,250,0.18);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.055);
+  color: #efe9ff;
+  font-family: 'DM Sans', sans-serif;
+  padding: 3px 8px 3px 3px;
+  cursor: pointer;
+}
+.friend-watch-request-person-pill img {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  object-fit: cover;
+}
+.friend-watch-request-person-pill strong {
+  max-width: 98px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 900;
+}
+.friend-watch-request-person-pill em {
+  color: #c4b5fd;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 950;
+}
+.friend-watch-request-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 2px;
+}
+.friend-watch-request-card.sent-request .friend-watch-request-actions {
+  grid-template-columns: 1fr;
+}
+.friend-watch-action {
+  min-height: 38px;
+  border: 0;
+  border-radius: 999px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 950;
+  cursor: pointer;
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), filter 0.18s ease, opacity 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.friend-watch-action:active { transform: scale(0.97); }
+.friend-watch-action.accept {
+  color: #fff;
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  box-shadow: 0 10px 24px rgba(124,58,237,0.18);
+}
+.friend-watch-action.decline {
+  color: #fecaca;
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(248,113,113,0.22);
+}
+@media (min-width: 760px) {
+  .friend-watch-request-card {
+    grid-template-columns: 66px minmax(0, 1fr) auto;
+    align-items: center;
+  }
+  .friend-watch-request-poster { width: 66px; height: 94px; }
+  .friend-watch-request-actions {
+    grid-column: auto;
+    grid-template-columns: 98px;
+    min-width: 98px;
+    margin-top: 0;
+  }
+}
+@media (max-width: 700px) {
+  .friend-watch-clean-shell { gap: 13px; }
+  .friend-watch-clean-hero { border-radius: 22px; padding: 13px; align-items: flex-start; }
+  .friend-watch-clean-icon { width: 42px; height: 42px; border-radius: 15px; font-size: 20px; }
+  .friend-watch-clean-hero strong { font-size: 16px; }
+  .friend-watch-request-card { border-radius: 21px; padding: 10px; grid-template-columns: 58px minmax(0, 1fr); }
+  .friend-watch-request-poster { width: 58px; height: 82px; border-radius: 14px; }
+  .friend-watch-request-body h4 { font-size: 15px; }
+  .friend-watch-request-body p { font-size: 11.5px; }
+  .friend-watch-request-actions { gap: 7px; }
+  .friend-watch-action { min-height: 37px; }
+}
+body.light-mode .friend-watch-clean-hero,
+body.light-mode .friend-watch-request-card {
+  background: linear-gradient(135deg, #fff, #f7f4ff);
+  border-color: rgba(124,58,237,0.18);
+  box-shadow: 0 14px 34px rgba(76,29,149,0.08);
+}
+body.light-mode .friend-watch-clean-hero strong,
+body.light-mode .friend-watch-request-body h4,
+body.light-mode .friend-watch-clean-section-head span { color: #160b2d; }
+body.light-mode .friend-watch-clean-hero p,
+body.light-mode .friend-watch-request-body p { color: #5a4780; }
+body.light-mode .friend-watch-request-kicker em,
+body.light-mode .friend-watch-request-meta-row strong,
+body.light-mode .friend-watch-request-approved span { color: #5b21b6; }
+body.light-mode .friend-watch-request-person-pill {
+  background: rgba(124,58,237,0.07);
+  border-color: rgba(124,58,237,0.16);
+  color: #160b2d;
+}
+
+/* v376: Shared Watch intro + larger Activity/Shared Watch header text. */
+.activity-shared-watch-pill.activity-feed-pill,
+.activity-shared-watch-pill.shared-watch-tab-pill {
+  font-size: 13px !important;
+}
+@media (max-width: 700px) {
+  .activity-shared-watch-pill.activity-feed-pill,
+  .activity-shared-watch-pill.shared-watch-tab-pill {
+    font-size: 12.5px !important;
+  }
+}
+.shared-watch-description-card {
+  margin: 10px 0 14px;
+  border: 1px solid rgba(245, 245, 255, 0.6);
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.44);
+  color: #ffffff;
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.045);
+}
+.shared-watch-description-toggle {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 0;
+  background: rgba(255,255,255,0.035);
+  color: #ffffff;
+  font-family: Aptos, 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 850;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+.shared-watch-description-toggle em {
+  color: rgba(255,255,255,0.72);
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.shared-watch-description-body {
+  display: grid;
+  gap: 10px;
+  padding: 13px 14px 15px;
+  font-family: Aptos, 'DM Sans', sans-serif;
+  font-size: 13px;
+  line-height: 1.48;
+  color: rgba(255,255,255,0.9);
+}
+.shared-watch-description-body p { margin: 0; }
+.shared-watch-description-body strong { color: #ffffff; font-weight: 900; }
+.shared-watch-description-card.collapsed .shared-watch-description-body { display: none; }
+body.light-mode .shared-watch-description-card {
+  background: rgba(255,255,255,0.84);
+  color: #12082e;
+  border-color: rgba(20,20,28,0.42);
+}
+body.light-mode .shared-watch-description-toggle {
+  background: rgba(0,0,0,0.035);
+  color: #12082e;
+}
+body.light-mode .shared-watch-description-toggle em,
+body.light-mode .shared-watch-description-body {
+  color: rgba(18,8,46,0.74);
+}
+body.light-mode .shared-watch-description-body strong { color: #12082e; }
+
+/* v377-v380: Shared Watch clarity pass — cyan only on explainer, sectioned explainer, no composer on Shared Watch. */
+.activity-shared-watch-pill.activity-feed-pill,
+.activity-shared-watch-pill.shared-watch-tab-pill {
+  font-size: 15px !important;
+}
+@media (max-width: 700px) {
+  .activity-shared-watch-pill.activity-feed-pill,
+  .activity-shared-watch-pill.shared-watch-tab-pill {
+    font-size: 14.5px !important;
+  }
+}
+#community-view.activity-subtab-shared-watch #feed-composer {
+  display: none !important;
+}
+#community-view.activity-subtab-shared-watch #shared-watch-feed,
+#community-view.activity-subtab-shared-watch .shared-watch-dashboard,
+#community-view.activity-subtab-shared-watch .shared-watch-hero,
+#community-view.activity-subtab-shared-watch .shared-watch-dashboard-card,
+#community-view.activity-subtab-shared-watch .shared-watch-dashboard-empty-card,
+#community-view.activity-subtab-shared-watch .shared-watch-dashboard-lane {
+  color: #ffffff !important;
+}
+#community-view.activity-subtab-shared-watch .shared-watch-hero span,
+#community-view.activity-subtab-shared-watch .shared-watch-lane-title span,
+#community-view.activity-subtab-shared-watch .shared-watch-dashboard-kicker span,
+#community-view.activity-subtab-shared-watch .shared-watch-dashboard-kicker em,
+#community-view.activity-subtab-shared-watch .shared-watch-dashboard-meta,
+#community-view.activity-subtab-shared-watch .shared-watch-dashboard-people,
+#community-view.activity-subtab-shared-watch .shared-watch-dashboard-people strong,
+#community-view.activity-subtab-shared-watch .shared-watch-hero p,
+#community-view.activity-subtab-shared-watch .shared-watch-hero small {
+  color: #ffffff !important;
+}
+.shared-watch-description-card {
+  background: linear-gradient(145deg, rgba(3, 73, 86, 0.96), rgba(4, 49, 62, 0.98)) !important;
+  border-color: rgba(245, 245, 255, 0.6) !important;
+  color: #ffffff !important;
+}
+.shared-watch-description-toggle {
+  min-height: 50px !important;
+  background: rgba(255,255,255,0.06) !important;
+  color: #ffffff !important;
+  font-size: 16px !important;
+}
+.shared-watch-description-toggle em {
+  color: rgba(255,255,255,0.82) !important;
+}
+.shared-watch-description-body {
+  gap: 13px !important;
+  padding: 15px 15px 17px !important;
+  font-size: 15px !important;
+  color: #ffffff !important;
+}
+.shared-watch-description-section {
+  display: grid;
+  gap: 5px;
+  padding-top: 11px;
+  border-top: 1px solid rgba(245,245,255,0.18);
+}
+.shared-watch-description-section:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.shared-watch-description-section h4 {
+  width: fit-content;
+  margin: 0 0 1px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid rgba(245,245,255,0.78);
+  color: #ffffff;
+  font-family: Aptos, 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.shared-watch-description-section p {
+  margin: 0;
+  color: #ffffff;
+}
+.shared-watch-description-section p + p {
+  margin-top: 7px;
+}
+.shared-watch-description-section strong { color: #ffffff; font-weight: 950; }
+body.light-mode .shared-watch-description-card {
+  background: linear-gradient(145deg, rgba(3, 73, 86, 0.96), rgba(4, 49, 62, 0.98)) !important;
+  border-color: rgba(245, 245, 255, 0.6) !important;
+  color: #ffffff !important;
+}
+body.light-mode .shared-watch-description-body,
+body.light-mode .shared-watch-description-toggle,
+body.light-mode .shared-watch-description-section h4,
+body.light-mode .shared-watch-description-section p,
+body.light-mode .shared-watch-description-body strong {
+  color: #ffffff !important;
+}
+
+/* v380: deep cyan is scoped to the Shared Watch explanation card only. */
+#community-view.activity-subtab-shared-watch .shared-watch-description-card {
+  background: linear-gradient(145deg, rgba(3, 73, 86, 0.96), rgba(4, 49, 62, 0.98)) !important;
+  border-color: rgba(245, 245, 255, 0.6) !important;
+  color: #ffffff !important;
+}
