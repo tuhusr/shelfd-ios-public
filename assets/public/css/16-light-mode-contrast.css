@@ -1,11 +1,11 @@
 /* =============================================================
    16-light-mode-contrast.css                              v.784
    Sleek, modern, minimalistic light-mode contrast pass.
-   Loaded LAST — only overrides color/UI; never functions.
+   Loaded LAST ? only overrides color/UI; never functions.
    White text that sits on coloured (purple/green/red) backgrounds
    is intentionally preserved.
 
-   v784 QUARANTINE NOTE — DARK MODE IS THE SOURCE OF TRUTH.
+   v784 QUARANTINE NOTE ? DARK MODE IS THE SOURCE OF TRUTH.
    Light Mode + Cream Light are dormant; their toggles are hidden
    in profile settings and any saved 'light'/'cream' preference is
    rewritten to default dark on app load (see 15-profile-settings.js).
@@ -17,10 +17,10 @@
    (e.g. 04-activity-feed.css for activity-card typography).
 
    When adding rules to this file:
-     ✓ body.light-mode  …
-     ✓ body.cream-mode  …
-     ✓ body.true-dark-mode  …
-     ✗ unscoped selectors (these leak into default dark mode)
+     ? body.light-mode  ?
+     ? body.cream-mode  ?
+     ? body.true-dark-mode  ?
+     ? unscoped selectors (these leak into default dark mode)
 
    When you find an unscoped rule in this file that styles dark UI,
    move it to the proper base CSS file and delete it from here.
@@ -29,7 +29,7 @@
    ============================================================= */
 
 /* =============================================================
-   v480: FOUNDATION — html/body background must flip to light.
+   v480: FOUNDATION ? html/body background must flip to light.
    Without this, every per-element rule below sits on a dark
    page and the user perceives "nothing changed" when they
    switch to light mode. The base body/html had a hardcoded
@@ -45,7 +45,7 @@ body.light-mode {
   color: var(--lm-text) !important;
 }
 
-/* ── Cream Light — warm paper identity ──────────────────────────────
+/* -- Cream Light ? warm paper identity ------------------------------
    body.cream-mode is added alongside body.light-mode so every existing
    body.light-mode rule applies automatically. This block re-affirms the
    warm palette tokens and provides a hook for cream-specific overrides. */
@@ -74,7 +74,7 @@ body.light-mode .header {
   background: var(--lm-surface-3) !important;
   border-bottom: 1px solid var(--lm-line) !important;
 }
-/* Login privacy overlay — also dark by default */
+/* Login privacy overlay ? also dark by default */
 body.light-mode .login-privacy-page { background: rgba(248,244,255,0.98) !important; }
 body.light-mode .login-privacy-content { background: #F3EEE6 !important; border-color: rgba(20,20,20,0.10) !important; color: #3A3A3A !important; }
 body.light-mode .login-privacy-back { color: #6d28d9 !important; }
@@ -88,22 +88,22 @@ body.light-mode .container { color: #171717 !important; }
 body.light-mode .header h1,
 body.light-mode .brand-wordmark { color: #171717 !important; }
 
-/* ----- Light-mode palette tokens — warm paper system ----- */
+/* ----- Light-mode palette tokens ? warm paper system ----- */
 body.light-mode {
   /* Background / surface */
-  --lm-bg:           #F8F5EF;   /* page background — paper white      */
+  --lm-bg:           #F8F5EF;   /* page background ? paper white      */
   --lm-surface:      #F3EEE6;   /* raised modals / popouts            */
   --lm-surface-2:    #EFEAE2;   /* cards / panels                     */
   --lm-surface-3:    #E8E3DB;   /* most elevated / nav surfaces       */
 
-  /* Text — charcoal scale */
-  --lm-text:         #171717;   /* primary — charcoal black           */
+  /* Text ? charcoal scale */
+  --lm-text:         #171717;   /* primary ? charcoal black           */
   --lm-text-2:       #3A3A3A;   /* secondary                          */
   --lm-text-3:       #5C5C5C;   /* muted / meta                       */
   --lm-text-4:       #7A7A7A;   /* placeholder / disabled             */
   --lm-text-5:       #AAAAAA;   /* very muted                         */
 
-  /* Borders / dividers — subtle warm gray */
+  /* Borders / dividers ? subtle warm gray */
   --lm-line:         rgba(20,20,20,0.10);
   --lm-line-soft:    rgba(20,20,20,0.06);
 
@@ -263,7 +263,7 @@ body.light-mode .dm-compose-row label { color: var(--lm-text-2); }
 body.light-mode .dm-thread-message:not(.mine):not([class*="sent"]) { color: var(--lm-text); }
 body.light-mode .dm-search-strip input { color: var(--lm-text); }
 body.light-mode .dm-search-strip input::placeholder { color: var(--lm-text-3); }
-body.light-mode .dm-bubble-row.mine .dm-bubble { color: #ffffff; } /* purple bg → keep white */
+body.light-mode .dm-bubble-row.mine .dm-bubble { color: #ffffff; } /* purple bg ? keep white */
 body.light-mode .dm-bubble-row:not(.mine) .dm-bubble { color: var(--lm-text); }
 body.light-mode .dm-bubble-time,
 body.light-mode .dm-bubble-row:not(.mine) .dm-bubble-time { color: var(--lm-text-3); }
@@ -398,7 +398,7 @@ body.light-mode [class*="-caption"],
 body.light-mode [class*="-helper"] { color: var(--lm-text-3); }
 
 /* =============================================================
-   14. GUARDS — re-assert white on coloured pill/button surfaces
+   14. GUARDS ? re-assert white on coloured pill/button surfaces
    that the broad rules above might have darkened by accident
    ============================================================= */
 body.light-mode .friend-accept-btn,
@@ -420,10 +420,10 @@ body.light-mode .primary-cta { color: #ffffff; }
    on saturated coloured backgrounds (purple/green/red/amber/blue
    gradients, solid pills, ringed badges, etc.).
    Rules live LAST so they override anything earlier in the cascade.
-   No JS, no functions changed — colour and visual refinement only.
+   No JS, no functions changed ? colour and visual refinement only.
    ============================================================= */
 
-/* ---------- 14a. ACTIVITY FEED (Friends → Activity tab) ----------
+/* ---------- 14a. ACTIVITY FEED (Friends ? Activity tab) ----------
    The big media title is hardcoded #fff in 04-activity-feed.css
    ("/* Title inline - bigger and white */"). It sits on a lavender
    card surface in light mode and currently reads invisible.
@@ -464,7 +464,7 @@ body.light-mode .sl-activity-action-btn[data-activity-action="like"] { color: #3
 body.light-mode .sl-activity-action-btn.liked { color: #3A3A3A !important; }
 body.light-mode .sl-activity-action-btn.liked [data-like-icon-slot] { color: #ef4444 !important; }
 body.light-mode .sl-activity-action-btn.liked [data-activity-like-count] { color: #b91c1c !important; }
-body.light-mode .sl-activity-stack-action-count { color: #3A3A3A !important; border-color: rgba(124,58,237,0.30) !important; }
+body.light-mode .sl-activity-stack-action-count { color: #7c3aed !important; border-color: rgba(124,58,237,0.34) !important; }
 body.light-mode .activity-card-avatar-placeholder { background: #f0eafd !important; color: #6d28d9 !important; }
 body.light-mode .sl-activity-avatar-fallback { background: #f0eafd !important; color: #6d28d9 !important; box-shadow: inset 0 0 0 1px rgba(124,58,237,0.18) !important; }
 /* Discover card context line ("/* Title inline - bigger and white */"
@@ -501,7 +501,7 @@ body.light-mode .sl-activity-stack-layer {
   box-shadow: 0 14px 28px rgba(20,20,20,0.07) !important;
 }
 
-/* ---------- 14d. MY LISTS — title cards ---------- */
+/* ---------- 14d. MY LISTS ? title cards ---------- */
 body.light-mode .card.show-card,
 body.light-mode .card.game-library-card,
 body.light-mode #mylist-view .card {
@@ -562,7 +562,7 @@ body.light-mode .game-card-stats-inline { color: #3A3A3A !important; }
 body.light-mode .game-card-cover-btn { color: #3A3A3A !important; background: rgba(124,58,237,0.06) !important; border-color: rgba(20,20,20,0.12) !important; }
 body.light-mode .friend-card-add-btn { color: #0e7490 !important; }
 
-/* ---------- 14e. MY LISTS — top toolbar / search / sort / pager ---------- */
+/* ---------- 14e. MY LISTS ? top toolbar / search / sort / pager ---------- */
 body.light-mode #mylist-view .my-list-search-input { background: #F3EEE6 !important; border-color: rgba(20,20,20,0.12) !important; color: #171717 !important; }
 body.light-mode #mylist-view .my-list-search-input::placeholder { color: #7A7A7A !important; }
 body.light-mode .mylist-toolbar,
@@ -633,7 +633,7 @@ body.light-mode .profile-social-counts span,
 body.light-mode .profile-social-count span { color: #5C5C5C !important; }
 body.light-mode .profile-social-avatar { box-shadow: 0 0 0 2px rgba(124,58,237,0.18) !important; }
 
-/* Top 3 character editor modal — added in v475/v476 */
+/* Top 3 character editor modal ? added in v475/v476 */
 body.light-mode .profile-character-editor-overlay { background: rgba(20,20,20,0.12) !important; backdrop-filter: blur(6px) !important; -webkit-backdrop-filter: blur(6px) !important; }
 body.light-mode .profile-character-editor-modal {
   background: linear-gradient(180deg, #ffffff 0%, #faf6ff 100%) !important;
@@ -734,7 +734,7 @@ body.light-mode .friend-watch-action.decline { color: #b91c1c !important; backgr
 body.light-mode .friend-watch-request-person-pill { background: rgba(124,58,237,0.06) !important; border-color: rgba(20,20,20,0.12) !important; color: #3A3A3A !important; }
 body.light-mode .friend-watch-request-person-pill em { color: #b91c1c !important; }
 
-/* ---------- 14j. PATCH NOTES (Profile → version) ---------- */
+/* ---------- 14j. PATCH NOTES (Profile ? version) ---------- */
 body.light-mode .patch-notes-modal,
 body.light-mode .patch-notes-card { background: #F3EEE6 !important; border-color: rgba(20,20,20,0.10) !important; }
 body.light-mode .patch-notes-version,
@@ -804,7 +804,7 @@ body.light-mode .activity-interaction-btn.liked [data-activity-like-count] { col
 body.light-mode .activity-interaction-btn:not(.liked) [data-activity-like-count],
 body.light-mode .activity-interaction-btn [data-activity-reply-count] { color: #3A3A3A !important; }
 
-/* ---------- 14r. FINAL SAFETY NET — translucent-white backgrounds
+/* ---------- 14r. FINAL SAFETY NET ? translucent-white backgrounds
    inherit a faint surface; force their child text to dark unless
    the immediate background is a saturated colour. ---------- */
 body.light-mode .activity-card *,
@@ -816,7 +816,7 @@ body.light-mode .user-card *,
 body.light-mode .profile-character-editor-modal *,
 body.light-mode .mylist-settings-panel *,
 body.light-mode #mylist-view .card * {
-  /* Re-assert dark default — but ONLY where the child has no explicit
+  /* Re-assert dark default ? but ONLY where the child has no explicit
      background and isn't a button-with-gradient. We cannot inspect bg
      from CSS, so we rely on prior rules to opt-in white via class. */
 }
@@ -826,7 +826,7 @@ body.light-mode .activity-card .activity-comment-preview {
   /* Allow strong color preservation handled by earlier rules. */
 }
 
-/* ---------- 14s. KEEP WHITE — gradient/saturated chip & button
+/* ---------- 14s. KEEP WHITE ? gradient/saturated chip & button
    safety list (final). These get hit by some broad rules above
    because of class-name patterns; force white back. ---------- */
 body.light-mode .friend-watch-action.accept,
@@ -852,13 +852,13 @@ body.light-mode .nav-badge,
 body.light-mode .friend-activity-dot { color: #ffffff !important; }
 
 /* =============================================================
-   v481: My Lists header — explicit fixes for elements visible in
+   v481: My Lists header ? explicit fixes for elements visible in
    user screenshot that were still rendering near-white text on
    the new light page background.
    ============================================================= */
 
 /* "King_Kooom" display name under the avatar shortcut. Had NO
-   light-mode override anywhere — text inherited the dark-mode
+   light-mode override anywhere ? text inherited the dark-mode
    pale-purple body color. */
 body.light-mode .mylist-own-profile-name {
   color: #171717 !important;
@@ -947,7 +947,7 @@ body.light-mode #mylist-view .tab-btn.active .tab-count {
   border-color: rgba(124,58,237,0.28) !important;
 }
 
-/* Underline indicator under the active tab — already exists in dark
+/* Underline indicator under the active tab ? already exists in dark
    mode via gradient. Keep it visible on light too. */
 body.light-mode #mylist-view .tab-btn.active::after,
 body.light-mode #mylist-view .section-btn.active::after {
@@ -968,12 +968,12 @@ body.light-mode #mylist-view .search-row input {
   box-shadow: 0 4px 10px rgba(31,16,72,0.05) !important;
 }
 
-/* "+ Add to Shelf" button is already a purple gradient — keep white text. */
+/* "+ Add to Shelf" button is already a purple gradient ? keep white text. */
 body.light-mode .add-button,
 body.light-mode .add-to-shelf-btn,
 body.light-mode .add-shelf-btn { color: #ffffff !important; }
 
-/* Import pill in top corner — currently a teal pill. Make sure the
+/* Import pill in top corner ? currently a teal pill. Make sure the
    text reads cleanly. */
 body.light-mode .import-shortcut-pill,
 body.light-mode .nav-import-pill {
@@ -987,20 +987,20 @@ body.light-mode .mylist-header-action {
   color: #6d28d9 !important;
 }
 
-/* Final guard — anything inside #mylist-view that's still inheriting
+/* Final guard ? anything inside #mylist-view that's still inheriting
    the dark-mode pale color (#e8e3f3 / #d8cff3) gets a sane default. */
 body.light-mode #mylist-view {
   color: #3A3A3A !important;
 }
 
 /* =============================================================
-   v487: DEFAULT THEME FLAT-MODE — My Lists page
+   v487: DEFAULT THEME FLAT-MODE ? My Lists page
    Remove every shadow, glow, blur, translucent surface, and
    animation filter. Everything is a solid hex colour.
    Progress bar is explicitly excluded from this reset.
    ============================================================= */
 
-/* ── 1. Nuclear shadow/filter/blur wipe on the whole My Lists view ── */
+/* -- 1. Nuclear shadow/filter/blur wipe on the whole My Lists view -- */
 body.true-dark-mode #mylist-view *:not(.progress-fill):not(.progress-bar) {
   box-shadow: none !important;
   text-shadow: none !important;
@@ -1009,9 +1009,9 @@ body.true-dark-mode #mylist-view *:not(.progress-fill):not(.progress-bar) {
   -webkit-backdrop-filter: none !important;
 }
 
-/* ── 2. Star rating animations — kill glow keyframes by preventing
+/* -- 2. Star rating animations ? kill glow keyframes by preventing
         the animation classes from running. The star still changes
-        colour on click; it just doesn't pop or glow. ── */
+        colour on click; it just doesn't pop or glow. -- */
 body.true-dark-mode .star-btn.star-pop,
 body.true-dark-mode .star-label.label-pop,
 body.true-dark-mode .ep-rating-btn {
@@ -1020,7 +1020,7 @@ body.true-dark-mode .ep-rating-btn {
   box-shadow: none !important;
 }
 
-/* ── 3. Episode watch-sweep glow ── */
+/* -- 3. Episode watch-sweep glow -- */
 body.true-dark-mode .ep-row.episode-watch-glow,
 body.true-dark-mode .ep-check.ep-check-pop {
   animation: none !important;
@@ -1028,7 +1028,7 @@ body.true-dark-mode .ep-check.ep-check-pop {
   box-shadow: none !important;
 }
 
-/* ── 4. Profile avatar — solid border, no shadow ── */
+/* -- 4. Profile avatar ? solid border, no shadow -- */
 /* v590: username 600 weight */
 #mylist-view .mylist-own-profile-name,
 body.true-dark-mode #mylist-view .mylist-own-profile-name {
@@ -1039,12 +1039,12 @@ body.true-dark-mode #mylist-view .mylist-own-profile-shortcut {
   box-shadow: none !important;
   border: 1px solid #3a3a3a !important;
   background: #1a1a1a !important;
-  /* v589: 10% smaller (50px → 45px) */
+  /* v589: 10% smaller (50px ? 45px) */
   width: 45px !important;
   height: 45px !important;
 }
 
-/* v589: inline bio field — floating text, no background */
+/* v589: inline bio field ? floating text, no background */
 .mylist-own-profile-bio {
   display: block !important;
   width: 100% !important;
@@ -1059,7 +1059,7 @@ body.true-dark-mode #mylist-view .mylist-own-profile-shortcut {
   font-weight: 300 !important;
   line-height: 1.4 !important;
   text-align: center !important;
-  font-family: 'Sohne', 'Söhne', 'DM Sans', sans-serif !important;
+  font-family: 'Sohne', 'S?hne', 'DM Sans', sans-serif !important;
   cursor: text !important;
   overflow-wrap: break-word !important;
   word-break: break-word !important;
@@ -1080,21 +1080,21 @@ body.true-dark-mode #mylist-view .mylist-own-profile-shortcut {
   color: transparent !important;
 }
 
-/* ── 5. Cards — no border, let the tone shift carry it ── */
+/* -- 5. Cards ? no border, let the tone shift carry it -- */
 body.true-dark-mode #mylist-view .card {
   box-shadow: none !important;
   border: none !important;
   background: #272727 !important;
 }
 
-/* ── 6. Section header card — no border ── */
+/* -- 6. Section header card ? no border -- */
 body.true-dark-mode #mylist-view .mylist-section-card {
   box-shadow: none !important;
   border: none !important;
   background: #272727 !important;
 }
 
-/* ── 7. Section toggle buttons (Games / Anime / Movies / TV Shows) ── */
+/* -- 7. Section toggle buttons (Games / Anime / Movies / TV Shows) -- */
 body.true-dark-mode #mylist-view .section-btn {
   box-shadow: none !important;
   filter: none !important;
@@ -1106,7 +1106,7 @@ body.true-dark-mode #mylist-view .section-btn.active {
   border: none !important;
 }
 
-/* ── 8. Status/filter tabs (Watching / Watchlist / Watched / Paused) ── */
+/* -- 8. Status/filter tabs (Watching / Watchlist / Watched / Paused) -- */
 body.true-dark-mode #mylist-view .tab-btn {
   box-shadow: none !important;
   filter: none !important;
@@ -1122,14 +1122,14 @@ body.true-dark-mode #mylist-view .tab-count {
   box-shadow: none !important;
 }
 
-/* ── 9. Status pill selector inside cards ── */
+/* -- 9. Status pill selector inside cards -- */
 body.true-dark-mode #mylist-view .game-status-current-pill,
 body.true-dark-mode #mylist-view .status-pill {
   box-shadow: none !important;
   filter: none !important;
 }
 
-/* ── 10. Episode list + season blocks ── */
+/* -- 10. Episode list + season blocks -- */
 body.true-dark-mode #mylist-view .ep-list {
   box-shadow: none !important;
   background: #272727 !important;
@@ -1150,7 +1150,7 @@ body.true-dark-mode #mylist-view .ep-check.checked {
   border-color: #6d28d9 !important;
 }
 
-/* ── 11. Action row buttons — transparent, just text + thin outline ── */
+/* -- 11. Action row buttons ? transparent, just text + thin outline -- */
 body.true-dark-mode #mylist-view .ep-toggle-bar,
 body.true-dark-mode #mylist-view .comments-btn,
 body.true-dark-mode #mylist-view .card-footer-btn {
@@ -1161,7 +1161,7 @@ body.true-dark-mode #mylist-view .card-footer-btn {
   color: #a0a0a0 !important;
 }
 
-/* ── 12. Add to shelf button — flat purple, no shadow ── */
+/* -- 12. Add to shelf button ? flat purple, no shadow -- */
 body.true-dark-mode #mylist-view .add-button,
 body.true-dark-mode #mylist-view [class*="add-shelf"],
 body.true-dark-mode #mylist-view [class*="add-to-shelf"] {
@@ -1169,13 +1169,13 @@ body.true-dark-mode #mylist-view [class*="add-to-shelf"] {
   filter: none !important;
 }
 
-/* ── 13. Header — no shadow, flat grey ── */
+/* -- 13. Header ? no shadow, flat grey -- */
 body.true-dark-mode .header {
   box-shadow: none !important;
   filter: none !important;
 }
 
-/* ── 14. Bottom nav pill — solid dark for contrast against #242424 ── */
+/* -- 14. Bottom nav pill ? solid dark for contrast against #242424 -- */
 body.true-dark-mode .mobile-bottom-nav {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
@@ -1184,13 +1184,13 @@ body.true-dark-mode .mobile-bottom-nav {
   border: 1px solid #2c2c2c !important;
 }
 
-/* ── 15. Sort button / search bar ── */
+/* -- 15. Sort button / search bar -- */
 body.true-dark-mode #mylist-view .my-list-search,
 body.true-dark-mode #mylist-view input[type="text"] {
   box-shadow: none !important;
 }
 
-/* ── 16. Inset glows on hover states ── */
+/* -- 16. Inset glows on hover states -- */
 body.true-dark-mode #mylist-view .card:hover,
 body.true-dark-mode #mylist-view .section-btn:hover,
 body.true-dark-mode #mylist-view .tab-btn:hover {
@@ -1199,10 +1199,10 @@ body.true-dark-mode #mylist-view .tab-btn:hover {
 }
 
 /* =============================================================
-   v490: MINIMAL POLISH — status pills, Add to Shelf, ep-list
+   v490: MINIMAL POLISH ? status pills, Add to Shelf, ep-list
    ============================================================= */
 
-/* ── Status pills: outline-only, no filled background ── */
+/* -- Status pills: outline-only, no filled background -- */
 body.true-dark-mode #mylist-view .status-pill.watching-active {
   background: transparent !important;
   border-color: #A78BFA !important;
@@ -1249,7 +1249,7 @@ body.true-dark-mode #mylist-view .game-status-options .status-pill {
   color: #a0a0a0 !important;
 }
 
-/* ── "+ Add to Shelf" — flat, no gradient, no shadow ── */
+/* -- "+ Add to Shelf" ? flat, no gradient, no shadow -- */
 body.true-dark-mode #add-btn,
 body.true-dark-mode #mylist-view .btn-primary {
   background: #A78BFA !important;
@@ -1263,7 +1263,7 @@ body.true-dark-mode #mylist-view .btn-primary:hover {
   box-shadow: none !important;
 }
 
-/* ── Episode list — no border, just tone shift ── */
+/* -- Episode list ? no border, just tone shift -- */
 body.true-dark-mode #mylist-view .ep-list {
   background: #272727 !important;
   border: none !important;
@@ -1273,13 +1273,13 @@ body.true-dark-mode #mylist-view .season-block {
   border-color: #3a3a3a !important;
 }
 
-/* ── ep-check unchecked — subtle outline ── */
+/* -- ep-check unchecked ? subtle outline -- */
 body.true-dark-mode #mylist-view .ep-check {
   border: 1px solid #4a4a4a !important;
 }
 
 /* =============================================================
-   v513/v514: Episode dropdown — clean borderless season cards,
+   v513/v514: Episode dropdown ? clean borderless season cards,
    no inter-row dividers, taller episode rows, clean watched state
    ============================================================= */
 
@@ -1349,7 +1349,7 @@ body.true-dark-mode #mylist-view .ep-row {
 }
 
 /* =============================================================
-   v505/v507: Import button — flat cyan, all effects removed,
+   v505/v507: Import button ? flat cyan, all effects removed,
    and translateY overridden here (file 16 = last loaded) so it
    beats the "transform: none !important" in 12-pwa-header-continuity.css
    ============================================================= */
@@ -1373,7 +1373,7 @@ body.main-tab-mylist .header-import-btn:hover {
 }
 /* v511: import button sits just below the cogwheel. Cogwheel has
    translateY(52px); import natural top is ~17px in the 64px row,
-   so translateY(55px) puts its top at ~72px — just below cogwheel bottom. */
+   so translateY(55px) puts its top at ~72px ? just below cogwheel bottom. */
 @media (max-width: 700px) {
   body.main-tab-mylist .header-import-btn {
     transform: translateY(55px) !important;
@@ -1408,7 +1408,7 @@ body.true-dark-mode #mylist-view .mal-export-badge {
 }
 
 /* =============================================================
-   v520/v522/v524/v525: Activity feed — flat feed style.
+   v520/v522/v524/v525: Activity feed ? flat feed style.
    Cards blend with the page background (#0E0E0E). Posts are
    separated by a hairline in #2f2f2f (one shade lighter than the
    previous #272727 divider for slightly better visibility).
@@ -1416,7 +1416,7 @@ body.true-dark-mode #mylist-view .mal-export-badge {
    specificity to beat the originals in 04-activity-feed.css.
    ============================================================= */
 
-/* Main shelfd-social-card — flat, transparent, hairline divider */
+/* Main shelfd-social-card ? flat, transparent, hairline divider */
 body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card,
 body.true-dark-mode .activity-page .shelfd-social-card {
   background: transparent !important;
@@ -1447,7 +1447,7 @@ body.true-dark-mode .activity-page .import-activity-card {
   box-shadow: none !important;
 }
 
-/* Stacked activity back-plate layers — hide them, no card chrome on stacks */
+/* Stacked activity back-plate layers ? hide them, no card chrome on stacks */
 body.true-dark-mode #community-view #activity-tab-view .sl-activity-stack-layer,
 body.true-dark-mode .activity-page .sl-activity-stack-layer {
   background: transparent !important;
@@ -1475,7 +1475,7 @@ body.true-dark-mode .activity-page .sl-activity-stack-front {
   box-shadow: none !important;
 }
 
-/* Expanded import grid panel — keep tonal contrast since this is a panel
+/* Expanded import grid panel ? keep tonal contrast since this is a panel
    that opens INSIDE a card (not a feed post itself) */
 body.true-dark-mode #community-view #activity-tab-view .import-activity-grid-panel,
 body.true-dark-mode .activity-page .import-activity-grid-panel,
@@ -1491,7 +1491,7 @@ body.true-dark-mode .activity-page .import-activity-row {
   background: rgba(255,255,255,0.035) !important;
 }
 
-/* Right-cluster pill on import card — light surface against the flat bg */
+/* Right-cluster pill on import card ? light surface against the flat bg */
 body.true-dark-mode #community-view #activity-tab-view .import-activity-right-cluster,
 body.true-dark-mode .activity-page .import-activity-right-cluster {
   background: #272727 !important;
@@ -1524,13 +1524,13 @@ body.true-dark-mode .activity-page .activity-card.feed-post {
   box-shadow: none !important;
 }
 
-/* Activity poster column on the older card style — kill its dark fill */
+/* Activity poster column on the older card style ? kill its dark fill */
 body.true-dark-mode #community-view #activity-tab-view .activity-poster-col,
 body.true-dark-mode .activity-page .activity-poster-col {
   background: transparent !important;
 }
 
-/* Stack wrap — give it the same hairline divider so stacked posts
+/* Stack wrap ? give it the same hairline divider so stacked posts
    don't visually run into the next post */
 body.true-dark-mode #community-view #activity-tab-view .sl-activity-stack-wrap,
 body.true-dark-mode .activity-page .sl-activity-stack-wrap {
@@ -1541,7 +1541,7 @@ body.true-dark-mode .activity-page .sl-activity-stack-wrap {
   box-shadow: none !important;
 }
 
-/* Stack front card divider — explicitly add since it was missing */
+/* Stack front card divider ? explicitly add since it was missing */
 body.true-dark-mode #community-view #activity-tab-view .sl-activity-stack-front,
 body.true-dark-mode .activity-page .sl-activity-stack-front {
   border-bottom: 1px solid rgba(255,255,255,0.15) !important;
@@ -1561,7 +1561,7 @@ body.true-dark-mode #feed-composer {
 }
 
 /* =============================================================
-   v526: Friends top tabs (Activity / Friends / Requests) —
+   v526: Friends top tabs (Activity / Friends / Requests) ?
    strip the pill capsule wrapper and force the button text white.
    ============================================================= */
 body.true-dark-mode #community-view .friends-tabs {
@@ -1591,9 +1591,9 @@ body.true-dark-mode #community-view .friends-tabs .friends-tab-btn:hover {
 }
 
 /* =============================================================
-   v528: 4th bottom-nav tab "Friends" — split inner tabs
-   - Activity bottom nav (default community)  → only Activity inner tab
-   - Friends bottom nav (.shelfd-friends-list-mode) → Friends + Requests
+   v528: 4th bottom-nav tab "Friends" ? split inner tabs
+   - Activity bottom nav (default community)  ? only Activity inner tab
+   - Friends bottom nav (.shelfd-friends-list-mode) ? Friends + Requests
    ============================================================= */
 /* Default community view = Activity bottom nav: hide Friends + Requests inner tabs */
 body.main-tab-community:not(.shelfd-friends-list-mode) #ftab-friends,
@@ -1604,7 +1604,7 @@ body.main-tab-community:not(.shelfd-friends-list-mode) #ftab-requests {
 body.shelfd-friends-list-mode #ftab-activity {
   display: none !important;
 }
-/* Activity feed pills (Watch Together / Activity / Shared Watch) — hide
+/* Activity feed pills (Watch Together / Activity / Shared Watch) ? hide
    on Friends bottom-nav since they only relate to the activity tab */
 body.shelfd-friends-list-mode #activity-tab-view .activity-feed-actions,
 body.shelfd-friends-list-mode #activity-tab-view #feed-composer {
@@ -1624,7 +1624,7 @@ body.true-dark-mode .mobile-bottom-nav .main-nav-btn {
 }
 
 /* =============================================================
-   v523: Activity card line spacing — name / title / action
+   v523: Activity card line spacing ? name / title / action
    Roughly doubled bottom-margin on each so the three lines have
    clear breathing room between them.
    ============================================================= */
@@ -1642,7 +1642,7 @@ body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-status {
 }
 
 /* =============================================================
-   v508: Add to Shelf — full-page bottom sheet (dark charcoal)
+   v508: Add to Shelf ? full-page bottom sheet (dark charcoal)
    When triggered from the + button, slides up from the bottom
    instead of appearing as a centered popup.
    ============================================================= */
@@ -1676,9 +1676,9 @@ body.true-dark-mode #modal .add-title-modal {
   animation: addShelfSlideUp 0.34s cubic-bezier(0.22, 1, 0.36, 1) both !important;
 }
 
-/* ── v508 redesign: full-page sheet interior ──────────────────── */
+/* -- v508 redesign: full-page sheet interior -------------------- */
 
-/* Header row: title left, × close right */
+/* Header row: title left, ? close right */
 body.true-dark-mode #modal .add-title-modal {
   display: flex !important;
   flex-direction: column !important;
@@ -1694,7 +1694,7 @@ body.true-dark-mode #modal .add-title-modal h3 {
   padding-right: 44px !important; /* room for future close btn */
 }
 
-/* API key row — keep but shrink it to near-invisible unless needed */
+/* API key row ? keep but shrink it to near-invisible unless needed */
 body.true-dark-mode #modal .api-key-row {
   margin-bottom: 8px !important;
 }
@@ -1716,7 +1716,7 @@ body.true-dark-mode #modal #tmdb-search-area {
   min-height: 0 !important;
 }
 
-/* Search row — reorder above pills */
+/* Search row ? reorder above pills */
 body.true-dark-mode #modal .cover-search-row {
   order: -1 !important;
   display: flex !important;
@@ -1809,7 +1809,7 @@ body.true-dark-mode #modal #tmdb-results {
   min-height: 0 !important;
 }
 
-/* Bottom actions row — cancel becomes minimal, back btn kept */
+/* Bottom actions row ? cancel becomes minimal, back btn kept */
 body.true-dark-mode #modal .modal-actions {
   display: flex !important;
   justify-content: space-between !important;
@@ -1835,7 +1835,7 @@ body.true-dark-mode #modal .modal-actions #modal-back-btn {
   border-color: #4a4a4a !important;
 }
 
-/* ── v509 results grid — 3 poster cards per row ─────────────── */
+/* -- v509 results grid ? 3 poster cards per row --------------- */
 body.true-dark-mode #modal .tmdb-results {
   display: grid !important;
   grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
@@ -1843,7 +1843,7 @@ body.true-dark-mode #modal .tmdb-results {
   padding-bottom: 20px !important;
 }
 
-/* Each card: vertical flex — poster fills top, info at bottom */
+/* Each card: vertical flex ? poster fills top, info at bottom */
 body.true-dark-mode #modal .tmdb-result {
   display: flex !important;
   flex-direction: column !important;
@@ -1861,7 +1861,7 @@ body.true-dark-mode #modal .tmdb-result:active {
   opacity: 0.75 !important;
 }
 
-/* Poster — 2:3 aspect, full width, crisp cover crop */
+/* Poster ? 2:3 aspect, full width, crisp cover crop */
 body.true-dark-mode #modal .tmdb-result img {
   width: 100% !important;
   aspect-ratio: 2 / 3 !important;
@@ -1882,7 +1882,7 @@ body.true-dark-mode #modal .tmdb-result-info {
   min-width: 0 !important;
 }
 
-/* Title — two-line clamp, no overflow */
+/* Title ? two-line clamp, no overflow */
 body.true-dark-mode #modal .tmdb-result-title {
   font-size: 11px !important;
   font-weight: 700 !important;
@@ -1895,7 +1895,7 @@ body.true-dark-mode #modal .tmdb-result-title {
   line-height: 1.3 !important;
 }
 
-/* Badge (media type) — tiny chip, sits on its own line */
+/* Badge (media type) ? tiny chip, sits on its own line */
 body.true-dark-mode #modal .shelf-result-badge {
   display: inline-block !important;
   font-size: 9px !important;
@@ -1911,7 +1911,7 @@ body.true-dark-mode #modal .shelf-result-badge {
   align-self: flex-start !important;
 }
 
-/* Hide the verbose meta line — poster card shows name + type only */
+/* Hide the verbose meta line ? poster card shows name + type only */
 body.true-dark-mode #modal .tmdb-result-meta {
   display: none !important;
 }
@@ -1925,7 +1925,7 @@ body.true-dark-mode #modal .tmdb-result-meta {
      than the previous yellow headline.
    - Creator-role and creative-team-role/profile-label tags lose
      their pill chrome (no padding, border, background, radius,
-     shadow) — only the colour is kept.
+     shadow) ? only the colour is kept.
    ============================================================= */
 /* v784: All UNSCOPED activity-card rules previously in this block were
    leaking light-mode-contrast.css styles into dark mode. They've been
@@ -1962,10 +1962,10 @@ body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-name .creato
 }
 
 /* v542: My Lists card footer polish
-   1. Episodes button — remove 1px border
-   2. Watch-together + button — remove 1px border
-   3. Status pills — 14px / 550 / white 100%
-   4. Card-genre / categories — 14px / 700 / white 100%
+   1. Episodes button ? remove 1px border
+   2. Watch-together + button ? remove 1px border
+   3. Status pills ? 14px / 550 / white 100%
+   4. Card-genre / categories ? 14px / 700 / white 100%
 */
 body.true-dark-mode #mylist-view .card-action-row .ep-toggle-bar.card-footer-btn {
   border: none !important;
@@ -2007,7 +2007,7 @@ body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-copy-zone {
    v558: per-activity user note ("+" composer + rendered chip)
    ============================================================= */
 
-/* + button — sits left of comment/reply on user's own activity cards */
+/* + button ? sits left of comment/reply on user's own activity cards */
 body.true-dark-mode .sl-activity-add-note-btn {
   display: inline-flex !important;
   align-items: center !important;
@@ -2044,7 +2044,7 @@ body.true-dark-mode #mylist-view .card-activity-note {
   overflow-wrap: anywhere !important;
 }
 
-/* Rendered note chip — sits below the rating on the activity card */
+/* Rendered note chip ? sits below the rating on the activity card */
 body.true-dark-mode .sl-activity-user-note {
   display: block !important;
   width: 100% !important;
@@ -2180,7 +2180,7 @@ body.true-dark-mode .sl-activity-user-note {
 }
 .screenlist-activity-note-save:hover { filter: brightness(1.06) !important; }
 
-/* v554: compact "EP rated ★ N" chip — episode-rating display on merged
+/* v554: compact "EP rated ? N" chip ? episode-rating display on merged
    watch+rate cards. */
 body.true-dark-mode .sl-activity-rating-compact {
   display: inline-flex !important;
@@ -2212,7 +2212,7 @@ body.true-dark-mode .sl-activity-rating-compact .sl-activity-score {
   letter-spacing: 0 !important;
 }
 
-/* v604: Activity/Shared Watch tab pills — 800→600 weight, 11px→13px */
+/* v604: Activity/Shared Watch tab pills ? 800?600 weight, 11px?13px */
 body.true-dark-mode .activity-shared-watch-pill,
 body.true-dark-mode #activity-tab-view .activity-shared-watch-pill,
 .activity-shared-watch-pill {
@@ -2220,7 +2220,7 @@ body.true-dark-mode #activity-tab-view .activity-shared-watch-pill,
   font-weight: 600 !important;
 }
 
-/* v604: Activity action buttons (like/reply/delete) — 300 weight */
+/* v604: Activity action buttons (like/reply/delete) ? 300 weight */
 body.true-dark-mode #community-view #activity-tab-view .sl-activity-action-btn,
 body.true-dark-mode .activity-page .sl-activity-action-btn,
 #community-view #activity-tab-view .sl-activity-action-btn,
@@ -2234,7 +2234,7 @@ body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-bottom-safe 
   padding-bottom: 20px !important;
 }
 
-/* v606: on Activity tab — hide the top-left "Activity" tab button and its
+/* v606: on Activity tab ? hide the top-left "Activity" tab button and its
    highlight line, then pull the page content up flush to the pills. */
 
 /* Hide #ftab-activity button and its underline in all states */
@@ -2242,7 +2242,7 @@ body.main-tab-community:not(.shelfd-friends-list-mode) #ftab-activity,
 body.true-dark-mode #community-view:not(.shelfd-friends-list-mode) #ftab-activity {
   display: none !important;
 }
-/* Collapse the entire friends-tabs bar on Activity tab — it only contains
+/* Collapse the entire friends-tabs bar on Activity tab ? it only contains
    #ftab-activity which is now hidden, so the bar is empty. */
 body.main-tab-community:not(.shelfd-friends-list-mode) #community-view .friends-tabs,
 body.true-dark-mode body.main-tab-community:not(.shelfd-friends-list-mode) .friends-tabs {
@@ -2269,7 +2269,7 @@ body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view {
   margin-top: 0 !important;
 }
 
-/* Creator + creative-team tag pill removal — keep colour only. */
+/* Creator + creative-team tag pill removal ? keep colour only. */
 .creator-role,
 body.light-mode .creator-role,
 body.true-dark-mode .creator-role {
@@ -2305,7 +2305,7 @@ body.true-dark-mode .creative-team-profile-label {
              top tabs 14/500, category buttons 16/600.
    ============================================================= */
 
-/* Discovery section wrappers — flat (no boxed border/bg) */
+/* Discovery section wrappers ? flat (no boxed border/bg) */
 body.true-dark-mode #discover-view .discover-section-card,
 body.true-dark-mode #discover-view .discover-rail,
 body.true-dark-mode #discover-view .discover-section,
@@ -2347,7 +2347,7 @@ body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-bottom-safe 
 
 /* ========== My Lists ========== */
 
-/* Status pill on title card — 11px / 400 weight */
+/* Status pill on title card ? 11px / 400 weight */
 body.true-dark-mode #mylist-view .show-card .status-pill,
 body.true-dark-mode #mylist-view .card .status-pill,
 body.true-dark-mode #mylist-view .status-pills .status-pill {
@@ -2375,7 +2375,7 @@ body.true-dark-mode #mylist-view [id^="progress-percent-"] {
 /* v549: revert v547 action-row centering (it broke Comments + WT+ layout).
    Episodes button stays in its natural grid cell within .card-footer-actions. */
 
-/* Top status filter tabs — 13px / 400 weight, -20% closer */
+/* Top status filter tabs ? 13px / 400 weight, -20% closer */
 body.true-dark-mode #mylist-view #mylist-toolbar .tab-btn,
 body.true-dark-mode #mylist-view .tabs .tab-btn {
   font-size: 13px !important;
@@ -2397,7 +2397,7 @@ body.true-dark-mode #mylist-view .tab-btn.active .tab-count,
   display: inline-flex !important;
 }
 
-/* Top category buttons — 16px / 400 weight, -20% closer */
+/* Top category buttons ? 16px / 400 weight, -20% closer */
 body.true-dark-mode .section-btn,
 body.true-dark-mode .section-toggle .section-btn {
   font-size: 16px !important;
@@ -2408,7 +2408,7 @@ body.true-dark-mode .section-toggle {
   gap: 3px !important;
 }
 
-/* v592: title card text — genre, release date, where-to-watch */
+/* v592: title card text ? genre, release date, where-to-watch */
 body.true-dark-mode #mylist-view .card-genre,
 #mylist-view .card-genre {
   font-size: 11px !important;
@@ -2431,7 +2431,7 @@ body.true-dark-mode #mylist-view .mylist-availability-where-text,
   font-size: 11px !important;
   font-weight: 400 !important;
 }
-/* Episode count — 400 weight */
+/* Episode count ? 400 weight */
 body.true-dark-mode #mylist-view .progress-meta,
 body.true-dark-mode #mylist-view .progress-meta span,
 #mylist-view .progress-meta,
@@ -2441,7 +2441,7 @@ body.true-dark-mode #mylist-view .progress-meta span,
 }
 
 /* v587: mylist title card typography */
-/* Episode count "3/17 episodes" — 11px 300 */
+/* Episode count "3/17 episodes" ? 11px 300 */
 body.true-dark-mode #mylist-view .progress-meta,
 body.true-dark-mode #mylist-view .progress-meta span,
 body.true-dark-mode #mylist-view .progress-meta span:last-child {
@@ -2468,7 +2468,7 @@ body.true-dark-mode #mylist-view .card-right-controls .watch-together-slot,
   margin-left: 0 !important;
 }
 
-/* v605: import activity card — 200 weight less */
+/* v605: import activity card ? 200 weight less */
 .import-activity-title {
   font-weight: 700 !important;  /* was 900 */
 }
@@ -2482,21 +2482,21 @@ body.true-dark-mode #mylist-view .rating-area,
   margin-top: 9px !important;
 }
 
-/* Rating label hidden — stars are self-explanatory */
+/* Rating label hidden ? stars are self-explanatory */
 body.true-dark-mode #mylist-view .rating-label,
 body.true-dark-mode #mylist-view .card .rating-label,
 #mylist-view .rating-label,
 #mylist-view .card .rating-label {
   display: none !important;
 }
-/* Episodes button — 11px 500 */
+/* Episodes button ? 11px 500 */
 body.true-dark-mode #mylist-view .card-action-row .ep-toggle-bar.card-footer-btn,
 body.true-dark-mode #mylist-view .card-action-row .ep-toggle-bar.card-footer-btn span:first-child {
   font-size: 11px !important;
   font-weight: 500 !important;
 }
 
-/* v602: my-lists title cards 0.3 shades darker (#272727 → #242424) */
+/* v602: my-lists title cards 0.3 shades darker (#272727 ? #242424) */
 body.true-dark-mode #mylist-view .card,
 body.true-dark-mode #mylist-view .show-card,
 body.true-dark-mode #mylist-view .game-library-card {
@@ -2504,7 +2504,7 @@ body.true-dark-mode #mylist-view .game-library-card {
 }
 
 /* =============================================================
-   v549: Friends list — modern dark palette to match my-lists.
+   v549: Friends list ? modern dark palette to match my-lists.
    Cards #212121 on the #0E0E0E page background, hairline border,
    no glow.
    ============================================================= */
@@ -2544,7 +2544,7 @@ body.true-dark-mode #community-view .friend-request-card {
   box-shadow: none !important;
 }
 
-/* v551: discover card — shorter vertically, rating under poster top-right */
+/* v551: discover card ? shorter vertically, rating under poster top-right */
 
 /* Narrower aspect ratio = shorter poster */
 body.true-dark-mode #discover-view .discover-poster {
@@ -2559,7 +2559,7 @@ body.true-dark-mode #discover-view .discover-card.games-discover-card .discover-
   gap: 3px !important;
 }
 
-/* Rating — sits at top-right of card body, below the poster */
+/* Rating ? sits at top-right of card body, below the poster */
 body.true-dark-mode .discover-card .discover-card-rating {
   display: flex !important;
   align-items: center !important;
@@ -2587,13 +2587,13 @@ body.true-dark-mode .discover-card .discover-card-rating-value {
 }
 
 /* =============================================================
-   v567: Discover card body — clean 3-line layout
-   Line 1: title (left)  ★ rating (right)
+   v567: Discover card body ? clean 3-line layout
+   Line 1: title (left)  ? rating (right)
    Line 2: genre
    Line 3: Released / Releasing [date]
    ============================================================= */
 
-/* Card body gets tight, minimal padding — let the poster dominate */
+/* Card body gets tight, minimal padding ? let the poster dominate */
 .discover-card .discover-card-body {
   padding: 7px 8px 8px !important;
   display: flex !important;
@@ -2632,12 +2632,12 @@ body.true-dark-mode .discover-card .discover-card-rating-value {
   -webkit-line-clamp: 2 !important;
   -webkit-box-orient: vertical !important;
   overflow: hidden !important;
-  /* v787: font-size removed — controlled by #discover-view .discover-card-title
+  /* v787: font-size removed ? controlled by #discover-view .discover-card-title
      in 14-live-update-discover-controls.css (specificity 0,1,1, wins). */
   font-weight: 500 !important;
   line-height: 1.3 !important;
   color: #ffffff !important;
-  font-family: 'Söhne', 'DM Sans', sans-serif !important;
+  font-family: 'S?hne', 'DM Sans', sans-serif !important;
   letter-spacing: -0.01em !important;
   text-align: left !important;
   white-space: normal !important;
@@ -2687,7 +2687,7 @@ body.true-dark-mode .discover-card .discover-card-rating-value {
 }
 
 /* =============================================================
-   v576: Discover page uses Söhne (Sohne) for every text element.
+   v576: Discover page uses S?hne (Sohne) for every text element.
    Applies to the main Movies & TV hub, Anime hub, and Games hub
    AND the full-page category view. The browser auto-picks the
    matching weight from the @font-face declarations in
@@ -2719,14 +2719,14 @@ body.true-dark-mode .discover-card .discover-card-rating-value {
 #activity-tab-view *,
 .screenlist-stacked-activity-page,
 .screenlist-stacked-activity-page * {
-  font-family: 'Sohne', 'Söhne', 'DM Sans', system-ui, sans-serif !important;
+  font-family: 'Sohne', 'S?hne', 'DM Sans', system-ui, sans-serif !important;
 }
 
 /* =============================================================
    v625: Search bottom-nav button + full-page search overlay
    ============================================================= */
 
-/* v626: Force bottom nav to single row of 5 (Discover / Activity / 🔍 / Friends / My Lists).
+/* v626: Force bottom nav to single row of 5 (Discover / Activity / ?? / Friends / My Lists).
    The parent used flex:1 with bigger padding/font, which on narrow screens pushed
    "My Lists" to a second row. Switch to a true 5-column grid and tighten the type. */
 @media (max-width: 700px) {
@@ -2740,7 +2740,7 @@ body.true-dark-mode .discover-card .discover-card-rating-value {
     max-width: 580px !important;
     gap: 0 !important;
     padding: 6px 6px !important;
-    /* v653: glassy frosted blur — stands out slightly from the page
+    /* v653: glassy frosted blur ? stands out slightly from the page
        behind it without overpowering the content. */
     background: rgba(24, 28, 32, 0.62) !important;
     backdrop-filter: blur(22px) saturate(1.4) !important;
@@ -2769,7 +2769,7 @@ body.true-dark-mode .discover-card .discover-card-rating-value {
     font-weight: 700 !important;
   }
 }
-/* v653: light-mode glass tint — keeps the same frosted look on a
+/* v653: light-mode glass tint ? keeps the same frosted look on a
    warmer background. */
 body.light-mode .mobile-bottom-nav,
 body.light-mode #mobile-bottom-nav {
@@ -2778,7 +2778,7 @@ body.light-mode #mobile-bottom-nav {
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.10) !important;
 }
 
-/* Center search button — sits in the middle of the 5-col grid */
+/* Center search button ? sits in the middle of the 5-col grid */
 body .mobile-bottom-nav .nav-search-btn,
 body #mobile-bottom-nav .nav-search-btn {
   display: inline-flex !important;
@@ -2804,7 +2804,7 @@ body .mobile-bottom-nav .nav-search-btn[aria-pressed="true"] {
   pointer-events: none !important;
 }
 
-/* Full-page search overlay — GPU-composited 120Hz spring slide.
+/* Full-page search overlay ? GPU-composited 120Hz spring slide.
    v628 fix: when fully open we remove the transform entirely so iOS Safari
    will bring up the on-screen keyboard for the search input. (iOS suppresses
    the keyboard when an input's ancestor has a non-identity transform.) */
@@ -2836,7 +2836,7 @@ body .mobile-bottom-nav .nav-search-btn[aria-pressed="true"] {
 }
 
 /* =============================================================
-   v571: Movies & TV combined hub — filter pill + client-side filter
+   v571: Movies & TV combined hub ? filter pill + client-side filter
    ============================================================= */
 
 .discover-mixed-filter-row {
@@ -2916,7 +2916,7 @@ body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .disco
 /* v609: Full-page user profile typography uses Sohne, capped at 600 weight. */
 #profile-page,
 #profile-page *:not(svg):not(path) {
-  font-family: 'Sohne', 'Söhne', 'DM Sans', system-ui, sans-serif !important;
+  font-family: 'Sohne', 'S?hne', 'DM Sans', system-ui, sans-serif !important;
 }
 
 #profile-page *:not(svg):not(path) {
@@ -3015,7 +3015,7 @@ body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .disco
 /* When a section's grid is empty after filtering, hide its empty shell */
 #discover-view.discover-filter-movie .discover-grid:not(:has(.discover-card[data-media-type="movie"])),
 #discover-view.discover-filter-tv .discover-grid:not(:has(.discover-card[data-media-type="tv"])) {
-  /* Don't actually hide — let "Show more" still work — but trim padding */
+  /* Don't actually hide ? let "Show more" still work ? but trim padding */
   min-height: 0 !important;
 }
 
@@ -3049,7 +3049,7 @@ body.light-mode .profile-character-editor-modal {
   border: 0 !important;
   border-radius: 24px 24px 0 0 !important;
   opacity: 1 !important;
-  /* v616: NO static transform — keyframes own the full timeline. */
+  /* v616: NO static transform ? keyframes own the full timeline. */
   animation: profilePosterSheetInFinal 0.28s cubic-bezier(0.22, 0.82, 0.24, 1) forwards !important;
   /* v617: overflow-y scroll so iOS can scroll the input into view and
      raise the keyboard. overflow:hidden blocked keyboard on iOS. */
@@ -3157,7 +3157,7 @@ body.light-mode .activity-feed-load-more-btn:hover {
 }
 
 /* =============================================================
-   v628: Search hub — full UI inside .shelfd-search-page-inner.
+   v628: Search hub ? full UI inside .shelfd-search-page-inner.
    IMDb / Letterboxd-inspired, Shelfd-native palette.
    Animation rules: transform + opacity only. Stagger via per-row
    custom property --shelfd-row-delay.
@@ -3561,7 +3561,7 @@ body.light-mode .shelfd-search-browse-icon {
 .shelfd-search-row-poster--placeholder {
   background: linear-gradient(140deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
 }
-/* v732: Actors filter — circular avatar, square aspect ratio. */
+/* v732: Actors filter ? circular avatar, square aspect ratio. */
 .shelfd-search-row-poster--person {
   width: 64px;
   height: 64px;
@@ -3746,27 +3746,27 @@ body.light-mode .shelfd-search-noresults strong { color: #111111; }
    v634: Google Identity Services (GIS) sign-in button styling
    ============================================================= */
 
-/* v644: GIS-rendered button wrapper — gives the Google button proper visual
+/* v644: GIS-rendered button wrapper ? gives the Google button proper visual
    prominence on the landing page. The button HTML is owned by Google's iframe
    so we can't restyle it directly, but we can:
-    1. Scale the iframe up via transform — makes the entire button visually
+    1. Scale the iframe up via transform ? makes the entire button visually
        larger without relying on GIS's limited 'large' size option.
-    2. Wrap it in a soft golden glow halo (drop-shadow) — same warm-amber +
+    2. Wrap it in a soft golden glow halo (drop-shadow) ? same warm-amber +
        cyan tint that the original .google-btn had.
     3. Add generous vertical breathing room so the CTA feels like the
        primary action on the page. */
 /* v747: Restored a native, recognizable Google sign-in button.
    Three problems were making the previous version look fake:
      1. transform: scale(1.18) on the iframe blurred the pixel-perfect
-        button rendering — Google logo and text became fuzzy on Retina.
+        button rendering ? Google logo and text became fuzzy on Retina.
         Removed entirely. GIS's `large` size is 400px wide which is
-        already a substantial CTA — no scaling needed.
+        already a substantial CTA ? no scaling needed.
      2. Heavy golden drop-shadow halo made it read as "custom-skinned
         knockoff" instead of the trusted Google CTA users recognize.
-        Replaced with a subtle elevation shadow — same depth a real
+        Replaced with a subtle elevation shadow ? same depth a real
         modern button would have.
      3. theme: filled_black (in JS) is rare and unrecognizable. Switched
-        to filled_blue for dark mode and outline for light mode — the
+        to filled_blue for dark mode and outline for light mode ? the
         two canonical Google-recommended variants. */
 .gis-signin-target {
   display: flex;
@@ -3891,7 +3891,7 @@ body.light-mode .gis-signin-hint {
    touch-action: manipulation = pan + pinch-zoom + tap allowed,
    double-tap zoom disabled. Per CSS spec, the effective touch
    behavior for any element is the INTERSECTION of touch-action
-   along the ancestor chain — so specific elements that already
+   along the ancestor chain ? so specific elements that already
    declare pan-y / pan-x / none still keep those behaviors.
    ============================================================= */
 * {
@@ -3904,7 +3904,7 @@ body.light-mode .gis-signin-hint {
    ============================================================= */
 
 /* (1) DM button vertically aligned with the cogwheel on mobile.
-   Cogwheel uses transform: translateY(52px) on My Lists tab —
+   Cogwheel uses transform: translateY(52px) on My Lists tab ?
    match it exactly so the two icons sit at the same baseline. */
 @media (max-width: 700px) {
   body.main-tab-mylist .header-dm-btn {
@@ -3931,7 +3931,7 @@ body:not(.light-mode):not(.true-dark-mode) #mylist-view .tabs,
   align-items: center !important;
 }
 
-/* (2b) Drop "+ Add to Shelf" font-weight from 600 → 400 */
+/* (2b) Drop "+ Add to Shelf" font-weight from 600 ? 400 */
 #mylist-view #add-btn,
 .btn-primary#add-btn {
   font-weight: 400 !important;
@@ -3979,15 +3979,15 @@ body.light-mode #friends-list-view .friend-list-card .friend-action-btn {
   font-weight: 300 !important;
 }
 
-/* (5) v650: Friend name weight -100 again (500 → 400) on the cards */
+/* (5) v650: Friend name weight -100 again (500 ? 400) on the cards */
 #friends-list-view .friend-list-card .user-card-name,
 #community-view .user-card-name {
   font-weight: 400 !important;
 }
 
-/* (6) v652: Friend card height +20% vertical — restore breathing room
-   without going back to the original size. Padding 9 → 13, avatar
-   40 → 48, gap 8 → 11. */
+/* (6) v652: Friend card height +20% vertical ? restore breathing room
+   without going back to the original size. Padding 9 ? 13, avatar
+   40 ? 48, gap 8 ? 11. */
 @media (max-width: 700px) {
   #friends-list-view .friend-list-card {
     padding: 13px 40px 13px 15px !important;
@@ -4011,8 +4011,8 @@ body.light-mode #friends-list-view .friend-list-card .friend-action-btn {
   }
 }
 
-/* (7) Requests sub-tabs (Friend Requests / Watch Together) —
-   weight 850 → 650 (per "drop by 200"). Browsers will round to
+/* (7) Requests sub-tabs (Friend Requests / Watch Together) ?
+   weight 850 ? 650 (per "drop by 200"). Browsers will round to
    the nearest weight available in DM Sans. */
 .request-subtab {
   font-weight: 650 !important;
@@ -4022,9 +4022,9 @@ body.light-mode #friends-list-view .friend-list-card .friend-action-btn {
    v649: Media profile + search results polish
    ============================================================= */
 
-/* Bump "Stream:" / "Free:" / "With Ads:" label by 1px (9 → 10).
-   Provider name + 1px (11 → 12). Provider trailing logo +1
-   (16 → 17). Same uplift on the row text itself for cohesion. */
+/* Bump "Stream:" / "Free:" / "With Ads:" label by 1px (9 ? 10).
+   Provider name + 1px (11 ? 12). Provider trailing logo +1
+   (16 ? 17). Same uplift on the row text itself for cohesion. */
 .discover-media-watch-inline-row {
   font-size: 12px !important;
 }
@@ -4051,9 +4051,9 @@ body.light-mode #friends-list-view .friend-list-card .friend-action-btn {
 }
 
 /* (4 + 5) Search result row tweaks:
-   - title +2px (14.5 → 16.5)
-   - year +1px (12 → 13)
-   - type +1px (11 → 12)
+   - title +2px (14.5 ? 16.5)
+   - year +1px (12 ? 13)
+   - type +1px (11 ? 12)
    - remove the rectangular border / background card around each row */
 .shelfd-search-row {
   background: transparent !important;
@@ -4076,10 +4076,10 @@ body.light-mode #friends-list-view .friend-list-card .friend-action-btn {
   font-size: 12px !important;
 }
 
-/* v651: Combined "year · type" meta row + "Directed by [name]" credit row.
+/* v651: Combined "year ? type" meta row + "Directed by [name]" credit row.
    Increased line spacing in the row body so the 3 lines breathe. */
 .shelfd-search-row-body {
-  gap: 7px !important;  /* was 2px — too compact */
+  gap: 7px !important;  /* was 2px ? too compact */
 }
 .shelfd-search-row-meta {
   font-size: 13px !important;
@@ -4110,7 +4110,7 @@ body.light-mode .shelfd-search-row-credit-prefix {
 }
 
 /* v651: Browse section hidden from the search empty state. The 2x2 grid
-   (Movies / TV Shows / Anime / Games) is no longer needed — chips do the
+   (Movies / TV Shows / Anime / Games) is no longer needed ? chips do the
    filtering job once the user starts typing. */
 .shelfd-search-browse-grid,
 .shelfd-search-empty .shelfd-search-section:has(.shelfd-search-browse-grid) {
@@ -4131,15 +4131,15 @@ body.light-mode .shelfd-search-row:hover {
    poster GPU layer fix.
    ============================================================= */
 
-/* v787: discover-card-title font-size rules removed — they were dead duplicates.
+/* v787: discover-card-title font-size rules removed ? they were dead duplicates.
    The #discover-view-prefixed rule in 14-live-update-discover-controls.css has
    higher specificity (0,1,1 vs 0,0,1) and always wins. Source of truth lives in
-   14-live-update-discover-controls.css "v787: Discover title-card title — 16px". */
+   14-live-update-discover-controls.css "v787: Discover title-card title ? 16px". */
 .discover-new-release-date {
   font-size: 12px !important;
 }
 
-/* My Lists Watching tab — "Next Episode N/Total" line between
+/* My Lists Watching tab ? "Next Episode N/Total" line between
    progress bar and star rating. Equal vertical spacing on top
    and bottom. */
 .card-next-episode {
@@ -4179,13 +4179,13 @@ body.light-mode .card-future-release-date {
 }
 
 /* Status pill height reduction on My Lists title cards.
-   Padding 3px → 2px vertical (≈25% shorter). */
+   Padding 3px ? 2px vertical (?25% shorter). */
 #mylist-view .card .status-pill {
   padding: 2px 10px !important;
   min-height: 0 !important;
 }
 
-/* Synopsis preview/expand — 4-line clamp by default, tap to
+/* Synopsis preview/expand ? 4-line clamp by default, tap to
    expand to full text. */
 .discover-media-synopsis {
   cursor: pointer;
@@ -4237,8 +4237,8 @@ body.light-mode .card-future-release-date {
 
 /* Task 5: full media profile facts.
    Primary value (movie runtime, TV/anime seasons + episodes) +2px:
-   16 → 18. Labels (Runtime, Released, First Aired, Country, Type,
-   Status, Seasons, Episodes) +1px: 9 → 10. */
+   16 ? 18. Labels (Runtime, Released, First Aired, Country, Type,
+   Status, Seasons, Episodes) +1px: 9 ? 10. */
 .discover-media-profile-overlay .discover-media-facts div.primary strong,
 .game-media-profile-overlay .discover-media-facts div.primary strong {
   font-size: 18px !important;
@@ -4249,9 +4249,9 @@ body.light-mode .card-future-release-date {
   font-size: 10px !important;
 }
 
-/* v787: discover-card-title font-size duplicates removed — dead.
+/* v787: discover-card-title font-size duplicates removed ? dead.
    Source of truth is now 14-live-update-discover-controls.css with
-   #discover-view .discover-card-title (specificity 0,1,1 — wins). */
+   #discover-view .discover-card-title (specificity 0,1,1 ? wins). */
 .discover-new-release-date {
   font-size: 13px !important;
   font-weight: 900 !important;
@@ -4266,12 +4266,12 @@ body.light-mode .card-future-release-date {
 }
 
 /* =============================================================
-   v692: My Lists toolbar — search toggle button + inline search row.
-   Row order (left → right): [Sort btn] [Add to Shelf] [🔍 btn]
+   v692: My Lists toolbar ? search toggle button + inline search row.
+   Row order (left ? right): [Sort btn] [Add to Shelf] [?? btn]
    ============================================================= */
 
 /* =============================================================
-   v704: Discover "View All" full-category page — slide-in from left
+   v704: Discover "View All" full-category page ? slide-in from left
    + media profile z-index fix so tapping a poster opens the profile.
    ============================================================= */
 
@@ -4301,7 +4301,7 @@ body.light-mode .card-future-release-date {
    removal + section-header and filter-button weight reduction.
    ============================================================= */
 
-/* 1. Games page — true-dark-mode treatment matching Movies/TV. */
+/* 1. Games page ? true-dark-mode treatment matching Movies/TV. */
 body.true-dark-mode #games-discover-view .discover-section-card,
 body.true-dark-mode #games-discover-view .discover-rail,
 body.true-dark-mode #games-discover-view .discover-section,
@@ -4324,7 +4324,7 @@ body.true-dark-mode #games-discover-view .discover-card .discover-card-body {
 body.true-dark-mode #games-discover-view .discover-expand-icon {
   display: none !important;
 }
-/* Fix game poster placeholder — was #0b0818, now matches current app bg. */
+/* Fix game poster placeholder ? was #0b0818, now matches current app bg. */
 body.true-dark-mode #games-discover-view .discover-poster,
 body.true-dark-mode #games-discover-view .games-discover-card .discover-poster {
   background-color: #1c2028 !important;
@@ -4368,7 +4368,7 @@ body.true-dark-mode #games-discover-view .discover-card-meta {
   display: none !important;
 }
 
-/* ── v696: Games discover card 5-row info layout ─────────────────────── */
+/* -- v696: Games discover card 5-row info layout ----------------------- */
 
 /* All game discover cards: equal height across every row.
    height: 100% fills the grid cell; the cell height is the tallest
@@ -4381,7 +4381,7 @@ body.true-dark-mode #games-discover-view .discover-card-meta {
   flex-direction: column !important;
 }
 
-/* Body container — vertical flex; add-btn always at the bottom. */
+/* Body container ? vertical flex; add-btn always at the bottom. */
 .games-dc-body {
   display: flex !important;
   flex-direction: column !important;
@@ -4391,7 +4391,7 @@ body.true-dark-mode #games-discover-view .discover-card-meta {
   min-height: 167px !important; /* v702: +10% (was 152px) */
 }
 
-/* Row 1: title — clickable, 2-line clamp. */
+/* Row 1: title ? clickable, 2-line clamp. */
 .games-dc-title {
   appearance: none;
   -webkit-appearance: none;
@@ -4442,7 +4442,7 @@ body.true-dark-mode #games-discover-view .discover-card-meta {
 }
 /* v698: empty = no space taken; once textContent is set, element shows. */
 .games-dc-rating:empty { display: none !important; }
-/* v697/698: Steam live data — lavender, upright. */
+/* v697/698: Steam live data ? lavender, upright. */
 .games-dc-rating.games-dc-rating--live {
   font-style: normal !important;
   color: rgba(196, 181, 253, 0.82) !important;
@@ -4451,14 +4451,14 @@ body.light-mode .games-dc-rating.games-dc-rating--live {
   color: rgba(100, 60, 180, 0.82) !important;
 }
 
-/* Spacer between info rows and the add button — grows to fill available
+/* Spacer between info rows and the add button ? grows to fill available
    space (bottom-pinning the button) but is never less than 8px so the
    button always has breathing room even when content is dense. */
 .games-dc-spacer {
   flex: 1 0 8px;  /* grow freely, minimum 8px */
 }
 
-/* Row 5: Add to Library — position handled by .games-dc-spacer above. */
+/* Row 5: Add to Library ? position handled by .games-dc-spacer above. */
 .games-dc-add-btn {
   margin-top: 0 !important;
   background: rgba(139, 92, 246, 0.14) !important;
@@ -4485,7 +4485,7 @@ body.light-mode .games-dc-rating.games-dc-rating--live {
   border-color: rgba(196, 181, 253, 0.16) !important;
 }
 
-/* "View All" button weight -100 (800 → 700) on games discover rows. */
+/* "View All" button weight -100 (800 ? 700) on games discover rows. */
 #games-discover-view .discover-expand-btn {
   font-weight: 700 !important;
 }
@@ -4500,14 +4500,14 @@ body.light-mode .games-dc-add-btn {
   color: #5b21b6 !important;
 }
 
-/* 3. Section-header weight -100 (800 → 700) — Movies/TV and Games only.
+/* 3. Section-header weight -100 (800 ? 700) ? Movies/TV and Games only.
    Anime (#anime-discover-view) intentionally excluded. */
 #discover-view .discover-section-title,
 #games-discover-view .discover-section-title {
   font-weight: 700 !important;
 }
 
-/* 4. "New This Week" / "New This Month" filter buttons weight -100 (800 → 700). */
+/* 4. "New This Week" / "New This Month" filter buttons weight -100 (800 ? 700). */
 .discover-filter-btn {
   font-weight: 700 !important;
 }
@@ -4555,7 +4555,7 @@ body.light-mode .discover-hub-btn.active {
   background: rgba(139, 92, 246, 0.14) !important;
 }
 
-/* 3. Version footer weight -200 (800 → 600). */
+/* 3. Version footer weight -200 (800 ? 600). */
 .screenlist-version-footer {
   font-weight: 600 !important;
 }
@@ -4564,7 +4564,7 @@ body.light-mode .discover-hub-btn.active {
    The mobile CSS in 11-patch-notes-friends-refinements.css:1653 overrides to
    display:grid with 2 columns, which caused the 3rd button (search toggle) to
    wrap to a second sub-row. This override beats that with higher specificity +
-   !important and lays out: [Sort] [Add] [🔍] space-between across full width.
+   !important and lays out: [Sort] [Add] [??] space-between across full width.
    The `flex: 0 0 auto` on outer children prevents any button from growing/shrinking
    except the add-btn which gets `flex: 0 1 auto` to yield a little if tight. */
 #mylist-view #mylist-toolbar .toolbar-right,
@@ -4597,7 +4597,7 @@ body.main-tab-mylist #mylist-view #mylist-toolbar .toolbar-right {
   white-space: nowrap !important;
 }
 
-/* Magnifying-glass icon button — matches sort button sizing. */
+/* Magnifying-glass icon button ? matches sort button sizing. */
 .mylist-search-toggle-btn {
   appearance: none;
   -webkit-appearance: none;
@@ -4629,9 +4629,12 @@ body.light-mode .mylist-search-toggle-btn.mylist-search-toggle-active {
   background: rgba(139, 92, 246, 0.10);
 }
 
-/* v781: Sort + Search — matching circular icon-only controls in My Lists toolbar.
-   Both buttons are 36×36 circles with identical border, background, and icon opacity.
-   The sort label is always hidden in this context (handled separately). */
+/* v781: Sort + Search ? matching circular icon-only controls in My Lists toolbar.
+   Both buttons are 36?36 circles with identical border, background, and icon opacity.
+   The sort label is always hidden in this context (handled separately).
+   v847: default-state accent moved from neutral white to lavender so the
+   filter/sort control reads as part of the app's lavender-purple system
+   (matches the Add to Shelf button and the active state below). */
 #mylist-view #mylist-toolbar #sort-dropdown-btn,
 #mylist-view #mylist-toolbar #mylist-search-toggle-btn {
   width: 36px !important;
@@ -4639,20 +4642,21 @@ body.light-mode .mylist-search-toggle-btn.mylist-search-toggle-active {
   height: 36px !important;
   min-height: 36px !important;
   border-radius: 50% !important;
-  border: 1px solid rgba(255,255,255,0.20) !important;
-  background: rgba(255,255,255,0.04) !important;
+  border: 1px solid rgba(196,181,253,0.28) !important;
+  background: rgba(167,139,250,0.08) !important;
   padding: 0 !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  color: rgba(255,255,255,0.60) !important;
+  color: rgba(196,181,253,0.78) !important;
   flex-shrink: 0 !important;
-  transition: color 160ms ease, background 160ms ease, transform 140ms ease !important;
+  transition: color 160ms ease, background 160ms ease, border-color 160ms ease, transform 140ms ease !important;
 }
 #mylist-view #mylist-toolbar #sort-dropdown-btn:hover,
 #mylist-view #mylist-toolbar #mylist-search-toggle-btn:hover {
-  color: rgba(255,255,255,0.88) !important;
-  background: rgba(255,255,255,0.08) !important;
+  color: #c4b5fd !important;
+  background: rgba(167,139,250,0.14) !important;
+  border-color: rgba(196,181,253,0.46) !important;
 }
 #mylist-view #mylist-toolbar #sort-dropdown-btn:active,
 #mylist-view #mylist-toolbar #mylist-search-toggle-btn:active {
@@ -4703,7 +4707,7 @@ body.light-mode #mylist-view #mylist-toolbar #mylist-search-toggle-btn {
   from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-/* Override the display:none set on the old inline search input —
+/* Override the display:none set on the old inline search input ?
    the new input doesn't have that inline style. */
 #mylist-view .mylist-search-row .search-input {
   display: block !important;
@@ -4725,7 +4729,7 @@ body.light-mode #mylist-view #mylist-toolbar #mylist-search-toggle-btn {
 }
 #mylist-view .mylist-search-row .search-input::placeholder { color: rgba(196, 181, 253, 0.50) !important; }
 
-/* Close (×) button inside the search row. */
+/* Close (?) button inside the search row. */
 .mylist-search-clear-btn {
   appearance: none;
   -webkit-appearance: none;
@@ -4759,7 +4763,7 @@ body.light-mode .mylist-search-clear-btn {
 
 /* =============================================================
    v689: Seasonal Anime "Add to Library" bottom sheet.
-   Reusable component — same patterns can be adapted for My Lists
+   Reusable component ? same patterns can be adapted for My Lists
    title cards and other surfaces in future.
    ============================================================= */
 
@@ -4776,7 +4780,7 @@ body.light-mode .mylist-search-clear-btn {
   background: rgba(0, 0, 0, 0.55);
 }
 
-/* Sheet — max 75 % of viewport height, slides up from below */
+/* Sheet ? max 75 % of viewport height, slides up from below */
 .sas-sheet {
   position: fixed;
   bottom: 0;
@@ -4808,7 +4812,7 @@ body.light-mode .mylist-search-clear-btn {
   flex-shrink: 0;
 }
 
-/* Scrollable body — content centered */
+/* Scrollable body ? content centered */
 .sas-body {
   display: flex;
   flex-direction: column;
@@ -4876,7 +4880,7 @@ body.light-mode .mylist-search-clear-btn {
   letter-spacing: 0.01em;
 }
 
-/* Status buttons — full width, stacked */
+/* Status buttons ? full width, stacked */
 .sas-statuses {
   display: flex;
   flex-direction: column;
@@ -5048,7 +5052,7 @@ body.light-mode .anime-discover-type-btn.active {
 #anime-discover-seasonal-grid {
   display: grid !important;
   grid-template-columns: repeat(3, 1fr) !important;
-  /* v684: +10px row gap (16 → 26px). Column gap stays 12. */
+  /* v684: +10px row gap (16 ? 26px). Column gap stays 12. */
   gap: 26px 12px !important;
   overflow: visible !important;
   overflow-x: visible !important;
@@ -5079,7 +5083,7 @@ body.light-mode .anime-seasonal-card {
   background: rgba(0, 0, 0, 0.02);
 }
 
-/* Poster — tall portrait with overlay. */
+/* Poster ? tall portrait with overlay. */
 .anime-seasonal-card-poster {
   position: relative;
   aspect-ratio: 2 / 3;
@@ -5121,7 +5125,7 @@ body.light-mode .anime-seasonal-card-header {
   color: rgba(90, 60, 180, 0.72);
 }
 
-/* Info block below the poster — equal-spaced flex column. */
+/* Info block below the poster ? equal-spaced flex column. */
 .anime-seasonal-card-info {
   display: flex;
   flex-direction: column;
@@ -5130,7 +5134,7 @@ body.light-mode .anime-seasonal-card-header {
   flex: 1;
 }
 
-/* v685: Genres row — centered. */
+/* v685: Genres row ? centered. */
 .anime-seasonal-card-genres {
   display: flex;
   gap: 3px;
@@ -5266,7 +5270,7 @@ body.light-mode .anime-seasonal-card-add-btn {
   color: #4a1d96;
 }
 
-/* Visibility — default state is "Top Anime"; Seasonal hidden. */
+/* Visibility ? default state is "Top Anime"; Seasonal hidden. */
 #anime-discover-seasonal-controls,
 #anime-discover-seasonal-section {
   display: none !important;
@@ -5289,7 +5293,7 @@ body.anime-subtab-seasonal #anime-discover-anticipated-section {
   display: none !important;
 }
 
-/* v705: Game add sheet — back chevron for two-level status flow.
+/* v705: Game add sheet ? back chevron for two-level status flow.
    The .sas-prompt becomes a flex row containing the back arrow + label
    when the user drills into the "Playing" sub-screen. */
 .sas-prompt:has(> .sas-back-btn) {
@@ -5333,10 +5337,10 @@ body.light-mode .sas-back-btn:active {
 }
 
 /* =======================================================================
-   v706 — DM redesign · Profile slide-from-right · Followers bottom sheet
+   v706 ? DM redesign ? Profile slide-from-right ? Followers bottom sheet
    ======================================================================= */
 
-/* ── DM: Typography back to DM Sans / Sora (replaces v280 Aptos) ─────── */
+/* -- DM: Typography back to DM Sans / Sora (replaces v280 Aptos) ------- */
 .direct-messages-page,
 .direct-messages-page *,
 .dm-compose-card,
@@ -5349,7 +5353,7 @@ body.light-mode .sas-back-btn:active {
   font-family: 'Sohne', system-ui, sans-serif !important;
 }
 
-/* ── DM: Background — matches app's standard dark canvas ────────────── */
+/* -- DM: Background ? matches app's standard dark canvas -------------- */
 .direct-messages-page {
   background:
     radial-gradient(circle at 12% 8%,  rgba(245,158,11,0.08),  transparent 26%),
@@ -5358,7 +5362,7 @@ body.light-mode .sas-back-btn:active {
     linear-gradient(135deg, #050410 0%, #120d26 48%, #050410 100%) !important;
 }
 
-/* ── DM: Topbar ─────────────────────────────────────────────────────── */
+/* -- DM: Topbar ------------------------------------------------------- */
 .direct-messages-topbar {
   background: rgba(5,4,16,0.86) !important;
   border-bottom: 1px solid rgba(167,139,250,0.14) !important;
@@ -5373,7 +5377,7 @@ body.light-mode .sas-back-btn:active {
 }
 .direct-messages-close:active { transform: scale(0.90) !important; }
 
-/* ── DM: Chat list rows — app-standard glass card ────────────────────── */
+/* -- DM: Chat list rows ? app-standard glass card ---------------------- */
 .direct-messages-page .dm-chat-row {
   background: linear-gradient(145deg, rgba(18,12,38,0.92), rgba(8,6,20,0.94)) !important;
   border: 1px solid rgba(167,139,250,0.18) !important;
@@ -5410,7 +5414,7 @@ body.light-mode .sas-back-btn:active {
   box-shadow: 0 0 0 3px rgba(124,58,237,0.22), 0 0 16px rgba(167,139,250,0.14) !important;
 }
 
-/* Chat copy typography — name WHITE, 2px bigger than before */
+/* Chat copy typography ? name WHITE, 2px bigger than before */
 .direct-messages-page .dm-chat-copy strong {
   font-size: 17.5px !important;
   font-weight: 700 !important;
@@ -5427,7 +5431,7 @@ body.light-mode .sas-back-btn:active {
   vertical-align: middle !important;
   box-shadow: 0 0 10px rgba(167,139,250,0.60) !important;
 }
-/* Preview / last-message text — app secondary text colour */
+/* Preview / last-message text ? app secondary text colour */
 .direct-messages-page .dm-chat-copy span {
   font-size: 13px !important;
   font-weight: 400 !important;
@@ -5444,7 +5448,7 @@ body.light-mode .sas-back-btn:active {
   color: rgba(196,181,253,0.44) !important;
 }
 
-/* ── DM: Request cards — same glass card language ────────────────────── */
+/* -- DM: Request cards ? same glass card language ---------------------- */
 .direct-messages-page .dm-request-card {
   background: linear-gradient(145deg, rgba(18,12,38,0.92), rgba(8,6,20,0.94)) !important;
   border: 1px solid rgba(167,139,250,0.18) !important;
@@ -5465,7 +5469,7 @@ body.light-mode .sas-back-btn:active {
   letter-spacing: -0.018em !important;
 }
 
-/* ── DM: Message bubbles ────────────────────────────────────────────── */
+/* -- DM: Message bubbles ---------------------------------------------- */
 .direct-messages-page .dm-bubble-row { gap: 6px !important; }
 .direct-messages-page .dm-bubble-row.mine .dm-bubble {
   /* Exact same purple gradient used everywhere in the app */
@@ -5499,7 +5503,7 @@ body.light-mode .sas-back-btn:active {
 }
 .direct-messages-page .dm-message-list { gap: 9px !important; }
 
-/* ── DM: Compose row — matches app's floating glass pill ─────────────── */
+/* -- DM: Compose row ? matches app's floating glass pill --------------- */
 .direct-messages-page .dm-compose-row {
   border: 1px solid rgba(167,139,250,0.18) !important;
   background: linear-gradient(145deg, rgba(12,9,28,0.94), rgba(6,4,16,0.96)) !important;
@@ -5517,7 +5521,7 @@ body.light-mode .sas-back-btn:active {
 .direct-messages-page .dm-compose-row input::placeholder {
   color: #5a5074 !important;
 }
-/* Send button — matches app's primary CTA */
+/* Send button ? matches app's primary CTA */
 .direct-messages-page .dm-send-btn {
   background: linear-gradient(135deg, #7c3aed, #9333ea) !important;
   color: #fff !important;
@@ -5532,7 +5536,7 @@ body.light-mode .sas-back-btn:active {
   border-radius: 999px !important;
 }
 
-/* ── DM: Subtabs — underline style, app accent colour ───────────────── */
+/* -- DM: Subtabs ? underline style, app accent colour ----------------- */
 .direct-messages-page .dm-subtabs {
   border-bottom-color: rgba(167,139,250,0.14) !important;
 }
@@ -5544,7 +5548,7 @@ body.light-mode .sas-back-btn:active {
 .direct-messages-page .dm-subtabs button.active { color: #F8F5EF !important; }
 .direct-messages-page .dm-subtabs button::after { background: #a78bfa !important; }
 
-/* ── DM: Search strip ────────────────────────────────────────────────── */
+/* -- DM: Search strip -------------------------------------------------- */
 .direct-messages-page .dm-search-strip {
   background: linear-gradient(145deg, rgba(18,12,38,0.88), rgba(8,6,20,0.92)) !important;
   border: 1px solid rgba(167,139,250,0.16) !important;
@@ -5559,7 +5563,7 @@ body.light-mode .sas-back-btn:active {
 }
 .direct-messages-page .dm-search-strip input::placeholder { color: #5a5074 !important; }
 
-/* ── DM: Empty state — app card look ─────────────────────────────────── */
+/* -- DM: Empty state ? app card look ----------------------------------- */
 .direct-messages-page .dm-empty-card {
   background: linear-gradient(145deg, rgba(18,12,38,0.86), rgba(8,6,20,0.90)) !important;
   border: 1px solid rgba(167,139,250,0.16) !important;
@@ -5578,7 +5582,7 @@ body.light-mode .sas-back-btn:active {
   font-size: 13.5px !important; line-height: 1.55 !important;
 }
 
-/* ── DM: Section labels — matches app eyebrow style ─────────────────── */
+/* -- DM: Section labels ? matches app eyebrow style ------------------- */
 .direct-messages-page .dm-section-label {
   color: #a78bfa !important;
   font-size: 10.5px !important; font-weight: 900 !important;
@@ -5586,7 +5590,7 @@ body.light-mode .sas-back-btn:active {
   text-transform: uppercase !important;
 }
 
-/* ── DM: User search results ─────────────────────────────────────────── */
+/* -- DM: User search results ------------------------------------------- */
 .direct-messages-page .dm-user-result strong {
   font-size: 17.5px !important; font-weight: 700 !important;
   letter-spacing: -0.018em !important; color: #ffffff !important;
@@ -5595,7 +5599,7 @@ body.light-mode .sas-back-btn:active {
   color: #8f86aa !important; font-size: 13px !important;
 }
 
-/* ── DM: Action buttons — app purple CTA + ghost secondary ───────────── */
+/* -- DM: Action buttons ? app purple CTA + ghost secondary ------------- */
 .direct-messages-page .dm-action-accept,
 .direct-messages-page .dm-action-open,
 .direct-messages-page .dm-action.accept {
@@ -5612,7 +5616,7 @@ body.light-mode .sas-back-btn:active {
   font-weight: 700 !important; font-size: 13px !important;
 }
 
-/* ── DM: Thread head — sticky user bar in chat view ─────────────────── */
+/* -- DM: Thread head ? sticky user bar in chat view ------------------- */
 .direct-messages-page .dm-thread-head {
   background: rgba(5,4,16,0.90) !important;
   backdrop-filter: blur(24px) !important;
@@ -5620,7 +5624,7 @@ body.light-mode .sas-back-btn:active {
   border-bottom: 1px solid rgba(167,139,250,0.12) !important;
 }
 
-/* ── DM: Swipe-item wrapper — fix clipped border-radius & spacing ────── */
+/* -- DM: Swipe-item wrapper ? fix clipped border-radius & spacing ------ */
 /* 12-pwa-header-continuity.css sets overflow:hidden + border-radius:0 on
    .dm-chat-swipe-item, which squares off the card corners. We raise the
    wrapper's radius to match the card so overflow:hidden clips to the same
@@ -5632,14 +5636,14 @@ body.light-mode .sas-back-btn:active {
   margin-bottom: 10px !important;
 }
 .direct-messages-page .dm-chat-swipe-item:last-child { margin-bottom: 0 !important; }
-/* Kill gap on the list — spacing now handled entirely by margin-bottom above */
+/* Kill gap on the list ? spacing now handled entirely by margin-bottom above */
 .direct-messages-page .dm-chat-list { gap: 0 !important; }
 /* Remove the margin-bottom from the inner button (can't escape overflow:hidden) */
 .direct-messages-page .dm-chat-row {
   margin-bottom: 0 !important;
 }
 
-/* ── DM: Compose / new-chat button in topbar ────────────────────────── */
+/* -- DM: Compose / new-chat button in topbar -------------------------- */
 .direct-messages-new-btn {
   background: rgba(255,255,255,0.055) !important;
   border: 1px solid rgba(196,181,253,0.20) !important;
@@ -5655,7 +5659,7 @@ body.light-mode .direct-messages-new-btn {
   color: #5b21b6 !important;
 }
 
-/* ── DM: Light mode ──────────────────────────────────────────────────── */
+/* -- DM: Light mode ---------------------------------------------------- */
 body.light-mode .direct-messages-page {
   background:
     radial-gradient(circle at 12% 8%, rgba(245,158,11,0.10), transparent 26%),
@@ -5734,9 +5738,9 @@ body.light-mode .direct-messages-page .dm-action-sent {
   color: #5b21b6 !important;
 }
 
-/* ─────────────────────────────────────────────────────────────────────────
-   v706: Profile page — slide in from right, slide out to right
-   ───────────────────────────────────────────────────────────────────────── */
+/* -------------------------------------------------------------------------
+   v706: Profile page ? slide in from right, slide out to right
+   ------------------------------------------------------------------------- */
 /* Base: page starts off-screen right whenever it is made display:block */
 .profile-page {
   transform: translateX(100%);
@@ -5766,9 +5770,9 @@ body.light-mode .direct-messages-page .dm-action-sent {
   pointer-events: none;
 }
 
-/* ─────────────────────────────────────────────────────────────────────────
-   v706: Followers / Following — full-width bottom sheet, slides from bottom
-   ───────────────────────────────────────────────────────────────────────── */
+/* -------------------------------------------------------------------------
+   v706: Followers / Following ? full-width bottom sheet, slides from bottom
+   ------------------------------------------------------------------------- */
 .profile-social-overlay {
   position: fixed;
   inset: 0;
@@ -5915,7 +5919,7 @@ body.light-mode .direct-messages-page .dm-action-sent {
   background: rgba(139,92,246,0.22) !important;
 }
 
-/* Light mode — followers/following sheet */
+/* Light mode ? followers/following sheet */
 body.light-mode .profile-social-overlay.profile-social-open {
   background: rgba(0,0,0,0.26);
 }
@@ -5943,23 +5947,23 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
 }
 
 /* =========================================================================
-   v712 — DM page: sleek, modern, simple.
+   v712 ? DM page: sleek, modern, simple.
    #direct-messages-page (ID) beats every competing class rule everywhere.
    Design direction: clean flat rows + solid-color bubbles. No heavy gradients.
    ========================================================================= */
 
-/* ── Page ──────────────────────────────────────────────────────────── */
+/* -- Page ------------------------------------------------------------ */
 #direct-messages-page {
   background: #0c0a1e !important;
 }
 
-/* ── Fonts ─────────────────────────────────────────────────────────── */
+/* -- Fonts ----------------------------------------------------------- */
 #direct-messages-page,
 #direct-messages-page * {
   font-family: 'Sohne', system-ui, -apple-system, sans-serif !important;
 }
 
-/* ── Topbar ────────────────────────────────────────────────────────── */
+/* -- Topbar ---------------------------------------------------------- */
 #direct-messages-page .direct-messages-topbar {
   background: #0c0a1e !important;
   border-bottom: 1px solid rgba(255,255,255,0.07) !important;
@@ -5999,7 +6003,7 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
   background: rgba(255,255,255,0.11) !important;
 }
 
-/* ── Subtabs ───────────────────────────────────────────────────────── */
+/* -- Subtabs --------------------------------------------------------- */
 #direct-messages-page .dm-subtabs {
   background: transparent !important;
   border: 0 !important;
@@ -6019,7 +6023,7 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
 #direct-messages-page .dm-subtabs button.active { color: #ffffff !important; }
 #direct-messages-page .dm-subtabs button::after { background: #F3EEE6 !important; }
 
-/* ── Chat list ─────────────────────────────────────────────────────── */
+/* -- Chat list ------------------------------------------------------- */
 #direct-messages-page .dm-chat-list {
   display: flex !important;
   flex-direction: column !important;
@@ -6031,7 +6035,7 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
   margin-bottom: 0 !important;
 }
 
-/* ── Chat row ──────────────────────────────────────────────────────── */
+/* -- Chat row -------------------------------------------------------- */
 #direct-messages-page .dm-chat-row {
   width: 100% !important;
   min-height: 80px !important;
@@ -6051,7 +6055,7 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
   transform: none !important;
   background: rgba(255,255,255,0.04) !important;
 }
-/* Unread — faint left bar, very subtle fill */
+/* Unread ? faint left bar, very subtle fill */
 #direct-messages-page .dm-chat-row.unread {
   background: rgba(139,92,246,0.06) !important;
   border-left: 2px solid rgba(167,139,250,0.50) !important;
@@ -6071,7 +6075,7 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
   border-color: rgba(167,139,250,0.28) !important;
 }
 
-/* ── Name — the fix: `strong span` beats `span` in specificity ─────── */
+/* -- Name ? the fix: `strong span` beats `span` in specificity ------- */
 /* strong itself */
 #direct-messages-page .dm-chat-copy strong {
   display: block !important;
@@ -6084,7 +6088,7 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
   overflow: hidden !important;
   text-overflow: ellipsis !important;
 }
-/* span / creator-name INSIDE strong — 1 extra element = wins over .dm-chat-copy span */
+/* span / creator-name INSIDE strong ? 1 extra element = wins over .dm-chat-copy span */
 #direct-messages-page .dm-chat-copy strong span,
 #direct-messages-page .dm-chat-copy strong .creator-name,
 #direct-messages-page .dm-chat-copy strong .creator-name-wrap {
@@ -6109,7 +6113,7 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
   vertical-align: middle !important;
 }
 
-/* Preview text — the DIRECT child span, not the one inside strong */
+/* Preview text ? the DIRECT child span, not the one inside strong */
 #direct-messages-page .dm-chat-copy > span,
 #direct-messages-page .dm-chat-copy span:not(strong span) {
   font-size: 13px !important;
@@ -6133,7 +6137,7 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
   color: rgba(255,255,255,0.60) !important;
 }
 
-/* ── Request cards ─────────────────────────────────────────────────── */
+/* -- Request cards --------------------------------------------------- */
 #direct-messages-page .dm-request-card {
   border: 0 !important;
   border-bottom: 1px solid rgba(255,255,255,0.06) !important;
@@ -6148,7 +6152,7 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
   border-left: 3px solid #8b5cf6 !important;
   padding-left: 13px !important;
 }
-/* Request name — same fix */
+/* Request name ? same fix */
 #direct-messages-page .dm-request-copy strong {
   font-size: 16px !important;
   font-weight: 600 !important;
@@ -6167,7 +6171,7 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
   font-style: normal !important;
 }
 
-/* ── Message bubbles ───────────────────────────────────────────────── */
+/* -- Message bubbles ------------------------------------------------- */
 #direct-messages-page .dm-bubble-row { gap: 5px !important; }
 
 /* Mine */
@@ -6182,7 +6186,7 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
   box-shadow: none !important;
 }
 
-/* Theirs — just slightly lifted from background */
+/* Theirs ? just slightly lifted from background */
 #direct-messages-page .dm-bubble-row.theirs .dm-bubble {
   background: rgba(255,255,255,0.08) !important;
   border: 1px solid rgba(255,255,255,0.09) !important;
@@ -6209,8 +6213,8 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
 }
 #direct-messages-page .dm-message-list { gap: 8px !important; }
 
-/* ── Chat screen: remove left/right safe zones ─────────────────────── */
-/* The content wrapper had 12–14px horizontal padding acting as "safe zones".
+/* -- Chat screen: remove left/right safe zones ----------------------- */
+/* The content wrapper had 12?14px horizontal padding acting as "safe zones".
    Zero it out so messages and the compose bar use the full width. */
 #direct-messages-page .direct-messages-content {
   padding-left: 0 !important;
@@ -6226,17 +6230,17 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
   width: min(calc(100% - 8px), 720px) !important;
 }
 
-/* ── Compose row ───────────────────────────────────────────────────── */
+/* -- Compose row ----------------------------------------------------- */
 /* v720 keyboard-gate approach:
    TWO STATES, completely separate `bottom` rules:
 
    KEYBOARD OUT (:not(.dm-keyboard-active))
-     → `bottom` is FORCED to env(safe-area-inset-bottom) — ignores
+     ? `bottom` is FORCED to env(safe-area-inset-bottom) ? ignores
        --dm-keyboard-bottom entirely so a stale variable can't hold
        the bar up. Spring transition eases it back down.
 
    KEYBOARD UP (.dm-keyboard-active)
-     → `bottom` tracks --dm-keyboard-bottom with NO transition so it
+     ? `bottom` tracks --dm-keyboard-bottom with NO transition so it
        stays pixel-perfect flush with the keyboard on every frame.
 */
 #direct-messages-page .dm-compose-row {
@@ -6247,7 +6251,7 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
   will-change: bottom !important;
 }
 
-/* Keyboard OUT — always at safe-area bottom, spring transition */
+/* Keyboard OUT ? always at safe-area bottom, spring transition */
 #direct-messages-page:not(.dm-keyboard-active) .dm-compose-row {
   bottom: max(6px, env(safe-area-inset-bottom, 0px)) !important;
   transition:
@@ -6256,7 +6260,7 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
     border-color 160ms ease !important;
 }
 
-/* Keyboard UP — tracks variable, no bottom transition */
+/* Keyboard UP ? tracks variable, no bottom transition */
 #direct-messages-page.dm-keyboard-active .dm-compose-row {
   bottom: calc(var(--dm-keyboard-bottom, 0px)) !important;
   background: rgba(255,255,255,0.08) !important;
@@ -6287,7 +6291,7 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
   color: rgba(255,255,255,0.45) !important;
 }
 
-/* ── Section labels ────────────────────────────────────────────────── */
+/* -- Section labels -------------------------------------------------- */
 #direct-messages-page .dm-section-label {
   color: rgba(255,255,255,0.32) !important;
   font-size: 11px !important;
@@ -6297,7 +6301,7 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
   padding: 14px 4px 6px !important;
 }
 
-/* ── Search strip ──────────────────────────────────────────────────── */
+/* -- Search strip ---------------------------------------------------- */
 #direct-messages-page .dm-search-strip {
   background: rgba(255,255,255,0.06) !important;
   border: 1px solid rgba(255,255,255,0.10) !important;
@@ -6310,7 +6314,7 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
 }
 #direct-messages-page .dm-search-strip input::placeholder { color: rgba(255,255,255,0.28) !important; }
 
-/* ── User search results ───────────────────────────────────────────── */
+/* -- User search results --------------------------------------------- */
 #direct-messages-page .dm-user-result strong,
 #direct-messages-page .dm-user-result strong * {
   font-size: 15.5px !important; font-weight: 600 !important;
@@ -6320,7 +6324,7 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
   color: rgba(255,255,255,0.40) !important; font-size: 13px !important;
 }
 
-/* ── Empty state ───────────────────────────────────────────────────── */
+/* -- Empty state ----------------------------------------------------- */
 #direct-messages-page .dm-empty-card {
   background: rgba(255,255,255,0.04) !important;
   border: 1px solid rgba(255,255,255,0.08) !important;
@@ -6339,7 +6343,7 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
   font-size: 13.5px !important; line-height: 1.55 !important;
 }
 
-/* ── Action buttons ────────────────────────────────────────────────── */
+/* -- Action buttons -------------------------------------------------- */
 #direct-messages-page .dm-action-accept,
 #direct-messages-page .dm-action-open,
 #direct-messages-page .dm-action.accept {
@@ -6355,7 +6359,7 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
   font-weight: 600 !important; font-size: 13px !important;
 }
 
-/* ── Thread head ───────────────────────────────────────────────────── */
+/* -- Thread head ----------------------------------------------------- */
 #direct-messages-page .dm-thread-head {
   background: rgba(8,6,28,0.96) !important;
   border-bottom: 1px solid rgba(255,255,255,0.07) !important;
@@ -6363,7 +6367,7 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
   -webkit-backdrop-filter: blur(24px) !important;
 }
 
-/* ── Light mode ────────────────────────────────────────────────────── */
+/* -- Light mode ------------------------------------------------------ */
 body.light-mode #direct-messages-page {
   background: #f5f3fc !important;
 }
@@ -6437,12 +6441,12 @@ body.light-mode #direct-messages-page .dm-thread-head {
 }
 
 /* ===================================================================
-   WARM PAPER SYSTEM — comprehensive surface overrides
+   WARM PAPER SYSTEM ? comprehensive surface overrides
    Converts every hardcoded purple-tinted background that was missed by
    bulk replacements above. Loaded last so nothing overrides these.
    =================================================================== */
 
-/* ── Page-level backgrounds ─────────────────────────────────────── */
+/* -- Page-level backgrounds --------------------------------------- */
 body.light-mode,
 body.light-mode #app-container,
 body.light-mode #mylist-view,
@@ -6452,7 +6456,7 @@ body.light-mode #anime-discover-view,
 body.light-mode #games-discover-view,
 body.light-mode .main-content { background: #F8F5EF !important; }
 
-/* ── Navigation ─────────────────────────────────────────────────── */
+/* -- Navigation --------------------------------------------------- */
 body.light-mode .mobile-bottom-nav,
 body.light-mode .bottom-nav,
 body.light-mode .nav-bar {
@@ -6475,7 +6479,7 @@ body.light-mode .list-header {
 body.light-mode .user-area,
 body.light-mode .user-avatar-wrap { color: var(--lm-text) !important; }
 
-/* ── Cards & panels ─────────────────────────────────────────────── */
+/* -- Cards & panels ----------------------------------------------- */
 body.light-mode .card,
 body.light-mode .card.show-card,
 body.light-mode .mylist-card,
@@ -6498,14 +6502,14 @@ body.light-mode .shelfd-social-card {
   border-color: var(--lm-line) !important;
 }
 
-/* ── Stacked activity layers ────────────────────────────────────── */
+/* -- Stacked activity layers -------------------------------------- */
 body.light-mode .sl-activity-stack-layer {
   background: var(--lm-surface-3) !important;
   border-color: var(--lm-line) !important;
   box-shadow: 0 2px 8px rgba(20,20,20,0.05) !important;
 }
 
-/* ── Modals / sheets / drawers ──────────────────────────────────── */
+/* -- Modals / sheets / drawers ------------------------------------ */
 body.light-mode .modal,
 body.light-mode .modal-card,
 body.light-mode .sheet-card,
@@ -6527,7 +6531,7 @@ body.light-mode .sheet-backdrop {
   background: rgba(20,20,20,0.28) !important;
 }
 
-/* ── Toasts ─────────────────────────────────────────────────────── */
+/* -- Toasts ------------------------------------------------------- */
 body.light-mode .toast,
 body.light-mode .snackbar,
 body.light-mode .toast-msg {
@@ -6537,7 +6541,7 @@ body.light-mode .toast-msg {
   box-shadow: 0 4px 16px rgba(20,20,20,0.12) !important;
 }
 
-/* ── Inputs / form fields / search bars ─────────────────────────── */
+/* -- Inputs / form fields / search bars --------------------------- */
 body.light-mode input,
 body.light-mode textarea,
 body.light-mode select,
@@ -6555,7 +6559,7 @@ body.light-mode input:focus,
 body.light-mode textarea:focus,
 body.light-mode .search-input:focus { border-color: #7c3aed !important; }
 
-/* ── Tabs / segmented controls ──────────────────────────────────── */
+/* -- Tabs / segmented controls ------------------------------------ */
 body.light-mode .mylist-tabs,
 body.light-mode .friends-tabs,
 body.light-mode .tabs,
@@ -6570,7 +6574,7 @@ body.light-mode .mylist-tab.active,
 body.light-mode .tab-btn.active,
 body.light-mode .friends-tab-btn.active { color: #7c3aed !important; background: transparent !important; border-bottom: 2px solid #7c3aed !important; }
 
-/* ── Buttons (keep purple on primary, warm on ghost/secondary) ───── */
+/* -- Buttons (keep purple on primary, warm on ghost/secondary) ----- */
 body.light-mode .btn-secondary,
 body.light-mode .button-ghost,
 body.light-mode .outline-btn {
@@ -6581,7 +6585,7 @@ body.light-mode .outline-btn {
 body.light-mode .btn-secondary:hover,
 body.light-mode .button-ghost:hover { background: var(--lm-surface-3) !important; }
 
-/* ── Badges / chips ─────────────────────────────────────────────── */
+/* -- Badges / chips ----------------------------------------------- */
 body.light-mode .chip,
 body.light-mode .badge,
 body.light-mode .tag:not(.badge-count):not(.tag-purple) {
@@ -6590,7 +6594,7 @@ body.light-mode .tag:not(.badge-count):not(.tag-purple) {
   border-color: var(--lm-line) !important;
 }
 
-/* ── Empty states ───────────────────────────────────────────────── */
+/* -- Empty states ------------------------------------------------- */
 body.light-mode .empty-state,
 body.light-mode .friends-empty,
 body.light-mode .list-empty,
@@ -6601,7 +6605,7 @@ body.light-mode .empty-state strong,
 body.light-mode .friends-empty strong,
 body.light-mode [class*="-empty"] strong { color: var(--lm-text) !important; }
 
-/* ── Discover hub ───────────────────────────────────────────────── */
+/* -- Discover hub ------------------------------------------------- */
 body.light-mode .discover-hub-toggle,
 body.light-mode .discover-subtab-bar,
 body.light-mode .discover-category-btn {
@@ -6617,7 +6621,7 @@ body.light-mode .discover-section-title { color: var(--lm-text) !important; }
 body.light-mode .discover-see-all,
 body.light-mode .discover-view-all { color: #7c3aed !important; }
 
-/* ── Media profile overlay ──────────────────────────────────────── */
+/* -- Media profile overlay ---------------------------------------- */
 body.light-mode .discover-media-profile-overlay,
 body.light-mode .media-profile-page,
 body.light-mode .media-profile-body {
@@ -6633,7 +6637,7 @@ body.light-mode .media-profile-year,
 body.light-mode .media-profile-genre,
 body.light-mode .media-profile-runtime { color: var(--lm-text-3) !important; }
 
-/* ── Comments / activity full-screen pages ──────────────────────── */
+/* -- Comments / activity full-screen pages ------------------------ */
 body.light-mode .comments-page,
 body.light-mode .activity-page,
 body.light-mode .comments-shell {
@@ -6657,7 +6661,7 @@ body.light-mode .comment-textarea {
   border-color: var(--lm-line) !important;
 }
 
-/* ── Profile page ───────────────────────────────────────────────── */
+/* -- Profile page ------------------------------------------------- */
 body.light-mode .profile-page { background: #F8F5EF !important; }
 body.light-mode .profile-hero-card,
 body.light-mode .profile-section-card,
@@ -6682,7 +6686,7 @@ body.light-mode .profile-social-user-row {
   border-color: var(--lm-line) !important;
 }
 
-/* ── My Lists ───────────────────────────────────────────────────── */
+/* -- My Lists ----------------------------------------------------- */
 body.light-mode .ep-list { background: var(--lm-surface-2) !important; }
 body.light-mode .ep-row { background: transparent !important; border-bottom: 1px solid var(--lm-line-soft) !important; }
 body.light-mode .season-block { background: var(--lm-surface-2) !important; border-color: var(--lm-line) !important; }
@@ -6697,7 +6701,7 @@ body.light-mode .mylist-sort-menu {
   box-shadow: 0 8px 24px rgba(20,20,20,0.12) !important;
 }
 
-/* ── Add to shelf / search modals ───────────────────────────────── */
+/* -- Add to shelf / search modals --------------------------------- */
 body.light-mode .add-shelf-panel,
 body.light-mode .tmdb-results,
 body.light-mode .tmdb-result,
@@ -6713,7 +6717,7 @@ body.light-mode .search-result-name { color: var(--lm-text) !important; }
 body.light-mode .tmdb-result-year,
 body.light-mode .search-result-year { color: var(--lm-text-3) !important; }
 
-/* ── Friends / community ────────────────────────────────────────── */
+/* -- Friends / community ------------------------------------------ */
 body.light-mode .friends-page,
 body.light-mode .community-view { background: #F8F5EF !important; }
 body.light-mode .friend-action-btn:not(.friend-accept-btn):not(.friend-primary-btn) {
@@ -6727,7 +6731,7 @@ body.light-mode .friend-pending-btn {
   border-color: var(--lm-line) !important;
 }
 
-/* ── Discover: universal search overlay ─────────────────────────── */
+/* -- Discover: universal search overlay --------------------------- */
 body.light-mode .shelfd-search-overlay,
 body.light-mode .universal-search-page,
 body.light-mode .search-overlay {
@@ -6747,17 +6751,17 @@ body.light-mode .shelfd-search-result {
   border-color: var(--lm-line) !important;
 }
 
-/* ── Animate-in pages (profile, media profile) ──────────────────── */
+/* -- Animate-in pages (profile, media profile) -------------------- */
 body.light-mode #profile-page { background: #F8F5EF !important; }
 
-/* ── Inline purple-tinted gradients remaining on surfaces ─────────
+/* -- Inline purple-tinted gradients remaining on surfaces ---------
    Any leftover radial/linear gradients that still reference lavender
    tones get flattened to the warm card surface. */
 body.light-mode .profile-hero-card {
   background: var(--lm-surface-2) !important;
 }
 
-/* ── Remaining header / topbar colours ──────────────────────────── */
+/* -- Remaining header / topbar colours ---------------------------- */
 body.light-mode .direct-messages-topbar,
 body.light-mode .comments-page-header {
   background: var(--lm-surface-3) !important;
@@ -6765,12 +6769,12 @@ body.light-mode .comments-page-header {
 }
 body.light-mode .direct-messages-title-wrap strong { color: var(--lm-text) !important; }
 
-/* ── Link modal / PLM sheet ─────────────────────────────────────── */
+/* -- Link modal / PLM sheet --------------------------------------- */
 body.light-mode .plm-overlay { background: rgba(20,20,20,0.30) !important; backdrop-filter: blur(4px) !important; }
 body.light-mode .plm-title  { color: var(--lm-text)   !important; }
 body.light-mode .plm-close  { color: var(--lm-text-3) !important; }
 
-/* ── Seasonal anime / game discover cards ───────────────────────── */
+/* -- Seasonal anime / game discover cards ------------------------- */
 body.light-mode .asc-card,
 body.light-mode .game-discover-card,
 body.light-mode .game-card {
@@ -6783,14 +6787,14 @@ body.light-mode .game-discover-title { color: var(--lm-text) !important; }
 body.light-mode .asc-meta,
 body.light-mode .game-card-meta { color: var(--lm-text-3) !important; }
 
-/* ── Patch / changelog ──────────────────────────────────────────── */
+/* -- Patch / changelog -------------------------------------------- */
 body.light-mode .patch-notes-page,
 body.light-mode .patch-notes-overlay {
   background: #F8F5EF !important;
   color: var(--lm-text) !important;
 }
 
-/* ── Import / sync pages ────────────────────────────────────────── */
+/* -- Import / sync pages ------------------------------------------ */
 body.light-mode #import-view,
 body.light-mode #steam-sync-view,
 body.light-mode .import-shell {
@@ -6802,456 +6806,35 @@ body.light-mode .import-option {
   border-color: var(--lm-line) !important;
 }
 
-/* ── Scrollbar (webkit) ─────────────────────────────────────────── */
+/* -- Scrollbar (webkit) ------------------------------------------- */
 body.light-mode ::-webkit-scrollbar-thumb { background: rgba(20,20,20,0.18) !important; }
 body.light-mode ::-webkit-scrollbar-track { background: transparent !important; }
 
-
-/* =============================================================================
-   v818: Desktop browser — match mobile/PWA layout
-   Part 1: media profile body sections (facts, cast, similar, trailer…)
-   Part 2: 5-tab floating bottom nav replaces the old 3-tab header nav
-   Applied at >=701px (desktop browser). Mobile/PWA at <=700px untouched.
-   ============================================================================= */
-
-@media (min-width: 701px) {
-
-  /* ── Part 1: Media profile body sections ─────────────────────────── */
-
-  /* Facts grid */
-  .discover-media-profile-overlay .discover-media-facts,
-  .game-media-profile-overlay .discover-media-facts {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-    padding: 2px 0 14px;
-    border-bottom: 1px solid rgba(255,255,255,0.10);
-  }
-  .discover-media-profile-overlay .discover-media-facts div,
-  .discover-media-profile-overlay .discover-media-credits div,
-  .game-media-profile-overlay .discover-media-facts div,
-  .game-media-profile-overlay .discover-media-credits div { min-width: 0; }
-  .discover-media-profile-overlay .discover-media-facts div.primary strong,
-  .game-media-profile-overlay .discover-media-facts div.primary strong {
-    color: #f4d27a;
-    font-size: 16px;
-  }
-  .discover-media-profile-overlay .discover-media-facts strong,
-  .discover-media-profile-overlay .discover-media-credits strong,
-  .game-media-profile-overlay .discover-media-facts strong,
-  .game-media-profile-overlay .discover-media-credits strong {
-    display: block;
-    color: #fff;
-    font-size: 14px;
-    line-height: 1.25;
-    font-weight: 950;
-  }
-  .discover-media-profile-overlay .discover-media-facts span,
-  .discover-media-profile-overlay .discover-media-credits span,
-  .game-media-profile-overlay .discover-media-facts span,
-  .game-media-profile-overlay .discover-media-credits span {
-    display: block;
-    margin-top: 4px;
-    color: #bdb4d8;
-    font-size: 9px;
-    font-weight: 900;
-    letter-spacing: 0.8px;
-    text-transform: uppercase;
-  }
-
-  /* Credits */
-  .discover-media-profile-overlay .discover-media-credits,
-  .game-media-profile-overlay .discover-media-credits {
-    display: grid;
-    gap: 12px;
-    margin: 16px 0 18px;
-  }
-
-  /* Trailer */
-  .discover-media-profile-overlay .discover-media-trailer,
-  .game-media-profile-overlay .discover-media-trailer {
-    margin: 18px 0;
-    border-radius: 8px;
-    overflow: hidden;
-    aspect-ratio: 16 / 9;
-    background: #111;
-    box-shadow: 0 18px 40px rgba(0,0,0,0.34);
-  }
-  .discover-media-profile-overlay .discover-media-trailer iframe,
-  .game-media-profile-overlay .discover-media-trailer iframe {
-    width: 100%;
-    height: 100%;
-    border: 0;
-    display: block;
-  }
-  .discover-media-profile-overlay .discover-media-trailer video,
-  .game-media-profile-overlay .discover-media-trailer video {
-    width: 100%;
-    height: 100%;
-    display: block;
-    object-fit: cover;
-    background: #111;
-  }
-
-  /* Section headings */
-  .discover-media-profile-overlay .discover-media-section,
-  .game-media-profile-overlay .discover-media-section { margin-top: 22px; }
-  .discover-media-profile-overlay .discover-media-section h3,
-  .game-media-profile-overlay .discover-media-section h3 {
-    margin: 0 0 12px;
-    color: #fff;
-    font-family: 'Sora', sans-serif;
-    font-size: 16px;
-    font-weight: 950;
-    letter-spacing: 0;
-  }
-
-  /* Cast / Similar horizontal scroll rail */
-  .discover-media-profile-overlay .discover-media-cast,
-  .discover-media-profile-overlay .discover-media-similar,
-  .game-media-profile-overlay .discover-media-cast,
-  .game-media-profile-overlay .discover-media-similar {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 118px;
-    gap: 12px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding-bottom: 8px;
-    scrollbar-width: none;
-    scroll-snap-type: x proximity;
-    overscroll-behavior-x: contain;
-    overscroll-behavior-y: auto;
-  }
-  .discover-media-profile-overlay .discover-media-cast::-webkit-scrollbar,
-  .discover-media-profile-overlay .discover-media-similar::-webkit-scrollbar,
-  .game-media-profile-overlay .discover-media-cast::-webkit-scrollbar,
-  .game-media-profile-overlay .discover-media-similar::-webkit-scrollbar { display: none; }
-
-  /* Poster thumbnails */
-  .discover-media-profile-overlay .discover-media-cast-photo,
-  .discover-media-profile-overlay .discover-media-similar img,
-  .game-media-profile-overlay .discover-media-cast-photo,
-  .game-media-profile-overlay .discover-media-similar img {
-    width: 118px;
-    aspect-ratio: 2 / 3;
-    border-radius: 8px;
-    background: rgba(255,255,255,0.07);
-    overflow: hidden;
-    object-fit: cover;
-  }
-  .discover-media-profile-overlay .discover-media-cast-photo,
-  .game-media-profile-overlay .discover-media-cast-photo { position: relative; }
-  .discover-media-profile-overlay .discover-media-cast-photo img,
-  .discover-media-profile-overlay .discover-media-similar img,
-  .game-media-profile-overlay .discover-media-cast-photo img,
-  .game-media-profile-overlay .discover-media-similar img {
-    width: 100%;
-    height: 100%;
-    display: block;
-    object-fit: cover;
-  }
-
-  /* Card base */
-  .discover-media-profile-overlay .discover-media-similar-card,
-  .discover-media-profile-overlay .discover-media-cast-card,
-  .game-media-profile-overlay .discover-media-similar-card,
-  .game-media-profile-overlay .discover-media-cast-card {
-    display: flex;
-    flex-direction: column;
-    scroll-snap-align: start;
-    padding: 0 0 3px;
-    border: 0;
-    background: transparent;
-    color: inherit;
-    text-align: left;
-    font-family: 'DM Sans', sans-serif;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .discover-media-profile-overlay .discover-media-similar-card img,
-  .game-media-profile-overlay .discover-media-similar-card img {
-    box-shadow: 0 14px 30px rgba(0,0,0,0.28);
-    transition: transform 0.18s ease;
-  }
-  .discover-media-profile-overlay .discover-media-cast-card .discover-media-cast-photo,
-  .game-media-profile-overlay .discover-media-cast-card .discover-media-cast-photo {
-    box-shadow: 0 14px 30px rgba(0,0,0,0.28);
-    transition: transform 0.18s ease;
-  }
-  .discover-media-profile-overlay .discover-media-similar-card:active img,
-  .discover-media-profile-overlay .discover-media-cast-card:active .discover-media-cast-photo,
-  .game-media-profile-overlay .discover-media-similar-card:active img,
-  .game-media-profile-overlay .discover-media-cast-card:active .discover-media-cast-photo {
-    transform: scale(0.97);
-  }
-
-  /* Card text */
-  .discover-media-profile-overlay .discover-media-cast strong,
-  .discover-media-profile-overlay .discover-media-similar span,
-  .game-media-profile-overlay .discover-media-cast strong,
-  .game-media-profile-overlay .discover-media-similar span {
-    display: block;
-    margin-top: 8px;
-    color: #fff;
-    font-size: 12px;
-    line-height: 1.2;
-    font-weight: 900;
-    min-height: 29px;
-  }
-  .discover-media-profile-overlay .discover-media-similar small,
-  .game-media-profile-overlay .discover-media-similar small {
-    display: block;
-    margin-top: 4px;
-    color: #8f86aa;
-    font-size: 10px;
-    line-height: 1.2;
-    font-weight: 800;
-    min-height: 24px;
-  }
-  .discover-media-profile-overlay .discover-media-cast span,
-  .game-media-profile-overlay .discover-media-cast span {
-    display: block;
-    margin-top: 3px;
-    color: #bdb4d8;
-    font-size: 10px;
-    line-height: 1.25;
-    font-weight: 700;
-  }
-
-  /* Filmography overlay */
-  .filmography-page-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 3300;
-    background: #05040d;
-    color: #f8f4ff;
-    transform: translateX(100%);
-    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
-    will-change: transform;
-  }
-  .filmography-page-overlay.open { transform: translateX(0); }
-  .filmography-page { display: flex; flex-direction: column; height: 100dvh; }
-  .filmography-page-header {
-    position: relative;
-    flex: 0 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 18px 16px 12px;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-  }
-  .filmography-page-back { position: absolute; left: 16px; top: 18px; }
-  .filmography-page-title {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 700;
-    color: #f8f4ff;
-    letter-spacing: -0.01em;
-    max-width: 70%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .filmography-page-chips {
-    flex: 0 0 auto;
-    display: flex;
-    gap: 8px;
-    padding: 12px 16px;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .filmography-page-chips::-webkit-scrollbar { display: none; }
-  .filmography-chip {
-    flex: 0 0 auto;
-    padding: 7px 14px;
-    border-radius: 999px;
-    border: 1px solid rgba(255,255,255,0.18);
-    background: transparent;
-    color: rgba(255,255,255,0.85);
-    font-family: inherit;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
-  }
-  .filmography-chip.active { background: #f8f4ff; color: #12082e; border-color: #f8f4ff; }
-  .filmography-page-body {
-    flex: 1 1 auto;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 4px 16px 24px;
-    -webkit-overflow-scrolling: touch;
-  }
-  .filmography-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-  .filmography-card {
-    display: flex;
-    flex-direction: column;
-    padding: 0;
-    background: transparent;
-    border: 0;
-    color: inherit;
-    text-align: left;
-    font-family: inherit;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-    min-width: 0;
-  }
-  .filmography-card-poster {
-    width: 100%;
-    aspect-ratio: 2 / 3;
-    border-radius: 8px;
-    background: rgba(255,255,255,0.07);
-    overflow: hidden;
-    box-shadow: 0 12px 28px rgba(0,0,0,0.32);
-    transition: transform 0.18s ease;
-  }
-  .filmography-card:active .filmography-card-poster { transform: scale(0.97); }
-  .filmography-card-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .filmography-card-title {
-    margin-top: 8px;
-    color: #fff;
-    font-size: 12.5px;
-    line-height: 1.25;
-    font-weight: 800;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    min-height: 30px;
-  }
-  .filmography-card-rating {
-    margin-top: 4px;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    color: #f5b73b;
-    font-size: 11.5px;
-    font-weight: 800;
-  }
-  .filmography-card-meta {
-    margin-top: 2px;
-    color: #b6acce;
-    font-size: 10.5px;
-    line-height: 1.2;
-    font-weight: 600;
-    min-height: 13px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .filmography-load-more {
-    display: block;
-    margin: 22px auto 4px;
-    padding: 11px 28px;
-    border-radius: 999px;
-    border: 1px solid rgba(196,181,253,0.25);
-    background: rgba(255,255,255,0.04);
-    color: #f8f4ff;
-    font-family: inherit;
-    font-size: 13.5px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: background 0.18s ease;
-  }
-  .filmography-load-more:hover { background: rgba(255,255,255,0.08); }
-
-  /* ── Part 2: 5-tab floating nav on desktop ───────────────────────── */
-
-  /* v820: Hide the old 3-tab nav (Discovery / Friends / My Lists) wherever
-     it ends up. syncDesktopMyListNavPlacement() in 14-navigation.js MOVES
-     the .main-nav element between .header (default) and
-     #mylist-view > .main-content (when on My Lists in desktop browser).
-     A `.header .main-nav`-only selector misses the My Lists location —
-     which is why the old 3-tab nav was still visible on My Lists in
-     v818/v819. Hide the element class itself instead.
-
-     Higher-specificity overrides:
-       body.main-tab-mylist #mylist-view > .main-content > .main-nav
-       (from 15-universal-discovery-search.css:1700) only sets layout
-       (width/margin/position) and never sets `display`, so a generic
-       `.main-nav { display: none !important }` wins. */
-  .main-nav,
-  body.main-tab-mylist .main-nav,
-  body.main-tab-mylist #mylist-view > .main-content > .main-nav,
-  .header .main-nav { display: none !important; }
-
-  /* v822: Final desktop placement — bottom-floating pill matching mobile/PWA
-     style. Diagnostic top positioning, bright lavender border, and body
-     padding-top are removed. All high-specificity visibility protections
-     and page-state hide defeats from v821 are kept intact. */
-  #mobile-bottom-nav,
-  .mobile-bottom-nav {
-    position: fixed !important;
-    left: 50% !important;
-    right: auto !important;
-    top: auto !important;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 20px) !important;
-    transform: translateX(-50%) !important;
-    width: min(500px, calc(100vw - 64px)) !important;
-    max-width: 500px;
-    padding: 4px !important;
-    gap: 4px !important;
-    margin: 0 !important;
-    border-radius: 999px !important;
-    border: 1px solid rgba(196,181,253,0.09) !important;
-    background: rgba(255,255,255,0.035) !important;
-    box-shadow: 0 14px 34px rgba(0,0,0,0.26) !important;
-    backdrop-filter: blur(20px) !important;
-    -webkit-backdrop-filter: blur(20px) !important;
-    z-index: 2147483646 !important;
-    display: flex !important;
-    align-items: stretch !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    pointer-events: auto !important;
-  }
-  .mobile-bottom-nav .main-nav-btn {
-    min-width: 0 !important;
-    min-height: 44px !important;
-    padding: 8px 10px !important;
-    border-radius: 999px !important;
-    font-size: 13px !important;
-    font-weight: 800 !important;
-    letter-spacing: 0 !important;
-    line-height: 1.1 !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    color: #ffffff !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    text-shadow: 0 0 10px rgba(255,255,255,0.06) !important;
-    flex: 1 !important;
-    text-align: center !important;
-  }
-  .mobile-bottom-nav .main-nav-btn.active {
-    color: #ffffff !important;
-    background: rgba(139,92,246,0.08) !important;
-    box-shadow: inset 0 0 0 1px rgba(196,181,253,0.10) !important;
-  }
-  .mobile-bottom-nav #mobile-nav-mylist {
-    color: #f5d27a !important;
-    font-weight: 800 !important;
-  }
-  .mobile-bottom-nav #mobile-nav-mylist.active { color: #fde68a !important; }
-
-  /* v821/v822: defeat every page-state class that mobile uses to hide the
-     bottom nav (body.discover-media-profile-open, body.profile-active, etc.).
-     On desktop the nav is permanently visible — these are mobile UX decisions.
-     ID + body-class selectors (specificity 1,1,0 with !important) beat the
-     existing `display: none !important` page-state hides (specificity 0,2,0). */
-  body.discover-media-profile-open #mobile-bottom-nav,
-  body.filmography-page-open #mobile-bottom-nav,
-  body.profile-active #mobile-bottom-nav,
-  body.main-nav-switching #mobile-bottom-nav,
-  body #mobile-bottom-nav {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    pointer-events: auto !important;
-  }
-
-  /* Extra bottom padding so page content clears the floating bottom nav. */
-  .main-content { padding-bottom: 100px !important; }
+/* v855: Discover + Activity page background 0.3 shades lighter than
+   the global body #0E0E0E (rgb 14,14,14 ? rgb 22,22,22 = #161616).
+   Only these two page surfaces are targeted; nothing else is touched. */
+#discover-view,
+#anime-discover-view,
+#games-discover-view {
+  background-color: #161616 !important;
+  min-height: 100%;
 }
+.activity-page,
+#community-view {
+  background-color: #161616 !important;
+}
+
+/* v856: Header background matches the lighter #161616 on Discover and
+   Activity/Community tabs so the full page blends seamlessly.
+   Two cases to cover:
+   ? Mobile browser: 12-pwa-header-continuity.css sets
+     body.true-dark-mode .header { background: #0E0E0E !important }.
+     We override that for the two affected tabs.
+   ? PWA standalone: header is transparent (inherits body bg which is
+     still #0E0E0E). We explicitly pin it to #161616 on those tabs so
+     the header surface matches the page surface below it. */
+body.main-tab-discover .header,
+body.main-tab-community .header {
+  background: #161616 !important;
+}
+

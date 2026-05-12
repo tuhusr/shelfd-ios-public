@@ -1,4 +1,4 @@
-  /* ── Activity Tab Feed ───────────────────────────────── */
+  /* -- Activity Tab Feed --------------------------------- */
   #activity-tab-view { padding-bottom: 32px; }
 
   .activity-unread-badge {
@@ -8,7 +8,7 @@
     flex-shrink: 0;
   }
 
-  /* ── Stories Row ── */
+  /* -- Stories Row -- */
   .activity-stories-row {
     display: flex; gap: 14px; overflow-x: auto;
     width: 100%; max-width: 100%; min-width: 0;
@@ -76,7 +76,7 @@
     letter-spacing: 0.2px;
   }
 
-  /* ── Skeleton loading ── */
+  /* -- Skeleton loading -- */
   @keyframes shimmer {
     0%   { background-position: -300% 0; }
     100% { background-position: 300% 0; }
@@ -93,7 +93,7 @@
   /* Feed container */
   .activity-feed-list { display: flex; flex-direction: column; gap: 10px; }
 
-  /* ── Group labels ── */
+  /* -- Group labels -- */
   .activity-group-label {
     font-size: 10px; font-weight: 700; letter-spacing: 1.8px;
     text-transform: uppercase; color: #6e6791;
@@ -102,7 +102,7 @@
   }
   .activity-group-label:first-child { padding-top: 0; }
 
-  /* ── Card ── */
+  /* -- Card -- */
   @keyframes activityCardIn {
     from { opacity: 0; transform: translateY(18px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -150,7 +150,7 @@
     transition: transform 0.07s ease-in, box-shadow 0.07s ease-in;
   }
 
-  /* ── Poster column ── */
+  /* -- Poster column -- */
   .activity-poster-col {
     grid-column: 3;
     grid-row: 1;
@@ -186,7 +186,7 @@
     font-family: 'DM Sans', sans-serif; letter-spacing: -0.5px;
   }
 
-  /* ── Content column ── */
+  /* -- Content column -- */
   .activity-content-col {
     grid-column: 2;
     grid-row: 1;
@@ -205,8 +205,32 @@
     padding: 14px 0 0 14px;
   }
 
+  /* v861: feed-post card now uses sl-activity-avatar-zone / sl-activity-avatar-btn.
+     Wire the zone into the same grid slot the old wrap used, and size the
+     button to match the ~44px the old avatar occupied. */
+  .activity-card.feed-post .sl-activity-avatar-zone {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    align-self: start !important;
+    justify-self: start !important;
+    padding: 14px 0 0 14px !important;
+  }
+  .activity-card.feed-post .sl-activity-avatar-btn.feed-post-avatar {
+    width: 44px !important;
+    height: 44px !important;
+  }
+  /* Status rings: use box-shadow so they work inside overflow:hidden. */
+  .activity-card.feed-post .sl-activity-avatar-btn.feed-post-avatar.ring-rated     { box-shadow: 0 0 0 2px rgba(245,158,11,0.75)  !important; }
+  .activity-card.feed-post .sl-activity-avatar-btn.feed-post-avatar.ring-completed { box-shadow: 0 0 0 2px rgba(6,182,212,0.75)   !important; }
+  .activity-card.feed-post .sl-activity-avatar-btn.feed-post-avatar.ring-started   { box-shadow: 0 0 0 2px rgba(34,197,94,0.75)   !important; }
+  .activity-card.feed-post .sl-activity-avatar-btn.feed-post-avatar.ring-paused    { box-shadow: 0 0 0 2px rgba(249,115,22,0.75)  !important; }
+  .activity-card.feed-post .sl-activity-avatar-btn.feed-post-avatar.ring-dropped   { box-shadow: 0 0 0 2px rgba(239,68,68,0.75)   !important; }
+  .activity-card.feed-post .sl-activity-avatar-btn.feed-post-avatar.ring-commented { box-shadow: 0 0 0 2px rgba(99,102,241,0.75)  !important; }
+  .activity-card.feed-post .sl-activity-avatar-btn.feed-post-avatar.ring-added,
+  .activity-card.feed-post .sl-activity-avatar-btn.feed-post-avatar.ring-planned   { box-shadow: 0 0 0 2px rgba(124,58,237,0.65)  !important; }
+
   /* Who row */
-  /* Avatar row — name left, time middle, avatar right */
+  /* Avatar row ? name left, time middle, avatar right */
   .activity-who-row {
     display: flex; align-items: center; gap: 7px; margin-bottom: 11px;
   }
@@ -224,7 +248,7 @@
     font-family: 'DM Sans', sans-serif;
     margin: 0;
   }
-  /* avatar ring colors */
+  /* avatar ring colors (legacy ? kept for any stale-cache cards still using old structure) */
   .ring-rated    { border-color: rgba(245,158,11,0.7) !important; }
   .ring-completed{ border-color: rgba(6,182,212,0.7)  !important; }
   .ring-started  { border-color: rgba(34,197,94,0.7)  !important; }
@@ -306,7 +330,7 @@
     font-family: 'DM Sans', sans-serif;
   }
 
-  /* ── Feed Composer ── */
+  /* -- Feed Composer -- */
   .feed-composer {
     margin-bottom: 20px;
     animation: activityCardIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -449,7 +473,7 @@
     cursor: not-allowed;
   }
 
-  /* ── Feed Cards - Enhanced for Posts ── */
+  /* -- Feed Cards - Enhanced for Posts -- */
   .activity-card.feed-post {
     grid-template-columns: 46px minmax(0, 1fr);
     grid-template-rows: auto auto;
@@ -527,7 +551,7 @@
     letter-spacing: 0.5px;
   }
 
-  /* ── Activity Interactions ── */
+  /* -- Activity Interactions -- */
   .activity-interactions {
     grid-column: 2;
     grid-row: 2;
@@ -566,7 +590,7 @@
     height: 18px;
   }
 
-  /* ── Feed Post Delete Button ── */
+  /* -- Feed Post Delete Button -- */
   .feed-post-delete-btn {
     background: none;
     border: none;
@@ -585,7 +609,7 @@
     color: #ef4444;
   }
 
-  /* ── Feed Post Detail Page ── */
+  /* -- Feed Post Detail Page -- */
   .overlay-page {
     position: fixed;
     top: 0;
@@ -651,7 +675,7 @@
     margin: 0;
   }
 
-  /* ── Reply Composer ── */
+  /* -- Reply Composer -- */
   #feed-post-replies-composer {
     padding: 20px;
     border-bottom: 1px solid #17142e;
@@ -703,7 +727,7 @@
     cursor: not-allowed;
   }
 
-  /* ── Replies List ── */
+  /* -- Replies List -- */
   #feed-post-replies-list {
     padding: 0;
   }
@@ -753,7 +777,7 @@
     word-wrap: break-word;
   }
 
-  /* ── Mobile Optimizations ── */
+  /* -- Mobile Optimizations -- */
   @media (max-width: 768px) {
     .feed-composer-inner {
       padding: 12px;
@@ -839,7 +863,7 @@
     }
   }
 
-  /* ── Trailer Selector Modal ── */
+  /* -- Trailer Selector Modal -- */
   .trailer-options-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -877,7 +901,7 @@
     overflow: hidden;
   }
 
-  /* ── Empty state ── */
+  /* -- Empty state -- */
   .activity-feed-empty {
     text-align: center; padding: 56px 20px 40px; color: #6e6791;
     font-size: 14px; line-height: 1.7;
@@ -888,7 +912,7 @@
     margin-bottom: 8px; font-weight: 700;
   }
 
-  /* ── Feed header ── */
+  /* -- Feed header -- */
   .activity-feed-header {
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 4px;
@@ -905,7 +929,7 @@
   }
   .activity-feed-refresh:hover { color: #a78bfa; }
 
-  /* ── Light mode ── */
+  /* -- Light mode -- */
   body.light-mode .activity-card { background: #faf8ff; border-color: rgba(255,255,255,0.58); }
   body.light-mode .activity-poster-col { background: #ede9fb; }
   body.light-mode .activity-poster-col::after { background: linear-gradient(to right, transparent 55%, rgba(250,248,255,0.7) 100%); }
@@ -926,7 +950,7 @@
   body.light-mode .activity-feed-empty { color: #c4b8e8; }
   body.light-mode .activity-feed-empty strong { color: #9a8ec8; }
 
-  /* ── True dark ── */
+  /* -- True dark -- */
   body.true-dark-mode .activity-card { background: #080808; border-color: rgba(255,255,255,0.06); }
   body.true-dark-mode .activity-poster-col { background: #0a0a0a; }
   body.true-dark-mode .activity-poster-col::after { background: linear-gradient(to right, transparent 55%, rgba(8,8,8,0.7) 100%); }
@@ -1025,7 +1049,7 @@
      re-shown by the @media (max-width: 700px) block lower in this file
      (which sets display:inline-flex on .discover-expand-icon for the
      expanded-card mobile layout). The JS still renders the button into
-     posters, but it is no longer part of the current Discover UI — kill
+     posters, but it is no longer part of the current Discover UI ? kill
      it everywhere with !important so no media query / theme override can
      bring it back. */
   .discover-expand-icon {
@@ -1700,6 +1724,12 @@
   padding: 0 !important;
   margin: 0 !important;
   border: 0 !important;
+  /* v863: completely rebuilt with buildCleanActivityAvatar() ? see CSS below.
+     v862: border-radius + overflow:hidden is sufficient for a perfect
+     circle clip. The previous mask-image: radial-gradient(white, black)
+     was causing the edges to fade semi-transparent (making the avatar
+     look oval/irregular) and letting the fallback initial bleed through
+     as a ghost element to the right. Removed both mask properties. */
   border-radius: 999px !important;
   background: transparent !important;
   box-shadow: none !important;
@@ -1716,8 +1746,6 @@
   transition: transform 300ms cubic-bezier(.16, 1, .3, 1), opacity 300ms ease !important;
   backface-visibility: hidden !important;
   -webkit-backface-visibility: hidden !important;
-  -webkit-mask-image: -webkit-radial-gradient(white, black) !important;
-  mask-image: radial-gradient(white, black) !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-avatar-img,
 .activity-page .shelfd-social-card .sl-activity-avatar-img,
@@ -1850,7 +1878,7 @@
   max-width: 100% !important;
   min-width: 0 !important;
 }
-/* Action verb — gold */
+/* Action verb ? gold */
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-verb,
 .activity-page .shelfd-social-card .sl-activity-action-verb {
   color: #ffd84c !important;
@@ -1859,7 +1887,7 @@
   white-space: nowrap !important;
   flex-shrink: 0 !important;
 }
-/* Media title — milky white, slightly larger than verb */
+/* Media title ? milky white, slightly larger than verb */
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-title,
 .activity-page .shelfd-social-card .sl-activity-title {
   display: inline !important;
@@ -1879,7 +1907,7 @@
   min-width: 0 !important;
   flex-shrink: 1 !important;
 }
-/* Episode/season detail — subtle milky white */
+/* Episode/season detail ? subtle milky white */
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-detail,
 .activity-page .shelfd-social-card .sl-activity-action-detail {
   color: rgba(255,255,255,.60) !important;
@@ -2013,7 +2041,10 @@
 .activity-page .shelfd-social-card .sl-activity-poster {
   grid-column: 2 !important;
   grid-row: 1 / 3 !important;
-  align-self: center !important;
+  /* v864: align poster top with the username line instead of centering
+     vertically. align-self:start pins the poster's top edge to the top
+     of the card's content area, matching where the username sits. */
+  align-self: start !important;
   justify-self: center !important;
   width: clamp(97px, 15.1vw, 130px) !important;
   height: clamp(149px, 20.7vw, 199px) !important;
@@ -2148,16 +2179,16 @@
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-stack-action-count,
 .activity-page .shelfd-social-card .sl-activity-stack-action-count {
   justify-content: center !important;
-  width: clamp(23px, 3.55vw, 27px) !important;
-  height: clamp(23px, 3.55vw, 27px) !important;
-  min-width: clamp(23px, 3.55vw, 27px) !important;
+  width: clamp(25px, 3.9vw, 29px) !important;
+  height: clamp(25px, 3.9vw, 29px) !important;
+  min-width: clamp(25px, 3.9vw, 29px) !important;
   padding: 0 !important;
   gap: 0 !important;
-  border: 1px solid rgba(255,255,255,0.28) !important;
+  border: 1px solid rgba(167,139,250,0.44) !important;
   border-radius: 999px !important;
   background: transparent !important;
-  color: rgba(235,229,255,0.88) !important;
-  font-size: clamp(10px, 1.78vw, 12px) !important;
+  color: #a78bfa !important;
+  font-size: clamp(11px, 1.96vw, 13px) !important;
   line-height: 1 !important;
 }
 
@@ -2270,10 +2301,10 @@ body.true-dark-mode .activity-page .shelfd-social-card {
   }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-stack-action-count,
   .activity-page .shelfd-social-card .sl-activity-stack-action-count {
-    width: 22px !important;
-    height: 22px !important;
-    min-width: 22px !important;
-    font-size: 10px !important;
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    font-size: 11px !important;
   }
 }
 @media (max-width: 390px) {
@@ -2324,16 +2355,23 @@ body.true-dark-mode .activity-page .shelfd-social-card {
   box-shadow: 0 22px 72px rgba(0,0,0,0.56), inset 0 1px 0 rgba(255,255,255,0.05);
   color: #f8f4ff;
   padding: 16px 15px 15px;
-  transform: translate3d(0, 12px, 0) scale(0.965);
+  /* v842: removed `transform: translate3d(...) scale(...)`, `will-change`,
+     `contain: layout paint style`, and `backface-visibility: hidden`.
+     Each of those four is an aggressive GPU-layer-promotion hint, and
+     in combination they GUARANTEE iOS PWA WKWebView promotes this card
+     into its own compositor layer. Once promoted, the iOS compositor's
+     hit-tester routes taps on the primary action button (Delete Post,
+     at the far right of the actions row) BACK into the underlying
+     overlay layer instead of into the button ? the same failure mode
+     the card-comment composer hit with backdrop-filter. The Cancel
+     button (left side) sat closer to the card's hit-test anchor and
+     still received clicks; Delete Post on the right side did not. An
+     opacity-only fade-in is enough for the entry animation and never
+     promotes a layer. */
   opacity: 0;
-  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1), opacity 220ms linear;
-  will-change: transform, opacity;
-  contain: layout paint style;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+  transition: opacity 220ms linear;
 }
 .screenlist-completion-modal.open .screenlist-completion-card {
-  transform: translate3d(0, 0, 0) scale(1);
   opacity: 1;
 }
 .screenlist-completion-card.saving {
@@ -2889,7 +2927,7 @@ body.light-mode .activity-page .activity-card {
 
 
 /* v470: import activity card expanded list + no page-jump delete polish.
-   padding-bottom reduced from 16 → 6 so comment/heart sit closer to the
+   padding-bottom reduced from 16 ? 6 so comment/heart sit closer to the
    card's bottom border, matching normal activity cards visually. */
 #community-view #activity-tab-view .import-activity-card,
 .activity-page .import-activity-card,
@@ -2993,7 +3031,7 @@ body.light-mode .activity-page .activity-card {
   line-height: 1.2 !important;
 }
 
-/* v469: import card bottom row — align-items:flex-end drops comment/heart to
+/* v469: import card bottom row ? align-items:flex-end drops comment/heart to
    the bottom of the row (the right-cluster is much taller, so center-align
    was floating the buttons in the middle). margin-top:auto handles any
    remaining slack from min-height. */
@@ -3010,7 +3048,7 @@ body.light-mode .activity-page .activity-card {
 }
 
 /* import actions inherit the same sl-activity-action-btn styles from the
-   shelfd-social-card context — no extra rules needed, just ensure flex. */
+   shelfd-social-card context ? no extra rules needed, just ensure flex. */
 .import-activity-actions {
   flex: 0 0 auto !important;
 }
@@ -3107,7 +3145,7 @@ body.light-mode .activity-page .activity-card {
   margin: 0 !important;
 }
 
-/* v454: pull only the +N count badge left to align with the avatar — the
+/* v454: pull only the +N count badge left to align with the avatar ? the
    bottom-safe padding-left is kept intact so comment/heart stay in place.
    A negative margin equal to the bottom-safe padding-left pulls the badge
    back to the avatar's left edge; flex gap then places comment/heart at
@@ -3183,7 +3221,7 @@ body.light-mode .activity-page .activity-card {
   height: 0 !important;
   overflow: hidden !important;
   margin-top: 0 !important;
-  /* No CSS transition — JS drives all animation via composited transform/opacity */
+  /* No CSS transition ? JS drives all animation via composited transform/opacity */
 }
 
 #community-view #activity-tab-view .sl-activity-stack-wrap.is-expanded .sl-activity-stack-inline-list,
@@ -3397,3 +3435,54 @@ body.light-mode .activity-page .activity-card {
 .activity-page .shelfd-social-card .sl-activity-name .creator-name {
   color: #ffffff !important;
 }
+
+
+/* v863: clean rebuilt activity-card avatar.
+   .sl-av   ? the circle container (overflow:hidden, 50% radius)
+   .sl-av-img ? fills the circle, object-fit:cover
+   .sl-av-fb  ? fallback initial, absolutely fills the circle,
+                only shown when the image fails to load. */
+.sl-av {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #100823;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.sl-av-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  border-radius: 0;
+}
+.sl-av-fb {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ddd4ff;
+  font: 800 14px/1 'DM Sans', sans-serif;
+  background: #100823;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+}
+/* Zone positioning ? keeps the avatar in grid column 1
+   for both the community feed and the full-page activity view */
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-avatar-zone .sl-av,
+.activity-page .shelfd-social-card .sl-activity-avatar-zone .sl-av,
+.activity-card.feed-post .sl-activity-avatar-zone .sl-av {
+  width: clamp(44px, 8vw, 54px);
+  height: clamp(44px, 8vw, 54px);
+  min-width: clamp(44px, 8vw, 54px);
+}
+

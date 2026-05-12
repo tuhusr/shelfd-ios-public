@@ -1,12 +1,12 @@
 /* v746: bumped CACHE name on every meaningful deploy so the SW bytes
    differ from the old one. That forces the browser/PWA to install the
-   NEW service worker, fire `activate`, and `controllerchange` — which
+   NEW service worker, fire `activate`, and `controllerchange` ? which
    the existing live-update handler in 00-live-update-pwa.js (line 195)
    listens for and turns into a graceful splash + reload. Without this
    bump, the SW bytes were byte-identical across deploys, no new install
    happened, and PWAs sat on stale JS until the user manually deleted
    and re-added the home-screen app. */
-const CACHE = 'shelfd-v823-discover-mobile-grid-spacing';
+const CACHE = 'shelfd-v865-activity-stack-count-lavender-size';
 
 const STATIC_CACHE_PATHS = [
   '/icon-192.png',
@@ -59,7 +59,7 @@ self.addEventListener('activate', event => {
     await Promise.all(stale.map(key => caches.delete(key)));
     await self.clients.claim();
     /* v746: belt-and-suspenders. If at least one stale cache existed, this
-       is an UPGRADE (not a first install) — meaning open PWA windows are
+       is an UPGRADE (not a first install) ? meaning open PWA windows are
        running JS bytes from the previous deploy. The live-update JS in
        00-live-update-pwa.js (line 195) listens for `controllerchange` and
        reloads via splash, but ANCIENT PWAs that never picked up that
@@ -76,7 +76,7 @@ self.addEventListener('activate', event => {
           try { return client.navigate(client.url); } catch (e) { return null; }
         }));
       } catch (e) {
-        /* ignore — controllerchange path will still fire for clients with
+        /* ignore ? controllerchange path will still fire for clients with
            the live-update listener */
       }
     }
@@ -103,3 +103,4 @@ self.addEventListener('fetch', event => {
 
   event.respondWith(cacheFirstStatic(request));
 });
+

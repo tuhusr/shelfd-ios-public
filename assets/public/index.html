@@ -2,16 +2,25 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<!-- v836: removed `maximum-scale=1.0, user-scalable=no`. In iOS PWA
+     standalone WKWebView those two values have a documented bug ? they
+     silently suppress the soft keyboard for inputs in certain conditions
+     (notably when the page has any `position: fixed` overlay, transform,
+     or has been navigated via signInWithRedirect to a cross-origin page
+     like accounts.google.com). Safari itself ignores them since iOS 10
+     for accessibility reasons, but standalone WKWebView still respects
+     them and breaks. Modern PWA best practice is to omit both. Pinch-
+     zoom is now allowed (and harmless ? the UI is already mobile-fit). -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
-<!-- v634: Google Identity Services — PWA-friendly sign-in. Returns a Google
+<!-- v634: Google Identity Services ? PWA-friendly sign-in. Returns a Google
      ID token via iframe (no redirect), which we hand to Firebase Auth via
      signInWithCredential. Bypasses iOS PWA storage-isolation entirely. -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <title>Shelfd</title>
 
 <!-- PWA / Icons / Social sharing -->
-<meta name="description" content="Shelfd — track your shows, movies, anime, games, books, and more.">
+<meta name="description" content="Shelfd ? track your shows, movies, anime, games, books, and more.">
 <meta name="theme-color" content="#0E0E0E">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -31,7 +40,7 @@
 <meta property="og:image" content="https://myscreenlist.com/og-image-v216.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Shelfd — Track your shows, movies, anime, games, books, and more.">
+<meta property="og:image:alt" content="Shelfd ? Track your shows, movies, anime, games, books, and more.">
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Shelfd">
@@ -71,10 +80,10 @@
 </script>
 <link rel="stylesheet" href="/css/sohne-fonts.css?v=576_sohne_font_setup">
 <link rel="stylesheet" href="/css/00-base-layout.css?v=643_revert_old_icon_again">
-<link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=817_card_comment_edit_tap_fix">
+<link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=850_comment_ellipsis_plus_discover_search_lavender_full_page">
 <link rel="stylesheet" href="/css/02-comments-login-theme.css?v=643_revert_old_icon_again">
 <link rel="stylesheet" href="/css/03-friends-discovery-base.css?v=643_revert_old_icon_again">
-<link rel="stylesheet" href="/css/04-activity-feed.css?v=812_kill_legacy_trailer_btn">
+<link rel="stylesheet" href="/css/04-activity-feed.css?v=865_activity_stack_count_lavender_size">
 <link rel="stylesheet" href="/css/05-messages-early-polish.css?v=811_creator_card_autofriend">
 <link rel="stylesheet" href="/css/06-profile.css?v=809_hide_legacy_theme_options">
 <link rel="stylesheet" href="/css/07-imports-discover-rankings.css?v=382-myanimelist-desktop-helper">
@@ -83,14 +92,14 @@
 <link rel="stylesheet" href="/css/10-mobile-transitions-media-profile.css?v=643_revert_old_icon_again">
 <link rel="stylesheet" href="/css/11-patch-notes-friends-refinements.css?v=670_stat_weight_500_clean">
 <link rel="stylesheet" href="/css/12-pwa-header-continuity.css?v=814_browser_header_color_fix">
-<link rel="stylesheet" href="/css/13-e2ee-activity-post.css?v=419_activity_feed_card_action_row_polish">
-<link rel="stylesheet" href="/css/14-live-update-discover-controls.css?v=823_discover_mobile_grid_spacing">
-<link rel="stylesheet" href="/css/15-universal-discovery-search.css?v=440-desktop-friends-discovery-logo-center">
-<link rel="stylesheet" href="/css/16-light-mode-contrast.css?v=822_desktop_nav_bottom_final">
-<link rel="stylesheet" href="/css/17-auth-flow-setup.css?v=804_auth_flow_setup">
+<link rel="stylesheet" href="/css/13-e2ee-activity-post.css?v=847_mylist_settings_charcoal_lavender_redesign">
+<link rel="stylesheet" href="/css/14-live-update-discover-controls.css?v=860_game_poster_6x7">
+<link rel="stylesheet" href="/css/15-universal-discovery-search.css?v=853_revert_discover_search_top_half_color">
+<link rel="stylesheet" href="/css/16-light-mode-contrast.css?v=856_discover_activity_header_bg_lighter">
+<link rel="stylesheet" href="/css/17-auth-flow-setup.css?v=835_pwa_landing_inline_signin_form">
 
-<meta name="screenlist-build-version" content="2026-05-10-v823_discover_mobile_grid_spacing">
-<script>window.SCREENLIST_BUILD_VERSION = "2026-05-10-v823_discover_mobile_grid_spacing"; window.SCREENLIST_DISPLAY_VERSION = "v.823-May 10th, 2026";</script>
+<meta name="screenlist-build-version" content="2026-05-12-v865_activity_stack_count_lavender_size">
+<script>window.SCREENLIST_BUILD_VERSION = "2026-05-12-v865_activity_stack_count_lavender_size"; window.SCREENLIST_DISPLAY_VERSION = "v.865-May 12th, 2026";</script>
 </head>
 <body>
 
@@ -112,13 +121,29 @@
             <span class="landing-profile-copy"><strong>View Creators Shelf</strong></span>
         </button>
     </div>
-    <!-- v804: Email/password auth — Sign In and Create Account each open
+    <!-- v804: Email/password auth ? Sign In and Create Account each open
          their own full-page panel (no tabs). Order matches spec:
-         Profile · Shelf · Sign In · Create Account · Google. -->
+         Profile ? Shelf ? Sign In ? Create Account ? Google. -->
     <div class="shelfd-landing-auth-row">
-        <button class="shelfd-landing-auth-btn shelfd-landing-auth-signin" type="button" onclick="openShelfdSignInPage()">Sign In</button>
+        <button class="shelfd-landing-auth-btn shelfd-landing-auth-signin" type="button" id="shelfd-landing-signin-toggle" onclick="toggleShelfdLandingInlineSignin()">Sign In</button>
         <button class="shelfd-landing-auth-btn shelfd-landing-auth-signup" type="button" onclick="openShelfdSignUpPage()">Create Account</button>
     </div>
+    <!-- v835: PWA-safe inline sign-in form. Rendered directly in the
+         landing-page document flow (no fixed-position panel, no transform,
+         no overlay). iOS WKWebView in installed PWA standalone mode was
+         silently refusing to raise the soft keyboard for inputs inside
+         the slide-up .shelfd-auth-page panels, locking users out. This
+         inline form bypasses every hide/reveal mechanism so the keyboard
+         is guaranteed to appear. -->
+    <form class="shelfd-landing-inline-signin" id="shelfd-landing-inline-signin" autocomplete="on" novalidate hidden onsubmit="return handleShelfdLandingInlineSignin(event)">
+      <label class="shelfd-landing-inline-label" for="shelfd-landing-inline-email">Email</label>
+      <input class="shelfd-landing-inline-input" type="email" id="shelfd-landing-inline-email" name="email" autocomplete="email" inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="you@example.com" required>
+      <label class="shelfd-landing-inline-label" for="shelfd-landing-inline-password">Password</label>
+      <input class="shelfd-landing-inline-input" type="password" id="shelfd-landing-inline-password" name="password" autocomplete="current-password" placeholder="Your password" required>
+      <div class="shelfd-landing-inline-error" id="shelfd-landing-inline-error" role="alert" hidden></div>
+      <button class="shelfd-landing-inline-submit" type="submit" id="shelfd-landing-inline-submit">Sign In</button>
+      <button class="shelfd-landing-inline-link" type="button" onclick="openShelfdResetPage()">Reset password</button>
+    </form>
     <div class="login-cta-buttons">
         <!-- v634: Google Identity Services renders the official Google button
              into this div when configured. Until the client ID is pasted in,
@@ -149,7 +174,7 @@
       <div class="login-privacy-loading">Loading terms...</div>
     </div>
   </div>
-  <button class="login-scroll-top-btn" type="button" onclick="scrollLoginOverlayToTop('login-terms-page')" aria-label="Back to top">↑</button>
+  <button class="login-scroll-top-btn" type="button" onclick="scrollLoginOverlayToTop('login-terms-page')" aria-label="Back to top">?</button>
 </div>
 
 <div class="login-privacy-page" id="login-privacy-page" style="display:none;">
@@ -159,7 +184,7 @@
       <div class="login-privacy-loading">Loading privacy policy...</div>
     </div>
   </div>
-  <button class="login-scroll-top-btn" type="button" onclick="scrollLoginOverlayToTop('login-privacy-page')" aria-label="Back to top">↑</button>
+  <button class="login-scroll-top-btn" type="button" onclick="scrollLoginOverlayToTop('login-privacy-page')" aria-label="Back to top">?</button>
 </div>
 
 <!-- v752: Fullscreen email auth page. Opened by the "Sign in / Create
@@ -169,7 +194,7 @@
      overlay. Wiring + state in 19b-email-password-auth.js. -->
 <div class="login-privacy-page login-email-page" id="login-email-page" style="display:none;">
   <div class="login-privacy-shell login-email-page-shell">
-    <button class="login-privacy-back login-email-back-btn" type="button" id="login-email-back-btn" onclick="closeLoginEmailPage()">← Back</button>
+    <button class="login-privacy-back login-email-back-btn" type="button" id="login-email-back-btn" onclick="closeLoginEmailPage()">? Back</button>
     <div class="login-email-page-card">
       <h2 class="login-email-page-title" id="login-email-page-title">Welcome back</h2>
 
@@ -178,7 +203,7 @@
         <button class="login-email-tab" type="button" role="tab" aria-selected="false" data-mode="signup">Create account</button>
       </div>
 
-      <!-- ════════════════ SIGN IN form ════════════════ -->
+      <!-- ---------------- SIGN IN form ---------------- -->
       <form class="login-email-form" id="login-email-signin-form" autocomplete="on" novalidate>
         <div class="login-email-field">
           <label for="login-email-signin-id">Username or email</label>
@@ -199,11 +224,11 @@
         </div>
       </form>
 
-      <!-- ════════════════ CREATE ACCOUNT form ════════════════ -->
+      <!-- ---------------- CREATE ACCOUNT form ---------------- -->
       <form class="login-email-form" id="login-email-signup-form" autocomplete="on" novalidate hidden>
         <div class="login-email-field">
           <label for="login-email-signup-username">Username</label>
-          <input type="text" id="login-email-signup-username" name="username" autocomplete="username" required minlength="3" maxlength="20" placeholder="3–20 chars, letters / numbers / _" autocapitalize="none" autocorrect="off" spellcheck="false">
+          <input type="text" id="login-email-signup-username" name="username" autocomplete="username" required minlength="3" maxlength="20" placeholder="3?20 chars, letters / numbers / _" autocapitalize="none" autocorrect="off" spellcheck="false">
           <div class="login-email-strength-label" id="login-email-username-hint" aria-live="polite">Letters, numbers, and underscore only.</div>
         </div>
         <div class="login-email-field">
@@ -233,7 +258,7 @@
         <button type="submit" class="login-email-submit" id="login-email-signup-submit">Create account</button>
       </form>
 
-      <!-- ════════════════ RESET PASSWORD form ════════════════
+      <!-- ---------------- RESET PASSWORD form ----------------
            When this is shown, the tabs above are hidden and the page
            title swaps to "Reset password". The smart Back button at
            the top returns to sign-in instead of closing the overlay. -->
@@ -250,15 +275,15 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════════
+<!-- -----------------------------------------------------------------------
      v804: New auth + onboarding flow.
-     Full-page panels that slide up from bottom on mobile/PWA. Söhne font,
+     Full-page panels that slide up from bottom on mobile/PWA. S?hne font,
      charcoal black surfaces, soft lavender accents. Each landing-page
      button opens its own dedicated panel (no tabs, no shared form state).
      Wiring + state lives in 19c-auth-flow-setup.js.
-     ═══════════════════════════════════════════════════════════════════════ -->
+     ----------------------------------------------------------------------- -->
 
-<!-- ─────── SIGN IN PAGE ─────── -->
+<!-- ------- SIGN IN PAGE ------- -->
 <div id="shelfd-signin-page" class="shelfd-auth-page" aria-hidden="true">
   <div class="shelfd-auth-shell">
     <div class="shelfd-auth-topbar">
@@ -290,7 +315,7 @@
   </div>
 </div>
 
-<!-- ─────── RESET PASSWORD PAGE ─────── -->
+<!-- ------- RESET PASSWORD PAGE ------- -->
 <div id="shelfd-reset-page" class="shelfd-auth-page" aria-hidden="true">
   <div class="shelfd-auth-shell">
     <div class="shelfd-auth-topbar">
@@ -313,7 +338,7 @@
   </div>
 </div>
 
-<!-- ─────── CREATE ACCOUNT PAGE ─────── -->
+<!-- ------- CREATE ACCOUNT PAGE ------- -->
 <div id="shelfd-signup-page" class="shelfd-auth-page" aria-hidden="true">
   <div class="shelfd-auth-shell">
     <div class="shelfd-auth-topbar">
@@ -357,7 +382,7 @@
   </div>
 </div>
 
-<!-- ─────── v816: VERIFY EMAIL PAGE ─────── -->
+<!-- ------- v816: VERIFY EMAIL PAGE ------- -->
 <!-- Shown after Create Account submit (before setup flow starts) AND any
      time an unverified email/password user is signed in. Firebase has
      already sent the verification link via sendEmailVerification(). When
@@ -383,7 +408,7 @@
   </div>
 </div>
 
-<!-- ─────── SETUP FLOW (3 STEPS: username → photo → welcome) ─────── -->
+<!-- ------- SETUP FLOW (3 STEPS: username ? photo ? welcome) ------- -->
 <div id="shelfd-setup-page" class="shelfd-auth-page shelfd-setup-page" data-step="1" aria-hidden="true">
   <div class="shelfd-auth-shell shelfd-setup-shell">
     <div class="shelfd-setup-dots" aria-hidden="true">
@@ -392,13 +417,13 @@
       <span class="shelfd-setup-dot" data-dot="3"></span>
     </div>
 
-    <!-- STEP 1: Username (v816 — moved from initial Create Account form;
+    <!-- STEP 1: Username (v816 ? moved from initial Create Account form;
          shown only after Firebase email verification succeeds). The local
          format check fires on input; the Firestore reservation only fires
          on submit. -->
     <div class="shelfd-setup-step" data-setup-step="1">
       <h2 class="shelfd-setup-title">Pick a username</h2>
-      <p class="shelfd-setup-copy">This is your unique handle on Shelfd. Choose carefully — usernames are permanent.</p>
+      <p class="shelfd-setup-copy">This is your unique handle on Shelfd. Choose carefully ? usernames are permanent.</p>
       <div class="shelfd-auth-field">
         <label for="shelfd-setup-username">Username</label>
         <input type="text" id="shelfd-setup-username" name="username" autocomplete="username" required minlength="6" maxlength="20" placeholder="At least 6 characters" autocapitalize="none" autocorrect="off" spellcheck="false">
@@ -511,11 +536,11 @@
   <button class="main-nav-btn active" id="mobile-nav-mylist" onclick="switchMainNav('mylist')">My Lists</button>
 </div>
 
-<!-- Search full-page overlay — slides up from bottom, 120Hz spring (v628) -->
+<!-- Search full-page overlay ? slides up from bottom, 120Hz spring (v628) -->
 <div id="shelfd-search-page" class="shelfd-search-page" aria-hidden="true">
   <div class="shelfd-search-page-inner">
 
-    <!-- Sticky top bar: back · search input · clear -->
+    <!-- Sticky top bar: back ? search input ? clear -->
     <div class="shelfd-search-topbar">
       <button type="button" class="shelfd-search-back-btn" onclick="handleSearchBack()" aria-label="Back">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg>
@@ -542,7 +567,7 @@
     <!-- Results / empty / loading region -->
     <div class="shelfd-search-body" id="shelfd-search-body">
 
-      <!-- Default empty state — shown when no query is typed -->
+      <!-- Default empty state ? shown when no query is typed -->
       <div class="shelfd-search-empty" id="shelfd-search-empty">
 
         <!-- Recent searches -->
@@ -580,13 +605,13 @@
 
 <div id="direct-messages-page" class="direct-messages-page" style="display:none;" aria-hidden="true">
   <div class="direct-messages-topbar">
-    <button class="direct-messages-close" id="direct-messages-back-btn" type="button" onclick="handleDirectMessagesBack()" aria-label="Close messages">←</button>
+    <button class="direct-messages-close" id="direct-messages-back-btn" type="button" onclick="handleDirectMessagesBack()" aria-label="Close messages">?</button>
     <img class="direct-messages-top-avatar" id="direct-messages-top-avatar" src="" alt="" style="display:none;">
     <div class="direct-messages-title-wrap">
       <strong id="direct-messages-title">Messages</strong>
       <span id="direct-messages-subtitle">Direct messages</span>
     </div>
-    <button class="direct-messages-new-btn" type="button" onclick="openDirectMessageComposer('direct')" aria-label="New message">✎</button>
+    <button class="direct-messages-new-btn" type="button" onclick="openDirectMessageComposer('direct')" aria-label="New message">?</button>
   </div>
   <div class="direct-messages-content">
     <div class="dm-shell" id="dm-fullscreen-shell">
@@ -598,7 +623,7 @@
 <div id="import-view" style="display:none">
 <div class="container main-content import-shell">
   <div class="import-topbar">
-    <button class="profile-back-btn" type="button" onclick="closeImportPage()">← Back</button>
+    <button class="profile-back-btn" type="button" onclick="closeImportPage()">? Back</button>
     <div>
       <div class="import-title">Import Library</div>
       <div class="import-subtitle">Bring in Steam, Letterboxd, IMDb, MyAnimeList, and Backloggd-style lists without leaving Shelfd.</div>
@@ -662,7 +687,7 @@
   <div id="import-source-detail-panel" class="import-source-detail-panel" aria-hidden="true">
     <div class="import-source-detail-shell">
       <div class="import-topbar import-source-detail-topbar">
-        <button class="profile-back-btn" type="button" onclick="closeImportSourcePage()">← Back</button>
+        <button class="profile-back-btn" type="button" onclick="closeImportSourcePage()">? Back</button>
         <div>
           <div id="import-source-detail-title" class="import-title">Import Library</div>
           <div id="import-source-detail-subtitle" class="import-subtitle">Choose an export file to preview before syncing.</div>
@@ -698,7 +723,7 @@
 <div id="steam-sync-view" style="display:none">
 <div class="container main-content import-shell steam-sync-shell">
   <div class="import-topbar steam-sync-topbar">
-    <button class="profile-back-btn" type="button" onclick="closeSteamSyncPage()">← Back</button>
+    <button class="profile-back-btn" type="button" onclick="closeSteamSyncPage()">? Back</button>
     <div>
       <div class="import-title">Steam Library</div>
       <div class="import-subtitle">Review your synced Steam games before they are added to Shelfd.</div>
@@ -757,15 +782,15 @@
     <div class="toolbar-right">
       <!-- v692: sort button injected here at firstChild by JS (stays at left) -->
       <button class="btn-primary" id="add-btn" onclick="openModal()">+ Add</button>
-      <!-- magnifying glass — far right; toggles the search row below -->
+      <!-- magnifying glass ? far right; toggles the search row below -->
       <button class="mylist-search-toggle-btn" id="mylist-search-toggle-btn" type="button" onclick="toggleMyListSearch()" aria-label="Search library" title="Search library">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       </button>
     </div>
   </div>
-  <!-- v692: inline library search — slides down when magnifying glass is tapped -->
+  <!-- v692: inline library search ? slides down when magnifying glass is tapped -->
   <div class="mylist-search-row" id="mylist-search-row" hidden>
-    <input type="text" class="search-input" id="mylist-search-input-inline" placeholder="Search library…" oninput="onSearch(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <input type="text" class="search-input" id="mylist-search-input-inline" placeholder="Search library?" oninput="onSearch(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
     <button class="mylist-search-clear-btn" type="button" onclick="toggleMyListSearch()" aria-label="Close search">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
@@ -773,7 +798,7 @@
   <div id="mylist-stage" class="mylist-stage">
   <div class="grid" id="cards-grid"></div>
   <div class="empty" id="empty-state" style="display:none">
-    <div class="empty-icon" id="empty-icon">📺</div>
+    <div class="empty-icon" id="empty-icon">??</div>
     <p id="empty-text">No watching shows yet</p>
     <p class="empty-sub">Click the button above to add one</p>
     <button class="btn-primary empty-cta" id="empty-cta" onclick="openModal()">Add your first title</button>
@@ -808,7 +833,7 @@
           <div id="feed-composer-trailer-preview" class="feed-composer-trailer-preview" style="display:none;">
             <div class="feed-composer-trailer-thumb">
               <img id="feed-composer-trailer-img" src="" alt="">
-              <button class="feed-composer-remove-trailer" onclick="clearComposerTrailer()">✕</button>
+              <button class="feed-composer-remove-trailer" onclick="clearComposerTrailer()">?</button>
             </div>
             <div class="feed-composer-trailer-title" id="feed-composer-trailer-title"></div>
           </div>
@@ -833,14 +858,14 @@
     </div>
   </div>
 
-  <!-- My Friends — list only. Search lives in the Add a Friend tab below. -->
+  <!-- My Friends ? list only. Search lives in the Add a Friend tab below. -->
   <div id="friends-list-view" style="display:none">
     <div class="community-grid" id="friends-grid">
       <div class="skeleton-card"></div>
     </div>
   </div>
 
-  <!-- v810: Add a Friend — dedicated search tab. The creator account is
+  <!-- v810: Add a Friend ? dedicated search tab. The creator account is
        surfaced automatically as a suggested account when the user opens
        this tab, before they type anything in the search field. -->
   <div id="add-friend-view" style="display:none">
@@ -932,13 +957,13 @@
     </div>
     <div class="discover-section">
       <h2 class="discover-section-title">Most Anticipated Movies</h2>
-      <div class="discover-section-desc">The most-hyped upcoming movies — what audiences are searching for, talking about, and most excited to see.</div>
+      <div class="discover-section-desc">The most-hyped upcoming movies ? what audiences are searching for, talking about, and most excited to see.</div>
       <div class="discover-grid" id="discover-movie-anticipated-grid"><div class="discover-message">Loading...</div></div>
       <button class="discover-expand-btn" data-discover-target="discover-movie-anticipated-grid" onclick="toggleDiscoverSection('discover-movie-anticipated-grid')">View all</button>
     </div>
     <div class="discover-section">
       <h2 class="discover-section-title">Most Anticipated TV Shows</h2>
-      <div class="discover-section-desc">The most-hyped upcoming TV shows — buzz, awareness, and audience anticipation combined.</div>
+      <div class="discover-section-desc">The most-hyped upcoming TV shows ? buzz, awareness, and audience anticipation combined.</div>
       <div class="discover-grid" id="discover-tv-anticipated-grid"><div class="discover-message">Loading...</div></div>
       <button class="discover-expand-btn" data-discover-target="discover-tv-anticipated-grid" onclick="toggleDiscoverSection('discover-tv-anticipated-grid')">View all</button>
     </div>
@@ -1018,7 +1043,7 @@
     <input class="discover-search-input" id="anime-discover-search-input" type="text" placeholder="Search for Anime" oninput="handleDiscoverSearchInput('anime', this.value)" onkeydown="handleDiscoverSearchKey(event, 'anime')">
   </div>
 
-  <!-- v680: Seasonal navigation + type filter — only visible when Seasonal subtab is active -->
+  <!-- v680: Seasonal navigation + type filter ? only visible when Seasonal subtab is active -->
   <div class="anime-discover-seasonal-controls" id="anime-discover-seasonal-controls">
     <div class="anime-discover-season-tabs" aria-label="Anime season tabs">
       <button class="anime-discover-season-btn" type="button" data-season="winter" onclick="switchAnimeSeason('winter')">Winter</button>
@@ -1036,11 +1061,11 @@
     </div>
   </div>
 
-  <!-- v680: Seasonal grid — sorted purely by MAL members count -->
+  <!-- v680: Seasonal grid ? sorted purely by MAL members count -->
   <div class="discover-section" id="anime-discover-seasonal-section">
     <div class="discover-section-top"><div class="discover-section-title" id="anime-seasonal-section-title">Seasonal Anime</div></div>
     <div class="discover-section-desc">Anime airing in the selected season, ranked by MyAnimeList member count.</div>
-    <div class="discover-grid" id="anime-discover-seasonal-grid"><div class="discover-message">Loading seasonal anime…</div></div>
+    <div class="discover-grid" id="anime-discover-seasonal-grid"><div class="discover-message">Loading seasonal anime?</div></div>
     <button class="discover-expand-btn" data-discover-target="anime-discover-seasonal-grid" onclick="toggleDiscoverSection('anime-discover-seasonal-grid')">Show more</button>
   </div>
 
@@ -1083,7 +1108,7 @@
   </div>
   <div class="discover-section" id="anime-discover-anticipated-section">
     <div class="discover-section-top"><div class="discover-section-title">Anticipated</div></div>
-    <div class="discover-section-desc">The most-hyped upcoming anime — buzz, awareness, and audience anticipation combined.</div>
+    <div class="discover-section-desc">The most-hyped upcoming anime ? buzz, awareness, and audience anticipation combined.</div>
     <div class="discover-grid" id="anime-discover-anticipated-grid"><div class="discover-message">Open Anime to load anticipated anime.</div></div>
     <button class="discover-expand-btn" data-discover-target="anime-discover-anticipated-grid" onclick="toggleDiscoverSection('anime-discover-anticipated-grid')">Show more</button>
   </div>
@@ -1178,7 +1203,7 @@
 <!-- Comments page -->
 <div id="comments-page" class="comments-page">
 <div class="container main-content">
-  <button class="comments-page-back" onclick="closeCommentsPage()">← Back</button>
+  <button class="comments-page-back" onclick="closeCommentsPage()">? Back</button>
   <div id="comments-page-header"></div>
   <div id="comments-input-area"></div>
   <div id="comments-count"></div>
@@ -1188,7 +1213,7 @@
 
 <div id="activity-page" class="activity-page">
 <div class="container main-content">
-  <button class="comments-page-back activity-page-back-floating" onclick="closeActivityPage()">← Back</button>
+  <button class="comments-page-back activity-page-back-floating" onclick="closeActivityPage()">? Back</button>
   <div class="activity-page-header">
     <div class="activity-page-user-strip" id="activity-page-user-strip">
       <img class="activity-page-user-avatar" id="activity-page-user-avatar" src="" alt="">
@@ -1209,7 +1234,7 @@
 <!-- Private profile modal -->
 <div class="modal-overlay" id="private-modal" style="display:none" onclick="closePrivateModal()">
   <div class="modal" onclick="event.stopPropagation()" style="max-width:380px;text-align:center;">
-    <div style="font-size:42px;margin-bottom:12px;">🔒</div>
+    <div style="font-size:42px;margin-bottom:12px;">??</div>
     <h3 style="margin-bottom:10px;">This user is private</h3>
     <p style="color:#9990b3;font-size:14px;line-height:1.5;margin-bottom:20px;">They must accept your friend request to view their profile.</p>
     <div class="modal-actions" style="justify-content:center;">
@@ -1259,7 +1284,7 @@
     <div id="tmdb-selected-area" style="display:none;margin-top:12px;"></div>
     <div id="modal-status-picker" class="modal-status-picker" style="display:none"></div>
     <div class="modal-actions">
-      <button id="modal-back-btn" class="btn-secondary" onclick="handleModalBackButton()" style="display:none">← Back</button>
+      <button id="modal-back-btn" class="btn-secondary" onclick="handleModalBackButton()" style="display:none">? Back</button>
       <button class="btn-secondary" onclick="closeModal()">Cancel</button>
     </div>
   </div>
@@ -1277,7 +1302,7 @@
   <div class="container profile-shell">
     <div class="profile-topbar">
       <div class="profile-topbar-left">
-        <button class="profile-back-btn" onclick="closeProfileWithAnimation()">← Back</button>
+        <button class="profile-back-btn" onclick="closeProfileWithAnimation()">? Back</button>
         <div>
           <div class="profile-topbar-title">Profile Studio</div>
           <div class="profile-topbar-sub">Customize your Shelfd home page</div>
@@ -1309,7 +1334,7 @@
         <div class="profile-main-fields">
           
           <input type="text" id="profile-name" class="profile-name-input" placeholder="Nickname">
-          <textarea id="profile-bio" class="profile-bio-input" maxlength="220" placeholder="Write a short bio — favorite genres, what you are watching, your gaming vibe, or anything you want people to know."></textarea>
+          <textarea id="profile-bio" class="profile-bio-input" maxlength="220" placeholder="Write a short bio ? favorite genres, what you are watching, your gaming vibe, or anything you want people to know."></textarea>
           <div id="profile-url-row" class="profile-url-inline">
             <input type="url" id="profile-photo" placeholder="Photo URL" oninput="previewProfilePhoto(this.value)">
           </div>
@@ -1346,7 +1371,7 @@
   <div id="profile-settings-page" class="profile-settings-page" style="display:none;">
     <div class="container profile-settings-shell">
       <div class="profile-settings-topbar">
-        <button class="profile-back-btn" type="button" onclick="closeProfileSettingsPage()">← Back</button>
+        <button class="profile-back-btn" type="button" onclick="closeProfileSettingsPage()">? Back</button>
         <div>
           <div class="profile-topbar-title">Profile Settings</div>
           <div class="profile-topbar-sub">Choose how Shelfd looks and how ratings appear.</div>
@@ -1360,7 +1385,7 @@
         </div>
         <div class="profile-rating-option-list" role="radiogroup" aria-label="Theme mode">
           <label class="profile-rating-option">
-            <!-- v813: "Default Theme" radio writes value="true-dark" — that
+            <!-- v813: "Default Theme" radio writes value="true-dark" ? that
                  internal value adds body.true-dark-mode which produces the
                  current Shelfd UI: charcoal #0E0E0E base, neutral-grey
                  cards, lavender accents (correct_default_theme.png). The
@@ -1372,7 +1397,7 @@
               <small>Standard Shelfd look.</small>
             </span>
           </label>
-          <!-- v784: Light Mode + Cream Light hidden — light-mode CSS is
+          <!-- v784: Light Mode + Cream Light hidden ? light-mode CSS is
                currently dormant. The radio inputs stay in the DOM with the
                same IDs so existing JS (handleThemeModeChange, applyThemeMode,
                normalizeThemeMode) keeps working without changes. The labels
@@ -1537,7 +1562,7 @@
 </script>
 
 <!-- Feed Post Detail Page (Must be outside view containers) -->
-<!-- v430: rendered as Instagram-style bottom sheet (81vh) — see #feed-post-page CSS. -->
+<!-- v430: rendered as Instagram-style bottom sheet (81vh) ? see #feed-post-page CSS. -->
 <div id="feed-post-page" class="overlay-page" style="display:none;">
   <div id="feed-post-bottom-sheet-backdrop" class="feed-post-bottom-sheet-backdrop" onclick="closeFeedPostPage()" aria-hidden="true"></div>
   <div class="overlay-page-inner" id="feed-post-bottom-sheet-inner">
@@ -1546,7 +1571,7 @@
     </div>
     <div class="overlay-page-header">
       <h2 class="overlay-page-title">Comments</h2>
-      <button id="feed-post-delete-top-btn" class="feed-post-page-delete-btn" type="button" onclick="deleteCurrentFeedPostPagePost()" aria-label="Delete post" title="Delete post" style="display:none;">×</button>
+      <button id="feed-post-delete-top-btn" class="feed-post-page-delete-btn" type="button" onclick="deleteCurrentFeedPostPagePost()" aria-label="Delete post" title="Delete post" style="display:none;">?</button>
     </div>
     <div class="overlay-page-content" id="feed-post-scroll-content">
       <div id="feed-post-detail-container">
@@ -1573,34 +1598,34 @@
 <script src="/js/20-imdb-ratings.js?v=734_filmography_page"></script>
 <script src="/js/21-discover-ranking.js?v=673_central_ranking_module"></script>
 <script src="/js/05-app-state-preview-routes.js?v=704_viewall_slide_profile_fix"></script>
-<script src="/js/06-mylists-render-episodes-ratings.js?v=817_card_comment_edit_tap_fix"></script>
+<script src="/js/06-mylists-render-episodes-ratings.js?v=846_card_comment_body_inline_action_row_far_left_12px_30char"></script>
 <script src="/js/07-add-shelf-import-search.js?v=704_viewall_slide_profile_fix"></script>
 <script src="/js/08-discovery-state.js?v=673_central_ranking_module"></script>
 <script src="/js/09-direct-messages.js?v=280-dm-plaintext-aptos-composer"></script>
-<script src="/js/10-activity-feed.js?v=626_activity_progressive_load"></script>
+<script src="/js/10-activity-feed.js?v=863_activity_avatar_full_rebuild_sl_av"></script>
 <script src="/js/20-jikan-anime.js?v=704_viewall_slide_profile_fix"></script>
 <script src="/js/11-discovery-media-games-profiles.js?v=735_filmography_slide_fix"></script>
 <script src="/js/12-patch-notes.js?v=420_activity_feed_inline_stack_expand_collapse"></script>
-<script src="/js/13-discover-add-imports.js?v=382-myanimelist-desktop-helper"></script>
+<script src="/js/13-discover-add-imports.js?v=850_discover_add_firestore_force_flush"></script>
 <script src="/js/14-navigation.js?v=625-search-page"></script>
 <script src="/js/15-profile-settings.js?v=813_default_theme_remap"></script>
 <script src="/js/16-friends-requests.js?v=811_creator_card_autofriend"></script>
-<script src="/js/17-comments-auth-init.js?v=730_fav_people_actors"></script>
+<script src="/js/17-comments-auth-init.js?v=831_pwa_keyboard_focus_google_signin_fix"></script>
 <script src="/js/18-search-page.js?v=732_search_actors_filter"></script>
-<script src="/js/19-gis-signin.js?v=765_revert_to_763"></script>
+<script src="/js/19-gis-signin.js?v=831_pwa_keyboard_focus_google_signin_fix"></script>
 <script src="/js/19b-email-password-auth.js?v=752_email_auth_fullscreen_page"></script>
-<script src="/js/19c-auth-flow-setup.js?v=816_email_verification_flow"></script>
+<script src="/js/19c-auth-flow-setup.js?v=835_pwa_landing_inline_signin_form"></script>
 <script src="/js/22-favorite-people.js?v=730_fav_people_actors"></script>
 <script>
   /* v819: bumped SW registration URL so the browser is *forced* to fetch a
      fresh /sw.js (some Safari/iOS combinations were holding the previous
      v420-tagged SW script in HTTP cache even with updateViaCache:'none'.
      A new URL guarantees a network roundtrip. Combined with the CACHE name
-     bump inside sw.js, this forces a new SW install → controllerchange →
+     bump inside sw.js, this forces a new SW install ? controllerchange ?
      graceful auto-reload via 00-live-update-pwa.js. */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js?v=823-discover-mobile-grid-spacing', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('/sw.js?v=865-activity-stack-count-lavender-size', { updateViaCache: 'none' })
         .then(registration => {
           if (registration && typeof registration.update === 'function') {
             registration.update().catch(error => console.warn('Shelfd service worker update check failed:', error));
@@ -1619,3 +1644,4 @@
 </script>
 </body>
 </html>
+
