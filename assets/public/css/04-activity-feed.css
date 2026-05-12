@@ -3146,6 +3146,51 @@ body.light-mode .activity-page .activity-card {
   margin: 0 !important;
 }
 
+#community-view #activity-tab-view .sl-activity-stack-front .sl-activity-poster-stack,
+.activity-page .sl-activity-stack-front .sl-activity-poster-stack {
+  width: clamp(108px, 17vw, 138px) !important;
+  height: clamp(149px, 20.7vw, 199px) !important;
+  overflow: visible !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  border: 0 !important;
+}
+
+#community-view #activity-tab-view .sl-activity-stack-front .sl-activity-poster-stack-card,
+.activity-page .sl-activity-stack-front .sl-activity-poster-stack-card {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  width: clamp(88px, 14.2vw, 112px) !important;
+  height: 100% !important;
+  border-radius: clamp(15px, 1.92vw, 17px) !important;
+  overflow: hidden !important;
+  background: #12091f !important;
+  box-shadow: 0 10px 24px rgba(0,0,0,.30), 0 0 0 1px rgba(255,255,255,.05) !important;
+  transform-origin: 50% 100% !important;
+}
+
+#community-view #activity-tab-view .sl-activity-stack-front .sl-activity-poster-stack-card-1,
+.activity-page .sl-activity-stack-front .sl-activity-poster-stack-card-1 {
+  transform: translate3d(-18px, 7px, 0) rotate(-10deg) !important;
+  z-index: 1 !important;
+  opacity: 0.78 !important;
+}
+
+#community-view #activity-tab-view .sl-activity-stack-front .sl-activity-poster-stack-card-2,
+.activity-page .sl-activity-stack-front .sl-activity-poster-stack-card-2 {
+  transform: translate3d(-9px, 3px, 0) rotate(-5deg) !important;
+  z-index: 2 !important;
+  opacity: 0.9 !important;
+}
+
+#community-view #activity-tab-view .sl-activity-stack-front .sl-activity-poster-stack-card-3,
+.activity-page .sl-activity-stack-front .sl-activity-poster-stack-card-3 {
+  transform: translate3d(0, 0, 0) rotate(0deg) !important;
+  z-index: 3 !important;
+}
+
 /* v454: pull only the +N count badge left to align with the avatar ? the
    bottom-safe padding-left is kept intact so comment/heart stay in place.
    A negative margin equal to the bottom-safe padding-left pulls the badge
@@ -3346,6 +3391,16 @@ body.light-mode .activity-page .activity-card {
   #community-view #activity-tab-view .sl-activity-stack-wrap,
   .activity-page .sl-activity-stack-wrap {
     margin-bottom: 34px !important;
+  }
+
+  #community-view #activity-tab-view .sl-activity-stack-front .sl-activity-poster-stack,
+  .activity-page .sl-activity-stack-front .sl-activity-poster-stack {
+    width: 103px !important;
+  }
+
+  #community-view #activity-tab-view .sl-activity-stack-front .sl-activity-poster-stack-card,
+  .activity-page .sl-activity-stack-front .sl-activity-poster-stack-card {
+    width: 84px !important;
   }
 
   #community-view #activity-tab-view .sl-activity-stack-layer-one,

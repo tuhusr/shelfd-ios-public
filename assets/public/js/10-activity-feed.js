@@ -3721,6 +3721,23 @@ function buildImportActivityCardHTML(a = {}, activityId = '', options = {}) {
 }
 
 
+function buildStackedActivityPosterDeckHTML(items = [], activityId = '') {
+  const posters = items.slice(0, 3).map(activity => {
+    const item = activity?.item || {};
+    const cover = getScreenListActivityItemCover(item);
+    if (!cover) return null;
+    return {
+      cover,
+      title: item.title || item.name || 'Untitled'
+    };
+  }).filter(Boolean);
+  if (posters.length < 3) return '';
+  const ordered = posters.slice().reverse();
+  return `<button type="button" class="sl-activity-poster sl-activity-poster-stack" data-inline-stack-toggle onclick="event.stopPropagation(); toggleScreenListInlineActivityStack('${escAttr(activityId)}', event)" aria-label="Open grouped activity stack">
+    ${ordered.map((poster, index) => `<span class="sl-activity-poster-stack-card sl-activity-poster-stack-card-${index + 1}" aria-hidden="true"><img class="sl-activity-poster-img" src="${escAttr(poster.cover)}" alt="${escAttr(poster.title)}" loading="lazy"></span>`).join('')}
+  </button>`;
+}
+
 function buildStackedActivityCardHTML(a = {}, activityId = '', options = {}) {
   const items = Array.isArray(a.stackedActivities) ? a.stackedActivities : [];
   const primary = cloneScreenListStackActivity(a.stackPrimaryActivity || items[0] || {});
@@ -3728,7 +3745,14 @@ function buildStackedActivityCardHTML(a = {}, activityId = '', options = {}) {
   const extraCount = Math.max(0, (items.length || Number(a.stackCount || 0)) - 1);
   const isExpanded = screenListExpandedInlineActivityStacks.has(String(activityId || ''));
   const hiddenItems = items.slice(1);
-  let html = buildActivityCardHTML(primary, activityId, { ...options, renderStackPrimary: true, stackExtraCount: extraCount, stackActivityId: activityId });
+  const stackPosterDeckHtml = buildStackedActivityPosterDeckHTML(items, activityId);
+  let html = buildActivityCardHTML(primary, activityId, {
+    ...options,
+    renderStackPrimary: true,
+    stackExtraCount: extraCount,
+    stackActivityId: activityId,
+    stackPosterDeckHtml
+  });
   html = html.replace('class="shelfd-social-card ', 'class="shelfd-social-card sl-activity-stack-front ');
   html = html.replace('<article ', `<article aria-label="Open grouped activity stack" `);
   html = html.replace(/onclick="handleScreenListActivityCardOpen\('[^']*','activity'\)"/, `onclick="toggleScreenListInlineActivityStack('${escAttr(activityId)}', event)"`);
@@ -3789,11 +3813,11 @@ function buildActivityCardHTML(a, activityId, options = {}) {
   const actorPhoto = String(avatarSrc || '').trim();
   const mediaCover = itemCover && itemCover !== actorPhoto ? itemCover : '';
   const posterClick = `event.stopPropagation(); handleActivityMediaClick('${escAttr(activityId)}', this)`;
-  const posterHtml = mediaCover
+  const posterHtml = options.stackPosterDeckHtml || (mediaCover
     ? `<button type="button" class="sl-activity-poster" data-activity-game-poster="${section === 'games' ? '1' : '0'}" data-activity-game-activity-id="${escAttr(activityId)}" data-game-title="${escAttr(title)}" data-rawg-id="${escAttr(getGameRawgIdValue(item) || '')}" data-steam-app-id="${escAttr(item.steamAppId || item.appId || '')}" onclick="${posterClick}" aria-label="Open ${escAttr(title)} media profile"><img class="sl-activity-poster-img" src="${escAttr(mediaCover)}" alt="${escAttr(title)}" loading="lazy"></button>`
     : (section === 'games'
       ? `<button type="button" class="sl-activity-poster sl-activity-poster-empty screenlist-game-cover-pending" data-activity-game-poster="1" data-activity-game-activity-id="${escAttr(activityId)}" data-game-title="${escAttr(title)}" data-rawg-id="${escAttr(getGameRawgIdValue(item) || '')}" data-steam-app-id="${escAttr(item.steamAppId || item.appId || '')}" onclick="${posterClick}" aria-label="Open ${escAttr(title)} media profile"><span>${escHtml(title || 'Shelfd')}</span></button>`
-      : `<button type="button" class="sl-activity-poster sl-activity-poster-empty" onclick="${posterClick}" aria-label="Open ${escAttr(title)} media profile"><span>${escHtml((sectionLabel || title || '?').charAt(0).toUpperCase())}</span></button>`);
+      : `<button type="button" class="sl-activity-poster sl-activity-poster-empty" onclick="${posterClick}" aria-label="Open ${escAttr(title)} media profile"><span>${escHtml((sectionLabel || title || '?').charAt(0).toUpperCase())}</span></button>`));
 
   /* v554/557/560: rating chip selector
      - 'episode-rated' (or merged watch+episode-rated) card → compact "★ N"
