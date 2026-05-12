@@ -3840,12 +3840,9 @@ function buildActivityCardHTML(a, activityId, options = {}) {
       <button class="sl-activity-action-btn activity-interaction-btn" data-activity-action="delete" onclick="event.stopPropagation(); openScreenListDeletePostPrompt('${escAttr(activityId)}','activities')" aria-label="Delete activity">
         ${getScreenListTrashIconSvg()}
       </button>` : '';
-  /* v558: + button appears on YOUR own activity cards, left of reply, lets
-     you attach a personal note that renders below the rating. */
-  const noteHtml = canCurrentUserNoteActivity(a) ? `
-      <button class="sl-activity-action-btn activity-interaction-btn sl-activity-add-note-btn" data-activity-action="note" onclick="event.stopPropagation(); openScreenListActivityNoteComposer('${escAttr(activityId)}')" aria-label="Add a note to this activity">
-        ${getScreenListPlusIconSvg()}
-      </button>` : '';
+  /* v868: temporarily disable the visible + note action for all users in the
+     Activity feed without removing the underlying note function. */
+  const noteHtml = '';
   const interactionsHtml = options.hideInteractions ? '' : `
     <div class="sl-activity-actions activity-interactions" data-activity-interactions>
       ${stackExtraHtml}
