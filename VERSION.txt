@@ -1,1 +1,1 @@
-v866_2026-05-12_activity_rating_visible_stars_stack_count_weight
+v867_2026-05-12_activity_stack_badge_size_prominence

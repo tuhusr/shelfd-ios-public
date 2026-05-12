@@ -83,7 +83,7 @@
 <link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=850_comment_ellipsis_plus_discover_search_lavender_full_page">
 <link rel="stylesheet" href="/css/02-comments-login-theme.css?v=643_revert_old_icon_again">
 <link rel="stylesheet" href="/css/03-friends-discovery-base.css?v=643_revert_old_icon_again">
-<link rel="stylesheet" href="/css/04-activity-feed.css?v=866_activity_rating_visible_stars_stack_count_weight">
+<link rel="stylesheet" href="/css/04-activity-feed.css?v=867_activity_stack_badge_size_prominence">
 <link rel="stylesheet" href="/css/05-messages-early-polish.css?v=811_creator_card_autofriend">
 <link rel="stylesheet" href="/css/06-profile.css?v=809_hide_legacy_theme_options">
 <link rel="stylesheet" href="/css/07-imports-discover-rankings.css?v=382-myanimelist-desktop-helper">
@@ -98,8 +98,8 @@
 <link rel="stylesheet" href="/css/16-light-mode-contrast.css?v=856_discover_activity_header_bg_lighter">
 <link rel="stylesheet" href="/css/17-auth-flow-setup.css?v=835_pwa_landing_inline_signin_form">
 
-<meta name="screenlist-build-version" content="2026-05-12-v866_activity_rating_visible_stars_stack_count_weight">
-<script>window.SCREENLIST_BUILD_VERSION = "2026-05-12-v866_activity_rating_visible_stars_stack_count_weight"; window.SCREENLIST_DISPLAY_VERSION = "v.866-May 12th, 2026";</script>
+<meta name="screenlist-build-version" content="2026-05-12-v867_activity_stack_badge_size_prominence">
+<script>window.SCREENLIST_BUILD_VERSION = "2026-05-12-v867_activity_stack_badge_size_prominence"; window.SCREENLIST_DISPLAY_VERSION = "v.867-May 12th, 2026";</script>
 </head>
 <body>
 
@@ -1625,7 +1625,7 @@
      graceful auto-reload via 00-live-update-pwa.js. */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js?v=866-activity-rating-visible-stars-stack-count-weight', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('/sw.js?v=867-activity-stack-badge-size-prominence', { updateViaCache: 'none' })
         .then(registration => {
           if (registration && typeof registration.update === 'function') {
             registration.update().catch(error => console.warn('Shelfd service worker update check failed:', error));
