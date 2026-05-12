@@ -6,7 +6,7 @@
    bump, the SW bytes were byte-identical across deploys, no new install
    happened, and PWAs sat on stale JS until the user manually deleted
    and re-added the home-screen app. */
-const CACHE = 'shelfd-v865-activity-stack-count-lavender-size';
+const CACHE = 'shelfd-v866-activity-rating-visible-stars-stack-count-weight';
 
 const STATIC_CACHE_PATHS = [
   '/icon-192.png',

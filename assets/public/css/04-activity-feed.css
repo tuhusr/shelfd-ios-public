@@ -2189,6 +2189,7 @@
   background: transparent !important;
   color: #a78bfa !important;
   font-size: clamp(11px, 1.96vw, 13px) !important;
+  font-weight: 1000 !important;
   line-height: 1 !important;
 }
 

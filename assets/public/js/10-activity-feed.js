@@ -3461,7 +3461,8 @@ function renderActivityUniversalRating(ratingValue = 0) {
      Score is shown as a single digit (1–9) or double digit (10) — no
      "/10" suffix. */
   const starValue = Math.round((rating / 2) * 2) / 2;
-  const starHtml = Array.from({ length: 5 }, (_, index) => {
+  const visibleStars = Math.max(1, Math.ceil(starValue));
+  const starHtml = Array.from({ length: visibleStars }, (_, index) => {
     const fill = Math.max(0, Math.min(1, starValue - index)) * 100;
     return renderActivityRatingStar(fill, index);
   }).join('');
