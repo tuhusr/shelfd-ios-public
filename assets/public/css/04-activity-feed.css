@@ -1889,17 +1889,18 @@
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-headline,
 .activity-page .shelfd-social-card .sl-activity-headline {
-  display: inline-flex !important;
-  align-items: baseline !important;
-  gap: calc(0.28em + 2px) !important;
+  display: inline-grid !important;
+  justify-items: start !important;
+  align-content: start !important;
+  gap: 1px !important;
   min-width: 0 !important;
   max-width: 100% !important;
   overflow: hidden !important;
-  white-space: nowrap !important;
+  white-space: normal !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-headline.sl-activity-title,
 .activity-page .shelfd-social-card .sl-activity-headline.sl-activity-title {
-  line-height: 1.1 !important;
+  line-height: 1 !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-headline.sl-activity-title.sl-activity-headline-combined,
 .activity-page .shelfd-social-card .sl-activity-headline.sl-activity-title.sl-activity-headline-combined {
@@ -1917,8 +1918,7 @@
   color: #ffd84c !important;
   font: 400 clamp(14px, 2.6vw, 22px)/1 'Sohne', 'DM Sans', sans-serif !important;
   letter-spacing: -.03em !important;
-  display: inline-block !important;
-  flex: 0 0 auto !important;
+  display: block !important;
   white-space: nowrap !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-verb.sl-activity-action-verb-combined,
@@ -1951,6 +1951,7 @@
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-title-text,
 .activity-page .shelfd-social-card .sl-activity-title-text {
   display: block !important;
+  margin-top: -1px !important;
   color: inherit !important;
   font: inherit !important;
   letter-spacing: inherit !important;
