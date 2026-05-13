@@ -6,7 +6,7 @@
    bump, the SW bytes were byte-identical across deploys, no new install
    happened, and PWAs sat on stale JS until the user manually deleted
    and re-added the home-screen app. */
-const CACHE = 'shelfd-v940-mylist-load-more-label-cleanup';
+const CACHE = 'shelfd-v941-games-competitive-subfilter';
 const DISCOVER_POSTER_CACHE = 'screenlist-discover-posters-v1';
 const MYLIST_POSTER_CACHE = 'screenlist-mylist-posters-v1';
 

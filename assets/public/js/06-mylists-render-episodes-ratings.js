@@ -222,17 +222,41 @@ function isGamesPlayingMergedView(section = activeSection, tab = activeTab) {
 }
 
 function normalizeGamePlayingFilter(value = '') {
-  return value === 'watching' ? 'watching' : 'live';
+  if (value === 'watching') return 'watching';
+  if (value === 'competitive') return 'competitive';
+  return 'live';
+}
+
+function isCompetitiveGameItem(item = {}) {
+  const trackerUrl = normalizeScreenListGameTrackerUrl(
+    item.gameTrackerUrl ||
+    item.gameStatsUrl ||
+    item.trackerStatsUrl ||
+    item.trackerUrl ||
+    item.statsUrl ||
+    ''
+  );
+  return item.status === 'live' && !!trackerUrl;
 }
 
 function getGamePlayingVisibleStatuses() {
   if (!isGamesPlayingMergedView()) return [activeTab];
-  if (String(searchQuery || '').trim()) return ['watching', 'live'];
-  return [normalizeGamePlayingFilter(activeGamePlayingFilter)];
+  const activeFilter = normalizeGamePlayingFilter(activeGamePlayingFilter);
+  if (String(searchQuery || '').trim()) {
+    return activeFilter === 'competitive' ? ['live'] : activeFilter === 'watching' ? ['watching'] : ['watching', 'live'];
+  }
+  return activeFilter === 'competitive' ? ['live'] : [activeFilter];
 }
 
 function itemMatchesActiveListStatus(item = {}) {
-  if (isGamesPlayingMergedView()) return getGamePlayingVisibleStatuses().includes(item.status);
+  if (isGamesPlayingMergedView()) {
+    if (!getGamePlayingVisibleStatuses().includes(item.status)) return false;
+    return normalizeGamePlayingFilter(activeGamePlayingFilter) === 'competitive'
+      ? isCompetitiveGameItem(item)
+      : normalizeGamePlayingFilter(activeGamePlayingFilter) === 'live'
+        ? !isCompetitiveGameItem(item)
+        : true;
+  }
   return item.status === activeTab;
 }
 
@@ -270,7 +294,8 @@ function renderGamePlayingSubfilter(items = []) {
 
   activeGamePlayingFilter = normalizeGamePlayingFilter(activeGamePlayingFilter);
   const singleCount = items.filter(i => i.status === 'watching').length;
-  const liveCount = items.filter(i => i.status === 'live').length;
+  const competitiveCount = items.filter(isCompetitiveGameItem).length;
+  const liveCount = items.filter(i => i.status === 'live' && !isCompetitiveGameItem(i)).length;
   const searchActive = !!String(searchQuery || '').trim();
   wrap.classList.toggle('search-active', searchActive);
   wrap.innerHTML = `
@@ -280,6 +305,9 @@ function renderGamePlayingSubfilter(items = []) {
       </button>
       <button class="games-playing-toggle${activeGamePlayingFilter === 'live' ? ' active' : ''}" type="button" onclick="switchGamePlayingFilter('live')">
         <span>Live Games</span><small>${liveCount}</small>
+      </button>
+      <button class="games-playing-toggle${activeGamePlayingFilter === 'competitive' ? ' active' : ''}" type="button" onclick="switchGamePlayingFilter('competitive')">
+        <span>Competitive</span><small>${competitiveCount}</small>
       </button>
     </div>
   `;
@@ -495,6 +523,8 @@ function render() {
     const emptyText = isGamesPlayingMergedView()
       ? (searchQuery
           ? 'No matching games yet'
+          : activeGamePlayingFilter === 'competitive'
+            ? 'No competitive games yet'
           : activeGamePlayingFilter === 'watching'
             ? 'No single-player games yet'
             : 'No live games yet')

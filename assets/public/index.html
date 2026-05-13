@@ -80,7 +80,7 @@
 </script>
 <link rel="stylesheet" href="/css/sohne-fonts.css?v=576_sohne_font_setup">
 <link rel="stylesheet" href="/css/00-base-layout.css?v=643_revert_old_icon_again">
-<link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=904_mylist_posters_1400x2100">
+<link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=941_games_competitive_subfilter">
 <link rel="stylesheet" href="/css/02-comments-login-theme.css?v=927_add_shelf_modal_scroll_lock_results_fix">
 <link rel="stylesheet" href="/css/03-friends-discovery-base.css?v=925_requested_btn_lavender">
 <link rel="stylesheet" href="/css/04-activity-feed.css?v=900_activity_spacing_tune">
@@ -98,8 +98,8 @@
 <link rel="stylesheet" href="/css/16-light-mode-contrast.css?v=939_mylist_load_more_pagination">
 <link rel="stylesheet" href="/css/17-auth-flow-setup.css?v=909_remove_creator_divider">
 
-<meta name="screenlist-build-version" content="2026-05-13-v940_mylist_load_more_label_cleanup">
-<script>window.SCREENLIST_BUILD_VERSION = "2026-05-13-v940_mylist_load_more_label_cleanup"; window.SCREENLIST_DISPLAY_VERSION = "v.940-May 13th, 2026";</script>
+<meta name="screenlist-build-version" content="2026-05-13-v941_games_competitive_subfilter">
+<script>window.SCREENLIST_BUILD_VERSION = "2026-05-13-v941_games_competitive_subfilter"; window.SCREENLIST_DISPLAY_VERSION = "v.941-May 13th, 2026";</script>
 <script>
   window.__shelfdGuestContinueQueued = false;
   window.continueWithoutSignIn = window.continueWithoutSignIn || function() {
@@ -1611,7 +1611,7 @@
 <script src="/js/20-imdb-ratings.js?v=734_filmography_page"></script>
 <script src="/js/21-discover-ranking.js?v=673_central_ranking_module"></script>
 <script src="/js/05-app-state-preview-routes.js?v=902_guest_readonly_mode"></script>
-<script src="/js/06-mylists-render-episodes-ratings.js?v=940_mylist_load_more_label_cleanup"></script>
+<script src="/js/06-mylists-render-episodes-ratings.js?v=941_games_competitive_subfilter"></script>
 <script src="/js/07-add-shelf-import-search.js?v=933_game_search_rank_match_recency_popularity"></script>
 <script src="/js/08-discovery-state.js?v=673_central_ranking_module"></script>
 <script src="/js/09-direct-messages.js?v=902_guest_readonly_mode"></script>
@@ -1638,7 +1638,7 @@
      graceful auto-reload via 00-live-update-pwa.js. */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js?v=940-mylist-load-more-label-cleanup', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('/sw.js?v=941-games-competitive-subfilter', { updateViaCache: 'none' })
         .then(registration => {
           if (registration && typeof registration.update === 'function') {
             registration.update().catch(error => console.warn('Shelfd service worker update check failed:', error));
