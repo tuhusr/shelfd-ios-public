@@ -224,12 +224,8 @@ function isScreenListActivityDeletedForOwner(activity = {}, fallbackId = '') {
   if (!activity || activity.deletedByOwner) return !!activity?.deletedByOwner;
   const uid = String(activity.uid || '').trim();
   if (!uid) return false;
-  const owner = usersMap?.[uid] || {};
-  const profileOwner = currentUser?.uid === uid ? (userProfile || {}) : {};
-  const deletedIds = new Set([
-    ...getScreenListDeletedActivityIdsForUser(uid, owner),
-    ...getScreenListDeletedActivityIdsForUser(uid, profileOwner)
-  ]);
+  const owner = usersMap?.[uid] || (currentUser?.uid === uid ? userProfile : null) || {};
+  const deletedIds = getScreenListDeletedActivityIdsForUser(uid, owner);
   if (!deletedIds.size) return false;
   return getScreenListActivityDeleteCandidates(activity, fallbackId).some(id => deletedIds.has(id));
 }
@@ -5003,14 +4999,6 @@ async function fetchAllFriendActivities(dayLimit = 7) {
   const ownName = (typeof userProfile !== 'undefined' && userProfile?.name) || currentUser.displayName || 'You';
   const ownPhoto = (typeof userProfile !== 'undefined' && userProfile?.photo) || currentUser.photoURL || '';
   if (!usersMap[currentUser.uid]) usersMap[currentUser.uid] = { uid: currentUser.uid, name: ownName, photo: ownPhoto };
-  usersMap[currentUser.uid].name = ownName;
-  usersMap[currentUser.uid].photo = ownPhoto;
-  if (Array.isArray(userProfile?.[SCREENLIST_ACTIVITY_DELETED_IDS_FIELD])) {
-    usersMap[currentUser.uid][SCREENLIST_ACTIVITY_DELETED_IDS_FIELD] = Array.from(new Set([
-      ...(Array.isArray(usersMap[currentUser.uid][SCREENLIST_ACTIVITY_DELETED_IDS_FIELD]) ? usersMap[currentUser.uid][SCREENLIST_ACTIVITY_DELETED_IDS_FIELD] : []),
-      ...userProfile[SCREENLIST_ACTIVITY_DELETED_IDS_FIELD]
-    ]));
-  }
   if (userProfile?.[SCREENLIST_ACTIVITY_NOTES_FIELD]) {
     usersMap[currentUser.uid][SCREENLIST_ACTIVITY_NOTES_FIELD] = userProfile[SCREENLIST_ACTIVITY_NOTES_FIELD];
   }
