@@ -6,8 +6,9 @@
    bump, the SW bytes were byte-identical across deploys, no new install
    happened, and PWAs sat on stale JS until the user manually deleted
    and re-added the home-screen app. */
-const CACHE = 'shelfd-v936-mobile-safe-discover-poster-preload';
+const CACHE = 'shelfd-v937-mylist-poster-preload-cache';
 const DISCOVER_POSTER_CACHE = 'screenlist-discover-posters-v1';
+const MYLIST_POSTER_CACHE = 'screenlist-mylist-posters-v1';
 
 const STATIC_CACHE_PATHS = [
   '/icon-192.png',
@@ -48,9 +49,11 @@ async function cacheFirstStatic(request) {
 
 async function cacheMatchOrNetwork(request) {
   try {
-    const cache = await caches.open(DISCOVER_POSTER_CACHE);
-    const cached = await cache.match(request, { ignoreVary: true }) || await cache.match(request.url, { ignoreVary: true });
-    if (cached) return cached;
+    for (const cacheName of [MYLIST_POSTER_CACHE, DISCOVER_POSTER_CACHE]) {
+      const cache = await caches.open(cacheName);
+      const cached = await cache.match(request, { ignoreVary: true }) || await cache.match(request.url, { ignoreVary: true });
+      if (cached) return cached;
+    }
   } catch (e) {}
   return fetch(request);
 }

@@ -14,6 +14,149 @@ function normalizeMyListPosterUrl(value = '') {
   return raw;
 }
 
+const MYLIST_POSTER_CACHE = 'screenlist-mylist-posters-v1';
+const MYLIST_POSTER_PREFETCH_MAX = 144;
+const MYLIST_POSTER_PREFETCH_CONCURRENCY = 2;
+const MYLIST_POSTER_PREFETCH_BATCH_SIZE = 10;
+const MYLIST_POSTER_PREFETCH_BATCH_PAUSE_MS = 220;
+const MYLIST_POSTER_MEMORY_WARM_LIMIT = 16;
+let myListPosterPreloadTimer = null;
+let myListPosterPreloadRunning = false;
+const myListPosterPreloadSeen = new Set();
+
+function getMyListPosterUrlForItem(item = {}, section = activeSection) {
+  const isGame = section === 'games';
+  const raw = isGame && typeof getScreenListDisplayGameCover === 'function'
+    ? getScreenListDisplayGameCover(item)
+    : (item.cover || item.poster || item.image || item.background_image || item.backgroundImage || '');
+  return normalizeMyListPosterUrl(raw);
+}
+
+function addMyListPosterUrl(target, seen, url = '') {
+  const clean = String(url || '').trim();
+  if (!clean || seen.has(clean) || target.length >= MYLIST_POSTER_PREFETCH_MAX) return;
+  try {
+    const resolved = new URL(clean, window.location.href);
+    if (!/^https?:$/.test(resolved.protocol)) return;
+    seen.add(resolved.href);
+    target.push(resolved.href);
+  } catch (e) {}
+}
+
+function collectMyListPosterPreloadUrls() {
+  const urls = [];
+  const seen = new Set();
+  document.querySelectorAll('#cards-grid .card-cover[data-poster]').forEach(node => {
+    addMyListPosterUrl(urls, seen, node.dataset.poster || '');
+  });
+
+  const source = typeof getVisibleListData === 'function' ? getVisibleListData() : data;
+  const sections = [activeSection, 'shows', 'anime', 'movies', 'games', 'manga', 'books']
+    .filter((section, index, list) => section && list.indexOf(section) === index);
+  const statuses = [activeTab, 'watching', 'planned', 'watched', 'paused', 'wishlist', 'live', 'dropped']
+    .filter((status, index, list) => status && list.indexOf(status) === index);
+
+  sections.forEach(section => {
+    const items = Array.isArray(source?.[section]) ? source[section] : [];
+    statuses.forEach(status => {
+      for (const item of items) {
+        if (urls.length >= MYLIST_POSTER_PREFETCH_MAX) return;
+        if (status && item?.status !== status) continue;
+        addMyListPosterUrl(urls, seen, getMyListPosterUrlForItem(item, section));
+      }
+    });
+  });
+  return urls;
+}
+
+function warmMyListPosterInMemory(url) {
+  try {
+    const img = new Image();
+    img.decoding = 'async';
+    img.loading = 'eager';
+    img.src = url;
+  } catch (e) {}
+}
+
+async function pruneMyListPosterCache(cache) {
+  try {
+    const keys = await cache.keys();
+    if (keys.length <= MYLIST_POSTER_PREFETCH_MAX) return;
+    await Promise.all(keys.slice(0, keys.length - MYLIST_POSTER_PREFETCH_MAX).map(key => cache.delete(key)));
+  } catch (e) {}
+}
+
+async function persistMyListPosterUrls(urls) {
+  if (!urls.length || !('caches' in window)) return;
+  const cache = await caches.open(MYLIST_POSTER_CACHE);
+  let cursor = 0;
+  let processedSincePause = 0;
+  const pause = () => new Promise(resolve => setTimeout(resolve, MYLIST_POSTER_PREFETCH_BATCH_PAUSE_MS));
+  async function worker() {
+    while (cursor < urls.length) {
+      const url = urls[cursor++];
+      if (!url || myListPosterPreloadSeen.has(url)) continue;
+      myListPosterPreloadSeen.add(url);
+      try {
+        const cached = await cache.match(url, { ignoreVary: true });
+        if (!cached) {
+          const resolved = new URL(url, window.location.href);
+          const crossOrigin = resolved.origin !== window.location.origin;
+          const response = await fetch(url, {
+            mode: crossOrigin ? 'no-cors' : 'cors',
+            credentials: crossOrigin ? 'omit' : 'same-origin',
+            cache: 'force-cache'
+          });
+          if (response && (response.ok || response.type === 'opaque')) {
+            await cache.put(url, response.clone());
+          }
+        }
+      } catch (e) {
+        myListPosterPreloadSeen.delete(url);
+      }
+      processedSincePause += 1;
+      if (processedSincePause >= MYLIST_POSTER_PREFETCH_BATCH_SIZE) {
+        processedSincePause = 0;
+        await pause();
+      }
+    }
+  }
+  const workers = Array.from({ length: Math.min(MYLIST_POSTER_PREFETCH_CONCURRENCY, urls.length) }, () => worker());
+  await Promise.all(workers);
+  await pruneMyListPosterCache(cache);
+}
+
+function scheduleMyListPosterPreload(reason = 'mylist-render') {
+  if (myListPosterPreloadTimer) {
+    clearTimeout(myListPosterPreloadTimer);
+    myListPosterPreloadTimer = null;
+  }
+  myListPosterPreloadTimer = setTimeout(() => {
+    myListPosterPreloadTimer = null;
+    const run = async () => {
+      if (myListPosterPreloadRunning || document.hidden) return;
+      const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      if (connection?.saveData) return;
+      const urls = collectMyListPosterPreloadUrls();
+      if (!urls.length) return;
+      myListPosterPreloadRunning = true;
+      urls.slice(0, MYLIST_POSTER_MEMORY_WARM_LIMIT).forEach(warmMyListPosterInMemory);
+      try {
+        await persistMyListPosterUrls(urls);
+      } catch (error) {
+        console.warn('My List poster preload skipped:', reason, error);
+      } finally {
+        myListPosterPreloadRunning = false;
+      }
+    };
+    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(() => { run().catch(() => {}); }, { timeout: 1600 });
+      return;
+    }
+    run().catch(() => {});
+  }, 320);
+}
+
 function isGamesPlayingMergedView(section = activeSection, tab = activeTab) {
   return section === 'games' && tab === 'watching';
 }
@@ -347,6 +490,7 @@ function render() {
       if (arrow) { arrow.classList.add('open'); }
     }
   });
+  scheduleMyListPosterPreload('mylist-render');
 }
 
 function renderStars(rating, itemId, prefix, size) {
@@ -1503,6 +1647,7 @@ function renderCard(item, isDraggable) {
   const coverStyle = cardCoverSrc
     ? `background-image:url('${cardCoverSrc}');background-size:cover;background-position:top center;`
     : "";
+  const coverPosterAttr = cardCoverSrc ? `data-poster="${escAttr(cardCoverSrc)}"` : '';
   const coverClass = cardCoverSrc ? "card-cover" : (isGameCard ? "card-cover no-img screenlist-game-cover-pending" : "card-cover no-img");
   const emoji = getSectionIcon(activeSection);
   const friendAlreadyAdded = viewingUser && myData ? isDuplicateTitleInList(item.title, activeSection, myData) : false;
@@ -1636,7 +1781,7 @@ function renderCard(item, isDraggable) {
   return `
     <div class="card ${type === "show" ? "show-card" : ""}${isGameCard ? " game-library-card" : ""} ${viewingUser ? "friend-view-card" : ""}${isDraggable ? ' card-draggable' : ''}" id="card-${item.id}" ${dragAttrs}>
       <div class="card-header">
-        <div class="${coverClass}${coverProfileClass}" style="${coverStyle}" ${coverProfileAttrs}>
+        <div class="${coverClass}${coverProfileClass}" style="${coverStyle}" ${coverPosterAttr} ${coverProfileAttrs}>
           ${!cardCoverSrc ? (isGameCard ? `<span>${SCREENLIST_GAME_COVER_PLACEHOLDER_TEXT}</span>` : emoji) : ''}
         </div>
         <div class="card-info">
@@ -4373,6 +4518,7 @@ function updateScreenListGamePosterElement(posterEl, coverUrl = '') {
   }
   posterEl.dataset.igdbCoverApplied = '1';
   posterEl.dataset.poster = coverUrl;
+  if (typeof scheduleMyListPosterPreload === 'function') scheduleMyListPosterPreload('game-cover-update');
 }
 async function forceHydrateScreenListGamePosterElement(posterEl, gameLike = {}) {
   if (!posterEl) return null;
