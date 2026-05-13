@@ -195,13 +195,11 @@ function renderMyListLoadMoreControl(showing = 0, total = 0, key = '') {
     wrap.innerHTML = '';
     return;
   }
-  const nextCount = Math.min(MYLIST_LOAD_MORE_INCREMENT, total - showing);
   wrap.hidden = false;
   wrap.innerHTML = `
     <button class="mylist-load-more-btn" type="button" data-mylist-limit-key="${escAttr(key)}" onclick="loadMoreMyListCards(this.dataset.mylistLimitKey)">
-      Load ${nextCount} more
+      Load more
     </button>
-    <div class="mylist-load-more-count">${showing} of ${total}</div>
   `;
 }
 
