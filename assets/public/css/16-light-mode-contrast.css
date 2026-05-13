@@ -6489,6 +6489,358 @@ body.light-mode .profile-social-body-v2 .profile-social-view-btn {
   -webkit-backdrop-filter: blur(24px) !important;
 }
 
+/* v921: Direct Messages true-dark redesign
+   Keeps behavior intact, replaces the last legacy-looking layer with
+   the same cleaner true-dark language used elsewhere in the app. */
+#direct-messages-page {
+  background:
+    radial-gradient(circle at top, rgba(120, 119, 198, 0.12), transparent 34%),
+    linear-gradient(180deg, #07080d 0%, #0b0d12 42%, #090b10 100%) !important;
+}
+#direct-messages-page .direct-messages-topbar {
+  background: linear-gradient(180deg, rgba(10, 12, 18, 0.96), rgba(10, 12, 18, 0.82)) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+  backdrop-filter: blur(26px) saturate(120%) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(120%) !important;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.28) !important;
+}
+#direct-messages-page .direct-messages-title-wrap {
+  gap: 4px !important;
+}
+#direct-messages-page .direct-messages-title-wrap strong,
+#direct-messages-page .direct-messages-title-wrap .creator-name,
+#direct-messages-page .direct-messages-title-wrap .creator-name-wrap {
+  font-size: clamp(27px, 6.7vw, 33px) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.05em !important;
+  color: #f8f7f3 !important;
+}
+#direct-messages-page .direct-messages-subtitle,
+#direct-messages-page .direct-messages-title-wrap span:not(.creator-role):not(.creative-team-role) {
+  color: rgba(218,220,228,0.52) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em !important;
+}
+#direct-messages-page .direct-messages-top-avatar,
+#direct-messages-page .dm-thread-avatar-btn {
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  background: linear-gradient(180deg, rgba(27,29,37,0.96), rgba(15,16,22,0.98)) !important;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.30) !important;
+}
+#direct-messages-page .direct-messages-top-avatar img,
+#direct-messages-page .dm-thread-avatar-btn img {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: inherit !important;
+  border: 0 !important;
+}
+#direct-messages-page .direct-messages-close,
+#direct-messages-page .direct-messages-new-btn,
+#direct-messages-page .dm-thread-head > button:first-child {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  background: linear-gradient(180deg, rgba(28,31,40,0.96), rgba(17,19,26,0.98)) !important;
+  color: rgba(245,246,248,0.88) !important;
+  box-shadow: 0 12px 24px rgba(0,0,0,0.24) !important;
+}
+#direct-messages-page .direct-messages-content {
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+  padding-bottom: 132px !important;
+}
+#direct-messages-page .dm-subtabs {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 8px !important;
+  margin: 10px 0 14px !important;
+  padding: 5px !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  border-radius: 18px !important;
+  background: rgba(255,255,255,0.03) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03) !important;
+}
+#direct-messages-page .dm-subtabs button {
+  min-height: 44px !important;
+  border-radius: 14px !important;
+  color: rgba(218,220,228,0.44) !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.015em !important;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease !important;
+}
+#direct-messages-page .dm-subtabs button.active {
+  color: #f8f7f3 !important;
+  background: linear-gradient(180deg, rgba(41,44,54,0.96), rgba(23,25,33,0.98)) !important;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.20) !important;
+  transform: translateY(-1px) !important;
+}
+#direct-messages-page .dm-subtabs button::after {
+  display: none !important;
+}
+#direct-messages-page .dm-subtabs span {
+  min-width: 18px !important;
+  height: 18px !important;
+  margin-left: 7px !important;
+  background: #d36464 !important;
+  color: #fff !important;
+  box-shadow: 0 0 0 3px rgba(11,13,18,0.90) !important;
+}
+#direct-messages-page .dm-chat-list {
+  gap: 10px !important;
+}
+#direct-messages-page .dm-chat-swipe-item {
+  border-radius: 20px !important;
+  margin-bottom: 10px !important;
+  overflow: hidden !important;
+}
+#direct-messages-page .dm-chat-row {
+  min-height: 86px !important;
+  padding: 16px 14px !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  border-radius: 20px !important;
+  background: linear-gradient(180deg, rgba(23,25,31,0.94), rgba(12,14,18,0.98)) !important;
+  box-shadow: 0 14px 34px rgba(0,0,0,0.18) !important;
+  gap: 14px !important;
+}
+#direct-messages-page .dm-chat-row:active {
+  background: linear-gradient(180deg, rgba(28,31,39,0.98), rgba(16,18,24,0.98)) !important;
+}
+#direct-messages-page .dm-chat-row.unread {
+  background:
+    linear-gradient(180deg, rgba(31,29,45,0.98), rgba(17,18,26,0.98)) !important;
+  border: 1px solid rgba(183,168,255,0.18) !important;
+  border-left: 1px solid rgba(183,168,255,0.18) !important;
+  box-shadow: 0 16px 36px rgba(0,0,0,0.20), inset 0 1px 0 rgba(194,182,255,0.05) !important;
+  padding-left: 14px !important;
+}
+#direct-messages-page .dm-chat-row img {
+  width: 56px !important;
+  height: 56px !important;
+  border-radius: 18px !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.24) !important;
+}
+#direct-messages-page .dm-chat-row.unread img {
+  border-color: rgba(183,168,255,0.28) !important;
+}
+#direct-messages-page .dm-chat-copy strong {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  color: #f8f7f3 !important;
+  letter-spacing: -0.03em !important;
+  line-height: 1.16 !important;
+}
+#direct-messages-page .dm-chat-copy > span,
+#direct-messages-page .dm-chat-copy span:not(strong span) {
+  margin-top: 5px !important;
+  color: rgba(214,217,225,0.48) !important;
+  font-size: 13px !important;
+  line-height: 1.22 !important;
+}
+#direct-messages-page .dm-chat-row em {
+  top: 16px !important;
+  right: 14px !important;
+  color: rgba(214,217,225,0.50) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+#direct-messages-page .dm-chat-row.unread .dm-chat-copy strong::after {
+  width: 7px !important;
+  height: 7px !important;
+  margin-left: 8px !important;
+  background: #d2c6ff !important;
+}
+#direct-messages-page .dm-request-card {
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  border-radius: 20px !important;
+  padding: 16px 14px !important;
+  margin-bottom: 10px !important;
+  background: linear-gradient(180deg, rgba(22,24,31,0.94), rgba(12,14,18,0.98)) !important;
+  box-shadow: 0 14px 30px rgba(0,0,0,0.16) !important;
+}
+#direct-messages-page .dm-request-card.incoming {
+  background: linear-gradient(180deg, rgba(30,28,43,0.98), rgba(14,15,22,0.98)) !important;
+  border: 1px solid rgba(183,168,255,0.16) !important;
+  padding-left: 14px !important;
+}
+#direct-messages-page .dm-request-card > img {
+  width: 54px !important;
+  height: 54px !important;
+  border-radius: 18px !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.20) !important;
+}
+#direct-messages-page .dm-request-copy strong {
+  font-size: 17px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.025em !important;
+}
+#direct-messages-page .dm-request-copy em {
+  margin-top: 5px !important;
+  color: rgba(214,217,225,0.46) !important;
+}
+#direct-messages-page .dm-thread-panel {
+  min-height: calc(100dvh - 176px) !important;
+  padding-bottom: 112px !important;
+}
+#direct-messages-page .dm-thread-head {
+  position: sticky !important;
+  top: -6px !important;
+  margin: -4px 0 0 !important;
+  padding: 12px !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  border-radius: 22px !important;
+  background: linear-gradient(180deg, rgba(18,21,28,0.94), rgba(12,14,19,0.96)) !important;
+  box-shadow: 0 14px 32px rgba(0,0,0,0.24) !important;
+  gap: 12px !important;
+}
+#direct-messages-page .dm-thread-head strong {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.03em !important;
+  color: #f8f7f3 !important;
+}
+#direct-messages-page .dm-thread-head span {
+  color: rgba(214,217,225,0.50) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+#direct-messages-page .dm-thread-empty {
+  margin-top: 28px !important;
+  padding: 22px 18px !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  border-radius: 20px !important;
+  background: rgba(255,255,255,0.03) !important;
+  color: rgba(214,217,225,0.46) !important;
+  text-align: center !important;
+}
+#direct-messages-page .dm-message-list {
+  gap: 12px !important;
+  padding: 16px 4px 128px !important;
+}
+#direct-messages-page .dm-bubble-row {
+  gap: 6px !important;
+}
+#direct-messages-page .dm-bubble-row.mine .dm-bubble,
+#direct-messages-page .dm-bubble-row.theirs .dm-bubble {
+  max-width: min(82vw, 430px) !important;
+  padding: 12px 15px 10px !important;
+  border-radius: 20px !important;
+  font-size: 15px !important;
+  line-height: 1.46 !important;
+}
+#direct-messages-page .dm-bubble-row.mine .dm-bubble {
+  background: linear-gradient(180deg, #8a69ff 0%, #7355e6 100%) !important;
+  color: #ffffff !important;
+  border-radius: 20px 20px 8px 20px !important;
+  box-shadow: 0 14px 28px rgba(73, 46, 173, 0.34) !important;
+}
+#direct-messages-page .dm-bubble-row.theirs .dm-bubble {
+  background: linear-gradient(180deg, rgba(29,32,40,0.96), rgba(17,19,25,0.98)) !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  color: rgba(245,246,248,0.92) !important;
+  border-radius: 20px 20px 20px 8px !important;
+  box-shadow: 0 12px 24px rgba(0,0,0,0.16) !important;
+}
+#direct-messages-page .dm-bubble small {
+  display: block !important;
+  margin-bottom: 7px !important;
+  color: rgba(210,198,255,0.72) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.01em !important;
+}
+#direct-messages-page .dm-bubble em {
+  margin-top: 6px !important;
+  color: rgba(255,255,255,0.52) !important;
+  font-size: 10px !important;
+}
+#direct-messages-page .dm-bubble-row.theirs .dm-bubble em {
+  color: rgba(214,217,225,0.40) !important;
+}
+#direct-messages-page .dm-compose-row {
+  width: min(calc(100% - 16px), 720px) !important;
+  padding: 8px !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 24px !important;
+  background: linear-gradient(180deg, rgba(18,21,28,0.94), rgba(11,13,18,0.98)) !important;
+  box-shadow: 0 18px 40px rgba(0,0,0,0.30) !important;
+  gap: 8px !important;
+}
+#direct-messages-page:not(.dm-keyboard-active) .dm-compose-row {
+  bottom: max(8px, env(safe-area-inset-bottom, 0px)) !important;
+}
+#direct-messages-page .dm-photo-upload-btn {
+  width: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  border-radius: 16px !important;
+  background: rgba(255,255,255,0.04) !important;
+  color: rgba(245,246,248,0.74) !important;
+}
+#direct-messages-page .dm-compose-row input {
+  min-height: 44px !important;
+  padding: 0 14px !important;
+  border-radius: 16px !important;
+  background: rgba(255,255,255,0.03) !important;
+  color: #f8f7f3 !important;
+  font-size: 16px !important;
+}
+#direct-messages-page .dm-send-btn {
+  min-width: 94px !important;
+  min-height: 44px !important;
+  padding: 0 18px !important;
+  border-radius: 16px !important;
+  background: linear-gradient(180deg, #8a69ff 0%, #7253e3 100%) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  box-shadow: 0 12px 24px rgba(80, 58, 177, 0.34) !important;
+}
+#direct-messages-page .dm-search-strip {
+  border-radius: 18px !important;
+  background: linear-gradient(180deg, rgba(21,23,30,0.94), rgba(13,15,20,0.98)) !important;
+  border: 1px solid rgba(255,255,255,0.07) !important;
+}
+#direct-messages-page .dm-search-strip input {
+  padding: 14px 16px !important;
+}
+#direct-messages-page .dm-user-result {
+  padding: 12px 4px 0 !important;
+}
+#direct-messages-page .dm-empty-card {
+  border-radius: 24px !important;
+  background: linear-gradient(180deg, rgba(20,22,28,0.92), rgba(11,13,18,0.98)) !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  box-shadow: 0 14px 32px rgba(0,0,0,0.18) !important;
+}
+#direct-messages-page .dm-action-accept,
+#direct-messages-page .dm-action-open,
+#direct-messages-page .dm-action.accept {
+  background: linear-gradient(180deg, #8a69ff 0%, #7253e3 100%) !important;
+  box-shadow: 0 10px 20px rgba(80,58,177,0.30) !important;
+}
+#direct-messages-page .dm-action.decline,
+#direct-messages-page .dm-action-sent {
+  background: rgba(255,255,255,0.05) !important;
+  color: rgba(245,246,248,0.62) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+}
+#direct-messages-page .dm-chat-delete-action {
+  background: linear-gradient(180deg, #bb5656 0%, #9e4040 100%) !important;
+  color: #fff !important;
+  border-radius: 18px !important;
+  box-shadow: 0 12px 22px rgba(104,25,25,0.26) !important;
+}
+
 /* -- Light mode ------------------------------------------------------ */
 body.light-mode #direct-messages-page {
   background: #f5f3fc !important;
