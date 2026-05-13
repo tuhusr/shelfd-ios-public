@@ -1892,7 +1892,7 @@
   display: inline-grid !important;
   justify-items: start !important;
   align-content: start !important;
-  gap: 4px !important;
+  gap: 6px !important;
   min-width: 0 !important;
   max-width: 100% !important;
   overflow: hidden !important;
