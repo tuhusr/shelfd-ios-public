@@ -23,6 +23,9 @@ const MYLIST_POSTER_MEMORY_WARM_LIMIT = 16;
 let myListPosterPreloadTimer = null;
 let myListPosterPreloadRunning = false;
 const myListPosterPreloadSeen = new Set();
+const MYLIST_INITIAL_RENDER_LIMIT = 36;
+const MYLIST_LOAD_MORE_INCREMENT = 24;
+const myListRenderLimits = {};
 
 function getMyListPosterUrlForItem(item = {}, section = activeSection) {
   const isGame = section === 'games';
@@ -160,6 +163,61 @@ function scheduleMyListPosterPreload(reason = 'mylist-render') {
     run().catch(() => {});
   }, 320);
 }
+
+function getMyListRenderLimitKey(sortKey = '') {
+  return [
+    viewingUser ? 'friend' : 'own',
+    activeSection || '',
+    activeTab || '',
+    activeSection === 'games' ? normalizeGamePlayingFilter(activeGamePlayingFilter) : '',
+    sortKey || (typeof getActiveSortKey === 'function' ? getActiveSortKey() : ''),
+    String(searchQuery || '').trim().toLowerCase()
+  ].join('|');
+}
+
+function getMyListVisibleLimit(key, total = 0) {
+  const saved = Number(myListRenderLimits[key] || 0);
+  return Math.max(MYLIST_INITIAL_RENDER_LIMIT, Math.min(total, saved || MYLIST_INITIAL_RENDER_LIMIT));
+}
+
+function renderMyListLoadMoreControl(showing = 0, total = 0, key = '') {
+  let wrap = document.getElementById('mylist-load-more-wrap');
+  const grid = document.getElementById('cards-grid');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'mylist-load-more-wrap';
+    wrap.className = 'mylist-load-more-wrap';
+    if (grid && grid.parentNode) grid.insertAdjacentElement('afterend', wrap);
+  }
+  if (!wrap) return;
+  if (!total || showing >= total) {
+    wrap.hidden = true;
+    wrap.innerHTML = '';
+    return;
+  }
+  const nextCount = Math.min(MYLIST_LOAD_MORE_INCREMENT, total - showing);
+  wrap.hidden = false;
+  wrap.innerHTML = `
+    <button class="mylist-load-more-btn" type="button" data-mylist-limit-key="${escAttr(key)}" onclick="loadMoreMyListCards(this.dataset.mylistLimitKey)">
+      Load ${nextCount} more
+    </button>
+    <div class="mylist-load-more-count">${showing} of ${total}</div>
+  `;
+}
+
+function loadMoreMyListCards(key = '') {
+  const activeKey = getMyListRenderLimitKey();
+  const targetKey = key || activeKey;
+  if (targetKey !== activeKey) return;
+  const current = Number(myListRenderLimits[targetKey] || MYLIST_INITIAL_RENDER_LIMIT);
+  myListRenderLimits[targetKey] = current + MYLIST_LOAD_MORE_INCREMENT;
+  render();
+  requestAnimationFrame(() => {
+    const wrap = document.getElementById('mylist-load-more-wrap');
+    if (wrap && !wrap.hidden) wrap.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
+}
+if (typeof window !== 'undefined') window.loadMoreMyListCards = loadMoreMyListCards;
 
 function isGamesPlayingMergedView(section = activeSection, tab = activeTab) {
   return section === 'games' && tab === 'watching';
@@ -427,6 +485,7 @@ function render() {
 
   if (filtered.length === 0) {
     grid.innerHTML = "";
+    renderMyListLoadMoreControl(0, 0);
     empty.style.display = "block";
     const emptyIcon = document.getElementById("empty-icon");
     if (emptyIcon) {
@@ -466,13 +525,17 @@ function render() {
   empty.style.display = "none";
   const hiddenEmptyIcon = document.getElementById("empty-icon");
   if (hiddenEmptyIcon) hiddenEmptyIcon.style.display = "";
+  const renderLimitKey = getMyListRenderLimitKey(activeSortKey);
+  const visibleLimit = getMyListVisibleLimit(renderLimitKey, filtered.length);
+  const visibleFiltered = filtered.slice(0, visibleLimit);
 
   if (activeSortKey === 'custom') {
-    grid.innerHTML = filtered.map(item => renderCard(item, true)).join("");
+    grid.innerHTML = visibleFiltered.map(item => renderCard(item, true)).join("");
   } else {
-    grid.innerHTML = filtered.map(item => renderCard(item)).join("");
+    grid.innerHTML = visibleFiltered.map(item => renderCard(item)).join("");
   }
   if (typeof rememberRenderedSortOrder === 'function') rememberRenderedSortOrder(stateKey, filtered);
+  renderMyListLoadMoreControl(visibleFiltered.length, filtered.length, renderLimitKey);
 
   refreshVisibleCommentCounts();
 

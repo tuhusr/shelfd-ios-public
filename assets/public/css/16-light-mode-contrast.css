@@ -5391,6 +5391,54 @@ body.light-mode .anime-seasonal-genre-chip {
 .anime-seasonal-load-more-btn:hover { background: rgba(255,255,255,0.10); }
 .anime-seasonal-load-more-btn:active { transform: scale(0.97); }
 
+.mylist-load-more-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 0 30px;
+}
+.mylist-load-more-wrap[hidden] {
+  display: none !important;
+}
+.mylist-load-more-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  min-width: min(220px, 72vw);
+  border: 1px solid rgba(196,181,253,0.24);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.07);
+  color: #fff;
+  font-family: 'Sohne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 12px 24px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 160ms ease, transform 140ms ease, border-color 160ms ease;
+}
+.mylist-load-more-btn:hover {
+  background: rgba(255,255,255,0.11);
+  border-color: rgba(196,181,253,0.36);
+}
+.mylist-load-more-btn:active {
+  transform: scale(0.97);
+}
+.mylist-load-more-count {
+  color: rgba(232,227,243,0.58);
+  font-family: 'Sohne', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+}
+body.light-mode .mylist-load-more-btn {
+  background: rgba(139,92,246,0.10);
+  border-color: rgba(120,90,200,0.24);
+  color: #342052;
+}
+body.light-mode .mylist-load-more-count {
+  color: rgba(52,32,82,0.58);
+}
+
 /* Light-mode card tints. */
 body.light-mode .anime-seasonal-card-poster-placeholder {
   background: rgba(120,90,200,0.08);

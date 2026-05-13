@@ -6,7 +6,7 @@
    bump, the SW bytes were byte-identical across deploys, no new install
    happened, and PWAs sat on stale JS until the user manually deleted
    and re-added the home-screen app. */
-const CACHE = 'shelfd-v938-mobile-tab-transition-smoothing';
+const CACHE = 'shelfd-v939-mylist-load-more-pagination';
 const DISCOVER_POSTER_CACHE = 'screenlist-discover-posters-v1';
 const MYLIST_POSTER_CACHE = 'screenlist-mylist-posters-v1';
 
