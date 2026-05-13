@@ -474,6 +474,54 @@ async function runIgdbCoversEndpoint(request, env, ctx) {
   return response;
 }
 
+/* v928: IGDB game search — used as fallback when RAWG misses recent titles */
+async function runIgdbSearchEndpoint(request, env) {
+  const url = new URL(request.url);
+  const query = String(url.searchParams.get("q") || url.searchParams.get("query") || "").trim();
+  const limit = Math.min(20, Math.max(1, Number(url.searchParams.get("limit") || 15)));
+  if (!query) return jsonResponse({ ok: false, error: "Missing query." }, 400);
+
+  const tokenResult = await fetchIgdbAccessToken(env);
+  if (!tokenResult.ok) return jsonResponse(tokenResult, tokenResult.status || 502);
+
+  const config = getIgdbClientConfig(env);
+  const escaped = escapeIgdbSearchString(query);
+  const body = [
+    "fields name, first_release_date, cover.image_id, genres.name, platforms.name, summary, slug, total_rating, total_rating_count;",
+    `search "${escaped}";`,
+    `limit ${limit};`
+  ].join("\n");
+
+  const result = await fetchJsonWithTimeout(new URL("games", IGDB_ORIGIN).toString(), {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "text/plain",
+      "Client-ID": config.clientId,
+      "Authorization": `Bearer ${tokenResult.token}`
+    },
+    body
+  }, 9000);
+
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error || "IGDB search failed." }, 502);
+
+  const games = (Array.isArray(result.data) ? result.data : []).map(g => ({
+    id: g.id,
+    name: g.name || "",
+    slug: g.slug || "",
+    released: g.first_release_date ? new Date(g.first_release_date * 1000).toISOString().slice(0, 10) : "",
+    cover: g.cover?.image_id ? buildIgdbCoverUrl(g.cover.image_id) : "",
+    genres: (g.genres || []).map(x => x.name).filter(Boolean),
+    platforms: (g.platforms || []).map(x => x.name).filter(Boolean),
+    summary: g.summary || "",
+    total_rating: g.total_rating || 0,
+    total_rating_count: g.total_rating_count || 0,
+    source: "igdb"
+  }));
+
+  return jsonResponse({ ok: true, results: games });
+}
+
 async function runIgdbCoverEndpoint(request, env, ctx) {
   const url = new URL(request.url);
   const title = url.searchParams.get("title") || url.searchParams.get("name") || "";
@@ -3714,6 +3762,9 @@ export default {
       return runSteamLibraryEndpoint(request, env);
     }
 
+    if (url.pathname === "/api/igdb/search") {
+      return runIgdbSearchEndpoint(request, env);
+    }
     if (url.pathname === "/api/igdb/cover") {
       return runIgdbCoverEndpoint(request, env, ctx);
     }

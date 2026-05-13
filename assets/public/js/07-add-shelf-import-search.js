@@ -291,6 +291,10 @@ async function checkDeepSeekAPI() {
   return checkScreenListAI();
 }
 
+/* v930: expose game-search helpers to discovery search page */
+window.fetchMergedGameSearchResults = fetchMergedGameSearchResults;
+window.scoreGameForSearch           = scoreGameForSearch;
+window.normaliseIgdbGameToRawg      = normaliseIgdbGameToRawg;
 window.checkScreenListAI = checkScreenListAI;
 window.screenListAiCheck = checkScreenListAI;
 window.checkDeepSeekAPI = checkScreenListAI; // legacy console alias
@@ -517,10 +521,14 @@ async function searchUniversalShelf(searchToken = 0) {
       const year = (r.release_date || r.first_air_date || '').slice(0, 4);
       const overviewText = String(r.overview || '').trim();
       const overviewSnippet = overviewText ? `${overviewText.slice(0, 80)}${overviewText.length > 80 ? '...' : ''}` : '';
-      /* v654: poster_path may be a full https URL (Jikan) or a TMDB path. */
+      /* v654: poster_path may be a full https URL (Jikan) or a TMDB path.
+         v927: guard against null/undefined poster_path which produced the
+         invalid URL "…/w185null" — now returns '' so the onerror hides img. */
       const poster = (typeof r.poster_path === 'string' && /^https?:\/\//.test(r.poster_path))
         ? r.poster_path
-        : `https://image.tmdb.org/t/p/w185${r.poster_path}`;
+        : r.poster_path
+          ? `https://image.tmdb.org/t/p/w185${r.poster_path}`
+          : '';
       const mType = r.media_type || 'tv';
       const typeConfig = getAddShelfResultTypeConfig(r, filter);
       const badge = `<span class="shelf-result-badge ${typeConfig.badgeClass}">${typeConfig.label}</span>`;
@@ -531,7 +539,7 @@ async function searchUniversalShelf(searchToken = 0) {
         ? `selectJikanAnime(${r.__mal_id})`
         : `selectTMDB(${r.id}, '${mType}')`;
       return `<div class="tmdb-result" onclick="${onclickAttr}">
-        <img src="${escAttr(poster)}">
+        ${poster ? `<img src="${escAttr(poster)}" loading="lazy" alt="" onerror="this.style.display='none'">` : `<div style="width:44px;height:66px;border-radius:3px;background:rgba(255,255,255,0.06);flex-shrink:0;"></div>`}
         <div class="tmdb-result-info">
           <div class="tmdb-result-title">${title} ${year ? '(' + year + ')' : ''} ${badge}</div>
           <div class="tmdb-result-meta">${meta}</div>
@@ -582,33 +590,196 @@ async function searchRAWG(searchToken = 0) {
   const resultsDiv = document.getElementById("tmdb-results");
   resultsDiv.innerHTML = '<div class="cover-search-msg">Searching...</div>';
   try {
-    const res = await fetchRawgProxy('games', { search: query, page_size: 6 });
-    const json = await res.json();
+    /* v930: IGDB is now primary, RAWG is fallback. Both run in parallel,
+       merged, deduped, then ranked: text-match > popularity > recency. */
+    const hits = await fetchMergedGameSearchResults(query, 15);
     if (searchToken && searchToken !== addTitleSearchRequestToken) return;
-    const hits = (json.results || []).slice(0, 6);
     if (hits.length === 0) {
       resultsDiv.innerHTML = '<div class="cover-search-msg">No results found. Try a different search.</div>';
       return;
     }
-    resultsDiv.innerHTML = '<div class="tmdb-results">' + hits.map(r => {
-      const title = escHtml(r.name || '');
-      const year = (r.released || '').slice(0, 4);
-      const platforms = (r.platforms || []).map(p => p.platform.name).slice(0, 3).join(', ');
-      const poster = r.background_image ? r.background_image : '';
-      const posterThumb = poster ? `<img src="${poster}" style="width:66px;height:44px;border-radius:4px;object-fit:cover;flex-shrink:0;">` : '';
-      const typeConfig = getAddShelfResultTypeConfig({ ...r, source: 'rawg', rawgId: r.id }, 'games');
-      const badge = `<span class="shelf-result-badge ${typeConfig.badgeClass}">${typeConfig.label}</span>`;
-      const meta = escHtml(buildAddShelfResultMeta({ ...r, source: 'rawg', rawgId: r.id }, platforms, 'games'));
-      return `<div class="tmdb-result" onclick="selectRAWG(${r.id})">
-        ${posterThumb}
-        <div class="tmdb-result-info">
-          <div class="tmdb-result-title">${title} ${year ? '(' + year + ')' : ''} ${badge}</div>
-          <div class="tmdb-result-meta">${meta}</div>
-        </div>
-      </div>`;
-    }).join("") + '</div>';
+    resultsDiv.innerHTML = '<div class="tmdb-results">' + buildMergedGameResultsHtml(hits) + '</div>';
   } catch(e) {
     resultsDiv.innerHTML = '<div class="cover-search-msg">Search failed.</div>';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   v930: Shared game-search utilities — IGDB primary, RAWG fallback
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * Score a game result for search ranking.
+ * Priority: (1) text match  (2) popularity  (3) newer release date
+ * Returns 0 if the item has NO meaningful match — caller must filter these out.
+ */
+const _GAME_SEARCH_STOP_WORDS = new Set([
+  'the','a','an','in','of','and','or','for','to','is','at','by','on',
+  'as','it','be','do','so','if','no','up','was','are','with','its','vs'
+]);
+function scoreGameForSearch(item, query) {
+  const name = String(item.name || '').trim().toLowerCase();
+  const q    = String(query   || '').trim().toLowerCase();
+
+  // Strip stop words to get meaningful search tokens; fall back to all
+  // tokens if the query is entirely stop words.
+  const allWords = q.split(/\s+/).filter(w => w.length > 0);
+  const meaningful = allWords.filter(w => w.length > 2 && !_GAME_SEARCH_STOP_WORDS.has(w));
+  const matchWords = meaningful.length > 0 ? meaningful : allWords.filter(w => w.length > 1);
+
+  if (!matchWords.length) return 0;
+
+  // Tier 1 — text match (dominant; each point = 10 000)
+  // Returns 0 when NO meaningful word from the query appears in the title —
+  // so "Prince of Persia" gets 0 for query "mlb the show 09" and is excluded.
+  let textScore = 0;
+  if (name === q) textScore = 4;
+  else if (name.startsWith(q)) textScore = 3;
+  else if (matchWords.every(w => name.includes(w))) textScore = 2;
+  else if (matchWords.some(w => name.includes(w))) textScore = 1;
+
+  if (textScore === 0) return 0; // no match — caller filters this out
+
+  // Tier 2 — recency (0-1000; newer = higher)
+  // e.g. 2026 → 1000, 2025 → 960, 2020 → 760, 2010 → 360
+  const currentYear = new Date().getFullYear();
+  const year = Number(String(item.released || '').slice(0, 4)) || 0;
+  const recencyScore = year > 1990 ? Math.max(0, 1000 - (currentYear - year) * 40) : 0;
+
+  // Tier 3 — popularity (0-10)
+  const pop = Number(item.total_rating_count || 0)
+            + Number(item.ratings_count || 0)
+            + Number(item.added || 0) * 0.1;
+  const popScore = Math.min(10, Math.log10(Math.max(1, pop + 1)) * 2);
+
+  return textScore * 10000 + recencyScore + popScore;
+}
+
+/** Normalise an IGDB game record to the same shape RAWG returns so
+ *  both sources can go through the same renderer/ranker. */
+function normaliseIgdbGameToRawg(g) {
+  return {
+    id:            g.id,
+    name:          g.name || '',
+    released:      g.released || '',
+    background_image: g.cover || '',
+    rating:        g.total_rating ? g.total_rating / 20 : 0,
+    ratings_count: g.total_rating_count || 0,
+    added:         g.total_rating_count || 0,
+    platforms:     (g.platforms || []).map(p => ({ platform: { name: p } })),
+    genres:        (g.genres    || []).map(n => ({ name: n })),
+    slug:          g.slug || '',
+    source:        'igdb',
+    igdbId:        g.id,
+    igdbSlug:      g.slug || '',
+    igdbCover:     g.cover || '',
+    overview:      g.summary || ''
+  };
+}
+
+/**
+ * Fetch from IGDB + RAWG in parallel, merge, dedupe by lowercase name,
+ * rank by the 3-tier score, and return up to `limit` results.
+ * IGDB is authoritative — its records are listed first in the pool so
+ * when deduping a same-name clash the IGDB record wins.
+ */
+async function fetchMergedGameSearchResults(query, limit = 15) {
+  const cleanQuery = String(query || '').trim();
+  if (!cleanQuery) return [];
+
+  const [igdbSettled, rawgSettled] = await Promise.allSettled([
+    fetch(`/api/igdb/search?q=${encodeURIComponent(cleanQuery)}&limit=20`)
+      .then(r => r.ok ? r.json() : { ok: false, results: [] })
+      .then(j => (j.ok && Array.isArray(j.results) ? j.results : []).map(normaliseIgdbGameToRawg)),
+    fetchRawgProxy('games', { search: cleanQuery, page_size: 20, ordering: '-released' })
+      .then(r => r.json())
+      .then(j => (Array.isArray(j.results) ? j.results : []).map(r => ({ ...r, source: r.source || 'rawg' })))
+      .catch(() => [])
+  ]);
+
+  const igdbItems = igdbSettled.status === 'fulfilled' ? igdbSettled.value : [];
+  const rawgItems = rawgSettled.status === 'fulfilled' ? rawgSettled.value : [];
+
+  // Merge: IGDB first (wins dedup), then RAWG extras
+  const seen = new Set();
+  const merged = [];
+  for (const item of [...igdbItems, ...rawgItems]) {
+    const key = String(item.name || '').trim().toLowerCase();
+    if (key && !seen.has(key)) { seen.add(key); merged.push(item); }
+  }
+
+  return merged
+    .map(item => ({ ...item, _score: scoreGameForSearch(item, cleanQuery) }))
+    .filter(item => item._score > 0)   /* drop non-matching results */
+    .sort((a, b) => b._score - a._score)
+    .slice(0, limit);
+}
+
+/** Render merged IGDB + RAWG results — routes click to the right handler. */
+function buildMergedGameResultsHtml(hits) {
+  return hits.map(r => {
+    const isIgdb = r.source === 'igdb';
+    const title = escHtml(r.name || '');
+    const year  = (r.released || '').slice(0, 4);
+    const platforms = (r.platforms || []).map(p => typeof p === 'string' ? p : (p?.platform?.name || '')).filter(Boolean).slice(0, 3).join(', ');
+    const poster = r.background_image || '';
+    const posterThumb = poster
+      ? `<img src="${escAttr(poster)}" loading="lazy" alt="" onerror="this.style.display='none'" style="width:44px;height:66px;border-radius:3px;object-fit:cover;flex-shrink:0;">`
+      : `<div style="width:44px;height:66px;border-radius:3px;background:rgba(255,255,255,0.06);flex-shrink:0;"></div>`;
+    const typeConfig = getAddShelfResultTypeConfig({ ...r, source: 'rawg', rawgId: r.id }, 'games');
+    const badge = `<span class="shelf-result-badge ${typeConfig.badgeClass}">${typeConfig.label}</span>`;
+    const meta  = escHtml(buildAddShelfResultMeta({ ...r, source: 'rawg', rawgId: r.id }, platforms, 'games'));
+    // IGDB items: use selectRAWGFromIGDB; RAWG items: use selectRAWG
+    const onclick = isIgdb
+      ? `selectRAWGFromIGDB(${JSON.stringify({id:r.igdbId,name:r.name,released:r.released,cover:r.igdbCover||r.background_image||'',slug:r.igdbSlug||r.slug||'',genres:(r.genres||[]).map(g=>typeof g==='string'?g:g.name).filter(Boolean),platforms:(r.platforms||[]).map(p=>typeof p==='string'?p:p?.platform?.name||'').filter(Boolean),summary:r.overview||''}).replace(/"/g,'&quot;')})`
+      : `selectRAWG(${r.id})`;
+    return `<div class="tmdb-result" onclick="${onclick}">
+      ${posterThumb}
+      <div class="tmdb-result-info">
+        <div class="tmdb-result-title">${title} ${year ? '(' + year + ')' : ''} ${badge}</div>
+        <div class="tmdb-result-meta">${meta}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* legacy helper kept for any direct callers */
+function buildRAWGResultsHtml(hits) { return buildMergedGameResultsHtml(hits); }
+
+/* v929: handle selection of an IGDB-sourced game result */
+async function selectRAWGFromIGDB(igdbGame) {
+  const resultsDiv = document.getElementById("tmdb-results");
+  resultsDiv.innerHTML = '<div class="cover-search-msg">Loading details...</div>';
+  try {
+    const title = igdbGame.name || '';
+    const cover = igdbGame.cover || '';
+    const genres = Array.isArray(igdbGame.genres) ? igdbGame.genres.join(', ') : '';
+    const platforms = Array.isArray(igdbGame.platforms) ? igdbGame.platforms.join(', ') : '';
+    const year = (igdbGame.released || '').slice(0, 4);
+    selectedTmdb = {
+      title,
+      cover,
+      igdbCoverUrl: cover,
+      genre: genres || platforms || 'Game',
+      year,
+      status: '',
+      rating: 0,
+      dateAdded: new Date().toISOString(),
+      source: 'rawg',
+      rawgId: '',
+      rawgSlug: igdbGame.slug || '',
+      backloggdSlug: igdbGame.slug || '',
+      mediaCategory: 'games',
+      librarySection: 'games',
+      platforms: platforms,
+      stores: [],
+      metacritic: '',
+      metacriticSlug: '',
+      overview: igdbGame.summary || ''
+    };
+    renderTMDBSelected();
+  } catch (e) {
+    if (resultsDiv) resultsDiv.innerHTML = '<div class="cover-search-msg">Could not load game details. Try again.</div>';
   }
 }
 
@@ -690,9 +861,9 @@ async function searchTMDB(searchToken = 0) {
       const title = escHtml(r.title || r.name || '');
       const year = (r.release_date || r.first_air_date || '').slice(0, 4);
       const overview = escHtml((r.overview || '').slice(0, 80)) + (r.overview && r.overview.length > 80 ? '...' : '');
-      const poster = `https://image.tmdb.org/t/p/w185${r.poster_path}`;
+      const poster = r.poster_path ? `https://image.tmdb.org/t/p/w185${r.poster_path}` : '';
       return `<div class="tmdb-result" onclick="selectTMDB(${r.id})">
-        <img src="${poster}">
+        ${poster ? `<img src="${poster}" loading="lazy" alt="" onerror="this.style.display='none'">` : `<div style="width:44px;height:66px;border-radius:3px;background:rgba(255,255,255,0.06);flex-shrink:0;"></div>`}
         <div class="tmdb-result-info">
           <div class="tmdb-result-title">${title} ${year ? '(' + year + ')' : ''}</div>
           <div class="tmdb-result-meta">${overview}</div>
@@ -1052,11 +1223,18 @@ function openModal() {
   addTitleSearchRequestToken++;
   renderApiKeySection();
   resetAddShelfModalHome();
+  /* v927: lock page scroll and prevent pinch-zoom while modal is open
+     so the My List page cannot scroll or zoom behind the overlay. */
+  document.body.style.overflow = 'hidden';
+  document.body.style.touchAction = 'none';
 }
 function closeModal() {
   document.getElementById("modal").style.display = "none";
   resetAddTitleSelection();
   setModalBackBtn(false);
+  /* v927: restore scroll and touch behaviour on close. */
+  document.body.style.overflow = '';
+  document.body.style.touchAction = '';
 }
 function isDuplicateTitle(title, section, excludeId = null) {
   const normalized = (title || '').trim().toLowerCase();

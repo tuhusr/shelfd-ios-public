@@ -28,6 +28,16 @@
       "pattern": "www.myscreenlist.com",
       "zone_name": "myscreenlist.com",
       "custom_domain": true
+    },
+    {
+      "pattern": "myshelfd.com",
+      "zone_name": "myshelfd.com",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.myshelfd.com",
+      "zone_name": "myshelfd.com",
+      "custom_domain": true
     }
   ],
   "workers_dev": true,

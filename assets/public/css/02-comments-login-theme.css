@@ -996,8 +996,11 @@
   .cover-search-row { display: flex; gap: 8px; }
   .cover-search-row input { flex: 1; }
   .tmdb-results {
+    /* v927: removed max-height:260px — the modal itself has overflow-y:auto
+       + max-height:calc(100vh-48px) so it handles scrolling. The 260px cap
+       was only showing ~3 results and hiding everything else under an
+       invisible inner scroll. Now all results render and the modal scrolls. */
     display: flex; flex-direction: column; gap: 6px; padding: 8px 0;
-    max-height: 260px; overflow-y: auto;
   }
   .tmdb-result {
     display: flex; gap: 10px; padding: 8px; border-radius: 4px; cursor: pointer;

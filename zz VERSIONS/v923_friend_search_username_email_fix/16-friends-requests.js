@@ -1542,10 +1542,7 @@ async function searchUsersByUsername(query) {
       const uid = String(raw.uid || doc.id || '').trim();
       if (!uid || uid === currentUser?.uid) return;
       const user = { ...raw, uid };
-      /* v924: removed `if (user.isPublic === false) return` — saveUserProfile
-         was writing isPublic:false for every non-creator on every login so
-         ALL regular users were invisible to search. isPublic is now true for
-         everyone; actual profile privacy uses profileVisibility settings. */
+      if (user.isPublic === false) return;
       if (!userMatchesPeopleSearch(user, normalized)) return;
       results.set(uid, user);
       usersMap[uid] = user;
@@ -1651,8 +1648,8 @@ function renderAllUsers(users, query = '') {
       action = `<div class="friend-actions-group"><button class="friend-action-btn friend-profile-btn friend-message-btn" onclick="event.stopPropagation(); openDirectMessageFromUser('${u.uid}')">Message</button><button class="friend-action-btn friend-profile-btn" onclick="event.stopPropagation(); openUserProfile('${u.uid}')">Profile</button><button class="friend-action-btn friend-remove-btn" onclick="event.stopPropagation(); removeFriend('${u.uid}')">Remove</button></div>`;
     } else if (sentRequest) {
       action = isPublicCreator
-        ? `<div class="friend-actions-group"><button class="friend-action-btn friend-profile-btn friend-message-btn" onclick="event.stopPropagation(); openDirectMessageFromUser('${u.uid}')">Message</button><button class="friend-action-btn friend-profile-btn" onclick="event.stopPropagation(); openUserProfile('${u.uid}')">Profile</button><button class="friend-action-btn friend-pending-btn" onclick="event.stopPropagation(); cancelFriendRequest('${u.uid}')" title="Tap to cancel">Requested</button></div>`
-        : `<button class="friend-action-btn friend-pending-btn" onclick="event.stopPropagation(); cancelFriendRequest('${u.uid}')" title="Tap to cancel">Requested</button>`;
+        ? `<div class="friend-actions-group"><button class="friend-action-btn friend-profile-btn friend-message-btn" onclick="event.stopPropagation(); openDirectMessageFromUser('${u.uid}')">Message</button><button class="friend-action-btn friend-profile-btn" onclick="event.stopPropagation(); openUserProfile('${u.uid}')">Profile</button><button class="friend-action-btn friend-pending-btn" onclick="event.stopPropagation(); cancelFriendRequest('${u.uid}')" title="Tap to cancel">Pending</button></div>`
+        : `<button class="friend-action-btn friend-pending-btn" onclick="event.stopPropagation(); cancelFriendRequest('${u.uid}')" title="Tap to cancel">Pending</button>`;
     } else if (receivedRequest) {
       action = isPublicCreator
         ? `<div class="friend-actions-group"><button class="friend-action-btn friend-profile-btn friend-message-btn" onclick="event.stopPropagation(); openDirectMessageFromUser('${u.uid}')">Message</button><button class="friend-action-btn friend-profile-btn" onclick="event.stopPropagation(); openUserProfile('${u.uid}')">Profile</button><button class="friend-action-btn friend-accept-btn" onclick="event.stopPropagation(); acceptFriendRequest('${u.uid}')">Accept</button></div>`

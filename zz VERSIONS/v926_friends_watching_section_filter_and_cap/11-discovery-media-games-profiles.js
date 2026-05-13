@@ -1673,11 +1673,14 @@ async function fetchTmdbSearchResults(query, options = {}) {
      20-item slice downstream doesn't kill popular partial-matches. The
      search page does its own normalize-relevance + popularity ranking;
      this just guarantees popular items aren't pre-filtered to oblivion. */
-  /* v934: always use the unified scorer (text match → recency → popularity).
-     The old !strictPrefix branch sorted by raw vote_count + popularity first,
-     which bypassed recency entirely and buried new releases. */
   return filtered
     .sort((a, b) => {
+      if (!strictPrefix) {
+        const ap = Number(a.vote_count || 0) + Number(a.popularity || 0) * 10;
+        const bp = Number(b.vote_count || 0) + Number(b.popularity || 0) * 10;
+        if (ap !== bp) return bp - ap;
+        return String((a.title || a.name || '')).localeCompare(String(b.title || b.name || ''), undefined, { sensitivity: 'base' });
+      }
       const scoreCompare = scoreDiscoverUniversalTmdbResult(b, query) - scoreDiscoverUniversalTmdbResult(a, query);
       if (scoreCompare) return scoreCompare;
       return String((a.title || a.name || '')).localeCompare(String(b.title || b.name || ''), undefined, { sensitivity: 'base' });
@@ -1745,30 +1748,50 @@ function mergeDiscoverUniversalSearchItems(groups = []) {
 }
 
 async function fetchRawgSearchResults(query, options = {}) {
+  /* v739: `strictPrefix` opt-out — see fetchTmdbSearchResults note. The
+     bottom-nav search page passes false so popular games whose titles
+     don't prefix-match the typed query (e.g. "Marvel's Spider-Man" for
+     query "spiderman") aren't filtered out before its own ranker runs. */
+  const strictPrefix = options.strictPrefix !== false;
   const cleanQuery = String(query || '').trim();
   if (!cleanQuery) return [];
-  /* v930: IGDB is now primary, RAWG is fallback. fetchMergedGameSearchResults
-     (in 07-add-shelf-import-search.js) runs both in parallel, dedupes by name
-     (IGDB wins), and ranks by: text-match > popularity > recency. The old
-     multi-page RAWG approach is replaced — IGDB has better coverage of recent
-     and niche titles (e.g. MLB The Show 2026). */
-  if (typeof window.fetchMergedGameSearchResults === 'function') {
-    const limit = options.strictPrefix !== false ? DISCOVER_LIMIT : 100;
-    const merged = await window.fetchMergedGameSearchResults(cleanQuery, limit);
-    return merged.map(item => ({
-      ...item,
-      calculatedScore: item._score || 0,
-      discoverContext: buildGameDiscoverContext(item)
-    }));
-  }
-  /* Legacy fallback if helper not loaded yet */
   const settled = await Promise.allSettled([
     fetchRawgPages({ search: cleanQuery }, DISCOVER_PAGE_COUNT, 90),
-    fetchRawgPages({ search: cleanQuery, search_precise: 'true' }, 2, 60)
+    fetchRawgPages({ search: cleanQuery, search_precise: 'true' }, 2, 60),
+    fetchRawgPages({ search: cleanQuery, search_exact: 'true' }, 1, 40),
+    fetchRawgPages({ search: cleanQuery, ordering: '-added' }, 2, 60)
   ]);
-  return mergeDiscoverUniversalSearchItems(
-    settled.filter(r => r.status === 'fulfilled').map(r => r.value || [])
-  ).slice(0, DISCOVER_LIMIT);
+  const pool = mergeDiscoverUniversalSearchItems(
+    settled.filter(result => result.status === 'fulfilled').map(result => result.value || [])
+  );
+  const rankedPool = pool
+    .map(item => ({
+      ...item,
+      calculatedScore: scoreDiscoverUniversalGameResult(item, cleanQuery),
+      discoverContext: buildGameDiscoverContext(item)
+    }))
+    .sort((a, b) => {
+      const scoreCompare = Number(b.calculatedScore || 0) - Number(a.calculatedScore || 0);
+      if (scoreCompare) return scoreCompare;
+      const addedCompare = gameAddedCount(b) - gameAddedCount(a);
+      if (addedCompare) return addedCompare;
+      return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' });
+    });
+  const finalPool = strictPrefix ? preferDiscoverUniversalPrefixMatches(rankedPool, cleanQuery) : rankedPool;
+  /* v740: search-page mode — re-sort by raw popularity (added + ratings)
+     so popular partial-matches (e.g. "Marvel's Spider-Man") survive the
+     slice instead of being buried by exact-text-match obscure indies in
+     scoreDiscoverUniversalGameResult's title-score-dominated ranking. */
+  if (!strictPrefix) {
+    finalPool.sort((a, b) => {
+      const ap = Number(a.added || 0) + Number(a.ratings_count || 0) + Number(a.reviews_count || 0);
+      const bp = Number(b.added || 0) + Number(b.ratings_count || 0) + Number(b.reviews_count || 0);
+      if (ap !== bp) return bp - ap;
+      return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' });
+    });
+    return finalPool.slice(0, 100);
+  }
+  return finalPool.slice(0, DISCOVER_LIMIT);
 }
 
 async function searchGamesDiscoverDatabase() {
@@ -2162,27 +2185,18 @@ function preferDiscoverUniversalPrefixMatches(rows = [], query = '') {
 }
 
 function scoreDiscoverUniversalTmdbResult(item = {}, query = '') {
-  /* v934: ranking order — text match → release date → popularity
-     (matches the game search formula so all media behaves consistently).
-     Previously popularity dominated (votes × 520) and recency (max 120)
-     was drowned out, so old mega-popular titles always beat new releases
-     on the same query. */
-  const textScore = getDiscoverUniversalBestTitleMatchScore(query, item);
-
-  // Tier 2 — recency (0-1000; same scale as game scorer)
+  const title = item.title || item.name || item.original_title || item.original_name || '';
+  const popularity = Number(item.popularity || 0);
+  const votes = Number(item.vote_count || 0);
+  const rating = Number(item.vote_average || 0);
   const releaseDate = item.release_date || item.first_air_date || '';
   const year = Number(String(releaseDate).slice(0, 4));
-  const currentYear = new Date().getFullYear();
-  const recencyScore = (Number.isFinite(year) && year > 1900)
-    ? Math.max(0, 1000 - (currentYear - year) * 40)
-    : 0;
-
-  // Tier 3 — popularity (0-10 log-scale tiebreaker)
-  const votes = Number(item.vote_count || 0);
-  const popularity = Number(item.popularity || 0);
-  const popScore = Math.min(10, Math.log10(votes + popularity + 1) * 2);
-
-  return textScore * 10000 + recencyScore + popScore;
+  const recency = Number.isFinite(year) && year > 0 ? Math.max(0, Math.min(120, year - 1980)) : 0;
+  return getDiscoverUniversalBestTitleMatchScore(query, item)
+    + (popularity * 18)
+    + (Math.log10(votes + 1) * 520)
+    + (rating * 42)
+    + recency;
 }
 
 function scoreDiscoverUniversalGameResult(item = {}, query = '') {
@@ -7225,142 +7239,11 @@ function renderGamesDiscoverCards(items, gridId) {
   // v697: Lazy-fetch Steam review summaries for Row 4 (staggered 120ms/card).
   setTimeout(() => _backfillSteamReviews(grid, items), 400);
   // Lazy-fetch IGDB portrait covers for discovery game cards
-  setTimeout(() => {
-    backfillIgdbDiscoverGameCovers(grid)
-      .then(() => scheduleDiscoverMainPosterPreload('games-cover-backfill'))
-      .catch(() => {});
-  }, 120);
+  setTimeout(() => backfillIgdbDiscoverGameCovers(grid), 120);
 }
 
 let discoverHubPrewarmTimer = null;
 let discoverHubPrewarmToken = 0;
-const DISCOVER_MAIN_POSTER_CACHE = 'screenlist-discover-posters-v1';
-const DISCOVER_POSTER_PREFETCH_PER_GRID = 20;
-const DISCOVER_POSTER_PREFETCH_MAX = 320;
-const DISCOVER_POSTER_PREFETCH_CONCURRENCY = 4;
-let discoverPosterPreloadTimer = null;
-let discoverPosterPreloadRunning = false;
-const discoverPosterPreloadSeen = new Set();
-
-function getDiscoverPosterUrlFromElement(el) {
-  if (!el) return '';
-  let url = el.dataset?.poster || '';
-  if (!url) {
-    const bg = el.style?.backgroundImage || '';
-    const match = bg.match(/url\((['"]?)(.*?)\1\)/i);
-    url = match ? match[2] : '';
-  }
-  if (!url || url === 'none') return '';
-  try {
-    const resolved = new URL(url, window.location.href);
-    if (!/^https?:$/.test(resolved.protocol)) return '';
-    return resolved.href;
-  } catch (e) {
-    return '';
-  }
-}
-
-function collectDiscoverMainPosterUrls() {
-  const grids = typeof getAllDiscoverGrids === 'function' ? getAllDiscoverGrids() : [];
-  const urls = [];
-  const seen = new Set();
-  grids.forEach(grid => {
-    if (!grid) return;
-    let gridCount = 0;
-    const posters = Array.from(grid.querySelectorAll('.discover-poster[data-poster], .discover-poster[style*="background-image"], .discover-poster img[src]'));
-    for (const poster of posters) {
-      if (gridCount >= DISCOVER_POSTER_PREFETCH_PER_GRID || urls.length >= DISCOVER_POSTER_PREFETCH_MAX) break;
-      const url = getDiscoverPosterUrlFromElement(poster.matches('img') ? poster : poster);
-      const imgUrl = poster.matches('img') ? poster.src : '';
-      const finalUrl = url || imgUrl;
-      if (!finalUrl || seen.has(finalUrl)) continue;
-      seen.add(finalUrl);
-      urls.push(finalUrl);
-      gridCount += 1;
-    }
-  });
-  return urls;
-}
-
-function warmDiscoverPosterInMemory(url) {
-  try {
-    const img = new Image();
-    img.decoding = 'async';
-    img.loading = 'eager';
-    img.src = url;
-  } catch (e) {}
-}
-
-async function pruneDiscoverPosterCache(cache) {
-  try {
-    const keys = await cache.keys();
-    if (keys.length <= DISCOVER_POSTER_PREFETCH_MAX) return;
-    await Promise.all(keys.slice(0, keys.length - DISCOVER_POSTER_PREFETCH_MAX).map(key => cache.delete(key)));
-  } catch (e) {}
-}
-
-async function persistDiscoverPosterUrls(urls) {
-  if (!urls.length || !('caches' in window)) return;
-  const cache = await caches.open(DISCOVER_MAIN_POSTER_CACHE);
-  let cursor = 0;
-  async function worker() {
-    while (cursor < urls.length) {
-      const url = urls[cursor++];
-      if (!url || discoverPosterPreloadSeen.has(url)) continue;
-      discoverPosterPreloadSeen.add(url);
-      try {
-        const cached = await cache.match(url);
-        if (cached) continue;
-        const resolved = new URL(url, window.location.href);
-        const crossOrigin = resolved.origin !== window.location.origin;
-        const response = await fetch(url, {
-          mode: crossOrigin ? 'no-cors' : 'cors',
-          credentials: crossOrigin ? 'omit' : 'same-origin',
-          cache: 'force-cache'
-        });
-        if (response && (response.ok || response.type === 'opaque')) {
-          await cache.put(url, response.clone());
-        }
-      } catch (e) {
-        discoverPosterPreloadSeen.delete(url);
-      }
-    }
-  }
-  const workers = Array.from({ length: Math.min(DISCOVER_POSTER_PREFETCH_CONCURRENCY, urls.length) }, () => worker());
-  await Promise.all(workers);
-  await pruneDiscoverPosterCache(cache);
-}
-
-function scheduleDiscoverMainPosterPreload(reason = 'discover-prewarm') {
-  if (discoverPosterPreloadTimer) {
-    clearTimeout(discoverPosterPreloadTimer);
-    discoverPosterPreloadTimer = null;
-  }
-  discoverPosterPreloadTimer = setTimeout(() => {
-    discoverPosterPreloadTimer = null;
-    const run = async () => {
-      if (discoverPosterPreloadRunning || document.hidden) return;
-      const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-      if (connection?.saveData) return;
-      const urls = collectDiscoverMainPosterUrls();
-      if (!urls.length) return;
-      discoverPosterPreloadRunning = true;
-      urls.forEach(warmDiscoverPosterInMemory);
-      try {
-        await persistDiscoverPosterUrls(urls);
-      } catch (error) {
-        console.warn('Discover poster prewarm skipped:', reason, error);
-      } finally {
-        discoverPosterPreloadRunning = false;
-      }
-    };
-    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
-      window.requestIdleCallback(() => { run().catch(() => {}); }, { timeout: 1600 });
-      return;
-    }
-    run().catch(() => {});
-  }, 350);
-}
 
 function scheduleDiscoverHubPrewarm(activeHub = 'tv') {
   if (discoverHubPrewarmTimer) {
@@ -7382,7 +7265,6 @@ function scheduleDiscoverHubPrewarm(activeHub = 'tv') {
       if (activeHub !== 'anime' && !animeDiscoverLoaded && !animeDiscoverLoading && typeof loadAnimeDiscover === 'function') {
         await loadAnimeDiscover(false);
       }
-      scheduleDiscoverMainPosterPreload('hub-prewarm');
     } catch (error) {
       console.warn('Discover hub prewarm skipped:', error);
     }
@@ -7396,25 +7278,6 @@ function scheduleDiscoverHubPrewarm(activeHub = 'tv') {
     run().catch(() => {});
   }, 900);
 }
-
-(function initDiscoverHubBackgroundPrewarm() {
-  if (window.__screenListDiscoverHubBackgroundPrewarmReady) return;
-  window.__screenListDiscoverHubBackgroundPrewarmReady = true;
-  const start = () => {
-    if (document.hidden) return;
-    scheduleDiscoverHubPrewarm('background');
-  };
-  if (document.readyState === 'complete') {
-    setTimeout(start, 2400);
-  } else {
-    window.addEventListener('load', () => setTimeout(start, 2400), { once: true });
-  }
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && (!discoverLoaded || !gamesDiscoverLoaded || !animeDiscoverLoaded)) {
-      setTimeout(start, 900);
-    }
-  });
-})();
 
 // Fetch and apply IGDB/Twitch portrait covers to discovery game card posters.
 // No single global lock: each grid can repair its own cards so concurrent discovery rows do not skip each other.

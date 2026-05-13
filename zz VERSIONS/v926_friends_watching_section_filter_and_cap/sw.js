@@ -6,8 +6,7 @@
    bump, the SW bytes were byte-identical across deploys, no new install
    happened, and PWAs sat on stale JS until the user manually deleted
    and re-added the home-screen app. */
-const CACHE = 'shelfd-v935-discover-poster-prewarm-cache';
-const DISCOVER_POSTER_CACHE = 'screenlist-discover-posters-v1';
+const CACHE = 'shelfd-v926-friends-watching-section-filter-and-cap';
 
 const STATIC_CACHE_PATHS = [
   '/icon-192.png',
@@ -44,15 +43,6 @@ async function cacheFirstStatic(request) {
     cache.put(request, response.clone()).catch(() => {});
   }
   return response;
-}
-
-async function cacheMatchOrNetwork(request) {
-  try {
-    const cache = await caches.open(DISCOVER_POSTER_CACHE);
-    const cached = await cache.match(request, { ignoreVary: true }) || await cache.match(request.url, { ignoreVary: true });
-    if (cached) return cached;
-  } catch (e) {}
-  return fetch(request);
 }
 
 self.addEventListener('install', event => {
@@ -103,13 +93,7 @@ self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
 
-  if (request.method !== 'GET') return;
-  if (url.origin !== self.location.origin) {
-    if (request.destination === 'image') {
-      event.respondWith(cacheMatchOrNetwork(request));
-    }
-    return;
-  }
+  if (request.method !== 'GET' || url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/api/')) return;
 
   if (request.mode === 'navigate' || isAlwaysFreshAsset(url)) {

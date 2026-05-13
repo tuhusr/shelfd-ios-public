@@ -81,7 +81,7 @@
 <link rel="stylesheet" href="/css/sohne-fonts.css?v=576_sohne_font_setup">
 <link rel="stylesheet" href="/css/00-base-layout.css?v=643_revert_old_icon_again">
 <link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=904_mylist_posters_1400x2100">
-<link rel="stylesheet" href="/css/02-comments-login-theme.css?v=927_add_shelf_modal_scroll_lock_results_fix">
+<link rel="stylesheet" href="/css/02-comments-login-theme.css?v=643_revert_old_icon_again">
 <link rel="stylesheet" href="/css/03-friends-discovery-base.css?v=925_requested_btn_lavender">
 <link rel="stylesheet" href="/css/04-activity-feed.css?v=900_activity_spacing_tune">
 <link rel="stylesheet" href="/css/05-messages-early-polish.css?v=811_creator_card_autofriend">
@@ -95,11 +95,11 @@
 <link rel="stylesheet" href="/css/13-e2ee-activity-post.css?v=847_mylist_settings_charcoal_lavender_redesign">
 <link rel="stylesheet" href="/css/14-live-update-discover-controls.css?v=903_discover_movie_tv_poster_1400x2100">
 <link rel="stylesheet" href="/css/15-universal-discovery-search.css?v=853_revert_discover_search_top_half_color">
-<link rel="stylesheet" href="/css/16-light-mode-contrast.css?v=931_add_shelf_input_zoom_fix_pills_shrink_fix">
+<link rel="stylesheet" href="/css/16-light-mode-contrast.css?v=900_activity_spacing_tune">
 <link rel="stylesheet" href="/css/17-auth-flow-setup.css?v=909_remove_creator_divider">
 
-<meta name="screenlist-build-version" content="2026-05-13-v935_discover_poster_prewarm_cache">
-<script>window.SCREENLIST_BUILD_VERSION = "2026-05-13-v935_discover_poster_prewarm_cache"; window.SCREENLIST_DISPLAY_VERSION = "v.935-May 13th, 2026";</script>
+<meta name="screenlist-build-version" content="2026-05-13-v926_friends_watching_section_filter_and_cap">
+<script>window.SCREENLIST_BUILD_VERSION = "2026-05-13-v926_friends_watching_section_filter_and_cap"; window.SCREENLIST_DISPLAY_VERSION = "v.926-May 13th, 2026";</script>
 <script>
   window.__shelfdGuestContinueQueued = false;
   window.continueWithoutSignIn = window.continueWithoutSignIn || function() {
@@ -1612,12 +1612,12 @@
 <script src="/js/21-discover-ranking.js?v=673_central_ranking_module"></script>
 <script src="/js/05-app-state-preview-routes.js?v=902_guest_readonly_mode"></script>
 <script src="/js/06-mylists-render-episodes-ratings.js?v=904_mylist_posters_1400x2100"></script>
-<script src="/js/07-add-shelf-import-search.js?v=933_game_search_rank_match_recency_popularity"></script>
+<script src="/js/07-add-shelf-import-search.js?v=902_guest_readonly_mode"></script>
 <script src="/js/08-discovery-state.js?v=673_central_ranking_module"></script>
 <script src="/js/09-direct-messages.js?v=902_guest_readonly_mode"></script>
 <script src="/js/10-activity-feed.js?v=919_activity_two_line_spacing_correct_selector"></script>
 <script src="/js/20-jikan-anime.js?v=704_viewall_slide_profile_fix"></script>
-<script src="/js/11-discovery-media-games-profiles.js?v=935_discover_poster_prewarm_cache"></script>
+<script src="/js/11-discovery-media-games-profiles.js?v=926_friends_watching_section_filter_and_cap"></script>
 <script src="/js/12-patch-notes.js?v=420_activity_feed_inline_stack_expand_collapse"></script>
 <script src="/js/13-discover-add-imports.js?v=902_guest_readonly_mode"></script>
 <script src="/js/14-navigation.js?v=906_discover_load_prewarm_speed"></script>
@@ -1638,7 +1638,7 @@
      graceful auto-reload via 00-live-update-pwa.js. */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js?v=935-discover-poster-prewarm-cache', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('/sw.js?v=926-friends-watching-section-filter-and-cap', { updateViaCache: 'none' })
         .then(registration => {
           if (registration && typeof registration.update === 'function') {
             registration.update().catch(error => console.warn('Shelfd service worker update check failed:', error));
