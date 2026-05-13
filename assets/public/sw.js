@@ -6,7 +6,7 @@
    bump, the SW bytes were byte-identical across deploys, no new install
    happened, and PWAs sat on stale JS until the user manually deleted
    and re-added the home-screen app. */
-const CACHE = 'shelfd-v918-activity-two-line-spacing-plus-2px';
+const CACHE = 'shelfd-v919-activity-two-line-spacing-correct-selector';
 
 const STATIC_CACHE_PATHS = [
   '/icon-192.png',

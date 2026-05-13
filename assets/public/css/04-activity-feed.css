@@ -1900,7 +1900,12 @@
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-headline.sl-activity-title,
 .activity-page .shelfd-social-card .sl-activity-headline.sl-activity-title {
+  display: inline-grid !important;
+  justify-items: start !important;
+  align-content: start !important;
+  gap: 6px !important;
   line-height: 1.02 !important;
+  white-space: normal !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-headline.sl-activity-title.sl-activity-headline-combined,
 .activity-page .shelfd-social-card .sl-activity-headline.sl-activity-title.sl-activity-headline-combined {
@@ -1930,7 +1935,7 @@
 /* Media title ? milky white, slightly larger than verb */
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-title,
 .activity-page .shelfd-social-card .sl-activity-title {
-  display: inline !important;
+  display: inline-grid !important;
   padding: 0 !important;
   border: 0 !important;
   background: transparent !important;
