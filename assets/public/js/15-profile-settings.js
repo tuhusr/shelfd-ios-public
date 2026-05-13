@@ -323,6 +323,10 @@ function renderMyListSettingsInner() {
         <span class="mylist-settings-row-label">Import Lists</span>
         <button type="button" class="mylist-settings-action-btn" onclick="event.stopPropagation();closeMyListSettingsModal();setTimeout(openImportPage,180)">Import</button>
       </div>
+      <div class="mylist-settings-row">
+        <span class="mylist-settings-row-label">Tracker.gg</span>
+        <button type="button" class="mylist-settings-action-btn" onclick="event.stopPropagation();closeMyListSettingsModal();setTimeout(() => openTrackerLinkModal(),180)">Link</button>
+      </div>
     </div>
     <div class="mylist-settings-milky-divider"></div>
     <div class="mylist-settings-section-label">Clear Category Data</div>

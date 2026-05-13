@@ -1763,8 +1763,11 @@ function renderCard(item, isDraggable) {
     queueMissingMalPosterHydration(item, activeSection);
   }
   const canOpenProfile = canOpenLibraryMediaProfile(activeSection);
+  const canOpenTrackerBreakdown = isGameCard
+    && typeof hasScreenListTrackerBreakdownForItem === 'function'
+    && hasScreenListTrackerBreakdownForItem(item);
   const gameTitleMarkup = isGameCard
-    ? `<button class="card-title-profile-btn game-title-profile-btn" type="button" data-library-item-id="${itemIdAttr}" data-library-section="${itemSectionAttr}" onclick="openGameMediaProfileFromLibrary(event,'${itemIdAttr}','${itemSectionAttr}')">${escHtml(displayTitle)}</button>`
+    ? `<button class="card-title-profile-btn game-title-profile-btn" type="button" data-library-item-id="${itemIdAttr}" data-library-section="${itemSectionAttr}" onclick="${canOpenTrackerBreakdown ? `openTrackerStatsPage(event,'${itemIdAttr}')` : `openGameMediaProfileFromLibrary(event,'${itemIdAttr}','${itemSectionAttr}')`}">${escHtml(displayTitle)}</button>`
     : canOpenProfile
       ? `<button class="card-title-profile-btn media-title-profile-btn" type="button" data-library-item-id="${itemIdAttr}" data-library-section="${itemSectionAttr}" onclick="openLibraryMediaProfile(event,'${itemIdAttr}','${itemSectionAttr}')">${escHtml(displayTitle)}</button>`
       : `<span>${escHtml(displayTitle)}</span>`;
@@ -1858,6 +1861,9 @@ function renderCard(item, isDraggable) {
   const gameStatHours = _igs ? (_igs.hours ? _igs.hours + 'h' : '—') : '';
   const gameStatPlatform = _igs ? (_igs.platform || '—') : '';
   const gameStatTracker = _igs ? _igs.tracker : '';
+  const competitiveStatsHtml = isGameCard && typeof renderScreenListCompetitiveStatsCardHtml === 'function'
+    ? renderScreenListCompetitiveStatsCardHtml(item)
+    : '';
   const gameStatsHtml = isGameCard ? `<div class="game-card-stats-inline">
     <div class="game-card-stat-row"><span class="game-card-stat-label">Hours played:</span><span class="game-card-stat-val">${escHtml(gameStatHours)}</span></div>
     <div class="game-card-stat-row"><span class="game-card-stat-label">Platform:</span><span class="game-card-stat-val">${escHtml(gameStatPlatform)}</span></div>
@@ -1881,7 +1887,7 @@ function renderCard(item, isDraggable) {
     ? `draggable="true" ondragstart="onCardDragStart(event,'${item.id}')" ondragover="onCardDragOver(event)" ondragleave="onCardDragLeave(event)" ondrop="onCardDrop(event,'${item.id}')"`
     : '';
   return `
-    <div class="card ${type === "show" ? "show-card" : ""}${isGameCard ? " game-library-card" : ""} ${viewingUser ? "friend-view-card" : ""}${isDraggable ? ' card-draggable' : ''}" id="card-${item.id}" ${dragAttrs}>
+    <div class="card ${type === "show" ? "show-card" : ""}${isGameCard ? " game-library-card" : ""} ${viewingUser ? "friend-view-card" : ""}${isDraggable ? ' card-draggable' : ''}" id="card-${item.id}" ${isGameCard ? `onclick="handleScreenListGameCardSurfaceClick(event,'${itemIdAttr}')"` : ''} ${dragAttrs}>
       <div class="card-header">
         <div class="${coverClass}${coverProfileClass}" style="${coverStyle}" ${coverPosterAttr} ${coverProfileAttrs}>
           ${!cardCoverSrc ? (isGameCard ? `<span>${SCREENLIST_GAME_COVER_PLACEHOLDER_TEXT}</span>` : emoji) : ''}
@@ -1892,6 +1898,7 @@ function renderCard(item, isDraggable) {
             ${!viewingUser ? `<button class="delete-btn" onclick="deleteItem(event,'${item.id}')" title="Delete">×</button>` : (currentUser ? `<button class="friend-card-add-btn${friendAlreadyAdded ? ' added' : ''}" data-friend-item-id="${escHtml(item.id)}" onclick="event.stopPropagation();openFriendAddModal(this.dataset.friendItemId, this)" title="Add to my list">+</button>` : '')}
           </div>
           ${gameStatsHtml}
+          ${competitiveStatsHtml}
           ${(activeTab === 'planned' && isScreenListMovieTvAnimeSection(activeSection) && item.year) ? `<div class="card-year mylist-watchlist-year">${escHtml(String(item.year).slice(0, 4))}</div>` : ''}
           ${(!shouldHideMyListCardGenre(activeSection, item) && item.genre) ? `<div class="card-genre">${escHtml(item.genre)}</div>` : ''}
           ${(() => {

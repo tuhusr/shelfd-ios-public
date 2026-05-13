@@ -3674,6 +3674,105 @@ async function runSteamLibraryEndpoint(request, env) {
   });
 }
 
+const TRACKERGG_PUBLIC_API_ORIGIN = "https://public-api.tracker.gg/v2/";
+const TRACKERGG_PUBLIC_API_GAMES = new Set(["apex", "the-division-2", "splitgate", "csgo"]);
+const TRACKERGG_UNAVAILABLE_GAMES = new Set(["valorant", "marvel-rivals", "rocket-league", "fortnite", "cs2"]);
+
+function getTrackerggPublicStatus(env) {
+  return {
+    configured: !!(env.TRACKERGG_API_KEY || env.TRN_API_KEY),
+    supportedGames: Array.from(TRACKERGG_PUBLIC_API_GAMES),
+    unavailableGames: Array.from(TRACKERGG_UNAVAILABLE_GAMES)
+  };
+}
+
+function normalizeTrackerggGameKey(value = "") {
+  const clean = String(value || "").trim().toLowerCase().replace(/_/g, "-");
+  if (clean === "apex-legends") return "apex";
+  if (clean === "division-2" || clean === "thedivision2") return "the-division-2";
+  if (clean === "counter-strike" || clean === "cs2") return "csgo";
+  return clean;
+}
+
+function normalizeTrackerggSegmentStats(data = {}) {
+  const segments = Array.isArray(data?.data?.segments) ? data.data.segments : [];
+  const overview = segments.find(segment => String(segment.type || "").toLowerCase() === "overview") || segments[0] || {};
+  const stats = overview.stats || {};
+  const findStat = (needles = []) => {
+    const keys = Object.keys(stats || {});
+    const hit = keys.find(key => {
+      const clean = key.toLowerCase().replace(/[^a-z0-9]+/g, "");
+      return needles.some(needle => clean.includes(needle));
+    });
+    const row = hit ? stats[hit] : null;
+    return row?.displayValue || row?.value || "";
+  };
+  return {
+    displayName: data?.data?.platformInfo?.platformUserHandle || data?.data?.userInfo?.username || "",
+    currentRank: findStat(["rank", "rating", "tier"]),
+    peakRank: findStat(["peakrank", "peakrating", "besttier"]),
+    winRate: findStat(["winrate", "winpct", "winpercentage"]),
+    kd: findStat(["kdratio", "kd", "killsdeaths"]),
+    raw: data?.data || null
+  };
+}
+
+async function runTrackerggProfileEndpoint(request, env, ctx) {
+  const url = new URL(request.url);
+  const game = normalizeTrackerggGameKey(url.searchParams.get("game") || "");
+  const platform = String(url.searchParams.get("platform") || "pc").trim().toLowerCase();
+  const identifier = String(url.searchParams.get("identifier") || url.searchParams.get("profile") || "").trim();
+  if (!game) return jsonResponse({ ok: false, error: "Missing Tracker.gg game key.", tracker: getTrackerggPublicStatus(env) }, 400);
+  if (TRACKERGG_UNAVAILABLE_GAMES.has(game)) {
+    return jsonResponse({
+      ok: false,
+      unsupported: true,
+      error: "Tracker Network does not offer this title through the public developer API. Save a public profile link and stat snapshot instead.",
+      tracker: getTrackerggPublicStatus(env)
+    }, 200);
+  }
+  if (!TRACKERGG_PUBLIC_API_GAMES.has(game)) {
+    return jsonResponse({ ok: false, unsupported: true, error: "Unsupported Tracker.gg public API game.", tracker: getTrackerggPublicStatus(env) }, 200);
+  }
+  const apiKey = env.TRACKERGG_API_KEY || env.TRN_API_KEY;
+  if (!apiKey) {
+    return jsonResponse({ ok: false, configured: false, error: "Tracker.gg API key is not configured.", tracker: getTrackerggPublicStatus(env) }, 200);
+  }
+  if (!identifier) return jsonResponse({ ok: false, error: "Missing Tracker.gg profile identifier.", tracker: getTrackerggPublicStatus(env) }, 400);
+
+  const endpoint = new URL(`${game}/standard/profile/${encodeURIComponent(platform)}/${encodeURIComponent(identifier)}`, TRACKERGG_PUBLIC_API_ORIGIN);
+  const cacheKey = new Request(`${url.origin}/__screenlist_trackergg/v943/${game}/${platform}/${encodeURIComponent(identifier.toLowerCase())}`, { method: "GET" });
+  const cached = await caches.default.match(cacheKey);
+  if (cached && url.searchParams.get("force") !== "1") {
+    const headers = new Headers(cached.headers);
+    headers.set("x-screenlist-trackergg-cache", "HIT");
+    return new Response(cached.body, { status: cached.status, statusText: cached.statusText, headers });
+  }
+
+  const result = await fetchJsonWithTimeout(endpoint.toString(), {
+    headers: {
+      "Accept": "application/json",
+      "TRN-Api-Key": apiKey
+    }
+  }, 9000);
+  if (!result.ok) {
+    return jsonResponse({ ok: false, error: result.error || "Tracker.gg profile lookup failed.", tracker: getTrackerggPublicStatus(env) }, result.status || 502);
+  }
+  const normalized = normalizeTrackerggSegmentStats(result.data);
+  const response = jsonResponse({
+    ok: true,
+    game,
+    platform,
+    profile: normalized,
+    tracker: getTrackerggPublicStatus(env)
+  }, 200, {
+    "Cache-Control": "public, max-age=300",
+    "x-screenlist-trackergg-cache": "MISS"
+  });
+  if (ctx?.waitUntil) ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+  return response;
+}
+
 async function proxyApi(request, env, options, ctx) {
   const keyValue = env[options.keyEnv];
   if (!keyValue) {
@@ -3760,6 +3859,14 @@ export default {
 
     if (url.pathname === "/api/steam/library") {
       return runSteamLibraryEndpoint(request, env);
+    }
+
+    if (url.pathname === "/api/trackergg/profile") {
+      return runTrackerggProfileEndpoint(request, env, ctx);
+    }
+
+    if (url.pathname === "/api/trackergg/health") {
+      return jsonResponse({ ok: true, tracker: getTrackerggPublicStatus(env) });
     }
 
     if (url.pathname === "/api/igdb/search") {
