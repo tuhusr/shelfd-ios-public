@@ -1892,7 +1892,7 @@
   display: inline-grid !important;
   justify-items: start !important;
   align-content: start !important;
-  gap: 1px !important;
+  gap: 4px !important;
   min-width: 0 !important;
   max-width: 100% !important;
   overflow: hidden !important;
@@ -1900,7 +1900,7 @@
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-headline.sl-activity-title,
 .activity-page .shelfd-social-card .sl-activity-headline.sl-activity-title {
-  line-height: 1 !important;
+  line-height: 1.02 !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-headline.sl-activity-title.sl-activity-headline-combined,
 .activity-page .shelfd-social-card .sl-activity-headline.sl-activity-title.sl-activity-headline-combined {
@@ -1951,7 +1951,7 @@
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-title-text,
 .activity-page .shelfd-social-card .sl-activity-title-text {
   display: block !important;
-  margin-top: -1px !important;
+  margin-top: 0 !important;
   color: inherit !important;
   font: inherit !important;
   letter-spacing: inherit !important;
