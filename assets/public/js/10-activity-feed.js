@@ -4100,7 +4100,10 @@ function buildActivityCardHTML(a, activityId, options = {}) {
   // Patterns like "Watched Episode 10" or "Finished Season 3" split at the
   // first word; compound phrases like "is watching" stay together as the verb.
   const actionParts = activityAction.match(/^(\S+)\s+((?:Episode|Season|an episode|a season|a title)\b.*)$/i);
-  const actionVerb = actionParts ? actionParts[1] : activityAction;
+  const rawActionVerb = actionParts ? actionParts[1] : activityAction;
+  const actionVerb = rawActionVerb
+    ? `${String(rawActionVerb).charAt(0).toUpperCase()}${String(rawActionVerb).slice(1)}`
+    : '';
   const actionDetail = actionParts ? actionParts[2] : '';
   return `<article class="shelfd-social-card ${meta.topClass}" data-activity-card-id="${escAttr(activityId)}" data-activity-id="${escAttr(activityId)}" data-shelfd-activity-card="v4" onclick="handleScreenListActivityCardOpen('${escAttr(activityId)}','activity')">
     <div class="sl-activity-main">

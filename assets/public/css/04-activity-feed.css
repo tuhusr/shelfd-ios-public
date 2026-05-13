@@ -3752,7 +3752,7 @@ body.light-mode .activity-page .activity-card {
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-name,
 .activity-page .shelfd-social-card .sl-activity-name {
-  font-size: 14px !important;
+  font-size: 16px !important;
   font-weight: 600 !important;
   max-width: min(70vw, 320px) !important;
   color: #ffffff !important;
@@ -3762,6 +3762,12 @@ body.light-mode .activity-page .activity-card {
 .activity-page .shelfd-social-card .sl-activity-name .creator-name-wrap,
 .activity-page .shelfd-social-card .sl-activity-name .creator-name {
   color: #ffffff !important;
+}
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-name .creator-role,
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-name .creative-team-role,
+.activity-page .shelfd-social-card .sl-activity-name .creator-role,
+.activity-page .shelfd-social-card .sl-activity-name .creative-team-role {
+  font-size: 11px !important;
 }
 
 
