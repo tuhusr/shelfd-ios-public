@@ -1901,6 +1901,16 @@
 .activity-page .shelfd-social-card .sl-activity-headline.sl-activity-title {
   line-height: 1.1 !important;
 }
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-headline.sl-activity-title.sl-activity-headline-combined,
+.activity-page .shelfd-social-card .sl-activity-headline.sl-activity-title.sl-activity-headline-combined {
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+  white-space: normal !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  line-height: 1.08 !important;
+}
 /* Action verb ? gold */
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-verb,
 .activity-page .shelfd-social-card .sl-activity-action-verb {
@@ -1910,6 +1920,12 @@
   display: inline-block !important;
   flex: 0 0 auto !important;
   white-space: nowrap !important;
+}
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-action-verb.sl-activity-action-verb-combined,
+.activity-page .shelfd-social-card .sl-activity-action-verb.sl-activity-action-verb-combined {
+  display: inline !important;
+  white-space: normal !important;
+  margin-right: 0.2em !important;
 }
 /* Media title ? milky white, slightly larger than verb */
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-title,
@@ -1942,6 +1958,11 @@
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
   min-width: 0 !important;
+}
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-title-text.sl-activity-title-text-combined,
+.activity-page .shelfd-social-card .sl-activity-title-text.sl-activity-title-text-combined {
+  display: inline !important;
+  white-space: normal !important;
 }
 /* Episode/season detail ? subtle milky white */
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-detail,

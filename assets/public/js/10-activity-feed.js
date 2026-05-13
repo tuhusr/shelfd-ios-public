@@ -4010,6 +4010,7 @@ function buildActivityCardHTML(a, activityId, options = {}) {
   const title = item.title || item.name || 'Untitled';
   const displayTitle = getScreenListActivityDisplayTitle(eventType, item, a, title);
   const activityAction = getActivityDisplayAction(eventType, item, a);
+  const useCombinedActionTitleHeadline = !options.compactStackChild && ['watched', 'rated', 'paused', 'added'].includes(String(activityAction || '').toLowerCase());
 
   const avatarSrc = actor.photo || a.photo || '';
   const initial = getDisplayName(actor, 'F').charAt(0).toUpperCase();
@@ -4107,8 +4108,8 @@ function buildActivityCardHTML(a, activityId, options = {}) {
       <div class="sl-activity-copy-zone">
         <div class="sl-activity-meta-row">${nameLine}<span class="sl-activity-dot">·</span><time class="sl-activity-time">${escHtml(timeStr)}</time></div>
         <div class="sl-activity-action-line">
-          <button class="sl-activity-headline sl-activity-title" type="button" onclick="event.stopPropagation(); handleActivityMediaClick('${escAttr(activityId)}', this)">
-            <span class="sl-activity-action-verb">${escHtml(actionVerb)}</span> <span class="sl-activity-title-text">${escHtml(displayTitle)}</span>
+          <button class="sl-activity-headline sl-activity-title${useCombinedActionTitleHeadline ? ' sl-activity-headline-combined' : ''}" type="button" onclick="event.stopPropagation(); handleActivityMediaClick('${escAttr(activityId)}', this)">
+            <span class="sl-activity-action-verb${useCombinedActionTitleHeadline ? ' sl-activity-action-verb-combined' : ''}">${escHtml(actionVerb)}</span> <span class="sl-activity-title-text${useCombinedActionTitleHeadline ? ' sl-activity-title-text-combined' : ''}">${escHtml(displayTitle)}</span>
           </button>
           ${actionDetail ? `<span class="sl-activity-action-detail">${escHtml(actionDetail)}</span>` : ''}
         </div>

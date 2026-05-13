@@ -6,7 +6,7 @@
    bump, the SW bytes were byte-identical across deploys, no new install
    happened, and PWAs sat on stale JS until the user manually deleted
    and re-added the home-screen app. */
-const CACHE = 'shelfd-v913-pwa-home-icon-star-v4';
+const CACHE = 'shelfd-v914-activity-front-cards-two-line-action-title';
 
 const STATIC_CACHE_PATHS = [
   '/icon-192.png',
