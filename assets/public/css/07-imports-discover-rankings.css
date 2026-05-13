@@ -724,7 +724,7 @@ body:not(.light-mode):not(.true-dark-mode) #mylist-view .rating-label,
 body:not(.light-mode):not(.true-dark-mode) #mylist-view .star-label {
   color: #beb4d7;
 }
-body:not(.light-mode):not(.true-dark-mode) #mylist-view .status-pill:not(.watching-active):not(.planned-active):not(.watched-active):not(.paused-active):not(.dropped-active):not(.live-active) {
+body:not(.light-mode):not(.true-dark-mode) #mylist-view .status-pill:not(.watching-active):not(.planned-active):not(.watched-active):not(.paused-active):not(.dropped-active):not(.live-active):not(.competitive-active) {
   color: #b7abc9;
   border-color: rgba(196, 181, 253, 0.16);
   background: rgba(255,255,255,0.038);
@@ -785,7 +785,8 @@ body:not(.light-mode):not(.true-dark-mode) #mylist-view #mylist-toolbar {
   body:not(.light-mode):not(.true-dark-mode) #mylist-view .status-pill.watched-active,
   body:not(.light-mode):not(.true-dark-mode) #mylist-view .status-pill.paused-active,
   body:not(.light-mode):not(.true-dark-mode) #mylist-view .status-pill.dropped-active,
-  body:not(.light-mode):not(.true-dark-mode) #mylist-view .status-pill.live-active {
+  body:not(.light-mode):not(.true-dark-mode) #mylist-view .status-pill.live-active,
+  body:not(.light-mode):not(.true-dark-mode) #mylist-view .status-pill.competitive-active {
     background: rgba(139, 92, 246, 0.14) !important;
     border-color: rgba(167, 139, 250, 0.42) !important;
     color: #d8cff3 !important;

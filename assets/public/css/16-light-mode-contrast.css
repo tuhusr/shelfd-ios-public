@@ -555,6 +555,7 @@ body.light-mode .status-pill.watching-active,
 body.light-mode .status-pill.planned-active,
 body.light-mode .status-pill.paused-active,
 body.light-mode .status-pill.dropped-active,
+body.light-mode .status-pill.competitive-active,
 body.light-mode .status-pill.live-active,
 body.light-mode .status-pill.wishlist-active { color: #ffffff !important; }
 /* Game card tracker icon, hours stat, etc. */
@@ -843,6 +844,7 @@ body.light-mode .status-pill.watching-active,
 body.light-mode .status-pill.planned-active,
 body.light-mode .status-pill.paused-active,
 body.light-mode .status-pill.dropped-active,
+body.light-mode .status-pill.competitive-active,
 body.light-mode .status-pill.live-active,
 body.light-mode .status-pill.wishlist-active,
 body.light-mode .ep-check.checked,
@@ -1231,6 +1233,11 @@ body.true-dark-mode #mylist-view .status-pill.dropped-active {
   background: transparent !important;
   border-color: #dc2626 !important;
   color: #ef4444 !important;
+}
+body.true-dark-mode #mylist-view .status-pill.competitive-active {
+  background: transparent !important;
+  border-color: #4f46e5 !important;
+  color: #818cf8 !important;
 }
 body.true-dark-mode #mylist-view .status-pill.live-active {
   background: transparent !important;
@@ -2484,10 +2491,11 @@ body.true-dark-mode #mylist-view .status-pill.planned-active  { color: #d97706 !
 body.true-dark-mode #mylist-view .status-pill.watched-active  { color: #0891b2 !important; }
 body.true-dark-mode #mylist-view .status-pill.paused-active   { color: #c2410c !important; }
 body.true-dark-mode #mylist-view .status-pill.dropped-active  { color: #dc2626 !important; }
+body.true-dark-mode #mylist-view .status-pill.competitive-active { color: #4f46e5 !important; }
 body.true-dark-mode #mylist-view .status-pill.wishlist-active { color: #be185d !important; }
 body.true-dark-mode #mylist-view .status-pill.live-active     { color: #16a34a !important; }
 /* Inactive pill: keep base muted color */
-body.true-dark-mode #mylist-view .status-pill:not(.watching-active):not(.planned-active):not(.watched-active):not(.paused-active):not(.dropped-active):not(.wishlist-active):not(.live-active) {
+body.true-dark-mode #mylist-view .status-pill:not(.watching-active):not(.planned-active):not(.watched-active):not(.paused-active):not(.dropped-active):not(.wishlist-active):not(.live-active):not(.competitive-active) {
   color: rgba(255,255,255,0.55) !important;
 }
 

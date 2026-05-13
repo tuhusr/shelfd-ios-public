@@ -111,7 +111,9 @@
   .tab-btn.active[data-tab="paused"] { color: #f97316; }
   .tab-btn.active[data-tab="dropped"] { color: #ef4444; }
   .tab-btn.active[data-tab="live"] { color: #22c55e; }
+  .tab-btn.active[data-tab="competitive"] { color: #818cf8; }
   .status-pill.live-active { border-color: #16a34a; background: #052e16; color: #22c55e; }
+  .status-pill.competitive-active { border-color: #4f46e5; background: #1e1b4b; color: #818cf8; }
   .tab-count {
     margin-left: 6px; font-size: 10px; padding: 1px 6px; border-radius: 4px;
   }
@@ -381,6 +383,7 @@
     letter-spacing: 0.5px;
   }
   .status-pill.watching-active { border-color: transparent; background: linear-gradient(135deg, #7c3aed, #9333ea); color: #fff; }
+  .status-pill.competitive-active { border-color: #4f46e5; background: #1e1b4b; color: #818cf8; }
   .status-pill.planned-active { border-color: #d97706; background: #352a1a; color: #fbbf24; }
   .status-pill.watched-active { border-color: #0891b2; background: #0c1f2e; color: #67e8f9; }
   .status-pill.paused-active { border-color: #c2410c; background: #3b2313; color: #f97316; }

@@ -1895,8 +1895,9 @@ body.light-mode .discover-status-btn.planned-option:hover {
     background: rgba(255,255,255,0.05);
     opacity: 1;
   }
-  .status-pill:not(.watching-active):not(.planned-active):not(.watched-active):not(.paused-active):not(.dropped-active) { opacity: 0.76; }
+  .status-pill:not(.watching-active):not(.planned-active):not(.watched-active):not(.paused-active):not(.dropped-active):not(.competitive-active) { opacity: 0.76; }
   .status-pill.watching-active { border-color: rgba(167,139,250,0.42); background: rgba(124,58,237,0.16); color: #c4b5fd; }
+  .status-pill.competitive-active { border-color: rgba(129,140,248,0.42); background: rgba(79,70,229,0.16); color: #c7d2fe; }
   .status-pill.planned-active { border-color: rgba(251,191,36,0.38); background: rgba(251,191,36,0.12); color: #f8cd75; }
   .status-pill.watched-active { border-color: rgba(103,232,249,0.34); background: rgba(103,232,249,0.1); color: #9decf7; }
   .status-pill.paused-active { border-color: rgba(249,115,22,0.34); background: rgba(249,115,22,0.1); color: #f6aa76; }

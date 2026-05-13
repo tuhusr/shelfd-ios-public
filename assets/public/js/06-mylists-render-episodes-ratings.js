@@ -56,7 +56,7 @@ function collectMyListPosterPreloadUrls() {
   const source = typeof getVisibleListData === 'function' ? getVisibleListData() : data;
   const sections = [activeSection, 'shows', 'anime', 'movies', 'games', 'manga', 'books']
     .filter((section, index, list) => section && list.indexOf(section) === index);
-  const statuses = [activeTab, 'watching', 'planned', 'watched', 'paused', 'wishlist', 'live', 'dropped']
+  const statuses = [activeTab, 'watching', 'planned', 'watched', 'paused', 'wishlist', 'live', 'competitive', 'dropped']
     .filter((status, index, list) => status && list.indexOf(status) === index);
 
   sections.forEach(section => {
@@ -236,16 +236,20 @@ function isCompetitiveGameItem(item = {}) {
     item.statsUrl ||
     ''
   );
-  return item.status === 'live' && !!trackerUrl;
+  return item.status === 'competitive' || (item.status === 'live' && !!trackerUrl);
 }
 
 function getGamePlayingVisibleStatuses() {
   if (!isGamesPlayingMergedView()) return [activeTab];
   const activeFilter = normalizeGamePlayingFilter(activeGamePlayingFilter);
   if (String(searchQuery || '').trim()) {
-    return activeFilter === 'competitive' ? ['live'] : activeFilter === 'watching' ? ['watching'] : ['watching', 'live'];
+    return activeFilter === 'competitive'
+      ? ['competitive', 'live']
+      : activeFilter === 'watching'
+        ? ['watching']
+        : ['watching', 'live', 'competitive'];
   }
-  return activeFilter === 'competitive' ? ['live'] : [activeFilter];
+  return activeFilter === 'competitive' ? ['competitive', 'live'] : [activeFilter];
 }
 
 function itemMatchesActiveListStatus(item = {}) {
@@ -429,9 +433,12 @@ function render() {
 
   // Tab counts
   const gamesPlayingCount = items.filter(i => i.status === "watching").length;
-  const gamesLiveCount = items.filter(i => i.status === "live").length;
+  const gamesLiveCount = items.filter(i => i.status === "live" && !isCompetitiveGameItem(i)).length;
+  const gamesCompetitiveCount = items.filter(isCompetitiveGameItem).length;
   document.getElementById("count-live").textContent = gamesLiveCount;
-  document.getElementById("count-watching").textContent = activeSection === 'games' ? gamesPlayingCount + gamesLiveCount : gamesPlayingCount;
+  document.getElementById("count-watching").textContent = activeSection === 'games'
+    ? gamesPlayingCount + gamesLiveCount + gamesCompetitiveCount
+    : gamesPlayingCount;
   document.getElementById("count-planned").textContent = items.filter(i => i.status === "planned").length;
   document.getElementById("count-watched").textContent = items.filter(i => i.status === "watched").length;
   const wishlistCountEl = document.getElementById("count-wishlist");
@@ -4036,7 +4043,7 @@ function chooseInitialListView(listData) {
   for (const section of sectionOrder) {
     const statuses = statusOrderBySection[section];
     const items = Array.isArray(listData[section]) ? listData[section] : [];
-    if (section === 'games' && items.some(item => item.status === 'watching' || item.status === 'live')) {
+    if (section === 'games' && items.some(item => item.status === 'watching' || item.status === 'live' || item.status === 'competitive')) {
       return { section, tab: 'watching' };
     }
     for (const status of statuses) {
@@ -5826,7 +5833,7 @@ function updateStatusPillsUI(item) {
   const statusPills = document.querySelectorAll(`#status-pills-${item.id} .status-pill`);
   statusPills.forEach(btn => {
     const isActive = btn.dataset.status === item.status;
-    ['live-active', 'watching-active', 'planned-active', 'watched-active', 'paused-active', 'dropped-active']
+    ['live-active', 'competitive-active', 'watching-active', 'planned-active', 'watched-active', 'paused-active', 'dropped-active', 'wishlist-active']
       .forEach(cls => btn.classList.remove(cls));
     if (isActive) btn.classList.add(`${item.status}-active`);
   });

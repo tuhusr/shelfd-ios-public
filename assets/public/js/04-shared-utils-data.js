@@ -387,12 +387,13 @@ function isVisibleMyListStatusTab(tab = activeTab, section = activeSection) {
 }
 
 function normalizeVisibleMyListStatusTab(tab = activeTab, section = activeSection) {
-  if (section === 'games' && tab === 'live') return 'watching';
+  if (section === 'games' && (tab === 'live' || tab === 'competitive')) return 'watching';
   return isVisibleMyListStatusTab(tab, section) ? tab : getDefaultTabForSection(section);
 }
 
 function getMyListStatusLabel(status = '', section = activeSection) {
   if (status === 'live') return 'Live Games';
+  if (status === 'competitive') return 'Competitive';
   if (status === 'wishlist') return section === 'games' ? 'Wishlist' : 'Wishlist';
   if (status === 'watching') {
     if (section === 'games') return 'Playing';
@@ -413,7 +414,7 @@ function getMyListStatusLabel(status = '', section = activeSection) {
 
 function getMyListStatusButtonConfigs(section = activeSection) {
   const statuses = section === 'games'
-    ? ['watching', 'live', 'planned', 'watched', 'wishlist']
+    ? ['watching', 'live', 'competitive', 'planned', 'watched', 'wishlist']
     : (SCREENLIST_VISIBLE_STATUS_TABS_BY_SECTION[section] || SCREENLIST_VISIBLE_STATUS_TABS_BY_SECTION.shows);
   return statuses.map(status => ({ status, label: getMyListStatusLabel(status, section) }));
 }

@@ -80,13 +80,13 @@
 </script>
 <link rel="stylesheet" href="/css/sohne-fonts.css?v=576_sohne_font_setup">
 <link rel="stylesheet" href="/css/00-base-layout.css?v=643_revert_old_icon_again">
-<link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=941_games_competitive_subfilter">
+<link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=942_game_status_competitive_selector">
 <link rel="stylesheet" href="/css/02-comments-login-theme.css?v=927_add_shelf_modal_scroll_lock_results_fix">
 <link rel="stylesheet" href="/css/03-friends-discovery-base.css?v=925_requested_btn_lavender">
 <link rel="stylesheet" href="/css/04-activity-feed.css?v=900_activity_spacing_tune">
-<link rel="stylesheet" href="/css/05-messages-early-polish.css?v=811_creator_card_autofriend">
+<link rel="stylesheet" href="/css/05-messages-early-polish.css?v=942_game_status_competitive_selector">
 <link rel="stylesheet" href="/css/06-profile.css?v=809_hide_legacy_theme_options">
-<link rel="stylesheet" href="/css/07-imports-discover-rankings.css?v=382-myanimelist-desktop-helper">
+<link rel="stylesheet" href="/css/07-imports-discover-rankings.css?v=942_game_status_competitive_selector">
 <link rel="stylesheet" href="/css/08-watch-together.css?v=404-shared-watch-copy-underline">
 <link rel="stylesheet" href="/css/09-direct-messages.css?v=280-dm-plaintext-aptos-composer">
 <link rel="stylesheet" href="/css/10-mobile-transitions-media-profile.css?v=643_revert_old_icon_again">
@@ -95,11 +95,11 @@
 <link rel="stylesheet" href="/css/13-e2ee-activity-post.css?v=847_mylist_settings_charcoal_lavender_redesign">
 <link rel="stylesheet" href="/css/14-live-update-discover-controls.css?v=938_mobile_tab_transition_smoothing">
 <link rel="stylesheet" href="/css/15-universal-discovery-search.css?v=853_revert_discover_search_top_half_color">
-<link rel="stylesheet" href="/css/16-light-mode-contrast.css?v=939_mylist_load_more_pagination">
+<link rel="stylesheet" href="/css/16-light-mode-contrast.css?v=942_game_status_competitive_selector">
 <link rel="stylesheet" href="/css/17-auth-flow-setup.css?v=909_remove_creator_divider">
 
-<meta name="screenlist-build-version" content="2026-05-13-v941_games_competitive_subfilter">
-<script>window.SCREENLIST_BUILD_VERSION = "2026-05-13-v941_games_competitive_subfilter"; window.SCREENLIST_DISPLAY_VERSION = "v.941-May 13th, 2026";</script>
+<meta name="screenlist-build-version" content="2026-05-13-v942_game_status_competitive_selector">
+<script>window.SCREENLIST_BUILD_VERSION = "2026-05-13-v942_game_status_competitive_selector"; window.SCREENLIST_DISPLAY_VERSION = "v.942-May 13th, 2026";</script>
 <script>
   window.__shelfdGuestContinueQueued = false;
   window.continueWithoutSignIn = window.continueWithoutSignIn || function() {
@@ -1607,11 +1607,11 @@
 <script src="/js/01-firebase-login-state.js?v=902_guest_readonly_mode"></script>
 <script src="/js/02-messages-e2ee.js?v=280-dm-plaintext-aptos-composer"></script>
 <script src="/js/03-watch-together.js?v=294-watch-together-modal-search"></script>
-<script src="/js/04-shared-utils-data.js?v=813_default_theme_remap"></script>
+<script src="/js/04-shared-utils-data.js?v=942_game_status_competitive_selector"></script>
 <script src="/js/20-imdb-ratings.js?v=734_filmography_page"></script>
 <script src="/js/21-discover-ranking.js?v=673_central_ranking_module"></script>
 <script src="/js/05-app-state-preview-routes.js?v=902_guest_readonly_mode"></script>
-<script src="/js/06-mylists-render-episodes-ratings.js?v=941_games_competitive_subfilter"></script>
+<script src="/js/06-mylists-render-episodes-ratings.js?v=942_game_status_competitive_selector"></script>
 <script src="/js/07-add-shelf-import-search.js?v=933_game_search_rank_match_recency_popularity"></script>
 <script src="/js/08-discovery-state.js?v=673_central_ranking_module"></script>
 <script src="/js/09-direct-messages.js?v=902_guest_readonly_mode"></script>
@@ -1638,7 +1638,7 @@
      graceful auto-reload via 00-live-update-pwa.js. */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js?v=941-games-competitive-subfilter', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('/sw.js?v=942-game-status-competitive-selector', { updateViaCache: 'none' })
         .then(registration => {
           if (registration && typeof registration.update === 'function') {
             registration.update().catch(error => console.warn('Shelfd service worker update check failed:', error));
