@@ -135,6 +135,10 @@ function scheduleMyListPosterPreload(reason = 'mylist-render') {
     myListPosterPreloadTimer = null;
     const run = async () => {
       if (myListPosterPreloadRunning || document.hidden) return;
+      if (document.body?.classList.contains('main-nav-switching')) {
+        scheduleMyListPosterPreload(`${reason}-after-nav`);
+        return;
+      }
       const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
       if (connection?.saveData) return;
       const urls = collectMyListPosterPreloadUrls();

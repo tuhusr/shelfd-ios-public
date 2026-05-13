@@ -354,8 +354,9 @@ async function restoreUiState() {
 const MAIN_NAV_TRANSITION_ORDER = ['discover', 'community', 'mylist'];
 const MAIN_NAV_MOBILE_LOCKED_FPS = 120;
 const MAIN_NAV_MOBILE_FRAME_MS = 1000 / MAIN_NAV_MOBILE_LOCKED_FPS;
-const MAIN_NAV_MOBILE_TOTAL_MS = 210;
-const MAIN_NAV_MOBILE_SWAP_AT_MS = 72;
+const MAIN_NAV_MOBILE_TOTAL_MS = 450;
+const MAIN_NAV_MOBILE_SWAP_AT_MS = 165;
+const MAIN_NAV_POST_TRANSITION_HYDRATE_MS = 64;
 
 function getMainNavTransitionDelta(fromTab = 'mylist', toTab = 'mylist') {
   const fromIndex = MAIN_NAV_TRANSITION_ORDER.indexOf(normalizeMainNavTab(fromTab));
@@ -512,6 +513,25 @@ function animateMainNavPanelsFrameLocked(elements, keyframes, options = {}) {
     }
     requestAnimationFrame(tick);
   });
+}
+
+function scheduleMainNavPostTransitionHydration(callback, isMobileMainNav = false) {
+  if (typeof callback !== 'function') return;
+  const delay = isMobileMainNav
+    ? Math.max(0, MAIN_NAV_MOBILE_TOTAL_MS - MAIN_NAV_MOBILE_SWAP_AT_MS + MAIN_NAV_POST_TRANSITION_HYDRATE_MS)
+    : 0;
+  setTimeout(() => {
+    requestAnimationFrame(() => {
+      try {
+        const result = callback();
+        if (result && typeof result.catch === 'function') {
+          result.catch(error => console.error('Main nav hydration failed:', error));
+        }
+      } catch (error) {
+        console.error('Main nav hydration failed:', error);
+      }
+    });
+  }, delay);
 }
 
 async function animateMainNav120HzTabSwap(fromTab = 'mylist', toTab = 'mylist', revealNextPanel = () => {}) {
@@ -700,14 +720,14 @@ async function switchMainNav(tab) {
             switchFriendsTab('friends');
           }
         };
-        if (isMobileMainNav) {
-          setTimeout(() => requestAnimationFrame(hydrateCommunity), MAIN_NAV_MOBILE_TOTAL_MS + 36);
-        } else {
-          requestAnimationFrame(hydrateCommunity);
-        }
+        scheduleMainNavPostTransitionHydration(hydrateCommunity, isMobileMainNav);
       }
-      if (normalizedTab === 'discover') loadActiveDiscoveryHub();
-      if (normalizedTab === 'mylist' && viewingUser) await backToMyList();
+      if (normalizedTab === 'discover') {
+        scheduleMainNavPostTransitionHydration(() => loadActiveDiscoveryHub(), isMobileMainNav);
+      }
+      if (normalizedTab === 'mylist' && viewingUser) {
+        scheduleMainNavPostTransitionHydration(() => backToMyList(), isMobileMainNav);
+      }
     };
 
     if (!prefersReducedMotion && isMobileMainNav) {

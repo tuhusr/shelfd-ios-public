@@ -7353,6 +7353,10 @@ function scheduleDiscoverMainPosterPreload(reason = 'discover-prewarm') {
     discoverPosterPreloadTimer = null;
     const run = async () => {
       if (discoverPosterPreloadRunning || document.hidden) return;
+      if (document.body?.classList.contains('main-nav-switching')) {
+        scheduleDiscoverMainPosterPreload(`${reason}-after-nav`);
+        return;
+      }
       const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
       if (connection?.saveData) return;
       const urls = collectDiscoverMainPosterUrls();
@@ -7383,6 +7387,10 @@ function scheduleDiscoverHubPrewarm(activeHub = 'tv') {
   const token = ++discoverHubPrewarmToken;
   const run = async () => {
     if (token !== discoverHubPrewarmToken || document.hidden) return;
+    if (document.body?.classList.contains('main-nav-switching')) {
+      setTimeout(() => scheduleDiscoverHubPrewarm(activeHub), 520);
+      return;
+    }
     try {
       if (activeHub !== 'gaming' && !gamesDiscoverLoaded && !gamesDiscoverLoading) {
         await loadGamesDiscover(false);
