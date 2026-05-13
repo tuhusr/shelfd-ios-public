@@ -7235,9 +7235,12 @@ function renderGamesDiscoverCards(items, gridId) {
 let discoverHubPrewarmTimer = null;
 let discoverHubPrewarmToken = 0;
 const DISCOVER_MAIN_POSTER_CACHE = 'screenlist-discover-posters-v1';
-const DISCOVER_POSTER_PREFETCH_PER_GRID = 20;
-const DISCOVER_POSTER_PREFETCH_MAX = 320;
-const DISCOVER_POSTER_PREFETCH_CONCURRENCY = 4;
+const DISCOVER_POSTER_PREFETCH_PER_GRID = 8;
+const DISCOVER_POSTER_PREFETCH_MAX = 144;
+const DISCOVER_POSTER_PREFETCH_CONCURRENCY = 2;
+const DISCOVER_POSTER_PREFETCH_BATCH_SIZE = 10;
+const DISCOVER_POSTER_PREFETCH_BATCH_PAUSE_MS = 220;
+const DISCOVER_POSTER_MEMORY_WARM_LIMIT = 18;
 let discoverPosterPreloadTimer = null;
 let discoverPosterPreloadRunning = false;
 const discoverPosterPreloadSeen = new Set();
@@ -7262,7 +7265,8 @@ function getDiscoverPosterUrlFromElement(el) {
 
 function collectDiscoverMainPosterUrls() {
   const grids = typeof getAllDiscoverGrids === 'function' ? getAllDiscoverGrids() : [];
-  const urls = [];
+  const priorityUrls = [];
+  const backgroundUrls = [];
   const seen = new Set();
   grids.forEach(grid => {
     if (!grid) return;
@@ -7275,11 +7279,13 @@ function collectDiscoverMainPosterUrls() {
       const finalUrl = url || imgUrl;
       if (!finalUrl || seen.has(finalUrl)) continue;
       seen.add(finalUrl);
-      urls.push(finalUrl);
+      const rect = typeof poster.getBoundingClientRect === 'function' ? poster.getBoundingClientRect() : null;
+      const nearViewport = rect && rect.bottom >= -600 && rect.top <= (window.innerHeight || 0) + 1200;
+      (nearViewport ? priorityUrls : backgroundUrls).push(finalUrl);
       gridCount += 1;
     }
   });
-  return urls;
+  return priorityUrls.concat(backgroundUrls).slice(0, DISCOVER_POSTER_PREFETCH_MAX);
 }
 
 function warmDiscoverPosterInMemory(url) {
@@ -7303,6 +7309,8 @@ async function persistDiscoverPosterUrls(urls) {
   if (!urls.length || !('caches' in window)) return;
   const cache = await caches.open(DISCOVER_MAIN_POSTER_CACHE);
   let cursor = 0;
+  let processedSincePause = 0;
+  const pause = () => new Promise(resolve => setTimeout(resolve, DISCOVER_POSTER_PREFETCH_BATCH_PAUSE_MS));
   async function worker() {
     while (cursor < urls.length) {
       const url = urls[cursor++];
@@ -7323,6 +7331,11 @@ async function persistDiscoverPosterUrls(urls) {
         }
       } catch (e) {
         discoverPosterPreloadSeen.delete(url);
+      }
+      processedSincePause += 1;
+      if (processedSincePause >= DISCOVER_POSTER_PREFETCH_BATCH_SIZE) {
+        processedSincePause = 0;
+        await pause();
       }
     }
   }
@@ -7345,7 +7358,7 @@ function scheduleDiscoverMainPosterPreload(reason = 'discover-prewarm') {
       const urls = collectDiscoverMainPosterUrls();
       if (!urls.length) return;
       discoverPosterPreloadRunning = true;
-      urls.forEach(warmDiscoverPosterInMemory);
+      urls.slice(0, DISCOVER_POSTER_MEMORY_WARM_LIMIT).forEach(warmDiscoverPosterInMemory);
       try {
         await persistDiscoverPosterUrls(urls);
       } catch (error) {

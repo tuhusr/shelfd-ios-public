@@ -6,7 +6,7 @@
    bump, the SW bytes were byte-identical across deploys, no new install
    happened, and PWAs sat on stale JS until the user manually deleted
    and re-added the home-screen app. */
-const CACHE = 'shelfd-v935-discover-poster-prewarm-cache';
+const CACHE = 'shelfd-v936-mobile-safe-discover-poster-preload';
 const DISCOVER_POSTER_CACHE = 'screenlist-discover-posters-v1';
 
 const STATIC_CACHE_PATHS = [

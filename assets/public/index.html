@@ -98,8 +98,8 @@
 <link rel="stylesheet" href="/css/16-light-mode-contrast.css?v=931_add_shelf_input_zoom_fix_pills_shrink_fix">
 <link rel="stylesheet" href="/css/17-auth-flow-setup.css?v=909_remove_creator_divider">
 
-<meta name="screenlist-build-version" content="2026-05-13-v935_discover_poster_prewarm_cache">
-<script>window.SCREENLIST_BUILD_VERSION = "2026-05-13-v935_discover_poster_prewarm_cache"; window.SCREENLIST_DISPLAY_VERSION = "v.935-May 13th, 2026";</script>
+<meta name="screenlist-build-version" content="2026-05-13-v936_mobile_safe_discover_poster_preload">
+<script>window.SCREENLIST_BUILD_VERSION = "2026-05-13-v936_mobile_safe_discover_poster_preload"; window.SCREENLIST_DISPLAY_VERSION = "v.936-May 13th, 2026";</script>
 <script>
   window.__shelfdGuestContinueQueued = false;
   window.continueWithoutSignIn = window.continueWithoutSignIn || function() {
@@ -1617,7 +1617,7 @@
 <script src="/js/09-direct-messages.js?v=902_guest_readonly_mode"></script>
 <script src="/js/10-activity-feed.js?v=919_activity_two_line_spacing_correct_selector"></script>
 <script src="/js/20-jikan-anime.js?v=704_viewall_slide_profile_fix"></script>
-<script src="/js/11-discovery-media-games-profiles.js?v=935_discover_poster_prewarm_cache"></script>
+<script src="/js/11-discovery-media-games-profiles.js?v=936_mobile_safe_discover_poster_preload"></script>
 <script src="/js/12-patch-notes.js?v=420_activity_feed_inline_stack_expand_collapse"></script>
 <script src="/js/13-discover-add-imports.js?v=902_guest_readonly_mode"></script>
 <script src="/js/14-navigation.js?v=906_discover_load_prewarm_speed"></script>
@@ -1638,7 +1638,7 @@
      graceful auto-reload via 00-live-update-pwa.js. */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js?v=935-discover-poster-prewarm-cache', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('/sw.js?v=936-mobile-safe-discover-poster-preload', { updateViaCache: 'none' })
         .then(registration => {
           if (registration && typeof registration.update === 'function') {
             registration.update().catch(error => console.warn('Shelfd service worker update check failed:', error));
