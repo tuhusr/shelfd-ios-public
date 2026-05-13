@@ -26,12 +26,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Shelfd">
-<link rel="icon" href="/favicon.ico?v=911_pwa_home_icon_star_v2" sizes="any">
+<link rel="icon" href="/favicon.ico?v=912_pwa_home_icon_star_v3" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png?v=643_revert_old_icon_again">
-<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=911_pwa_home_icon_star_v2">
-<link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png?v=911_pwa_home_icon_star_v2">
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=911_pwa_home_icon_star_v2">
-<link rel="manifest" href="/site.webmanifest?v=911_pwa_home_icon_star_v2">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=912_pwa_home_icon_star_v3">
+<link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png?v=912_pwa_home_icon_star_v3">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=912_pwa_home_icon_star_v3">
+<link rel="manifest" href="/site.webmanifest?v=912_pwa_home_icon_star_v3">
 
 <meta property="og:title" content="Shelfd">
 <meta property="og:description" content="Track your shows, movies, anime, games, books, and more.">
@@ -98,8 +98,8 @@
 <link rel="stylesheet" href="/css/16-light-mode-contrast.css?v=900_activity_spacing_tune">
 <link rel="stylesheet" href="/css/17-auth-flow-setup.css?v=909_remove_creator_divider">
 
-<meta name="screenlist-build-version" content="2026-05-13-v911_pwa_home_icon_star_v2">
-<script>window.SCREENLIST_BUILD_VERSION = "2026-05-13-v911_pwa_home_icon_star_v2"; window.SCREENLIST_DISPLAY_VERSION = "v.911-May 13th, 2026";</script>
+<meta name="screenlist-build-version" content="2026-05-13-v912_pwa_home_icon_star_v3">
+<script>window.SCREENLIST_BUILD_VERSION = "2026-05-13-v912_pwa_home_icon_star_v3"; window.SCREENLIST_DISPLAY_VERSION = "v.912-May 13th, 2026";</script>
 <script>
   window.__shelfdGuestContinueQueued = false;
   window.continueWithoutSignIn = window.continueWithoutSignIn || function() {
@@ -1638,7 +1638,7 @@
      graceful auto-reload via 00-live-update-pwa.js. */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js?v=911-pwa-home-icon-star-v2', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('/sw.js?v=912-pwa-home-icon-star-v3', { updateViaCache: 'none' })
         .then(registration => {
           if (registration && typeof registration.update === 'function') {
             registration.update().catch(error => console.warn('Shelfd service worker update check failed:', error));
