@@ -230,6 +230,7 @@ function markDiscoverButtonAdded(btn, status = '') {
 }
 
 async function addDiscoveryTitle(type, tmdbId, btn, status = 'planned', originalText = '', rating = 0, options = {}) {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return { ok: false };
   if (btn) {
     btn.disabled = true;
     btn.classList.remove('added');
@@ -364,6 +365,7 @@ async function addDiscoveryTitle(type, tmdbId, btn, status = 'planned', original
 }
 
 async function removeDiscoveryTitle(btn) {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   if (!btn) return;
   const section = btn.dataset.discoverSection;
   const title = btn.dataset.discoverTitle || '';
@@ -776,6 +778,7 @@ function openSteamImportPage() {
 }
 
 function openImportPage() {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   importReturnTab = getActiveMainTab ? getActiveMainTab() : 'mylist';
   document.body.classList.add('import-page-active');
   document.body.classList.remove('steam-sync-page-active');

@@ -505,6 +505,7 @@ function renderCommentsUI(comments) {
 }
 
 async function postComment() {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   const input = document.getElementById('comment-textarea');
   const button = document.querySelector('#comments-input-area .comment-post-btn');
   if (!input) return;
@@ -682,6 +683,7 @@ auth.onAuthStateChanged(async (user) => {
   const mediaRoute = parseScreenListMediaRoute();
   const profileRoute = typeof parseScreenListProfileRoute === 'function' ? parseScreenListProfileRoute() : null;
   if (user) {
+    if (typeof setShelfdGuestBrowsing === 'function') setShelfdGuestBrowsing(false, { persist: false });
     /* v804: when the new email-signup flow is mid-flight, that flow owns the
        UI (it just kicked off the setup overlay). We still set currentUser
        and DOC_REF so the rest of the app behaves, but we hand routing to
@@ -767,6 +769,11 @@ auth.onAuthStateChanged(async (user) => {
     profileViewingUser = null;
     profileViewingProfile = null;
     profileViewingData = null;
+    if (typeof shouldRestoreShelfdGuestBrowsing === 'function' && shouldRestoreShelfdGuestBrowsing() && typeof continueWithoutSignIn === 'function') {
+      await continueWithoutSignIn({ restoring: true });
+      markScreenListAppReadyForSplash();
+      return;
+    }
     syncSignedOutRoute();
     markScreenListAppReadyForSplash();
   }

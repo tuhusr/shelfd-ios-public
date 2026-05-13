@@ -602,6 +602,13 @@ async function loadCommunity(forceActivity = false) {
       switchFriendsTab(targetTab);
       return;
     }
+    if (typeof isShelfdGuestBrowsing === 'function' && isShelfdGuestBrowsing()) {
+      if (typeof hydrateShelfdGuestCreatorFriend === 'function') {
+        await hydrateShelfdGuestCreatorFriend();
+      }
+      switchFriendsTab(targetTab);
+      return;
+    }
 
     const hadLocalFriendState = friendsDataLoadedOnce || friends.length || incomingRequests.length || outgoingRequests.length || watchTogetherIncomingRequestIds.length;
     switchFriendsTab(targetTab);
@@ -1103,6 +1110,20 @@ async function loadActivityTabFeed() {
     renderPreviewFriendActivity();
     return;
   }
+  if (typeof isShelfdGuestBrowsing === 'function' && isShelfdGuestBrowsing()) {
+    feed.innerHTML = buildSkeletonHTML();
+    if (typeof hydrateShelfdGuestCreatorFriend === 'function') {
+      await hydrateShelfdGuestCreatorFriend();
+    }
+    const dayLimit = (typeof getFriendActivityDayLimit === 'function') ? getFriendActivityDayLimit() : 7;
+    const activities = await fetchAllFriendActivities(dayLimit);
+    if (!activities.length) {
+      feed.innerHTML = `${buildActivityFeedHeaderHTML('Activity Feed', { showRefresh: false })}<div class="activity-feed-empty"><strong>No creator activity yet</strong></div>`;
+      return;
+    }
+    renderFriendActivityItems(feed, activities, { showLoadMore: true });
+    return;
+  }
   if (!currentUser) {
     feed.innerHTML = `${buildActivityFeedHeaderHTML('Activity Feed', { showRefresh: false })}<div class="activity-feed-empty"><strong>Sign in to see activity</strong></div>`;
     return;
@@ -1291,6 +1312,27 @@ async function renderFriendsList() {
       'No preview friends available',
       'Preview friends help demonstrate the shared list experience.'
     );
+    return;
+  }
+  if (typeof isShelfdGuestBrowsing === 'function' && isShelfdGuestBrowsing()) {
+    const context = typeof hydrateShelfdGuestCreatorFriend === 'function'
+      ? await hydrateShelfdGuestCreatorFriend()
+      : { creator: usersMap[CREATOR_PUBLIC_UID] || { uid: CREATOR_PUBLIC_UID, name: CREATOR_DEFAULT_NAME, photo: '' } };
+    const creator = context.creator || usersMap[CREATOR_PUBLIC_UID] || { uid: CREATOR_PUBLIC_UID, name: CREATOR_DEFAULT_NAME, photo: '' };
+    usersMap[CREATOR_PUBLIC_UID] = { ...(usersMap[CREATOR_PUBLIC_UID] || {}), ...creator };
+    const avatar = creator.photo || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(creator.name || CREATOR_DEFAULT_NAME) + '&background=1e2028&color=60a5fa';
+    badge.textContent = '(1)';
+    grid.innerHTML = `<div class="user-card friend-list-card" style="justify-content:space-between;">
+      <div class="friend-card-main" style="display:flex;align-items:center;gap:14px;flex:1;min-width:0;cursor:pointer;" onclick="openGuestCreatorListsView({ returnTab: 'community' })">
+        <img class="user-card-avatar" src="${escAttr(avatar)}" alt="">
+        <div class="friend-card-copy"><div class="user-card-name">${renderDisplayNameHTML(creator, CREATOR_DEFAULT_NAME)}</div><div class="user-card-stats">Creator activity and public shelf</div></div>
+      </div>
+      <div class="friend-actions-group">
+        <button class="friend-action-btn friend-mobile-list-btn friend-screenlist-btn" onclick="event.stopPropagation(); openGuestCreatorListsView({ returnTab: 'community' })">Screen List</button>
+        <button class="friend-action-btn friend-profile-btn friend-mobile-profile-btn" onclick="event.stopPropagation(); openUserProfile('${CREATOR_PUBLIC_UID}')">Profile</button>
+        <button class="friend-action-btn friend-profile-btn friend-profile-desktop-btn" onclick="event.stopPropagation(); openUserProfile('${CREATOR_PUBLIC_UID}')">Profile</button>
+      </div>
+    </div>`;
     return;
   }
   if (friends.length === 0) {
@@ -1621,6 +1663,10 @@ function viewUserFromMap(uid) {
     openPreviewCommunityProfile(uid);
     return;
   }
+  if (typeof isShelfdGuestBrowsing === 'function' && isShelfdGuestBrowsing() && uid === CREATOR_PUBLIC_UID) {
+    if (typeof openGuestCreatorListsView === 'function') openGuestCreatorListsView({ returnTab: 'community' });
+    return;
+  }
   const u = usersMap[uid];
   if (!u) {
     showToast("Could not open that profile");
@@ -1668,6 +1714,7 @@ function updateFriendsCountBadge() {
 
 // Send a friend request (one-sided until accepted)
 async function sendFriendRequest(uid) {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   if (!currentUser || uid === currentUser.uid) return;
   /* v811: creator account is public — tapping +Add bypasses the pending
      state and immediately marks the friendship as active so the user can
@@ -1707,6 +1754,7 @@ async function sendFriendRequest(uid) {
    The creator's friends array intentionally won't include this user —
    that's fine for the use case (one-sided "follow the creator"). */
 async function autoAddCreatorFriend() {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   if (!currentUser) return;
   if (currentUser.uid === CREATOR_PUBLIC_UID) return;
   if (friends.includes(CREATOR_PUBLIC_UID)) return; // idempotent — already a friend
@@ -1740,6 +1788,7 @@ async function autoAddCreatorFriend() {
 
 // Cancel a request I sent
 async function cancelFriendRequest(uid) {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   outgoingRequests = outgoingRequests.filter(f => f !== uid);
   allUsersCache = [];
   try {
@@ -1757,6 +1806,7 @@ async function cancelFriendRequest(uid) {
 
 // Accept a request someone sent me — both become friends
 async function acceptFriendRequest(uid) {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   incomingRequests = incomingRequests.filter(f => f !== uid);
   if (!friends.includes(uid)) friends.push(uid);
   allUsersCache = [];
@@ -1785,6 +1835,7 @@ async function acceptFriendRequest(uid) {
 
 // Decline a request someone sent me
 async function rejectFriendRequest(uid) {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   incomingRequests = incomingRequests.filter(f => f !== uid);
   try {
     const arrayRemove = firebase.firestore.FieldValue.arrayRemove;
@@ -1800,6 +1851,7 @@ async function rejectFriendRequest(uid) {
 }
 
 function confirmRemoveFriend(uid, name) {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   const existing = document.getElementById('remove-friend-modal');
   if (existing) existing.remove();
   const modal = document.createElement('div');
@@ -1831,6 +1883,7 @@ function closeRemoveFriendModal() {
 
 // Remove a confirmed friend (mutual)
 async function removeFriend(uid) {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   friends = friends.filter(f => f !== uid);
   allUsersCache = [];
   try {
@@ -1851,6 +1904,14 @@ async function removeFriend(uid) {
 async function viewUserList(uid, name, photo) {
   if (isPreviewMode()) {
     openPreviewCommunityProfile(uid);
+    return;
+  }
+  if (typeof isShelfdGuestBrowsing === 'function' && isShelfdGuestBrowsing()) {
+    if (uid === CREATOR_PUBLIC_UID && typeof openGuestCreatorListsView === 'function') {
+      await openGuestCreatorListsView({ returnTab: getActiveMainTab ? getActiveMainTab() : 'community' });
+      return;
+    }
+    if (typeof openShelfdGuestAuthModal === 'function') openShelfdGuestAuthModal();
     return;
   }
   if (currentUser && uid === currentUser.uid) {
@@ -1939,6 +2000,35 @@ async function viewUserList(uid, name, photo) {
 async function backToMyList(targetTab = null) {
   const previousFriendData = friendViewData ? cloneListData(friendViewData) : null;
   const returnTab = targetTab || viewingReturnTab || 'mylist';
+  if (typeof isShelfdGuestBrowsing === 'function' && isShelfdGuestBrowsing() && !currentUser) {
+    viewingUser = null;
+    friendViewData = null;
+    profileViewingUser = null;
+    profileViewingProfile = null;
+    profileViewingData = null;
+    document.body.classList.remove('viewing-other-user', 'landing-public-lists', 'profile-active', 'guest-creator-lists');
+    const addBtn = document.getElementById('add-btn');
+    const bannerArea = document.getElementById('viewing-banner-area');
+    if (addBtn) addBtn.style.display = '';
+    if (bannerArea) bannerArea.innerHTML = '';
+    clearListSearch();
+    if (returnTab === 'mylist') {
+      if (typeof openGuestCreatorListsView === 'function') await openGuestCreatorListsView({ returnTab: 'discover' });
+      return;
+    }
+    setBottomNavVisibility(true);
+    syncMainNavButtons(returnTab);
+    setMainNavVisibility(returnTab);
+    if (returnTab === 'community') {
+      loadCommunity(true);
+      loadFriendActivity();
+    } else if (returnTab === 'discover' || returnTab === 'games-discover') {
+      if (returnTab === 'games-discover') activeDiscoveryHub = 'gaming';
+      loadActiveDiscoveryHub();
+    }
+    persistUiState();
+    return;
+  }
   if (landingPublicProfileActive && !currentUser && returnTab === 'landing') {
     viewingUser = null;
     friendViewData = null;

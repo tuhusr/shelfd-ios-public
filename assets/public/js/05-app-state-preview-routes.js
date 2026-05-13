@@ -576,9 +576,10 @@ function showLandingPage() {
   if (window.location.hash === '#creator' || window.location.hash === '#creator-lists') {
     try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e) {}
   }
+  if (typeof setShelfdGuestBrowsing === 'function') setShelfdGuestBrowsing(false, { persist: false });
   landingPublicProfileActive = false;
   document.body.classList.remove('profile-active', 'landing-public-lists', 'own-profile-active');
-  document.body.classList.remove('preview-mode');
+  document.body.classList.remove('preview-mode', 'viewing-other-user', 'guest-creator-lists');
   setBottomNavVisibility(false);
   setMainNavVisibility('mylist');
   const profilePage = document.getElementById('profile-page');
@@ -761,6 +762,173 @@ async function openSignedOutCreatorListsView(creator = {}) {
   window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
+let shelfdGuestCreatorContextPromise = null;
+
+async function loadShelfdGuestCreatorContext(force = false) {
+  if (!force && shelfdGuestCreatorContextPromise) return shelfdGuestCreatorContextPromise;
+  shelfdGuestCreatorContextPromise = (async () => {
+    let creator = null;
+    try {
+      creator = await loadCreatorSearchUser(force);
+    } catch (e) {
+      console.warn('[shelfd-guest] creator profile lookup failed:', e);
+    }
+    if (!creator?.uid && typeof getCachedCreatorPublicUser === 'function') {
+      try { creator = getCachedCreatorPublicUser(); } catch (e) { creator = null; }
+    }
+    if (!creator?.uid && typeof buildCreatorShellUser === 'function') creator = buildCreatorShellUser();
+    if (!creator?.uid) {
+      creator = {
+        uid: CREATOR_PUBLIC_UID,
+        name: CREATOR_DEFAULT_NAME,
+        photo: '',
+        customPhoto: '',
+        isCreatorAdmin: true,
+        isPublic: true
+      };
+    }
+
+    let publicData = getEmptyListData();
+    try {
+      publicData = await loadCreatorPublicListData();
+    } catch (e) {
+      console.warn('[shelfd-guest] creator public list lookup failed:', e);
+    }
+    const sortedData = await autoSortAnimeBuckets(normalizeListData(publicData), false);
+    const creatorUser = {
+      ...creator,
+      uid: CREATOR_PUBLIC_UID,
+      name: creator.name || creator.customName || CREATOR_DEFAULT_NAME,
+      photo: creator.photo || creator.customPhoto || '',
+      signedOutPublic: true,
+      isCreatorAdmin: true,
+      isPublic: true,
+      listTabVisibility: normalizeListTabVisibility(creator.listTabVisibility),
+      ratingPreferences: normalizeRatingPreferences(creator.ratingPreferences)
+    };
+    return { creator: creatorUser, listData: sortedData };
+  })();
+  try {
+    return await shelfdGuestCreatorContextPromise;
+  } finally {
+    shelfdGuestCreatorContextPromise = null;
+  }
+}
+
+async function hydrateShelfdGuestCreatorFriend(force = false) {
+  const context = await loadShelfdGuestCreatorContext(force);
+  friends = [CREATOR_PUBLIC_UID];
+  incomingRequests = [];
+  outgoingRequests = [];
+  usersMap[CREATOR_PUBLIC_UID] = { ...(usersMap[CREATOR_PUBLIC_UID] || {}), ...context.creator };
+  friendProfilesPromise = null;
+  friendProfilesPromiseKey = '';
+  updateFriendsCountBadge();
+  updateRequestsBadges();
+  return context;
+}
+
+async function continueWithoutSignIn(options = {}) {
+  setLandingCreatorButtonsDisabled(true);
+  try {
+    const context = await hydrateShelfdGuestCreatorFriend(options.force === true);
+    if (typeof setShelfdGuestBrowsing === 'function') setShelfdGuestBrowsing(true, { persist: true });
+    landingPublicProfileActive = false;
+    currentUser = null;
+    DOC_REF = null;
+    myData = null;
+    ownDataCache = null;
+    viewingUser = null;
+    friendViewData = null;
+    profileViewingUser = null;
+    profileViewingProfile = null;
+    profileViewingData = null;
+    data = getEmptyListData();
+    userProfile = null;
+
+    document.body.classList.remove('preview-mode', 'profile-active', 'own-profile-active', 'landing-public-lists', 'viewing-other-user', 'guest-creator-lists');
+    const login = document.getElementById('login-screen');
+    const app = document.getElementById('app-container');
+    const inlineSignin = document.getElementById('shelfd-landing-inline-signin');
+    if (inlineSignin) inlineSignin.hidden = true;
+    if (login) login.style.display = 'none';
+    if (app) app.style.display = 'block';
+
+    activeDiscoveryHub = normalizeDiscoveryHub(activeDiscoveryHub || 'tv');
+    syncMainNavButtons('discover');
+    setBottomNavVisibility(true);
+    setMainNavVisibility('discover');
+    loadActiveDiscoveryHub();
+    friendActivityCache = null;
+    friendActivityPromise = null;
+    window.scrollTo({ top: 0, behavior: 'auto' });
+    return context;
+  } catch (e) {
+    console.error('[shelfd-guest] continue without sign-in failed:', e);
+    if (typeof showToast === 'function') showToast('Could not start guest browsing');
+    if (typeof setShelfdGuestBrowsing === 'function') setShelfdGuestBrowsing(false, { persist: false });
+    showLandingPage();
+    return null;
+  } finally {
+    setLandingCreatorButtonsDisabled(false);
+  }
+}
+
+async function openGuestCreatorListsView(options = {}) {
+  const returnTab = options.returnTab || (getActiveMainTab ? getActiveMainTab() : 'discover') || 'discover';
+  const context = await hydrateShelfdGuestCreatorFriend(options.force === true);
+  if (typeof setShelfdGuestBrowsing === 'function') setShelfdGuestBrowsing(true, { persist: true });
+  landingPublicProfileActive = false;
+  profileReturnTab = returnTab;
+  viewingReturnTab = returnTab;
+  profileViewingUser = null;
+  profileViewingProfile = null;
+  profileViewingData = null;
+  myData = null;
+  friendViewData = cloneListData(context.listData);
+  viewingUser = { ...context.creator, guestCreator: true };
+  usersMap[CREATOR_PUBLIC_UID] = { ...(usersMap[CREATOR_PUBLIC_UID] || {}), ...viewingUser };
+  document.body.classList.remove('profile-active', 'landing-public-lists');
+  document.body.classList.add('viewing-other-user', 'guest-creator-lists');
+  syncMainNavButtons('mylist');
+  setMainNavVisibility('mylist');
+  setBottomNavVisibility(true);
+
+  const addBtn = document.getElementById('add-btn');
+  const bannerArea = document.getElementById('viewing-banner-area');
+  if (addBtn) addBtn.style.display = 'none';
+  const backButton = returnTab && returnTab !== 'mylist'
+    ? `<button class="friend-list-floating-back-btn" type="button" onclick="backToMyList('${escAttr(returnTab)}')" aria-label="Back">‹</button>`
+    : '';
+  if (bannerArea) bannerArea.innerHTML = `<div class="viewing-banner friend-list-viewing-banner landing-public-list-banner">
+    <div class="viewing-user-profile-center">
+      <img src="${escAttr(viewingUser.photo || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(viewingUser.name) + '&background=1e2028&color=60a5fa')}" class="viewing-user-avatar" alt="">
+      <div class="viewing-user-name">${renderDisplayNameHTML(viewingUser, CREATOR_DEFAULT_NAME, 'creator-name-soft')}</div>
+    </div>
+    <div class="viewing-banner-divider" aria-hidden="true"></div>
+    <div class="viewing-banner-actions">
+      <button class="back-btn profile-view-btn" onclick="openUserProfile('${CREATOR_PUBLIC_UID}')">View Profile</button>
+    </div>
+    ${backButton}
+  </div>`;
+  clearListSearch();
+  const initialView = chooseInitialListView(friendViewData);
+  activeSection = initialView.section;
+  activeTab = normalizeVisibleMyListStatusTab(initialView.tab, activeSection);
+  render();
+  window.scrollTo({ top: 0, behavior: 'auto' });
+}
+
+const shelfdGuestContinueQueued = window.__shelfdGuestContinueQueued === true;
+window.continueWithoutSignIn = continueWithoutSignIn;
+window.openGuestCreatorListsView = openGuestCreatorListsView;
+window.hydrateShelfdGuestCreatorFriend = hydrateShelfdGuestCreatorFriend;
+window.loadShelfdGuestCreatorContext = loadShelfdGuestCreatorContext;
+if (shelfdGuestContinueQueued) {
+  window.__shelfdGuestContinueQueued = false;
+  requestAnimationFrame(() => continueWithoutSignIn());
+}
+
 function enterPreviewMode() {
   document.body.classList.add('preview-mode');
   const login = document.getElementById("login-screen");
@@ -933,6 +1101,7 @@ function finishSharedMediaRouteAfterClose() {
 }
 
 function syncSignedOutRoute() {
+  if (!currentUser && typeof isShelfdGuestBrowsing === 'function' && isShelfdGuestBrowsing()) return;
   if (parseScreenListMediaRoute()) {
     openSharedMediaProfileRoute();
     return;

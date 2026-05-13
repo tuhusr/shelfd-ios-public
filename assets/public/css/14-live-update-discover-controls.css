@@ -1327,6 +1327,19 @@ body.main-tab-discover .edit-profile-btn {
   }
 }
 
+/* v903: Main Discovery movie/TV title-card posters use the 1400x2100 portrait ratio.
+   Scoped away from anime, games, friend rows, universal search, and expanded trailer cards. */
+#discover-view .discover-grid[id^="discover-movie-"] > .discover-card:not(.discover-card-expanded):not(.games-discover-card)[data-media-type="movie"] > .discover-poster,
+#discover-view .discover-grid[id^="discover-tv-"] > .discover-card:not(.discover-card-expanded):not(.games-discover-card)[data-media-type="tv"] > .discover-poster,
+#discover-view .discover-grid[id^="discover-movie-"] > .discover-card:not(.discover-card-expanded):not(.games-discover-card) > .discover-poster[data-media-type="movie"],
+#discover-view .discover-grid[id^="discover-tv-"] > .discover-card:not(.discover-card-expanded):not(.games-discover-card) > .discover-poster[data-media-type="tv"],
+#discover-category-full-grid[data-source-grid-id^="discover-movie-"] > .discover-card:not(.discover-card-expanded):not(.games-discover-card)[data-media-type="movie"] > .discover-poster,
+#discover-category-full-grid[data-source-grid-id^="discover-tv-"] > .discover-card:not(.discover-card-expanded):not(.games-discover-card)[data-media-type="tv"] > .discover-poster,
+#discover-category-full-grid[data-source-grid-id^="discover-movie-"] > .discover-card:not(.discover-card-expanded):not(.games-discover-card) > .discover-poster[data-media-type="movie"],
+#discover-category-full-grid[data-source-grid-id^="discover-tv-"] > .discover-card:not(.discover-card-expanded):not(.games-discover-card) > .discover-poster[data-media-type="tv"] {
+  aspect-ratio: 1400 / 2100 !important;
+}
+
 
 /* v251: My Lists avatar stability + smoother status swipe layer */
 #mylist-view #mylist-profile-controls .mylist-own-profile-center,

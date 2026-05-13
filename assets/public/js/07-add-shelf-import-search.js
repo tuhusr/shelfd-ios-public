@@ -1045,6 +1045,7 @@ function hideModalStatusPicker() {
 
 // Modal
 function openModal() {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   document.getElementById("modal").style.display = "flex";
   document.getElementById("modal-title").textContent = 'Add to Shelf';
   clearTimeout(addTitleLiveSearchTimer);
@@ -1330,6 +1331,7 @@ async function finalizeFriendAdd(status, rating = 0) {
 }
 
 async function addFriendTitleToMyList(itemId, btn, status = 'planned', rating = 0) {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   if (!viewingUser || !currentUser || !friendViewData) return;
   const section = activeSection;
   const source = (friendViewData[section] || []).find(item => item.id === itemId);
@@ -1376,6 +1378,7 @@ async function addFriendTitleToMyList(itemId, btn, status = 'planned', rating = 
 }
 
 async function submitModal(status, rating = 0) {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return { ok: false };
   if (!selectedTmdb) return { ok: false };
   const validStatuses = (MODAL_STATUS_OPTIONS[activeSection] || []).map(o => o.status);
   if (!validStatuses.includes(status)) status = getDefaultTabForSection(activeSection);

@@ -246,12 +246,11 @@
        filled_blue (the iconic blue users instantly recognize) for dark
        mode, and outline (clean white-on-light) for light mode.
        filled_black was rare and read as a knockoff. */
-    const lightMode = document.body.classList.contains('light-mode');
     try {
       google.accounts.id.renderButton(target, {
         type: 'standard',
         shape: 'pill',
-        theme: lightMode ? 'outline' : 'filled_blue',
+        theme: 'outline',
         text: 'continue_with',
         size: 'large',
         logo_alignment: 'left',
@@ -323,9 +322,11 @@
      User always has a working way to sign in. */
   function ensureLegacyFallbackVisible() {
     const target = document.getElementById('gis-signin-target');
+    if (!target) return;
+    if (gisButtonRendered || document.body.classList.contains('gis-active') || target.querySelector('iframe')) return;
     /* If GIS DID render an iframe successfully and it has visible size,
        leave things alone. Otherwise, force the legacy button visible. */
-    const iframe = target ? target.querySelector('iframe') : null;
+    const iframe = target.querySelector('iframe');
     const renderedOk = !!(iframe && iframe.offsetHeight > 0);
     if (renderedOk) return;
     document.body.classList.remove('gis-active');

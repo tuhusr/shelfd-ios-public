@@ -237,62 +237,130 @@ function canCurrentUserDeleteActivity(activity = {}) {
   return true;
 }
 
-/* v558: per-activity user note (a personal caption attached to your
-   own activity card). Persisted on the user's `data` object under
-   `shelfdActivityNotes` keyed by eventKey so it survives the activity
-   regeneration round-trip. */
+const SCREENLIST_ACTIVITY_NOTES_FIELD = 'shelfdActivityNotes';
+const SCREENLIST_ACTIVITY_NOTES_LOCAL_PREFIX = 'screenlist-activity-notes-';
+const SCREENLIST_ACTIVITY_NOTE_MAX_LENGTH = 100;
+
+function getScreenListActivityNotesLocalKey(uid = '') {
+  const cleanUid = String(uid || currentUser?.uid || '').trim();
+  return cleanUid ? `${SCREENLIST_ACTIVITY_NOTES_LOCAL_PREFIX}${cleanUid}` : '';
+}
+
+function readScreenListActivityNotesLocal(uid = '') {
+  const key = getScreenListActivityNotesLocalKey(uid);
+  if (!key) return {};
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || '{}');
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function writeScreenListActivityNotesLocal(uid = '', notes = {}) {
+  const key = getScreenListActivityNotesLocalKey(uid);
+  if (!key) return;
+  try {
+    localStorage.setItem(key, JSON.stringify(notes && typeof notes === 'object' ? notes : {}));
+  } catch (error) {
+    console.warn('Activity note local backup failed:', error);
+  }
+}
+
+function getScreenListActivityNotesForOwner(uid = '') {
+  const cleanUid = String(uid || currentUser?.uid || '').trim();
+  const owner = usersMap?.[cleanUid] || (currentUser?.uid === cleanUid ? userProfile : null) || {};
+  const remote = owner?.[SCREENLIST_ACTIVITY_NOTES_FIELD];
+  const local = currentUser?.uid === cleanUid ? readScreenListActivityNotesLocal(cleanUid) : {};
+  return {
+    ...(remote && typeof remote === 'object' && !Array.isArray(remote) ? remote : {}),
+    ...(local && typeof local === 'object' && !Array.isArray(local) ? local : {})
+  };
+}
+
+function getScreenListActivityNoteCandidateKeys(activity = {}) {
+  const keys = new Set();
+  [
+    activity?.activityNoteCardId,
+    activity?.renderedActivityId,
+    activity?.eventKey,
+    activity?.id,
+    activity?.activityId,
+    activity?.originalActivityId
+  ].forEach(value => {
+    const clean = String(value || '').trim();
+    if (clean) keys.add(clean);
+  });
+  const stable = getStableActivityDocId(activity, '');
+  if (stable) keys.add(stable);
+  const familyKey = getScreenListActivityFamilyDeleteKey(activity);
+  if (familyKey) keys.add(familyKey);
+  const mediaKey = getScreenListActivityNoteMediaKey(activity);
+  if (mediaKey) keys.add(mediaKey);
+  return Array.from(keys);
+}
+
+function getScreenListActivityNoteMediaKey(activity = {}) {
+  if (!activity || typeof activity !== 'object') return '';
+  const item = activity.item || {};
+  const uid = String(activity.uid || currentUser?.uid || '').trim();
+  const section = String(item.librarySection || item.mediaCategory || '').trim();
+  const mediaKey = String(activity.mediaKey || getMediaKey(item) || item.mediaKey || item.tmdbId || item.rawgId || item.id || item.itemId || item.title || item.name || '').trim();
+  if (!uid || !section || !mediaKey) return '';
+  const episodeCode = [
+    item.lastEpisodeActivitySeason || item.lastEpisodeRatingSeason || activity.seasonNum || '',
+    item.lastEpisodeActivityNum || item.lastEpisodeRatingNum || activity.episodeNum || ''
+  ].map(value => String(value || '').trim()).join(':');
+  const seasonCode = String(activity.seasonNum || item.lastSeasonFinishedNum || item.lastSeasonRatingNum || '').trim();
+  const detail = episodeCode !== ':' ? `episode:${episodeCode}` : (seasonCode ? `season:${seasonCode}` : 'title');
+  return 'activity-note-media-' + screenlistStableHash([uid, section, mediaKey, detail].join('|'));
+}
+
 function getScreenListActivityNoteKey(activity = {}) {
-  return String(activity?.eventKey || activity?.id || activity?.activityId || '').trim();
+  return getScreenListActivityNoteCandidateKeys(activity)[0] || '';
 }
 
 function getScreenListActivityNoteFor(activity = {}) {
-  const key = getScreenListActivityNoteKey(activity);
+  const notes = getScreenListActivityNotesForOwner(activity?.uid || currentUser?.uid || '');
+  const key = getScreenListActivityNoteCandidateKeys(activity).find(candidate => notes[candidate]);
   if (!key) return '';
-  if (typeof data === 'undefined' || !data || !data.shelfdActivityNotes) return '';
-  const raw = data.shelfdActivityNotes[key];
-  if (typeof raw === 'string') return raw;
-  if (raw && typeof raw === 'object') return String(raw.text || '');
+  const raw = notes[key];
+  if (typeof raw === 'string') return raw.slice(0, SCREENLIST_ACTIVITY_NOTE_MAX_LENGTH);
+  if (raw && typeof raw === 'object') return String(raw.text || '').slice(0, SCREENLIST_ACTIVITY_NOTE_MAX_LENGTH);
   return '';
 }
 
-function setScreenListActivityNoteFor(activity = {}, text = '') {
-  if (typeof data === 'undefined' || !data) return;
-  const key = getScreenListActivityNoteKey(activity);
-  if (!key) return;
-  if (!data.shelfdActivityNotes) data.shelfdActivityNotes = {};
-  const trimmed = String(text || '').trim();
+async function setScreenListActivityNoteFor(activity = {}, text = '') {
+  if (!currentUser?.uid) return false;
+  const keys = getScreenListActivityNoteCandidateKeys(activity);
+  if (!keys.length) return false;
+  const trimmed = String(text || '').trim().slice(0, SCREENLIST_ACTIVITY_NOTE_MAX_LENGTH);
   const nowIso = new Date().toISOString();
+  const uid = currentUser.uid;
+  const notes = getScreenListActivityNotesForOwner(uid);
   if (!trimmed) {
-    delete data.shelfdActivityNotes[key];
+    keys.forEach(key => { delete notes[key]; });
   } else {
-    data.shelfdActivityNotes[key] = { text: trimmed, at: nowIso };
+    keys.forEach(key => {
+      notes[key] = { text: trimmed, at: nowIso };
+    });
   }
-  /* v560: also stamp the note onto the matching library item so the
-     my-lists title card can render it as the last line. Latest note for
-     a given item wins. */
+  writeScreenListActivityNotesLocal(uid, notes);
+  if (!usersMap[uid]) usersMap[uid] = { uid };
+  usersMap[uid][SCREENLIST_ACTIVITY_NOTES_FIELD] = notes;
+  if (typeof userProfile === 'object' && userProfile) {
+    userProfile[SCREENLIST_ACTIVITY_NOTES_FIELD] = notes;
+  }
   try {
-    const aItem = activity.item || {};
-    const section = String(aItem.librarySection || aItem.mediaCategory || '').trim();
-    const targetKey = getMediaKey(aItem) || activity.mediaKey;
-    if (section && targetKey && Array.isArray(data[section])) {
-      const match = data[section].find(it => {
-        if (!it) return false;
-        const itKey = getMediaKey({ ...it, librarySection: section, mediaCategory: section });
-        return itKey === targetKey;
-      });
-      if (match) {
-        if (trimmed) {
-          match.shelfdActivityNote = trimmed;
-          match.shelfdActivityNoteAt = nowIso;
-        } else {
-          delete match.shelfdActivityNote;
-          delete match.shelfdActivityNoteAt;
-        }
-      }
-    }
-  } catch (e) {
-    console.warn('Could not propagate activity note to library item:', e);
+    await db.collection('users').doc(uid).set({
+      [SCREENLIST_ACTIVITY_NOTES_FIELD]: notes,
+      shelfdActivityNotesUpdatedAt: Date.now()
+    }, { merge: true });
+  } catch (error) {
+    console.warn('Activity note cloud save failed:', error);
+    return false;
   }
+  return true;
 }
 
 function canCurrentUserNoteActivity(activity = {}) {
@@ -301,7 +369,17 @@ function canCurrentUserNoteActivity(activity = {}) {
   if (activity.type === 'comment') return false;
   if (activity.type === 'post') return false;
   if (activity.type === 'trailer') return false;
-  return true;
+  if (activity.type === 'import-batch') return false;
+  const eventType = getActivityEventType(activity);
+  const item = activity.item || {};
+  const section = item.librarySection || item.mediaCategory || '';
+  const status = String(activity.nextStatus || item.status || '').toLowerCase();
+  const isWatchedMovie = section === 'movies' && (eventType === 'watched' || eventType === 'completed' || status === 'watched');
+  const isPlayedGame = section === 'games' && (eventType === 'played' || eventType === 'completed' || status === 'watched');
+  const isEpisodeWatch = (section === 'shows' || section === 'anime') && (eventType === 'episode-watched' || activity.mergedHadEpisodeWatch || item.lastEpisodeActivityAt);
+  const isSeasonFinish = (section === 'shows' || section === 'anime') && (eventType === 'season-finished' || ((eventType === 'completed' || eventType === 'status-changed' || eventType === 'added') && status === 'watched'));
+  const isRatingActivity = eventType === 'rated' || eventType === 'season-rated' || eventType === 'episode-rated' || activity.mergedHadRating || Number(item.rating || item.lastSeasonRatingValue || item.lastEpisodeRatingValue || 0) > 0;
+  return !!(isWatchedMovie || isPlayedGame || isEpisodeWatch || isSeasonFinish || isRatingActivity);
 }
 
 function getScreenListPlusIconSvg() {
@@ -311,12 +389,13 @@ function getScreenListPlusIconSvg() {
 function renderScreenListActivityNoteHTML(activity = {}) {
   const text = getScreenListActivityNoteFor(activity);
   if (!text) return '';
-  return `<div class="sl-activity-user-note" data-activity-user-note>${escHtml(text)}</div>`;
+  return `<p class="sl-activity-plain-note" data-activity-plain-note>${escHtml(text)}</p>`;
 }
 
 /* v558: bottom-sheet composer for adding/editing the personal note on
    one of your own activity cards. */
 function openScreenListActivityNoteComposer(activityId = '') {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   const cleanId = String(activityId || '').trim();
   if (!cleanId) return;
   const activity = friendActivityClickTargets?.[cleanId];
@@ -326,7 +405,7 @@ function openScreenListActivityNoteComposer(activityId = '') {
   // Tear down any existing composer
   document.getElementById('screenlist-activity-note-overlay')?.remove();
 
-  const existing = getScreenListActivityNoteFor(activity);
+  const existing = getScreenListActivityNoteFor(activity).slice(0, SCREENLIST_ACTIVITY_NOTE_MAX_LENGTH);
   const overlay = document.createElement('div');
   overlay.id = 'screenlist-activity-note-overlay';
   overlay.className = 'screenlist-activity-note-overlay';
@@ -342,11 +421,11 @@ function openScreenListActivityNoteComposer(activityId = '') {
         id="screenlist-activity-note-input"
         class="screenlist-activity-note-input"
         rows="4"
-        maxlength="280"
+        maxlength="${SCREENLIST_ACTIVITY_NOTE_MAX_LENGTH}"
         placeholder="Say something about this..."
       >${escHtml(existing)}</textarea>
       <div class="screenlist-activity-note-footer">
-        <span class="screenlist-activity-note-counter" data-note-counter>${existing.length}/280</span>
+        <span class="screenlist-activity-note-counter" data-note-counter>${existing.length}/${SCREENLIST_ACTIVITY_NOTE_MAX_LENGTH}</span>
         <div class="screenlist-activity-note-actions">
           ${existing ? `<button type="button" class="screenlist-activity-note-remove" data-note-remove>Remove</button>` : ''}
           <button type="button" class="screenlist-activity-note-save" data-note-save>${existing ? 'Save' : 'Post'}</button>
@@ -361,28 +440,34 @@ function openScreenListActivityNoteComposer(activityId = '') {
   const counter = overlay.querySelector('[data-note-counter]');
   const close = () => {
     overlay.classList.remove('is-open');
-    setTimeout(() => overlay.remove(), 220);
+    setTimeout(() => overlay.remove(), 600);
   };
   overlay.querySelectorAll('[data-note-dismiss]').forEach(el => el.addEventListener('click', close));
   if (input && counter) {
     input.addEventListener('input', () => {
-      counter.textContent = `${input.value.length}/280`;
+      if (input.value.length > SCREENLIST_ACTIVITY_NOTE_MAX_LENGTH) {
+        input.value = input.value.slice(0, SCREENLIST_ACTIVITY_NOTE_MAX_LENGTH);
+      }
+      counter.textContent = `${input.value.length}/${SCREENLIST_ACTIVITY_NOTE_MAX_LENGTH}`;
     });
     setTimeout(() => input.focus(), 30);
   }
-  overlay.querySelector('[data-note-save]')?.addEventListener('click', () => {
-    setScreenListActivityNoteFor(activity, input.value);
-    if (typeof save === 'function') save();
+  overlay.querySelector('[data-note-save]')?.addEventListener('click', async () => {
+    activity.activityNoteCardId = cleanId;
+    const saved = await setScreenListActivityNoteFor(activity, input.value);
+    if (!saved) console.warn('Activity note did not confirm cloud save; local backup is still present.');
     close();
+    if (friendActivityCache) friendActivityCache.timestamp = 0;
     if (typeof loadFriendActivity === 'function') loadFriendActivity();
     if (typeof renderActiveWatchActivitySubTab === 'function' && isWatchActivitySubTab?.()) {
       renderActiveWatchActivitySubTab();
     }
   });
-  overlay.querySelector('[data-note-remove]')?.addEventListener('click', () => {
-    setScreenListActivityNoteFor(activity, '');
-    if (typeof save === 'function') save();
+  overlay.querySelector('[data-note-remove]')?.addEventListener('click', async () => {
+    activity.activityNoteCardId = cleanId;
+    await setScreenListActivityNoteFor(activity, '');
     close();
+    if (friendActivityCache) friendActivityCache.timestamp = 0;
     if (typeof loadFriendActivity === 'function') loadFriendActivity();
   });
 }
@@ -414,13 +499,9 @@ function isScreenListMergeableLibraryActivity(activity = {}) {
   const section = String(item.librarySection || item.mediaCategory || '').trim();
   if (!section) return false;
   const eventType = getActivityEventType(activity);
-  /* v552/560: only episode-watched and episode-rated merge with each other.
-     Show 'rated', 'season-rated', 'season-finished', 'completed' all stay
-     as their own standalone cards so the feed clearly distinguishes
-     show-level vs season-level vs episode-level events. Lifecycle events
-     (added/started/planned/paused/dropped/status-changed) stay mergeable
-     so re-imports / status flips don't double up. */
-  return ['added', 'status-changed', 'started', 'planned', 'paused', 'dropped', 'episode-watched', 'episode-rated'].includes(eventType);
+  /* v870: watch/play actions can absorb a rating shortly afterward so the
+     activity stays one living card and moves back to the top when rated. */
+  return ['added', 'status-changed', 'started', 'planned', 'paused', 'dropped', 'completed', 'season-finished', 'rated', 'season-rated', 'episode-watched', 'episode-rated'].includes(eventType);
 }
 
 function getScreenListActivityMergeKey(activity = {}) {
@@ -458,13 +539,13 @@ function mergeScreenListActivityPair(base = {}, incoming = {}) {
       else if (older.item?.[key]) mergedItem[key] = older.item[key];
     }
   });
-  /* v560: prefer 'episode-rated' over 'episode-watched' so the merged card
-     surfaces the rating chip. Show-level events should never reach this
-     merger (they are not mergeable). */
+  /* v870: preserve watch/play as the displayed action when a later rating
+     lands on the same item. Episode rating remains special because its
+     compact rating chip is keyed off the episode-rated event type. */
   const olderEvent = older.eventType || '';
   const newerEvent = newer.eventType || '';
   const eventTypes = [olderEvent, newerEvent];
-  const PRIORITY = ['episode-rated', 'started', 'status-changed', 'episode-watched', 'planned', 'paused', 'dropped', 'added'];
+  const PRIORITY = ['episode-rated', 'season-finished', 'completed', 'status-changed', 'started', 'season-rated', 'rated', 'episode-watched', 'planned', 'paused', 'dropped', 'added'];
   let chosenEvent = newerEvent || olderEvent || 'added';
   for (const candidate of PRIORITY) {
     if (eventTypes.includes(candidate)) { chosenEvent = candidate; break; }
@@ -480,7 +561,9 @@ function mergeScreenListActivityPair(base = {}, incoming = {}) {
     mergedActivityActions: true,
     /* v552: explicit flag so the renderer knows this card represents a
        watch + rate pair (or watch + status, etc.) */
-    mergedHadEpisodeWatch: eventTypes.includes('episode-watched') || !!mergedItem.lastEpisodeActivityAt
+    mergedHadEpisodeWatch: eventTypes.includes('episode-watched') || !!mergedItem.lastEpisodeActivityAt,
+    mergedHadRating: eventTypes.some(type => ['rated', 'season-rated', 'episode-rated'].includes(type)) || Number(mergedItem.rating || mergedItem.lastSeasonRatingValue || mergedItem.lastEpisodeRatingValue || 0) > 0,
+    mergedHadSeasonRating: eventTypes.includes('season-rated') || Number(mergedItem.lastSeasonRatingValue || 0) > 0
   };
 }
 
@@ -669,16 +752,80 @@ function collapseImportBatchActivities(activities = []) {
 }
 
 const SCREENLIST_STACKED_ACTIVITY_GROUP_WINDOW_MS = 30 * 60 * 1000;
-const SCREENLIST_STACKED_ACTIVITY_MIN_GROUP_SIZE = 3;
+const SCREENLIST_STACKED_ACTIVITY_MIN_GROUP_SIZE = 2;
+
+function getScreenListActivitySectionPlural(section = '', count = 0) {
+  const total = Math.max(0, Number(count) || 0);
+  if (section === 'movies') return total === 1 ? 'movie' : 'movies';
+  if (section === 'shows') return total === 1 ? 'show' : 'shows';
+  if (section === 'anime') return total === 1 ? 'anime title' : 'anime titles';
+  if (section === 'games') return total === 1 ? 'game' : 'games';
+  return total === 1 ? 'title' : 'titles';
+}
+
+function getScreenListActivityStackStatus(activity = {}, item = {}) {
+  return String(activity.nextStatus || item.status || '').trim().toLowerCase();
+}
+
+function getScreenListActivityDestinationLabel(status = '', section = '') {
+  const clean = String(status || '').trim().toLowerCase();
+  if (section === 'games') {
+    if (clean === 'planned') return 'Backlog';
+    if (clean === 'wishlist') return 'Wishlist';
+    if (clean === 'watching') return 'Playing';
+    if (clean === 'live') return 'Live Games';
+    if (clean === 'watched') return 'Played';
+  }
+  if (clean === 'planned') return 'Watchlist';
+  if (clean === 'watching') return 'Watching';
+  if (clean === 'paused') return 'Paused';
+  if (clean === 'dropped') return 'Dropped';
+  if (clean === 'watched') return section === 'movies' ? 'Watched' : 'Finished';
+  return 'Library';
+}
+
+function getScreenListActivityMediaStackKey(activity = {}, item = {}) {
+  return String(activity.mediaKey || getMediaKey(item) || item.mediaKey || item.tmdbId || item.rawgId || item.id || item.itemId || item.title || item.name || '').trim().toLowerCase();
+}
+
+function getScreenListStackedActivityClassification(activity = {}) {
+  if (!activity || activity.type === 'activity-stack' || activity.type === 'import-batch' || activity.type === 'post' || activity.type === 'trailer' || activity.type === 'comment') return null;
+  const eventType = getActivityEventType(activity);
+  if (eventType === 'commented') return null;
+  const item = activity.item || {};
+  const section = String(item.librarySection || item.mediaCategory || '').trim();
+  if (!section) return null;
+  const status = getScreenListActivityStackStatus(activity, item);
+  const mediaKey = getScreenListActivityMediaStackKey(activity, item);
+  const hasEpisodeWatch = eventType === 'episode-watched' || ((eventType === 'episode-rated' || eventType === 'rated') && (activity.mergedHadEpisodeWatch || item.lastEpisodeActivityAt));
+
+  if ((section === 'shows' || section === 'anime') && hasEpisodeWatch) {
+    return { type: 'episode-watched', section, detailKey: mediaKey || 'episode-title' };
+  }
+  if ((section === 'shows' || section === 'anime') && (eventType === 'season-finished' || ((eventType === 'completed' || eventType === 'status-changed' || eventType === 'added') && status === 'watched'))) {
+    return { type: 'season-finished', section, detailKey: mediaKey || 'season-title' };
+  }
+  if (section === 'movies' && (eventType === 'completed' || ((eventType === 'status-changed' || eventType === 'added') && status === 'watched'))) {
+    return { type: 'watched', section, detailKey: 'watched' };
+  }
+  if (section === 'games' && (eventType === 'completed' || ((eventType === 'status-changed' || eventType === 'added') && status === 'watched'))) {
+    return { type: 'played', section, detailKey: 'played' };
+  }
+  if (['rated', 'season-rated', 'episode-rated'].includes(eventType)) {
+    return { type: 'rated', section, detailKey: 'all-ratings' };
+  }
+  if (eventType === 'added' || eventType === 'planned' || status === 'planned' || status === 'wishlist') {
+    return { type: 'added', section, detailKey: status || 'library' };
+  }
+  if (eventType === 'started' || eventType === 'status-changed' || eventType === 'paused' || eventType === 'dropped') {
+    const statusKey = status || eventType;
+    return { type: `status:${statusKey}`, section, detailKey: statusKey };
+  }
+  return null;
+}
 
 function getScreenListStackedActivityType(activity = {}) {
-  if (!activity || activity.type === 'activity-stack' || activity.type === 'import-batch' || activity.type === 'post' || activity.type === 'trailer') return '';
-  const eventType = getActivityEventType(activity);
-  if (eventType === 'commented' || activity.type === 'comment') return 'commented';
-  if (eventType === 'rated') return 'rated';
-  if (eventType === 'added' || eventType === 'planned' || eventType === 'wishlist') return 'added';
-  if (eventType === 'status-changed' || eventType === 'completed' || eventType === 'started' || eventType === 'paused' || eventType === 'dropped') return 'status';
-  return '';
+  return getScreenListStackedActivityClassification(activity)?.type || '';
 }
 
 function getScreenListStackedActivityTimestamp(activity = {}) {
@@ -692,10 +839,13 @@ function getScreenListStackedActivityBucket(activity = {}) {
 
 function getScreenListStackedActivityGroupKey(activity = {}) {
   const uid = String(activity.uid || '').trim();
-  const stackType = getScreenListStackedActivityType(activity);
+  const classification = getScreenListStackedActivityClassification(activity);
+  const stackType = classification?.type || '';
+  const section = classification?.section || '';
+  const detailKey = classification?.detailKey || '';
   const bucket = getScreenListStackedActivityBucket(activity);
-  if (!uid || !stackType || !bucket) return '';
-  return [uid, stackType, bucket].join('|');
+  if (!uid || !stackType || !section || !detailKey || !bucket) return '';
+  return [uid, section, stackType, detailKey, bucket].join('|');
 }
 
 function cloneScreenListStackActivity(activity = {}) {
@@ -705,12 +855,38 @@ function cloneScreenListStackActivity(activity = {}) {
   };
 }
 
-function getScreenListStackedActivityTypeLabel(type = '', count = 0) {
+function getScreenListStackedActivityDisplayParts(group = [], type = '') {
+  const items = Array.isArray(group) ? group : [];
+  const total = Math.max(0, items.length || 0);
+  const primary = items[0] || {};
+  const item = primary.item || {};
+  const section = item.librarySection || item.mediaCategory || '';
+  const title = item.title || item.name || 'this title';
+  const plural = getScreenListActivitySectionPlural(section, total);
+  if (type === 'episode-watched') return { action: 'watched', title: `${total} episode${total === 1 ? '' : 's'} of ${title}` };
+  if (type === 'season-finished') return { action: 'finished watching', title: `${total} season${total === 1 ? '' : 's'} of ${title}` };
+  if (type === 'watched') return { action: 'watched', title: `${total} ${plural}` };
+  if (type === 'played') return { action: 'played', title: `${total} ${plural}` };
+  if (type === 'rated') return { action: 'rated', title: `${total} ${plural}` };
+  if (type === 'added') {
+    const destination = getScreenListActivityDestinationLabel(getScreenListActivityStackStatus(primary, item), section);
+    return { action: 'added', title: `${total} ${plural} to ${destination}` };
+  }
+  if (type.startsWith('status:')) {
+    const status = type.slice('status:'.length);
+    const destination = getScreenListActivityDestinationLabel(status, section);
+    const action = status === 'watching' || status === 'live'
+      ? (section === 'games' ? 'playing' : 'watching')
+      : (status === 'paused' ? 'paused' : (status === 'dropped' ? 'dropped' : `changed to ${destination}`));
+    return { action, title: `${total} ${plural}` };
+  }
+  return { action: 'updated', title: `${total} ${plural}` };
+}
+
+function getScreenListStackedActivityTypeLabel(type = '', count = 0, group = []) {
   const total = Math.max(0, Number(count) || 0);
-  if (type === 'rated') return `rated ${total} title${total === 1 ? '' : 's'}`;
-  if (type === 'commented') return `commented on ${total} title${total === 1 ? '' : 's'}`;
-  if (type === 'status') return `changed status on ${total} title${total === 1 ? '' : 's'}`;
-  return `added ${total} title${total === 1 ? '' : 's'}`;
+  const parts = getScreenListStackedActivityDisplayParts(group, type);
+  return `${parts.action} ${parts.title || `${total} title${total === 1 ? '' : 's'}`}`.trim();
 }
 
 function buildScreenListStackedActivity(group = [], key = '') {
@@ -719,6 +895,7 @@ function buildScreenListStackedActivity(group = [], key = '') {
     .sort((a, b) => getScreenListStackedActivityTimestamp(b) - getScreenListStackedActivityTimestamp(a));
   const primary = sorted[0] || {};
   const stackType = getScreenListStackedActivityType(primary) || 'added';
+  const stackDisplay = getScreenListStackedActivityDisplayParts(sorted, stackType);
   const newestTime = getScreenListStackedActivityTimestamp(primary) || Date.now();
   return {
     ...primary,
@@ -726,7 +903,9 @@ function buildScreenListStackedActivity(group = [], key = '') {
     stackEventType: stackType,
     stackGroupKey: key,
     stackCount: sorted.length,
-    stackLabel: getScreenListStackedActivityTypeLabel(stackType, sorted.length),
+    stackLabel: getScreenListStackedActivityTypeLabel(stackType, sorted.length, sorted),
+    stackDisplayAction: stackDisplay.action,
+    stackDisplayTitle: stackDisplay.title,
     stackedActivities: sorted,
     stackPrimaryActivity: primary,
     timestamp: primary.timestamp || newestTime,
@@ -807,7 +986,7 @@ function openScreenListStackedActivityPage(activityId = '') {
   const title = page.querySelector('#screenlist-stacked-activity-title');
   const subtitle = page.querySelector('#screenlist-stacked-activity-subtitle');
   const stackType = stack.stackEventType || getScreenListStackedActivityType(items[0]) || 'added';
-  if (title) title.textContent = getScreenListStackedActivityTypeLabel(stackType, items.length);
+  if (title) title.textContent = stack.stackLabel || getScreenListStackedActivityTypeLabel(stackType, items.length, items);
   if (subtitle) subtitle.textContent = 'Newest to oldest';
 
   if (list) {
@@ -1138,12 +1317,23 @@ function getScreenListActivityItemTitle(item = {}) {
   return String(item?.title || item?.name || 'Untitled').trim() || 'Untitled';
 }
 
+function normalizeScreenListActivityPosterUrl(value = '', section = '') {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (raw.startsWith('//')) return `https:${raw}`;
+  if (section !== 'movies' && section !== 'shows') return raw;
+  if (raw.startsWith('/')) return `https://image.tmdb.org/t/p/original${raw}`;
+  const tmdbMatch = raw.match(/^https?:\/\/image\.tmdb\.org\/t\/p\/(?:w\d+|original)(\/.+)$/i);
+  if (tmdbMatch?.[1]) return `https://image.tmdb.org/t/p/original${tmdbMatch[1]}`;
+  return raw;
+}
+
 function getScreenListActivityItemCover(item = {}) {
   const section = item?.librarySection || item?.mediaCategory || '';
   if (section === 'games') {
     return typeof getScreenListDisplayGameCover === 'function' ? getScreenListDisplayGameCover(item) : (typeof getScreenListPreferredGameCover === 'function' ? getScreenListPreferredGameCover(item) : '');
   }
-  return String(item?.cover || item?.poster || item?.image || item?.background_image || '').trim();
+  return normalizeScreenListActivityPosterUrl(item?.cover || item?.poster || item?.image || item?.background_image || '', section);
 }
 
 function normalizeScreenListActivityPostItem(item = {}, section = '', status = 'watched', rating = 0, comment = '') {
@@ -1732,6 +1922,7 @@ function selectTrailer(itemData) {
 }
 
 async function submitFeedPost() {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   const textarea = document.getElementById('feed-composer-input');
   if (!textarea || !currentUser) return;
   
@@ -2036,6 +2227,7 @@ function patchCachedActivityLikes(postOrFeedId, eventKey, isNowLiked) {
 }
 
 async function toggleActivityLike(activityId, btnEl) {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   if (!currentUser || !activityId) return;
 
   const isLiked = btnEl.classList.contains('liked');
@@ -3013,6 +3205,7 @@ function buildActivityPostDetailHTML(activity, activityId, collection = 'activit
 }
 
 function focusFeedReplyInput() {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   const input = document.getElementById('feed-reply-input');
   const scroller = document.getElementById('feed-post-scroll-content') || document.querySelector('#feed-post-page .overlay-page-content');
   const keepScrollTop = scroller ? scroller.scrollTop : 0;
@@ -3322,6 +3515,7 @@ function initReplyComposer() {
 }
 
 async function submitFeedReply() {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   const input = document.getElementById('feed-reply-input');
   const btn = document.getElementById('feed-reply-btn');
   
@@ -3486,7 +3680,37 @@ function renderActivityEpisodeRatingCompact(ratingValue = 0) {
   </div>`;
 }
 
+function getScreenListActivityEpisodeDisplayCode(item = {}) {
+  const season = String(item?.lastEpisodeActivitySeason || item?.lastEpisodeRatingSeason || '').trim();
+  const episode = String(item?.lastEpisodeActivityNum || item?.lastEpisodeRatingNum || '').trim();
+  if (season && episode) return `S${season} E${episode}`;
+  if (episode) return `Episode ${episode}`;
+  return '';
+}
+
+function getScreenListActivityDisplayTitle(eventType = '', item = {}, activity = {}, fallbackTitle = '') {
+  if (activity?.stackDisplayTitle) return activity.stackDisplayTitle;
+  const title = fallbackTitle || item.title || item.name || 'Untitled';
+  const section = item.librarySection || item.mediaCategory || '';
+  const status = String(activity.nextStatus || item.status || '').toLowerCase();
+  const hadEpisodeWatch = !!(activity?.mergedHadEpisodeWatch || item?.lastEpisodeActivityAt);
+  if ((eventType === 'episode-watched' || eventType === 'episode-rated' || (eventType === 'rated' && hadEpisodeWatch)) && (section === 'shows' || section === 'anime')) {
+    const epCode = getScreenListActivityEpisodeDisplayCode(item);
+    return epCode ? `${epCode} - ${title}` : title;
+  }
+  if (eventType === 'season-rated') {
+    const seasonNum = Number(activity?.seasonNum || item?.lastSeasonRatingNum || 0);
+    return seasonNum > 0 ? `${title} Season ${seasonNum}` : title;
+  }
+  if (eventType === 'season-finished' || ((eventType === 'completed' || eventType === 'status-changed' || eventType === 'added') && status === 'watched' && (section === 'shows' || section === 'anime'))) {
+    const seasonNum = Number(activity?.seasonNum || item?.lastSeasonFinishedNum || 0);
+    return seasonNum > 0 ? `${title} Season ${seasonNum}` : title;
+  }
+  return title;
+}
+
 function getActivityDisplayAction(eventType = '', item = {}, activity = {}) {
+  if (activity?.stackDisplayAction) return activity.stackDisplayAction;
   const section = item.librarySection || item.mediaCategory || '';
   const status = String(activity.nextStatus || item.status || '').toLowerCase();
   const isGame = section === 'games';
@@ -3514,23 +3738,21 @@ function getActivityDisplayAction(eventType = '', item = {}, activity = {}) {
      consistent. */
   const hadEpisodeWatch = !!(activity?.mergedHadEpisodeWatch || item?.lastEpisodeActivityAt);
   if ((eventType === 'episode-rated' || (eventType === 'rated' && hadEpisodeWatch)) && (hadEpisodeWatch || epNum)) {
-    return epNum ? `Watched Episode ${epNum}` : 'Watched an episode';
+    return hadEpisodeWatch ? 'watched' : 'rated';
   }
   if (eventType === 'episode-watched') {
-    return epNum ? `Watched Episode ${epNum}` : 'Watched an episode';
+    return 'watched';
   }
-  if (eventType === 'episode-rated') return 'Rated an episode';
+  if (eventType === 'episode-rated') return 'rated';
 
   if (eventType === 'season-rated') {
-    const num = Number(activity?.seasonNum || item?.lastSeasonRatingNum || 0);
-    return num > 0 ? `Rated Season ${num}` : 'Rated a season';
+    return 'rated';
   }
 
   /* v728: season-finished ALWAYS reads "Finished Season X" — even Season 1,
      even when this is the latest/final season. Drop the "watching" word. */
   if (eventType === 'season-finished') {
-    const num = Number(activity?.seasonNum || item?.lastSeasonFinishedNum || 0);
-    return num > 0 ? `Finished Season ${num}` : 'Finished a season';
+    return 'finished watching';
   }
 
   /* v728/v729: completion verb.
@@ -3550,35 +3772,18 @@ function getActivityDisplayAction(eventType = '', item = {}, activity = {}) {
   if (isCompletionEvent) {
     if (isGame) return 'played';
     if (isMovie) return 'watched';
-    if (isShowOrAnime) {
-      const explicitNum = Number(item?.lastSeasonFinishedNum || 0);
-      if (explicitNum > 0) return `Finished Season ${explicitNum}`;
-      /* Fall back to the highest fully-watched season on the item so legacy
-         records still get a season-numbered card instead of "completed". */
-      if (Array.isArray(item?.episodes) && item.episodes.length) {
-        const seasonMap = new Map();
-        for (const ep of item.episodes) {
-          const sn = String(ep?.seasonNum || '').trim();
-          if (!sn) continue;
-          if (!seasonMap.has(sn)) seasonMap.set(sn, { total: 0, watched: 0 });
-          const s = seasonMap.get(sn);
-          s.total += 1;
-          if (ep?.watched) s.watched += 1;
-        }
-        const completed = [...seasonMap.entries()]
-          .filter(([_, s]) => s.total > 0 && s.watched === s.total)
-          .map(([sn]) => Number(sn))
-          .sort((a, b) => b - a);
-        if (completed.length) return `Finished Season ${completed[0]}`;
-      }
-      return 'Finished a season';
-    }
+    if (isShowOrAnime) return 'finished watching';
   }
 
   if (eventType === 'import-batch' || activity.type === 'import-batch') return 'imported titles';
   /* v728: capitalise "Rated" so it lines up with the new card metadata format */
-  if (eventType === 'rated') return 'Rated';
+  if (eventType === 'rated') return 'rated';
   if (eventType === 'commented' || activity.type === 'comment') return 'commented';
+  if (eventType === 'added' && status === 'watched') {
+    if (isGame) return 'played';
+    if (isMovie) return 'watched';
+    if (isShowOrAnime) return 'finished watching';
+  }
   if (status === 'watching' || eventType === 'started') return isGame ? 'playing' : 'watching';
   if (status === 'planned' || eventType === 'planned') return isGame ? 'added to Backlog' : 'added to Watchlist';
   if (status === 'paused' || eventType === 'paused') return 'paused';
@@ -3746,6 +3951,8 @@ function buildStackedActivityCardHTML(a = {}, activityId = '', options = {}) {
   const isExpanded = screenListExpandedInlineActivityStacks.has(String(activityId || ''));
   const hiddenItems = items.slice(1);
   const stackPosterDeckHtml = buildStackedActivityPosterDeckHTML(items, activityId);
+  if (a.stackDisplayAction) primary.stackDisplayAction = a.stackDisplayAction;
+  if (a.stackDisplayTitle) primary.stackDisplayTitle = a.stackDisplayTitle;
   let html = buildActivityCardHTML(primary, activityId, {
     ...options,
     renderStackPrimary: true,
@@ -3801,6 +4008,7 @@ function buildActivityCardHTML(a, activityId, options = {}) {
   const meta = ACTIVITY_TYPE_META[eventType] || ACTIVITY_TYPE_META.added;
   const timeStr = relativeTime(a.timestamp || item.dateModified || item.dateAdded || item.updatedAt || item.createdAt);
   const title = item.title || item.name || 'Untitled';
+  const displayTitle = getScreenListActivityDisplayTitle(eventType, item, a, title);
   const activityAction = getActivityDisplayAction(eventType, item, a);
 
   const avatarSrc = actor.photo || a.photo || '';
@@ -3843,7 +4051,7 @@ function buildActivityCardHTML(a, activityId, options = {}) {
   let ratingHtml;
   if (isEpisodeRatingCard && epRating > 0) {
     ratingHtml = renderActivityEpisodeRatingCompact(epRating);
-  } else if (a.eventType === 'season-rated') {
+  } else if (a.eventType === 'season-rated' || a.mergedHadSeasonRating) {
     const seasonVal = Number(a.seasonRatingValue || item.lastSeasonRatingValue || 0);
     ratingHtml = renderActivityUniversalRating(seasonVal);
   } else {
@@ -3864,9 +4072,10 @@ function buildActivityCardHTML(a, activityId, options = {}) {
       <button class="sl-activity-action-btn activity-interaction-btn" data-activity-action="delete" onclick="event.stopPropagation(); openScreenListDeletePostPrompt('${escAttr(activityId)}','activities')" aria-label="Delete activity">
         ${getScreenListTrashIconSvg()}
       </button>` : '';
-  /* v868: temporarily disable the visible + note action for all users in the
-     Activity feed without removing the underlying note function. */
-  const noteHtml = '';
+  const noteHtml = canCurrentUserNoteActivity(a) ? `
+      <button class="sl-activity-action-btn activity-interaction-btn" data-activity-action="note" onclick="event.stopPropagation(); openScreenListActivityNoteComposer('${escAttr(activityId)}')" aria-label="Add note to activity">
+        ${getScreenListPlusIconSvg()}
+      </button>` : '';
   const interactionsHtml = options.hideInteractions ? '' : `
     <div class="sl-activity-actions activity-interactions" data-activity-interactions>
       ${stackExtraHtml}
@@ -3898,8 +4107,9 @@ function buildActivityCardHTML(a, activityId, options = {}) {
       <div class="sl-activity-copy-zone">
         <div class="sl-activity-meta-row">${nameLine}<span class="sl-activity-dot">·</span><time class="sl-activity-time">${escHtml(timeStr)}</time></div>
         <div class="sl-activity-action-line">
-          <span class="sl-activity-action-verb">${escHtml(actionVerb)}</span>
-          <button class="sl-activity-title" type="button" onclick="event.stopPropagation(); handleActivityMediaClick('${escAttr(activityId)}', this)">${escHtml(title)}</button>
+          <button class="sl-activity-headline sl-activity-title" type="button" onclick="event.stopPropagation(); handleActivityMediaClick('${escAttr(activityId)}', this)">
+            <span class="sl-activity-action-verb">${escHtml(actionVerb)}</span> <span class="sl-activity-title-text">${escHtml(displayTitle)}</span>
+          </button>
           ${actionDetail ? `<span class="sl-activity-action-detail">${escHtml(actionDetail)}</span>` : ''}
         </div>
         ${ratingHtml}
@@ -3986,9 +4196,10 @@ function renderFriendActivityItems(feed, activities, options = {}) {
     const ts = activity.timestamp || activity.item?.dateAdded;
     const group = useUserActivityGroups ? getUserActivityTimeGroup(ts) : getActivityTimeGroup(ts);
     const id = getStableActivityDocId(activity, `activity-${index}`);
-    friendActivityClickTargets[id] = activity;
+    const renderedActivity = { ...activity, renderedActivityId: id };
+    friendActivityClickTargets[id] = renderedActivity;
     if (!groups[group]) groups[group] = [];
-    groups[group].push({ activity, id });
+    groups[group].push({ activity: renderedActivity, id });
   });
 
   const storiesHtml = options.hideStories ? '' : buildActivityStoriesHTML(activities);
@@ -4377,6 +4588,189 @@ function cloneFriendActivityList(activities = []) {
   }));
 }
 
+async function fetchShelfdGuestCreatorActivities(dayLimit = 7) {
+  const context = typeof loadShelfdGuestCreatorContext === 'function'
+    ? await loadShelfdGuestCreatorContext()
+    : { creator: usersMap[CREATOR_PUBLIC_UID] || { uid: CREATOR_PUBLIC_UID, name: CREATOR_DEFAULT_NAME, photo: '' }, listData: getEmptyListData() };
+  const creator = context.creator || { uid: CREATOR_PUBLIC_UID, name: CREATOR_DEFAULT_NAME, photo: '' };
+  const listData = normalizeListData(context.listData || getEmptyListData());
+  usersMap[CREATOR_PUBLIC_UID] = { ...(usersMap[CREATOR_PUBLIC_UID] || {}), ...creator };
+
+  const cutoffIso = dayLimit ? new Date(Date.now() - dayLimit * 24 * 60 * 60 * 1000).toISOString() : null;
+  const cutoffTime = cutoffIso ? parseFriendActivityTime(cutoffIso) : 0;
+  const activities = [];
+  const mediaMap = new Map();
+  const uid = CREATOR_PUBLIC_UID;
+
+  function withinWindow(value) {
+    if (!cutoffTime) return true;
+    const time = parseFriendActivityTime(value);
+    return !!time && time >= cutoffTime;
+  }
+
+  function pushActivity(activity) {
+    const timestamp = activity.timestamp || activity.item?.dateAdded || '';
+    if (!withinWindow(timestamp)) return;
+    activities.push({
+      uid,
+      name: creator.name || CREATOR_DEFAULT_NAME,
+      photo: creator.photo || creator.customPhoto || '',
+      ...activity
+    });
+  }
+
+  function processCreatorItems(sectionItems = [], section = '') {
+    sectionItems.forEach(item => {
+      if (!item?.title) return;
+      const enriched = { ...item, librarySection: section, mediaCategory: section };
+      const mediaKey = getMediaKey(enriched);
+      if (mediaKey && !mediaMap.has(mediaKey)) mediaMap.set(mediaKey, { title: item.title, cover: item.cover || '', section });
+
+      const addedAt = item.dateAdded || '';
+      const modifiedAt = item.dateModified || '';
+      const episodeActivityAt = item.lastEpisodeActivityAt || item.episodeActivityAt || '';
+      const hasRating = Number(item.rating || 0) > 0;
+      const showRatingAt = item.lastShowRatingAt || '';
+      const seasonFinishedAt = item.lastSeasonFinishedAt || '';
+      const seasonFinishedNum = String(item.lastSeasonFinishedNum || '').trim();
+      const seasonRatingAt = item.lastSeasonRatingAt || '';
+      const seasonRatingNum = String(item.lastSeasonRatingNum || '').trim();
+      const seasonRatingValue = Number(item.lastSeasonRatingValue || 0);
+      const epRatingAt = item.lastEpisodeRatingAt || '';
+      const epRatingValue = Number(item.lastEpisodeRatingValue || 0);
+
+      if (addedAt) {
+        pushActivity({ item: enriched, timestamp: addedAt, eventType: 'added', mediaKey });
+      }
+      if (episodeActivityAt) {
+        pushActivity({
+          item: enriched,
+          timestamp: episodeActivityAt,
+          eventType: 'episode-watched',
+          mediaKey,
+          eventKey: [uid, 'episode-watched', mediaKey, episodeActivityAt].join('|')
+        });
+      }
+      if (seasonFinishedAt && seasonFinishedNum) {
+        pushActivity({
+          item: enriched,
+          timestamp: seasonFinishedAt,
+          eventType: 'season-finished',
+          mediaKey,
+          seasonNum: seasonFinishedNum,
+          eventKey: [uid, 'season-finished', mediaKey, seasonFinishedNum, seasonFinishedAt].join('|')
+        });
+      }
+      if (seasonRatingAt && seasonRatingNum && seasonRatingValue > 0) {
+        pushActivity({
+          item: enriched,
+          timestamp: seasonRatingAt,
+          eventType: 'season-rated',
+          mediaKey,
+          seasonNum: seasonRatingNum,
+          seasonRatingValue,
+          eventKey: [uid, 'season-rated', mediaKey, seasonRatingNum, seasonRatingAt].join('|')
+        });
+      }
+      if (epRatingAt && epRatingValue > 0) {
+        pushActivity({
+          item: enriched,
+          timestamp: epRatingAt,
+          eventType: 'episode-rated',
+          mediaKey,
+          eventKey: [uid, 'episode-rated', mediaKey, epRatingAt].join('|')
+        });
+      }
+      if ((showRatingAt || modifiedAt) && hasRating) {
+        const ratingAt = showRatingAt || modifiedAt;
+        pushActivity({
+          item: enriched,
+          timestamp: ratingAt,
+          eventType: 'rated',
+          mediaKey,
+          eventKey: [uid, 'rated', mediaKey, ratingAt].join('|')
+        });
+      }
+
+      const modTime = parseFriendActivityTime(modifiedAt);
+      const addedTime = parseFriendActivityTime(addedAt);
+      const ratingTime = parseFriendActivityTime(showRatingAt || '');
+      const modIsDistinct = modifiedAt && modifiedAt !== addedAt && (!addedTime || (modTime - addedTime) > 5 * 60 * 1000);
+      const modIsRating = ratingTime && Math.abs(modTime - ratingTime) <= 60 * 1000;
+      if (modIsDistinct && !modIsRating && ['watched', 'watching', 'planned', 'paused', 'dropped', 'live', 'wishlist'].includes(item.status)) {
+        pushActivity({
+          item: enriched,
+          timestamp: modifiedAt,
+          eventType: 'status-changed',
+          nextStatus: item.status,
+          mediaKey
+        });
+      }
+    });
+  }
+
+  for (const section of SCREENLIST_SECTIONS) {
+    processCreatorItems(Array.isArray(listData[section]) ? listData[section] : [], section);
+  }
+
+  await Promise.all(Array.from(mediaMap.entries()).map(async ([mediaKey, media]) => {
+    try {
+      const snap = await db.collection('comments').doc(mediaKey).get();
+      if (!snap.exists) return;
+      const comments = Array.isArray(snap.data().comments) ? snap.data().comments : [];
+      comments.forEach(comment => {
+        if (comment.uid !== CREATOR_PUBLIC_UID) return;
+        const commentTime = parseFriendActivityTime(comment.timestamp || Date.now()) || Date.now();
+        if (!withinWindow(commentTime)) return;
+        activities.push({
+          type: 'comment',
+          uid,
+          name: creator.name || comment.name || CREATOR_DEFAULT_NAME,
+          photo: creator.photo || comment.photo || '',
+          item: { title: media.title, cover: media.cover, dateAdded: new Date(commentTime).toISOString(), librarySection: media.section, mediaCategory: media.section },
+          mediaKey,
+          commentId: comment.id,
+          commentText: comment.text || comment.body || comment.comment || '',
+          timestamp: commentTime
+        });
+      });
+    } catch (e) {}
+  }));
+
+  try {
+    const snapshot = await db.collection('feed')
+      .where('uid', '==', CREATOR_PUBLIC_UID)
+      .orderBy('timestamp', 'desc')
+      .limit(50)
+      .get();
+    snapshot.forEach(doc => {
+      const post = { ...doc.data(), id: doc.id };
+      const postTime = parseFriendActivityTime(post.timestamp || Date.now()) || Date.now();
+      if (!withinWindow(postTime)) return;
+      activities.push({
+        ...post,
+        timestamp: postTime,
+        eventKey: `feed:${post.postId || post.id}`
+      });
+    });
+  } catch (e) {
+    console.warn('[shelfd-guest] creator feed posts unavailable:', e);
+  }
+
+  const deduped = new Map();
+  activities.forEach(activity => {
+    const eventKey = activity.eventKey || buildFriendActivityEventKey(activity);
+    deduped.set(eventKey, {
+      ...activity,
+      eventKey,
+      item: cloneFriendActivityItem(activity.item)
+    });
+  });
+  return collapseStackedActivityBurstActivities(collapseImportBatchActivities(mergeRelatedLibraryActivities([...deduped.values()])))
+    .filter(activity => !isScreenListActivityDeletedForOwner(activity, activity.eventKey || activity.id || activity.activityId || ''))
+    .sort((a, b) => new Date(b.timestamp || b.item?.dateAdded || 0) - new Date(a.timestamp || a.item?.dateAdded || 0));
+}
+
 function getFreshFriendActivityCache(dayLimit = 7) {
   const cacheKey = getFriendActivityCacheKey(dayLimit);
   const now = Date.now();
@@ -4407,6 +4801,11 @@ async function fetchAllFriendActivities(dayLimit = 7) {
     }).filter(Boolean);
     friendActivityCache = { key: cacheKey, timestamp: Date.now(), activities: previewActivities };
     return cloneFriendActivityList(previewActivities);
+  }
+  if (typeof isShelfdGuestBrowsing === 'function' && isShelfdGuestBrowsing() && !currentUser) {
+    const guestActivities = await fetchShelfdGuestCreatorActivities(dayLimit);
+    friendActivityCache = { key: cacheKey, timestamp: Date.now(), activities: guestActivities };
+    return cloneFriendActivityList(guestActivities);
   }
   if (!currentUser) {
     friendActivityCache = { key: cacheKey, timestamp: Date.now(), activities: [] };
@@ -4596,6 +4995,9 @@ async function fetchAllFriendActivities(dayLimit = 7) {
   const ownName = (typeof userProfile !== 'undefined' && userProfile?.name) || currentUser.displayName || 'You';
   const ownPhoto = (typeof userProfile !== 'undefined' && userProfile?.photo) || currentUser.photoURL || '';
   if (!usersMap[currentUser.uid]) usersMap[currentUser.uid] = { uid: currentUser.uid, name: ownName, photo: ownPhoto };
+  if (userProfile?.[SCREENLIST_ACTIVITY_NOTES_FIELD]) {
+    usersMap[currentUser.uid][SCREENLIST_ACTIVITY_NOTES_FIELD] = userProfile[SCREENLIST_ACTIVITY_NOTES_FIELD];
+  }
   if (typeof data !== 'undefined' && data) {
     for (const section of SCREENLIST_SECTIONS) {
       let ownItems = [];

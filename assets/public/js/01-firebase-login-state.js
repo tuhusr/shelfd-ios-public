@@ -212,3 +212,211 @@ const CREATIVE_TEAM_DISPLAY_NAMES = new Set(['z money']);
 const CREATIVE_TEAM_UIDS = new Set(['xHu4YAzC2EVUTq1XWJM3BCJEgTw1']);
 let commentsViewState = null;
 let creatorSearchUserCache = null;
+
+let shelfdGuestBrowsing = false;
+const SHELFD_GUEST_SESSION_KEY = 'shelfd-guest-browsing-v1';
+
+function isShelfdGuestBrowsing() {
+  return shelfdGuestBrowsing === true || !!document.body?.classList.contains('guest-browsing-mode');
+}
+
+function shouldRestoreShelfdGuestBrowsing() {
+  try {
+    return sessionStorage.getItem(SHELFD_GUEST_SESSION_KEY) === '1';
+  } catch (e) {
+    return false;
+  }
+}
+
+function setShelfdGuestBrowsing(active, options = {}) {
+  shelfdGuestBrowsing = !!active;
+  if (document.body) {
+    document.body.classList.toggle('guest-browsing-mode', !!active);
+    if (!active) document.body.classList.remove('guest-auth-modal-open');
+  }
+  try {
+    if (active && options.persist !== false) sessionStorage.setItem(SHELFD_GUEST_SESSION_KEY, '1');
+    if (!active || options.persist === false) sessionStorage.removeItem(SHELFD_GUEST_SESSION_KEY);
+  } catch (e) {}
+}
+
+function ensureShelfdGuestAuthModal() {
+  let modal = document.getElementById('shelfd-guest-auth-modal');
+  if (modal) return modal;
+  if (!document.body) return null;
+
+  modal = document.createElement('div');
+  modal.id = 'shelfd-guest-auth-modal';
+  modal.className = 'shelfd-guest-auth-modal';
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.setAttribute('aria-labelledby', 'shelfd-guest-auth-title');
+  modal.hidden = true;
+  modal.innerHTML = `
+    <button class="shelfd-guest-auth-card" type="button">
+      <span id="shelfd-guest-auth-title">Sign-in required</span>
+      <small>Go back to sign in</small>
+    </button>
+  `;
+  modal.addEventListener('click', returnShelfdGuestToLanding);
+  document.body.appendChild(modal);
+  return modal;
+}
+
+function openShelfdGuestAuthModal(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  if (typeof event?.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+  const modal = ensureShelfdGuestAuthModal();
+  if (!modal) return false;
+  modal.hidden = false;
+  document.body?.classList.add('guest-auth-modal-open');
+  requestAnimationFrame(() => modal.classList.add('is-open'));
+  return false;
+}
+
+function closeShelfdGuestAuthModal() {
+  const modal = document.getElementById('shelfd-guest-auth-modal');
+  if (!modal) return;
+  modal.classList.remove('is-open');
+  document.body?.classList.remove('guest-auth-modal-open');
+  window.setTimeout(() => {
+    if (!modal.classList.contains('is-open')) modal.hidden = true;
+  }, 180);
+}
+
+function returnShelfdGuestToLanding() {
+  closeShelfdGuestAuthModal();
+  setShelfdGuestBrowsing(false, { persist: false });
+  currentUser = null;
+  DOC_REF = null;
+  myData = null;
+  ownDataCache = null;
+  viewingUser = null;
+  friendViewData = null;
+  profileViewingUser = null;
+  profileViewingProfile = null;
+  profileViewingData = null;
+  if (typeof stopFriendsDataListener === 'function') stopFriendsDataListener();
+  if (typeof stopWatchTogetherListener === 'function') stopWatchTogetherListener();
+  if (typeof resetFriendsDataState === 'function') resetFriendsDataState();
+  if (typeof showLandingPage === 'function') showLandingPage();
+}
+
+function requireShelfdSignedInAction(event) {
+  if (currentUser) return true;
+  if (isShelfdGuestBrowsing()) return openShelfdGuestAuthModal(event);
+  return false;
+}
+
+const SHELFD_GUEST_WRITE_SELECTOR = [
+  '#header-add-quick-btn',
+  '#add-btn',
+  '#empty-cta',
+  '#mylist-header-cog',
+  '.header-import-btn',
+  '.edit-profile-btn',
+  '.mobile-edit-profile-btn',
+  '.logout-btn',
+  '.header-dm-btn',
+  '#header-dm-btn',
+  '.discover-add-btn',
+  '.discover-status-btn',
+  '.discover-media-add-floating',
+  '.discover-media-library-choice',
+  '.discover-media-library-skip',
+  '.sas-status-btn',
+  '.modal-status-btn',
+  '.modal-status-confirm-submit',
+  '.friend-card-add-btn',
+  '.friend-add-btn',
+  '.friend-remove-btn',
+  '.friend-accept-btn',
+  '.friend-pending-btn',
+  '.friend-message-btn',
+  '.friend-list-dm-btn',
+  '.friend-mobile-remove-x',
+  '#ftab-requests',
+  '#ftab-add-friend',
+  '.request-subtab',
+  '.feed-composer-action-btn',
+  '.feed-composer-post-btn',
+  '.feed-composer-remove-trailer',
+  '.x-post-action-btn',
+  '.sl-activity-action-btn',
+  '.card-comment-add-btn',
+  '.game-card-comment-post-btn',
+  '.comments-submit',
+  '.comments-input-submit',
+  '#feed-reply-input',
+  '#feed-composer-input',
+  '#comment-input',
+  '#comment-textarea',
+  '.comments-input',
+  '.delete-btn',
+  '.status-pill',
+  '.game-status-current-pill',
+  '.game-status-options button',
+  '.ep-check',
+  '.ep-rating-btn',
+  '.star-btn',
+  '[data-mylist-action]',
+  '[data-game-details-save]',
+  '.game-details-save-btn',
+  '.game-details-cancel-btn',
+  '.game-card-edit-btn',
+  '.game-card-cover-btn',
+  '.screenlist-game-cover-choice',
+  '.profile-settings-btn',
+  '.profile-save-btn',
+  '.profile-rating-option input',
+  '.mylist-settings-action-btn',
+  '.mylist-delete-category-btn',
+  '.mylist-vis-toggle',
+  '#feed-reply-btn',
+  '.feed-reply-inline-reply'
+].join(',');
+
+function getShelfdGuestBlockedWriteTarget(target) {
+  if (!target || typeof target.closest !== 'function') return null;
+  const activityAction = target.closest('[data-activity-action]');
+  if (activityAction) {
+    const action = String(activityAction.dataset.activityAction || '').trim();
+    if (action === 'stack' || action === 'reply') return null;
+    return activityAction;
+  }
+  if (target.closest('.activity-feed-load-more-btn')) return null;
+  return target.closest(SHELFD_GUEST_WRITE_SELECTOR);
+}
+
+function initShelfdGuestWriteGuard() {
+  if (window.__shelfdGuestWriteGuardReady) return;
+  window.__shelfdGuestWriteGuardReady = true;
+
+  document.addEventListener('click', event => {
+    if (!isShelfdGuestBrowsing() || currentUser) return;
+    const blocked = getShelfdGuestBlockedWriteTarget(event.target);
+    if (!blocked) return;
+    openShelfdGuestAuthModal(event);
+  }, true);
+
+  document.addEventListener('submit', event => {
+    if (!isShelfdGuestBrowsing() || currentUser) return;
+    const form = event.target;
+    if (form?.closest?.('#login-screen')) return;
+    openShelfdGuestAuthModal(event);
+  }, true);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initShelfdGuestWriteGuard, { once: true });
+} else {
+  initShelfdGuestWriteGuard();
+}
+
+window.isShelfdGuestBrowsing = isShelfdGuestBrowsing;
+window.shouldRestoreShelfdGuestBrowsing = shouldRestoreShelfdGuestBrowsing;
+window.setShelfdGuestBrowsing = setShelfdGuestBrowsing;
+window.openShelfdGuestAuthModal = openShelfdGuestAuthModal;
+window.returnShelfdGuestToLanding = returnShelfdGuestToLanding;
+window.requireShelfdSignedInAction = requireShelfdSignedInAction;

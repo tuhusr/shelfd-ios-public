@@ -75,9 +75,17 @@ function transitionDiscoveryHub(previousHub, nextHub) {
 function loadActiveDiscoveryHub(force = false) {
   initDiscoverCategoryTitleLinks();
   syncDiscoveryHubButtons();
-  if (activeDiscoveryHub === 'gaming') return loadGamesDiscover(force);
-  if (activeDiscoveryHub === 'anime') return loadAnimeDiscover(force);
-  return loadDiscover(force);
+  let loadPromise;
+  if (activeDiscoveryHub === 'gaming') loadPromise = loadGamesDiscover(force);
+  else if (activeDiscoveryHub === 'anime') loadPromise = loadAnimeDiscover(force);
+  else loadPromise = loadDiscover(force);
+  if (!force && typeof scheduleDiscoverHubPrewarm === 'function') {
+    Promise.resolve(loadPromise).then(() => {
+      if (document.hidden || getActiveMainTab() !== 'discover') return;
+      scheduleDiscoverHubPrewarm(activeDiscoveryHub);
+    }).catch(() => {});
+  }
+  return loadPromise;
 }
 
 (function initDiscoverAutoRefreshTimer() {
@@ -629,6 +637,13 @@ async function switchMainNav(tab) {
   if (isDirectMessagesPageOpen()) closeDirectMessagesPage(true);
   const currentTab = getActiveMainTab();
   if (mainNavSwitching) return;
+  if (typeof isShelfdGuestBrowsing === 'function' && isShelfdGuestBrowsing() && normalizedTab === 'mylist') {
+    if (typeof openGuestCreatorListsView === 'function') {
+      await openGuestCreatorListsView({ returnTab: currentTab && currentTab !== 'mylist' ? currentTab : 'discover' });
+      persistUiState();
+      return;
+    }
+  }
   if (viewingUser) {
     await backToMyList(normalizedTab);
     return;

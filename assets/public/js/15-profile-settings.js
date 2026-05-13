@@ -332,6 +332,7 @@ function renderMyListSettingsInner() {
 }
 
 function openMyListSettingsModal(triggerEl) {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   if (document.getElementById('mylist-settings-modal')) {
     closeMyListSettingsModal();
     return;
@@ -826,6 +827,9 @@ function normalizeSocialLinks(raw) {
 function normalizeUserProfile(raw = {}) {
   const useCurrentUserFallback = !raw || !Object.keys(raw).length || (raw.uid && currentUser && raw.uid === currentUser.uid);
   const baseName = raw.name || raw.customName || (useCurrentUserFallback ? (currentUser?.displayName) : '') || 'ScreenList User';
+  const shelfdActivityNotes = raw.shelfdActivityNotes && typeof raw.shelfdActivityNotes === 'object' && !Array.isArray(raw.shelfdActivityNotes)
+    ? raw.shelfdActivityNotes
+    : {};
   return {
     name: baseName,
     photo: raw.photo || raw.customPhoto || (useCurrentUserFallback ? (currentUser?.photoURL) : '') || '',
@@ -845,6 +849,7 @@ function normalizeUserProfile(raw = {}) {
     showcaseFavorites: normalizeShowcaseFavorites(raw.showcaseFavorites || raw.manualFavorites),
     uid: raw.uid || currentUser?.uid || 'preview-user',
     emailLower: raw.emailLower || raw.accountEmailLower || (useCurrentUserFallback ? normalizeEmail(currentUser?.email) : ''),
+    shelfdActivityNotes,
     friends: Array.isArray(raw.friends) ? raw.friends.filter(Boolean) : [],
     following: Array.isArray(raw.following) ? raw.following.filter(Boolean) : [],
     followers: Array.isArray(raw.followers) ? raw.followers.filter(Boolean) : [],
@@ -2602,6 +2607,7 @@ async function saveProfileSettingsPatch(patch = {}) {
 }
 
 async function handleThemeModeChange(mode) {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   if (isViewingOtherProfile()) return;
   /* v812/v813: applyThemeMode runs the value through resolveActiveThemeMode,
      so any legacy-handler call (e.g. a stale onclick still bound to
@@ -2620,6 +2626,7 @@ async function handleThemeModeChange(mode) {
 }
 
 async function handleAnimeTitlePreferenceChange(mode) {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   if (isViewingOtherProfile()) return;
   const normalized = normalizeAnimeTitleDisplayMode(mode);
   const english = document.getElementById('anime-title-pref-english');
@@ -2633,6 +2640,7 @@ async function handleAnimeTitlePreferenceChange(mode) {
 }
 
 async function handleRatingPreferenceChange(scope, mode) {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   if (isViewingOtherProfile()) return;
   const normalizedScope = scope === 'games' ? 'games' : 'media';
   const normalizedMode = mode === 'five' ? 'five' : 'ten';
@@ -2989,6 +2997,7 @@ function openProfilePageShell() {
 }
 
 function openProfile() {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   profileViewingUser = null;
   profileViewingProfile = null;
   profileViewingData = null;
@@ -3000,6 +3009,7 @@ function openProfile() {
 }
 
 function openProfileEditMode() {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   if (isViewingOtherProfile()) return;
   profileEditModeOpen = true;
   const profilePage = document.getElementById('profile-page');
@@ -3017,6 +3027,7 @@ function openProfileEditMode() {
 }
 
 function openProfileSettingsFocus() {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   if (isViewingOtherProfile()) return;
   profileSettingsOpen = true;
   renderProfilePage();
@@ -3052,6 +3063,10 @@ async function openProfileListsView() {
 
   if (landingPublicProfileActive && !currentUser && targetUser.uid === CREATOR_PUBLIC_UID) {
     await openSignedOutCreatorListsView(targetUser);
+    return;
+  }
+  if (typeof isShelfdGuestBrowsing === 'function' && isShelfdGuestBrowsing() && !currentUser && targetUser.uid === CREATOR_PUBLIC_UID) {
+    await openGuestCreatorListsView({ returnTab: profileReturnTab || 'community' });
     return;
   }
 
@@ -3146,6 +3161,31 @@ function bindProfilePageSwipeBack(profilePage = document.getElementById('profile
 }
 
 function closeProfile() {
+  if (typeof isShelfdGuestBrowsing === 'function' && isShelfdGuestBrowsing() && !currentUser) {
+    const returnTab = profileReturnTab || 'discover';
+    profileSettingsOpen = false;
+    profileViewingUser = null;
+    profileViewingProfile = null;
+    profileViewingData = null;
+    document.body.classList.remove('own-profile-active', 'profile-active');
+    setBottomNavVisibility(true);
+    if (returnTab === 'mylist') {
+      if (typeof openGuestCreatorListsView === 'function') openGuestCreatorListsView({ returnTab: 'discover' });
+      return;
+    }
+    syncMainNavButtons(returnTab);
+    setMainNavVisibility(returnTab);
+    if (returnTab === 'community') {
+      loadCommunity(true);
+      loadFriendActivity();
+    }
+    if (returnTab === 'discover' || returnTab === 'games-discover') {
+      if (returnTab === 'games-discover') activeDiscoveryHub = 'gaming';
+      loadActiveDiscoveryHub();
+    }
+    window.scrollTo({ top: 0, behavior: 'auto' });
+    return;
+  }
   if (landingPublicProfileActive || !currentUser) {
     profileSettingsOpen = false;
     profileViewingUser = null;

@@ -81,6 +81,18 @@ async function renderDiscoverCachedRow({ cacheKey, fetcher, render, force = fals
   render(data);
 }
 
+async function runDiscoverSectionsInParallel(sections = []) {
+  const results = await Promise.allSettled((sections || []).map(section => Promise.resolve().then(() => section.run())));
+  results.forEach((result, index) => {
+    if (result.status === 'fulfilled') return;
+    const section = sections[index] || {};
+    console.error(`Discover row failed: ${section.label || section.gridId || 'unknown section'}`, result.reason);
+    if (section.gridId) {
+      renderDiscoverGridError(section.gridId, `${section.label || 'This discovery row'} could not load. It will try again automatically later.`);
+    }
+  });
+}
+
 async function fetchDiscoverMediaRank(section, fallbackFetcher = null) {
   const res = await fetch(`/api/rank/media?section=${encodeURIComponent(section)}&period=week`, { cache: 'no-store' });
   let payload = null;
@@ -297,14 +309,7 @@ async function loadDiscover(force = false) {
       }
     ];
 
-    for (const section of sections) {
-      try {
-        await section.run();
-      } catch (e) {
-        console.error(`Discover row failed: ${section.label}`, e);
-        renderDiscoverGridError(section.gridId, `${section.label} could not load. It will try again automatically later.`);
-      }
-    }
+    await runDiscoverSectionsInParallel(sections);
 
     discoverLoaded = true;
     discoverLoadedAt = Date.now();
@@ -3462,6 +3467,22 @@ function getTmdbImageUrl(path, size = 'w780') {
   if (!value) return '';
   if (/^https?:\/\//i.test(value)) return value;
   return `https://image.tmdb.org/t/p/${size}${value.startsWith('/') ? value : `/${value}`}`;
+}
+
+function isDiscoverMovieTvTitleCardGrid(gridId = '', itemType = '') {
+  const type = String(itemType || '').toLowerCase();
+  if (type !== 'movie' && type !== 'tv') return false;
+  const sourceGridId = String(
+    gridId === 'discover-category-full-grid'
+      ? (discoverCategoryFullState?.gridId || document.getElementById(gridId)?.dataset?.sourceGridId || '')
+      : gridId
+  );
+  return sourceGridId.startsWith('discover-movie-') || sourceGridId.startsWith('discover-tv-');
+}
+
+function getDiscoverTitleCardPosterUrl(item = {}, itemType = '', gridId = '') {
+  const posterSize = isDiscoverMovieTvTitleCardGrid(gridId, itemType) ? 'original' : 'w342';
+  return getTmdbImageUrl(item.poster_path, posterSize);
 }
 
 function getDiscoverMediaPoster(item) {
@@ -6645,7 +6666,7 @@ function renderDiscoverCards(type, items, gridId) {
     const title = item.title || item.name || '';
     const genreLine = getDiscoverGenreNames(item, itemType).slice(0, 2).join(' · ');
     /* v654: getTmdbImageUrl handles full https URLs (Jikan-sourced) and TMDB paths. */
-    const poster = getTmdbImageUrl(item.poster_path, 'w342');
+    const poster = getDiscoverTitleCardPosterUrl(item, itemType, resolvedGridId);
     const overview = item.overview || '';
     const section = itemType === 'movie' ? 'movies' : 'shows';
     const alreadyAdded = isDuplicateTitle(title, section);
@@ -6714,7 +6735,7 @@ function renderCountryDiscoverCards(type, items, gridId) {
     const title = item.title || item.name || '';
     const year = (item.release_date || item.first_air_date || '').slice(0, 4);
     /* v654: getTmdbImageUrl handles full https URLs (Jikan-sourced) and TMDB paths. */
-    const poster = getTmdbImageUrl(item.poster_path, 'w342');
+    const poster = getDiscoverTitleCardPosterUrl(item, itemType, gridId);
     const overview = item.overview || '';
     const section = itemType === 'movie' ? 'movies' : 'shows';
     const alreadyAdded = isDuplicateTitle(title, section);
@@ -6790,7 +6811,7 @@ function renderRankedDiscoverCards(type, items, gridId) {
     const year = (item.release_date || item.first_air_date || '').slice(0, 4);
     const genreLine = isNewReleaseGrid ? '' : getDiscoverGenreNames(item, itemType).slice(0, 2).join(' · ');
     /* v654: getTmdbImageUrl handles full https URLs (Jikan-sourced) and TMDB paths. */
-    const poster = getTmdbImageUrl(item.poster_path, 'w342');
+    const poster = getDiscoverTitleCardPosterUrl(item, itemType, gridId);
     const overview = item.overview || '';
     const contextLine = isNewReleaseGrid ? '' : sanitizeDiscoverCardContextLine(item.discoverContext || item.sourceLabel || '');
     const section = itemType === 'movie' ? 'movies' : 'shows';
@@ -7208,46 +7229,91 @@ function renderGamesDiscoverCards(items, gridId) {
   // v697: Lazy-fetch Steam review summaries for Row 4 (staggered 120ms/card).
   setTimeout(() => _backfillSteamReviews(grid, items), 400);
   // Lazy-fetch IGDB portrait covers for discovery game cards
-  setTimeout(() => backfillIgdbDiscoverGameCovers(grid), 600);
+  setTimeout(() => backfillIgdbDiscoverGameCovers(grid), 120);
+}
+
+let discoverHubPrewarmTimer = null;
+let discoverHubPrewarmToken = 0;
+
+function scheduleDiscoverHubPrewarm(activeHub = 'tv') {
+  if (discoverHubPrewarmTimer) {
+    clearTimeout(discoverHubPrewarmTimer);
+    discoverHubPrewarmTimer = null;
+  }
+  const token = ++discoverHubPrewarmToken;
+  const run = async () => {
+    if (token !== discoverHubPrewarmToken || document.hidden) return;
+    try {
+      if (activeHub !== 'gaming' && !gamesDiscoverLoaded && !gamesDiscoverLoading) {
+        await loadGamesDiscover(false);
+      }
+      if (token !== discoverHubPrewarmToken || document.hidden) return;
+      if (activeHub !== 'tv' && !discoverLoaded && !discoverLoading) {
+        await loadDiscover(false);
+      }
+      if (token !== discoverHubPrewarmToken || document.hidden) return;
+      if (activeHub !== 'anime' && !animeDiscoverLoaded && !animeDiscoverLoading && typeof loadAnimeDiscover === 'function') {
+        await loadAnimeDiscover(false);
+      }
+    } catch (error) {
+      console.warn('Discover hub prewarm skipped:', error);
+    }
+  };
+  discoverHubPrewarmTimer = setTimeout(() => {
+    discoverHubPrewarmTimer = null;
+    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(() => { run().catch(() => {}); }, { timeout: 1400 });
+      return;
+    }
+    run().catch(() => {});
+  }, 900);
 }
 
 // Fetch and apply IGDB/Twitch portrait covers to discovery game card posters.
 // No single global lock: each grid can repair its own cards so concurrent discovery rows do not skip each other.
 const IGDB_DISCOVER_COVER_IN_FLIGHT = new Set();
+const IGDB_DISCOVER_COVER_CONCURRENCY = 4;
 async function backfillIgdbDiscoverGameCovers(grid) {
   const posters = Array.from(grid ? grid.querySelectorAll('.discover-poster[data-media-type="game"]') : []);
-  for (const poster of posters) {
-    const title = poster.dataset.discoverTitle || poster.dataset.gameTitle || '';
-    const rawgId = poster.dataset.rawgId || poster.dataset.mediaId || '';
-    if (!title) continue;
-    const key = `${rawgId}|${title.toLowerCase()}`;
-    if (IGDB_DISCOVER_COVER_IN_FLIGHT.has(key)) continue;
-    IGDB_DISCOVER_COVER_IN_FLIGHT.add(key);
-    try {
-      const seed = rawgId && typeof getGameMediaProfileSeed === 'function' ? getGameMediaProfileSeed(rawgId, {}) : {};
-      const payload = { ...seed, title, name: seed.name || title, rawgId, id: rawgId };
-      let cover = null;
-      if (typeof forceHydrateScreenListGamePosterElement === 'function') {
-        cover = await forceHydrateScreenListGamePosterElement(poster, payload);
-      } else {
-        const params = new URLSearchParams({ title, force: '1', strict: '1', t: String(Date.now()) });
-        const res = await fetch('/api/igdb/cover?' + params.toString(), { cache: 'no-store' });
-        const data = res.ok ? await res.json() : null;
-        if (data?.ok && data.coverUrl) {
-          poster.style.backgroundImage = `url('${data.coverUrl}')`;
-          poster.style.backgroundPosition = 'top center';
-          poster.dataset.igdbCoverApplied = '1';
-          cover = data;
+  let cursor = 0;
+  async function hydratePosterWorker() {
+    while (cursor < posters.length) {
+      const poster = posters[cursor++];
+      if (!poster) continue;
+      const title = poster.dataset.discoverTitle || poster.dataset.gameTitle || '';
+      const rawgId = poster.dataset.rawgId || poster.dataset.mediaId || '';
+      if (!title) continue;
+      const key = `${rawgId}|${title.toLowerCase()}`;
+      if (IGDB_DISCOVER_COVER_IN_FLIGHT.has(key)) continue;
+      IGDB_DISCOVER_COVER_IN_FLIGHT.add(key);
+      try {
+        const seed = rawgId && typeof getGameMediaProfileSeed === 'function' ? getGameMediaProfileSeed(rawgId, {}) : {};
+        const payload = { ...seed, title, name: seed.name || title, rawgId, id: rawgId };
+        let cover = null;
+        if (typeof forceHydrateScreenListGamePosterElement === 'function') {
+          cover = await forceHydrateScreenListGamePosterElement(poster, payload);
+        } else {
+          const params = new URLSearchParams({ title, force: '1', strict: '1', t: String(Date.now()) });
+          const res = await fetch('/api/igdb/cover?' + params.toString(), { cache: 'no-store' });
+          const data = res.ok ? await res.json() : null;
+          if (data?.ok && data.coverUrl) {
+            poster.style.backgroundImage = `url('${data.coverUrl}')`;
+            poster.style.backgroundPosition = 'top center';
+            poster.dataset.igdbCoverApplied = '1';
+            cover = data;
+          }
         }
-      }
-      if (cover?.coverUrl && rawgId && typeof setGameMediaProfileSeed === 'function') {
-        const existing = getGameMediaProfileSeed(rawgId, {}) || {};
-        setGameMediaProfileSeed(rawgId, { ...existing, title, name: existing.name || title, rawgId, id: rawgId, igdbCoverUrl: cover.coverUrl, cover: cover.coverUrl, poster: cover.coverUrl, image: cover.coverUrl, background_image: cover.coverUrl });
-      }
-    } catch (e) { /* silent */ }
-    finally { IGDB_DISCOVER_COVER_IN_FLIGHT.delete(key); }
-    await new Promise(r => setTimeout(r, 220));
+        if (cover?.coverUrl && rawgId && typeof setGameMediaProfileSeed === 'function') {
+          const existing = getGameMediaProfileSeed(rawgId, {}) || {};
+          setGameMediaProfileSeed(rawgId, { ...existing, title, name: existing.name || title, rawgId, id: rawgId, igdbCoverUrl: cover.coverUrl, cover: cover.coverUrl, poster: cover.coverUrl, image: cover.coverUrl, background_image: cover.coverUrl });
+        }
+      } catch (e) { /* silent */ }
+      finally { IGDB_DISCOVER_COVER_IN_FLIGHT.delete(key); }
+    }
   }
+  const workerCount = Math.min(IGDB_DISCOVER_COVER_CONCURRENCY, posters.length || 0);
+  if (!workerCount) return;
+  await Promise.all(Array.from({ length: workerCount }, () => hydratePosterWorker()));
 }
 
 const DISCOVER_INITIAL_VISIBLE_COUNT = 9;

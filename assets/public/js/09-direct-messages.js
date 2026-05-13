@@ -596,6 +596,7 @@ function handleDirectMessagesBack() {
 }
 
 function openDirectMessagesPage() {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
   const page = document.getElementById('direct-messages-page');
   if (!page) return;
   page.style.display = 'block';

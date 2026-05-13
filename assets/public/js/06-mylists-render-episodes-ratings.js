@@ -4,6 +4,16 @@ window.__SHELFD_MYLIST_RENDER_RECOVERY = true;
 window.__SHELFD_MYLIST_CONTROLS_STAR_CACHE_BUSTER = true;
 let activeGamePlayingFilter = 'live';
 
+function normalizeMyListPosterUrl(value = '') {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (raw.startsWith('//')) return `https:${raw}`;
+  if (raw.startsWith('/')) return `https://image.tmdb.org/t/p/original${raw}`;
+  const tmdbMatch = raw.match(/^https?:\/\/image\.tmdb\.org\/t\/p\/(?:w\d+|original)(\/.+)$/i);
+  if (tmdbMatch?.[1]) return `https://image.tmdb.org/t/p/original${tmdbMatch[1]}`;
+  return raw;
+}
+
 function isGamesPlayingMergedView(section = activeSection, tab = activeTab) {
   return section === 'games' && tab === 'watching';
 }
@@ -1487,7 +1497,9 @@ function renderCard(item, isDraggable) {
     ? getPreviewCommentsForMedia(mediaKey).length
     : getCachedCommentCount(mediaKey);
   const isGameCard = activeSection === 'games';
-  const cardCoverSrc = isGameCard && typeof getScreenListDisplayGameCover === 'function' ? getScreenListDisplayGameCover(item) : (item.cover || '');
+  const cardCoverSrc = isGameCard && typeof getScreenListDisplayGameCover === 'function'
+    ? getScreenListDisplayGameCover(item)
+    : normalizeMyListPosterUrl(item.cover || '');
   const coverStyle = cardCoverSrc
     ? `background-image:url('${cardCoverSrc}');background-size:cover;background-position:top center;`
     : "";
@@ -1756,10 +1768,8 @@ function getSeasonInfoForEpisodes(item = {}, seasonNum = '') {
 function normalizeSeasonPosterUrl(value = '') {
   const raw = String(value || '').trim();
   if (!raw) return '';
-  if (/^(https?:|data:|blob:)/i.test(raw)) return raw;
-  if (raw.startsWith('//')) return `https:${raw}`;
-  if (raw.startsWith('/')) return `https://image.tmdb.org/t/p/w500${raw}`;
-  return raw;
+  if (/^(data:|blob:)/i.test(raw)) return raw;
+  return normalizeMyListPosterUrl(raw);
 }
 
 function getSeasonPosterForEpisodes(item = {}, seasonNum = '', seasonEpisodes = []) {
