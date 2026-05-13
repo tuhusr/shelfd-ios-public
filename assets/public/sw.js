@@ -6,7 +6,7 @@
    bump, the SW bytes were byte-identical across deploys, no new install
    happened, and PWAs sat on stale JS until the user manually deleted
    and re-added the home-screen app. */
-const CACHE = 'shelfd-v921-dm-true-dark-refresh';
+const CACHE = 'shelfd-v922-dm-true-dark-refresh-meta-fix';
 
 const STATIC_CACHE_PATHS = [
   '/icon-192.png',

@@ -98,8 +98,8 @@
 <link rel="stylesheet" href="/css/16-light-mode-contrast.css?v=900_activity_spacing_tune">
 <link rel="stylesheet" href="/css/17-auth-flow-setup.css?v=909_remove_creator_divider">
 
-<meta name="screenlist-build-version" content="2026-05-13-v919_activity_two_line_spacing_correct_selector">
-<script>window.SCREENLIST_BUILD_VERSION = "2026-05-13-v921_dm_true_dark_refresh"; window.SCREENLIST_DISPLAY_VERSION = "v.921-May 13th, 2026";</script>
+<meta name="screenlist-build-version" content="2026-05-13-v922_dm_true_dark_refresh_meta_fix">
+<script>window.SCREENLIST_BUILD_VERSION = "2026-05-13-v922_dm_true_dark_refresh_meta_fix"; window.SCREENLIST_DISPLAY_VERSION = "v.922-May 13th, 2026";</script>
 <script>
   window.__shelfdGuestContinueQueued = false;
   window.continueWithoutSignIn = window.continueWithoutSignIn || function() {
@@ -1638,7 +1638,7 @@
      graceful auto-reload via 00-live-update-pwa.js. */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js?v=921-dm-true-dark-refresh', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('/sw.js?v=922-dm-true-dark-refresh-meta-fix', { updateViaCache: 'none' })
         .then(registration => {
           if (registration && typeof registration.update === 'function') {
             registration.update().catch(error => console.warn('Shelfd service worker update check failed:', error));
