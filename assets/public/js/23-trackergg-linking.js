@@ -241,11 +241,58 @@
     }
   }
 
-  function renderStatCell(label, value) {
+  function parseValorantRank(value = '') {
+    const clean = cleanText(value).toLowerCase();
+    if (!clean) return null;
+    const compact = clean.replace(/[^a-z0-9]+/g, '');
+    const tiers = [
+      { key: 'iron', short: 'I' },
+      { key: 'bronze', short: 'B' },
+      { key: 'silver', short: 'S' },
+      { key: 'gold', short: 'G' },
+      { key: 'platinum', short: 'P' },
+      { key: 'diamond', short: 'D' },
+      { key: 'ascendant', short: 'A' },
+      { key: 'immortal', short: 'IM' },
+      { key: 'radiant', short: 'RAD' }
+    ];
+    for (const tier of tiers) {
+      if (compact.startsWith(tier.key) || compact.startsWith(tier.short.toLowerCase())) {
+        const remainder = compact
+          .replace(new RegExp(`^(${tier.key}|${tier.short.toLowerCase()})`), '')
+          .replace(/[^0-9]/g, '');
+        const division = tier.key === 'radiant' ? '' : (remainder || '');
+        return {
+          tier: tier.key,
+          code: `${tier.short}${division}`.trim()
+        };
+      }
+    }
+    return null;
+  }
+
+  function renderValorantRankBadge(value = '') {
+    const rank = parseValorantRank(value);
+    if (!rank) return html(value || '-');
+    return `
+      <span class="tracker-rank-badge tracker-rank-badge-${attr(rank.tier)}" aria-label="${attr(value)}">
+        <span class="tracker-rank-glyph" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path d="M12 2 20 8 17 19 7 19 4 8 12 2Z"></path>
+            <path d="M12 6 15.8 9 14.4 15 9.6 15 8.2 9 12 6Z"></path>
+          </svg>
+        </span>
+        <span class="tracker-rank-code">${html(rank.code)}</span>
+      </span>
+    `;
+  }
+
+  function renderStatCell(label, value, options = {}) {
+    const display = options.valorantRank ? renderValorantRankBadge(value) : html(value || '-');
     return `
       <span class="tracker-stat-cell">
         <span>${html(label)}</span>
-        <strong>${html(value || '-')}</strong>
+        <strong>${display}</strong>
       </span>
     `;
   }
@@ -291,9 +338,10 @@
   function renderTrackerStatsCardHtml(item = {}) {
     const snapshot = getTrackerSnapshot(item);
     if (!hasTrackerBreakdownForItem(item)) return '';
+    const isValorant = snapshot.gameSlug === 'valorant';
     const stats = [
-      renderStatCell('Rank', snapshot.currentRank),
-      renderStatCell('Peak', snapshot.peakRank),
+      renderStatCell('Rank', snapshot.currentRank, { valorantRank: isValorant }),
+      renderStatCell('Peak', snapshot.peakRank, { valorantRank: isValorant }),
       renderStatCell('Win', snapshot.winRate),
       renderStatCell('K/D', snapshot.kd)
     ].join('');
@@ -749,8 +797,8 @@
           </div>
         </div>
         <div class="tracker-stats-grid">
-          ${renderStatCell('Current Rank', snapshot.currentRank)}
-          ${renderStatCell('Peak Rank', snapshot.peakRank)}
+          ${renderStatCell('Current Rank', snapshot.currentRank, { valorantRank: snapshot.gameSlug === 'valorant' })}
+          ${renderStatCell('Peak Rank', snapshot.peakRank, { valorantRank: snapshot.gameSlug === 'valorant' })}
           ${renderStatCell('Win %', snapshot.winRate)}
           ${renderStatCell('K/D', snapshot.kd)}
         </div>

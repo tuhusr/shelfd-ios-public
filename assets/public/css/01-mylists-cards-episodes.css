@@ -934,6 +934,34 @@ body.light-mode .game-card-tracker-icon-link:hover { color: #241640; }
 .tracker-stat-cell { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .tracker-stat-cell span { color: rgba(255,255,255,0.46); font-size: 9px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.35px; }
 .tracker-stat-cell strong { min-width: 0; color: #ffffff; font-size: 11px; font-weight: 750; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tracker-rank-badge {
+  --tracker-rank-ink: #f8fafc;
+  --tracker-rank-a: #64748b;
+  --tracker-rank-b: #94a3b8;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 20px;
+  padding: 2px 7px 2px 5px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--tracker-rank-a) 20%, transparent), color-mix(in srgb, var(--tracker-rank-b) 22%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tracker-rank-b) 28%, transparent);
+  white-space: nowrap;
+}
+.tracker-rank-glyph { width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center; color: var(--tracker-rank-ink); filter: drop-shadow(0 1px 4px rgba(0,0,0,0.28)); }
+.tracker-rank-glyph svg { width: 14px; height: 14px; display: block; }
+.tracker-rank-glyph svg path:first-child { fill: var(--tracker-rank-a); }
+.tracker-rank-glyph svg path:last-child { fill: var(--tracker-rank-b); }
+.tracker-rank-code { color: var(--tracker-rank-ink); font-size: 10px; font-weight: 820; letter-spacing: 0.18px; }
+.tracker-rank-badge-iron { --tracker-rank-a: #6b7280; --tracker-rank-b: #9ca3af; }
+.tracker-rank-badge-bronze { --tracker-rank-a: #92400e; --tracker-rank-b: #d97706; }
+.tracker-rank-badge-silver { --tracker-rank-a: #94a3b8; --tracker-rank-b: #e2e8f0; --tracker-rank-ink: #f8fafc; }
+.tracker-rank-badge-gold { --tracker-rank-a: #ca8a04; --tracker-rank-b: #facc15; --tracker-rank-ink: #fff7d6; }
+.tracker-rank-badge-platinum { --tracker-rank-a: #0f766e; --tracker-rank-b: #2dd4bf; }
+.tracker-rank-badge-diamond { --tracker-rank-a: #4f46e5; --tracker-rank-b: #60a5fa; }
+.tracker-rank-badge-ascendant { --tracker-rank-a: #15803d; --tracker-rank-b: #86efac; --tracker-rank-ink: #f0fdf4; }
+.tracker-rank-badge-immortal { --tracker-rank-a: #be185d; --tracker-rank-b: #fb7185; }
+.tracker-rank-badge-radiant { --tracker-rank-a: #f97316; --tracker-rank-b: #facc15; --tracker-rank-ink: #fff7ed; }
 .tracker-link-overlay,
 .tracker-stats-page { position: fixed; inset: 0; z-index: 3600; opacity: 0; pointer-events: none; transition: opacity 220ms ease; }
 .tracker-link-overlay.is-open,
