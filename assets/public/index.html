@@ -98,8 +98,8 @@
 <link rel="stylesheet" href="/css/16-light-mode-contrast.css?v=942_game_status_competitive_selector">
 <link rel="stylesheet" href="/css/17-auth-flow-setup.css?v=909_remove_creator_divider">
 
-<meta name="screenlist-build-version" content="2026-05-14-v945_trackergg_api_only_stats">
-<script>window.SCREENLIST_BUILD_VERSION = "2026-05-14-v945_trackergg_api_only_stats"; window.SCREENLIST_DISPLAY_VERSION = "v.945-May 14th, 2026";</script>
+<meta name="screenlist-build-version" content="2026-05-14-v946_competitive_game_search_pin">
+<script>window.SCREENLIST_BUILD_VERSION = "2026-05-14-v946_competitive_game_search_pin"; window.SCREENLIST_DISPLAY_VERSION = "v.946-May 14th, 2026";</script>
 <script>
   window.__shelfdGuestContinueQueued = false;
   window.continueWithoutSignIn = window.continueWithoutSignIn || function() {
@@ -1621,19 +1621,19 @@
 <script src="/js/05-app-state-preview-routes.js?v=902_guest_readonly_mode"></script>
 <script src="/js/23-trackergg-linking.js?v=945_trackergg_api_only_stats"></script>
 <script src="/js/06-mylists-render-episodes-ratings.js?v=945_trackergg_api_only_stats"></script>
-<script src="/js/07-add-shelf-import-search.js?v=933_game_search_rank_match_recency_popularity"></script>
+<script src="/js/07-add-shelf-import-search.js?v=946_competitive_game_search_pin"></script>
 <script src="/js/08-discovery-state.js?v=673_central_ranking_module"></script>
 <script src="/js/09-direct-messages.js?v=902_guest_readonly_mode"></script>
 <script src="/js/10-activity-feed.js?v=919_activity_two_line_spacing_correct_selector"></script>
 <script src="/js/20-jikan-anime.js?v=704_viewall_slide_profile_fix"></script>
-<script src="/js/11-discovery-media-games-profiles.js?v=938_mobile_tab_transition_smoothing"></script>
+<script src="/js/11-discovery-media-games-profiles.js?v=946_competitive_game_search_pin"></script>
 <script src="/js/12-patch-notes.js?v=420_activity_feed_inline_stack_expand_collapse"></script>
 <script src="/js/13-discover-add-imports.js?v=902_guest_readonly_mode"></script>
 <script src="/js/14-navigation.js?v=938_mobile_tab_transition_smoothing"></script>
 <script src="/js/15-profile-settings.js?v=945_trackergg_api_only_stats"></script>
 <script src="/js/16-friends-requests.js?v=924_ispublic_true_for_all_users"></script>
 <script src="/js/17-comments-auth-init.js?v=902_guest_readonly_mode"></script>
-<script src="/js/18-search-page.js?v=732_search_actors_filter"></script>
+<script src="/js/18-search-page.js?v=946_competitive_game_search_pin"></script>
 <script src="/js/19-gis-signin.js?v=907_landing_google_cleanup"></script>
 <script src="/js/19b-email-password-auth.js?v=752_email_auth_fullscreen_page"></script>
 <script src="/js/19c-auth-flow-setup.js?v=835_pwa_landing_inline_signin_form"></script>
@@ -1647,7 +1647,7 @@
      graceful auto-reload via 00-live-update-pwa.js. */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js?v=945-trackergg-api-only-stats', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('/sw.js?v=946-competitive-game-search-pin', { updateViaCache: 'none' })
         .then(registration => {
           if (registration && typeof registration.update === 'function') {
             registration.update().catch(error => console.warn('Shelfd service worker update check failed:', error));

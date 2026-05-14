@@ -3,6 +3,68 @@ const TMDB_PROXY_BASE = "/api/tmdb";
 const RAWG_PROXY_BASE = "/api/rawg";
 const SCREENLIST_AI_PROXY_BASE = "/api/ai";
 const DEEPSEEK_PROXY_BASE = "/api/deepseek"; // legacy fallback only
+const SCREENLIST_PINNED_GAME_SEARCH_RESULTS = [
+  {
+    aliases: ['valorant'],
+    item: {
+      id: 126459,
+      name: 'Valorant',
+      released: '2020-06-02',
+      background_image: 'https://images.igdb.com/igdb/image/upload/t_cover_big/cobtjo.jpg',
+      rating: 3.75,
+      ratings_count: 496,
+      added: 496,
+      platforms: ['Xbox Series X|S', 'PC (Microsoft Windows)', 'PlayStation 5'].map(name => ({ platform: { name } })),
+      genres: ['Shooter', 'Tactical'].map(name => ({ name })),
+      slug: 'valorant',
+      source: 'igdb',
+      igdbId: 126459,
+      igdbSlug: 'valorant',
+      igdbCover: 'https://images.igdb.com/igdb/image/upload/t_cover_big/cobtjo.jpg',
+      overview: 'Valorant is a character-based 5v5 tactical shooter set on the global stage.'
+    }
+  },
+  {
+    aliases: ['marvel rivals', 'marvelrivals'],
+    item: {
+      id: 294041,
+      name: 'Marvel Rivals',
+      released: '2024-12-06',
+      background_image: 'https://images.igdb.com/igdb/image/upload/t_cover_big/coc27c.jpg',
+      rating: 3.86,
+      ratings_count: 328,
+      added: 328,
+      platforms: ['Xbox Series X|S', 'PlayStation 4', 'Nintendo Switch 2', 'PC (Microsoft Windows)', 'PlayStation 5'].map(name => ({ platform: { name } })),
+      genres: ['Shooter'].map(name => ({ name })),
+      slug: 'marvel-rivals',
+      source: 'igdb',
+      igdbId: 294041,
+      igdbSlug: 'marvel-rivals',
+      igdbCover: 'https://images.igdb.com/igdb/image/upload/t_cover_big/coc27c.jpg',
+      overview: 'Marvel Rivals is a super hero team-based PvP shooter developed by NetEase Games.'
+    }
+  }
+];
+
+function normalizeGameSearchKey(value = '') {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function getPinnedGameSearchResults(query = '') {
+  const clean = normalizeGameSearchKey(query);
+  if (!clean) return [];
+  return SCREENLIST_PINNED_GAME_SEARCH_RESULTS
+    .filter(row => row.aliases.some(alias => {
+      const key = normalizeGameSearchKey(alias);
+      return key === clean || key.startsWith(clean) || clean.startsWith(key);
+    }))
+    .map(row => ({ ...row.item, _pinnedGameSearch: true }));
+}
 /* v691 fix: var (not let) so window.selectedTmdb and selectedTmdb are the
    same binding — cross-file writes like window.selectedTmdb = {...} from
    11-discovery-media-games-profiles.js (seasonal add sheet) are visible
@@ -697,13 +759,14 @@ async function fetchMergedGameSearchResults(query, limit = 15) {
       .catch(() => [])
   ]);
 
+  const pinnedItems = getPinnedGameSearchResults(cleanQuery);
   const igdbItems = igdbSettled.status === 'fulfilled' ? igdbSettled.value : [];
   const rawgItems = rawgSettled.status === 'fulfilled' ? rawgSettled.value : [];
 
-  // Merge: IGDB first (wins dedup), then RAWG extras
+  // Merge: exact competitive pins first, then IGDB (authoritative), then RAWG extras.
   const seen = new Set();
   const merged = [];
-  for (const item of [...igdbItems, ...rawgItems]) {
+  for (const item of [...pinnedItems, ...igdbItems, ...rawgItems]) {
     const key = String(item.name || '').trim().toLowerCase();
     if (key && !seen.has(key)) { seen.add(key); merged.push(item); }
   }
@@ -711,7 +774,7 @@ async function fetchMergedGameSearchResults(query, limit = 15) {
   return merged
     .map(item => ({ ...item, _score: scoreGameForSearch(item, cleanQuery) }))
     .filter(item => item._score > 0)   /* drop non-matching results */
-    .sort((a, b) => b._score - a._score)
+    .sort((a, b) => Number(!!b._pinnedGameSearch) - Number(!!a._pinnedGameSearch) || b._score - a._score)
     .slice(0, limit);
 }
 
