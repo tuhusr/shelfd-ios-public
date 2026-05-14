@@ -7,7 +7,8 @@ const SCREENLIST_PINNED_GAME_SEARCH_RESULTS = [
   {
     aliases: ['valorant'],
     item: {
-      id: 126459,
+      id: 415171,
+      rawgId: 415171,
       name: 'Valorant',
       released: '2020-06-02',
       background_image: 'https://images.igdb.com/igdb/image/upload/t_cover_big/cobtjo.jpg',
@@ -27,7 +28,8 @@ const SCREENLIST_PINNED_GAME_SEARCH_RESULTS = [
   {
     aliases: ['marvel rivals', 'marvelrivals'],
     item: {
-      id: 294041,
+      id: 993875,
+      rawgId: 993875,
       name: 'Marvel Rivals',
       released: '2024-12-06',
       background_image: 'https://images.igdb.com/igdb/image/upload/t_cover_big/coc27c.jpg',

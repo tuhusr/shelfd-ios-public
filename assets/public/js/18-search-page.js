@@ -152,16 +152,19 @@
     const ratingsCount = Number(item.ratings_count || 0);
     const reviewsCount = Number(item.reviews_count || 0);
     const popularity = added + ratingsCount + reviewsCount;
+    const rawgId = String(item.rawgId || item.rawg_id || (item.source === 'rawg' ? item.id : '') || '').trim();
+    const profileId = rawgId || String(item.id || '').trim();
     return {
-      key: `game:${item.id}`,
+      key: `game:${profileId || item.name}`,
       kind: 'game',
-      id: item.id,
+      id: profileId,
       title: item.name || '',
       year,
       rating: rating > 0 ? rating.toFixed(1) : '',
       popularity,
       poster: gamePoster(item),
       overview: '',
+      rawgId,
       raw: item
     };
   }
@@ -396,7 +399,7 @@
     /* v654: Jikan-sourced anime rows route to the Jikan profile path.
        v732: person rows route to the existing TMDB person profile. */
     const handler = r.kind === 'game'
-      ? `handleSearchPageGameClick(event, '${escAttr(r.id)}')`
+      ? `handleSearchPageGameClick(event, '${escAttr(r.key)}')`
       : r.kind === 'person'
         ? `handleSearchPagePersonClick(event, '${escAttr(r.id)}')`
         : (r.isJikan
@@ -588,11 +591,46 @@
       } catch (e) { console.error('Open media profile failed:', e); }
     }
   };
-  window.handleSearchPageGameClick = function(event, id) {
+  function buildSearchGameProfileSeed(row = {}) {
+    const item = row.raw || {};
+    const poster = row.poster || gamePoster(item);
+    const rawgId = String(row.rawgId || item.rawgId || item.rawg_id || (item.source === 'rawg' ? item.id : '') || '').trim();
+    return {
+      id: rawgId || String(item.id || row.id || ''),
+      rawgId,
+      rawgSlug: item.slug || '',
+      backloggdSlug: item.slug || '',
+      metacriticSlug: item.slug || '',
+      title: row.title || item.name || '',
+      name: row.title || item.name || '',
+      released: item.released || '',
+      background_image: poster,
+      cover: poster,
+      poster,
+      image: poster,
+      igdbId: item.igdbId || '',
+      igdbSlug: item.igdbSlug || '',
+      igdbCoverUrl: item.igdbCover || item.igdbCoverUrl || '',
+      genres: item.genres || [],
+      platforms: item.platforms || [],
+      metacritic: item.metacritic || '',
+      rating: item.rating || '',
+      ratings_count: item.ratings_count || item.reviews_count || 0,
+      source: item.source || ''
+    };
+  }
+
+  window.handleSearchPageGameClick = function(event, keyOrId) {
     pushRecent(activeQuery);
     if (typeof window.openGameMediaProfile === 'function') {
       try {
-        window.openGameMediaProfile(event, id);
+        const row = lastResultRows.find(result => result.key === keyOrId || String(result.id) === String(keyOrId)) || {};
+        const seed = buildSearchGameProfileSeed(row);
+        const rawgId = seed.rawgId || '';
+        if (rawgId && typeof window.setGameMediaProfileSeed === 'function') {
+          window.setGameMediaProfileSeed(rawgId, seed);
+        }
+        window.openGameMediaProfile(event, rawgId, seed);
       } catch (e) { console.error('Open game profile failed:', e); }
     }
   };

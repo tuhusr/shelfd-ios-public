@@ -3645,10 +3645,14 @@ async function resolveRawgIdForGameSeed(seed = {}) {
   if (directId) return directId;
   const title = getGameTitleValue(seed);
   if (!title) return '';
-  const res = await fetchRawgProxy('games', { search: title, page_size: 1 });
+  const res = await fetchRawgProxy('games', { search: title, search_precise: 'true', page_size: 5 });
   if (!res.ok) throw new Error(`RAWG search failed: ${res.status}`);
   const json = await res.json();
-  return json?.results?.[0]?.id ? String(json.results[0].id) : '';
+  const results = Array.isArray(json?.results) ? json.results : [];
+  const normalize = value => String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '').trim();
+  const wanted = normalize(title);
+  const exact = results.find(item => normalize(item?.name) === wanted);
+  return (exact || results[0])?.id ? String((exact || results[0]).id) : '';
 }
 
 async function openGameMediaProfile(event, rawgId = '', seedOverride = null, transitionOrigin = null) {
