@@ -978,6 +978,7 @@ body.light-mode .game-card-tracker-icon-link:hover { color: #241640; }
 .tracker-auto-stats-head span { color: #c4b5fd; font-size: 11px; font-weight: 760; text-transform: uppercase; letter-spacing: 0.42px; }
 .tracker-auto-stats-head small { max-width: 66%; color: rgba(255,255,255,0.5); font-size: 11px; line-height: 1.25; text-align: right; }
 .tracker-link-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+.tracker-manual-form { margin-top: 0; }
 .tracker-link-field { display: flex; flex-direction: column; gap: 6px; }
 .tracker-link-field-wide { grid-column: 1 / -1; }
 .tracker-link-field span { color: rgba(255,255,255,0.54); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.35px; }

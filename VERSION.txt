@@ -1,1 +1,1 @@
-v948_2026-05-14_game_search_profile_id_fix
+v949_2026-05-14_trackergg_manual_stats_unsupported_games

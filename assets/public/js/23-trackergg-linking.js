@@ -1,7 +1,7 @@
-/* v945: Tracker.gg API-only competitive stats linking framework. */
+/* v949: Tracker.gg linking — manual stats for unsupported games (Valorant, Marvel Rivals, Fortnite, Rocket League). */
 (function initScreenListTrackerLinking() {
-  if (window.__screenListTrackerLinkingV945) return;
-  window.__screenListTrackerLinkingV945 = true;
+  if (window.__screenListTrackerLinkingV949) return;
+  window.__screenListTrackerLinkingV949 = true;
 
   const TRACKER_GAME_CONFIGS = [
     { key: 'valorant', label: 'Valorant', aliases: ['valorant'], profileKind: 'riot', profileBase: 'https://tracker.gg/valorant/profile/riot/' },
@@ -12,6 +12,8 @@
     { key: 'rocket-league', label: 'Rocket League', aliases: ['rocket league'], profileKind: 'platform', profileBase: 'https://tracker.gg/rocket-league/profile/' },
     { key: 'cs2', label: 'Counter-Strike 2', aliases: ['counter strike 2', 'counter-strike 2', 'cs2', 'counter strike'], profileKind: 'steam', profileBase: 'https://tracker.gg/cs2/profile/steam/' }
   ];
+  // Games not supported by the Tracker.gg public developer API — require manual stat entry
+  const TRACKER_API_UNSUPPORTED_GAMES = new Set(['valorant', 'marvel-rivals', 'rocket-league', 'fortnite']);
   let trackerModalFetchedStats = null;
 
   function html(value = '') {
@@ -69,6 +71,55 @@
     return TRACKER_GAME_CONFIGS.find(config =>
       config.aliases.some(alias => normalized.includes(normalizeKey(alias)))
     ) || TRACKER_GAME_CONFIGS[0];
+  }
+
+  function isGameApiUnsupported(gameKey = '') {
+    return TRACKER_API_UNSUPPORTED_GAMES.has(cleanText(gameKey).toLowerCase());
+  }
+
+  function getManualStatsFromModal() {
+    return {
+      currentRank: cleanText(document.getElementById('tracker-manual-rank')?.value || ''),
+      peakRank: cleanText(document.getElementById('tracker-manual-peak')?.value || ''),
+      winRate: normalizePercent(document.getElementById('tracker-manual-winrate')?.value || ''),
+      kd: normalizeDecimal(document.getElementById('tracker-manual-kd')?.value || '')
+    };
+  }
+  function setManualStatsFields(stats = {}) {
+    const normalized = normalizeTrackerApiStats(stats);
+    const rankInput = document.getElementById('tracker-manual-rank');
+    const peakInput = document.getElementById('tracker-manual-peak');
+    const winRateInput = document.getElementById('tracker-manual-winrate');
+    const kdInput = document.getElementById('tracker-manual-kd');
+    if (rankInput) rankInput.value = normalized.currentRank || '';
+    if (peakInput) peakInput.value = normalized.peakRank || '';
+    if (winRateInput) winRateInput.value = normalized.winRate || '';
+    if (kdInput) kdInput.value = normalized.kd || '';
+  }
+
+  function applyTrackerUnsupportedUi(gameKey = '') {
+    const unsupported = isGameApiUnsupported(gameKey);
+    const apiSection = document.getElementById('tracker-api-section');
+    const manualSection = document.getElementById('tracker-manual-section');
+    const fetchBtn = document.querySelector('.tracker-fetch-btn');
+    const copyEl = document.getElementById('tracker-link-copy-text');
+    const statsLabel = document.getElementById('tracker-stats-mode-label');
+    const noteEl = document.getElementById('tracker-auto-stats-note');
+    if (apiSection) apiSection.style.display = unsupported ? 'none' : '';
+    if (manualSection) manualSection.style.display = unsupported ? '' : 'none';
+    if (fetchBtn) fetchBtn.style.display = unsupported ? 'none' : '';
+    if (copyEl) copyEl.textContent = unsupported
+      ? "This game isn't in the Tracker.gg public API. Paste your profile URL, then enter your stats manually — they'll show on the game card."
+      : "Paste your Tracker.gg profile URL or handle. Shelfd fetches your rank, K/D, and win rate from the API and shows them on the game card.";
+    if (unsupported && copyEl) copyEl.textContent = "This game isn't in the Tracker.gg public API. Paste your profile URL, then enter your stats manually so Shelfd can show them on the game card.";
+    if (statsLabel) statsLabel.textContent = unsupported ? 'Manual stats' : 'API stats';
+    if (noteEl) noteEl.textContent = unsupported ? 'Enter the stats you want saved to this game.' : 'Stats will be fetched from Tracker.gg.';
+    return unsupported;
+  }
+
+  function onTrackerModalGameKindChange() {
+    const gameKey = cleanText(document.getElementById('tracker-link-game-kind')?.value || '');
+    applyTrackerUnsupportedUi(gameKey);
   }
 
   function parseTrackerGameFromUrl(url = '') {
@@ -228,8 +279,9 @@
       overlay.dataset.trackerKd = normalized.kd;
     }
     Object.entries(normalized).forEach(([key, value]) => {
-      const el = document.querySelector(`[data-tracker-stat-value="${key}"]`);
-      if (el) el.textContent = value || '-';
+      document.querySelectorAll(`[data-tracker-stat-value="${key}"]`).forEach(el => {
+        el.textContent = value || '-';
+      });
     });
     const note = document.getElementById('tracker-auto-stats-note');
     if (note && message) note.textContent = message;
@@ -284,7 +336,9 @@
     if (gameSelect) gameSelect.value = config.key;
     if (accountInput) accountInput.value = snapshot.sourceUrl || snapshot.displayName || '';
     if (platform) platform.value = item.gamePlatform || item.platform || 'pc';
+    setManualStatsFields(snapshot);
     setTrackerStatsPreview(snapshot, snapshot.updatedAt ? 'Current saved stats. Fetch again to refresh from Tracker.gg.' : 'Stats will be fetched from Tracker.gg.');
+    applyTrackerUnsupportedUi(config.key);
   }
 
   function getTrackerGameSelectHtml(selected = '') {
@@ -328,7 +382,7 @@
           </div>
           <button class="tracker-link-close" type="button" data-tracker-close aria-label="Close">x</button>
         </div>
-        <div class="tracker-link-copy">Tracker.gg does not provide a Steam-style callback to Shelfd. Paste a public Tracker profile URL or handle, then Shelfd saves it as your connected competitive profile and attaches the stats to the selected game.</div>
+        <div id="tracker-link-copy-text" class="tracker-link-copy">Tracker.gg does not provide a Steam-style callback to Shelfd. Paste a public Tracker profile URL or handle, then Shelfd saves it as your connected competitive profile and attaches the stats to the selected game.</div>
         <div class="tracker-connection-card">
           <span>Connected profile</span>
           <strong>${html(connection.displayName || connection.profileUrl || 'Not connected')}</strong>
@@ -340,7 +394,7 @@
           </label>
           <label class="tracker-link-field">
             <span>Tracker title</span>
-            <select id="tracker-link-game-kind">${getTrackerGameSelectHtml(config.key)}</select>
+            <select id="tracker-link-game-kind" onchange="onTrackerModalGameKindChange()">${getTrackerGameSelectHtml(config.key)}</select>
           </label>
           <label class="tracker-link-field">
             <span>Platform</span>
@@ -351,9 +405,9 @@
             <input id="tracker-link-account" type="text" value="${attr(profileValue)}" placeholder="Riot ID, gamertag, or tracker.gg URL">
           </label>
         </div>
-        <div class="tracker-auto-stats">
+        <div id="tracker-api-section" class="tracker-auto-stats">
           <div class="tracker-auto-stats-head">
-            <span>API stats</span>
+            <span id="tracker-stats-mode-label">API stats</span>
             <small id="tracker-auto-stats-note">${snapshot.updatedAt ? 'Current saved stats. Fetch again to refresh from Tracker.gg.' : 'Stats will be fetched from Tracker.gg.'}</small>
           </div>
           <div class="tracker-card-stat-grid">
@@ -363,16 +417,42 @@
             ${renderPreviewStatCell('kd', 'K/D', snapshot.kd)}
           </div>
         </div>
+        <div id="tracker-manual-section" class="tracker-auto-stats" style="display:none;">
+          <div class="tracker-auto-stats-head">
+            <span>Manual stats</span>
+            <small>These save directly to the Shelfd title card for unsupported Tracker API games.</small>
+          </div>
+          <div class="tracker-link-form tracker-manual-form">
+            <label class="tracker-link-field">
+              <span>Current rank</span>
+              <input id="tracker-manual-rank" type="text" value="${attr(snapshot.currentRank || '')}" placeholder="Ascendant 2">
+            </label>
+            <label class="tracker-link-field">
+              <span>Peak rank</span>
+              <input id="tracker-manual-peak" type="text" value="${attr(snapshot.peakRank || '')}" placeholder="Immortal 1">
+            </label>
+            <label class="tracker-link-field">
+              <span>Win %</span>
+              <input id="tracker-manual-winrate" type="text" value="${attr(snapshot.winRate || '')}" placeholder="54.2%">
+            </label>
+            <label class="tracker-link-field">
+              <span>K/D</span>
+              <input id="tracker-manual-kd" type="text" value="${attr(snapshot.kd || '')}" placeholder="1.18">
+            </label>
+          </div>
+        </div>
         <div id="tracker-link-status" class="tracker-link-status" aria-live="polite"></div>
         <div class="tracker-link-actions">
           <button class="tracker-link-secondary" type="button" onclick="saveScreenListTrackerConnection(this)">Connect profile</button>
-          <button class="tracker-link-secondary" type="button" onclick="syncScreenListTrackerStats(this)">Fetch stats</button>
+          <button class="tracker-link-secondary tracker-fetch-btn" type="button" onclick="syncScreenListTrackerStats(this)">Fetch stats</button>
           <button class="tracker-link-primary" type="button" onclick="saveScreenListTrackerLink(this)">Save link</button>
         </div>
       </div>
     `;
     document.body.appendChild(overlay);
+    setManualStatsFields(snapshot);
     setTrackerStatsPreview(snapshot);
+    applyTrackerUnsupportedUi(config.key);
     document.body.classList.add('tracker-link-open');
     overlay.addEventListener('click', event => {
       if (event.target?.closest?.('[data-tracker-close]')) closeTrackerLinkModal();
@@ -415,6 +495,10 @@
 
   async function fetchTrackerStatsFromModal({ showSuccess = true } = {}) {
     const game = cleanText(document.getElementById('tracker-link-game-kind')?.value || '');
+    if (isGameApiUnsupported(game)) {
+      setTrackerLinkStatus('This Tracker title is not available through the public API. Enter the stats manually below.', '');
+      return null;
+    }
     const platform = cleanText(document.getElementById('tracker-link-platform')?.value || 'pc');
     const account = cleanText(document.getElementById('tracker-link-account')?.value || '');
     const identifier = getTrackerIdentifierFromInput(account);
@@ -533,16 +617,22 @@
       return;
     }
 
+    const unsupported = isGameApiUnsupported(config.key);
     if (button) {
       button.disabled = true;
       button.dataset.originalText = button.textContent || 'Save link';
-      button.textContent = 'Fetching';
+      button.textContent = unsupported ? 'Saving' : 'Fetching';
     }
 
     try {
-      const fetchedStats = await fetchTrackerStatsFromModal({ showSuccess: false });
-      if (!fetchedStats) throw new Error('Tracker.gg did not return API stats for this profile.');
-      if (!hasUsefulStat(fetchedStats)) throw new Error('Tracker.gg returned this profile, but no rank, peak rank, win %, or K/D stats were available.');
+      const fetchedStats = unsupported
+        ? getManualStatsFromModal()
+        : await fetchTrackerStatsFromModal({ showSuccess: false });
+      if (!fetchedStats || !hasUsefulStat(fetchedStats)) {
+        throw new Error(unsupported
+          ? 'Enter at least one stat before saving this competitive profile.'
+          : 'Tracker.gg did not return API stats for this profile.');
+      }
       if (button) button.textContent = 'Saving';
       const snapshot = {
         provider: 'tracker.gg',
@@ -555,7 +645,7 @@
         winRate: fetchedStats.winRate,
         kd: fetchedStats.kd,
         sourceUrl: profileUrl,
-        syncMode: 'tracker-api',
+        syncMode: unsupported ? 'manual-entry' : 'tracker-api',
         linkedAt: record.item?.competitiveStats?.linkedAt || now,
         updatedAt: now
       };
@@ -700,4 +790,5 @@
   window.openTrackerStatsPage = openTrackerStatsPage;
   window.closeTrackerStatsPage = closeTrackerStatsPage;
   window.syncTrackerModalGameDefaults = syncTrackerModalGameDefaults;
+  window.onTrackerModalGameKindChange = onTrackerModalGameKindChange;
 })();
