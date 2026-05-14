@@ -2168,6 +2168,7 @@ function scoreDiscoverUniversalTmdbResult(item = {}, query = '') {
      was drowned out, so old mega-popular titles always beat new releases
      on the same query. */
   const textScore = getDiscoverUniversalBestTitleMatchScore(query, item);
+  if (textScore <= 0) return 0;
 
   // Tier 2 — recency (0-1000; same scale as game scorer)
   const releaseDate = item.release_date || item.first_air_date || '';
@@ -2186,14 +2187,15 @@ function scoreDiscoverUniversalTmdbResult(item = {}, query = '') {
 }
 
 function scoreDiscoverUniversalGameResult(item = {}, query = '') {
-  const title = item.name || '';
+  const textScore = getDiscoverUniversalBestTitleMatchScore(query, item);
+  if (textScore <= 0) return 0;
   const added = Number(item.added || 0);
   const ratings = Number(item.ratings_count || item.reviews_count || 0);
   const rating = Number(item.rating || 0);
   const metacritic = Number(item.metacritic || 0);
   const releasedYear = Number(String(item.released || '').slice(0, 4));
   const recency = Number.isFinite(releasedYear) && releasedYear > 0 ? Math.max(0, Math.min(80, releasedYear - 1990)) : 0;
-  return getDiscoverUniversalBestTitleMatchScore(query, item)
+  return textScore
     + (Math.log10(added + 1) * 420)
     + (Math.log10(ratings + 1) * 420)
     + (rating * 120)

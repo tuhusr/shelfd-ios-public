@@ -344,9 +344,16 @@
       if (!n) return 0;
       return Math.min(900, Math.log10(n + 1) * 200);
     }
+    rows = rows
+      .map(row => {
+        const textScore = relevanceScore(row.title);
+        return { ...row, _searchTextScore: textScore, _searchRankScore: textScore + popularityBoost(row.popularity) };
+      })
+      .filter(row => row._searchTextScore > 0);
+
     rows.sort((a, b) => {
-      const as = relevanceScore(a.title) + popularityBoost(a.popularity);
-      const bs = relevanceScore(b.title) + popularityBoost(b.popularity);
+      const as = Number(a._searchRankScore || 0);
+      const bs = Number(b._searchRankScore || 0);
       if (as !== bs) return bs - as;
       const ar = parseFloat(a.rating || '0') || 0;
       const br = parseFloat(b.rating || '0') || 0;
