@@ -3741,7 +3741,7 @@ async function runTrackerggProfileEndpoint(request, env, ctx) {
   if (!identifier) return jsonResponse({ ok: false, error: "Missing Tracker.gg profile identifier.", tracker: getTrackerggPublicStatus(env) }, 400);
 
   const endpoint = new URL(`${game}/standard/profile/${encodeURIComponent(platform)}/${encodeURIComponent(identifier)}`, TRACKERGG_PUBLIC_API_ORIGIN);
-  const cacheKey = new Request(`${url.origin}/__screenlist_trackergg/v944/${game}/${platform}/${encodeURIComponent(identifier.toLowerCase())}`, { method: "GET" });
+  const cacheKey = new Request(`${url.origin}/__screenlist_trackergg/v945/${game}/${platform}/${encodeURIComponent(identifier.toLowerCase())}`, { method: "GET" });
   const cached = await caches.default.match(cacheKey);
   if (cached && url.searchParams.get("force") !== "1") {
     const headers = new Headers(cached.headers);

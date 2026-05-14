@@ -900,7 +900,7 @@ body.light-mode .game-card-stat-val { color: #241640; }
 body.light-mode .game-card-tracker-icon-link { color: #6d28d9; }
 body.light-mode .game-card-tracker-icon-link:hover { color: #241640; }
 
-/* v944: Tracker.gg competitive stats/profile connection framework */
+/* v945: Tracker.gg competitive API-only stats/profile connection framework */
 .tracker-import-logo {
   display: inline-grid;
   place-items: center;
@@ -973,6 +973,10 @@ body.light-mode .game-card-tracker-icon-link:hover { color: #241640; }
 .tracker-connection-card { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; padding: 10px 11px; border-radius: 10px; background: rgba(196,181,253,0.08); }
 .tracker-connection-card span { color: rgba(255,255,255,0.52); font-size: 11px; font-weight: 720; text-transform: uppercase; letter-spacing: 0.35px; }
 .tracker-connection-card strong { min-width: 0; color: #f6f1ff; font-size: 13px; font-weight: 760; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tracker-auto-stats { margin-top: 12px; padding: 11px; border-radius: 12px; background: rgba(255,255,255,0.055); }
+.tracker-auto-stats-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+.tracker-auto-stats-head span { color: #c4b5fd; font-size: 11px; font-weight: 760; text-transform: uppercase; letter-spacing: 0.42px; }
+.tracker-auto-stats-head small { max-width: 66%; color: rgba(255,255,255,0.5); font-size: 11px; line-height: 1.25; text-align: right; }
 .tracker-link-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
 .tracker-link-field { display: flex; flex-direction: column; gap: 6px; }
 .tracker-link-field-wide { grid-column: 1 / -1; }
@@ -1017,9 +1021,11 @@ body.light-mode .tracker-stats-account { color: #171717; }
 body.light-mode .tracker-link-field input,
 body.light-mode .tracker-link-field select,
 body.light-mode .tracker-stats-grid .tracker-stat-cell,
-body.light-mode .tracker-connection-card { background: rgba(20,20,20,0.07); color: #171717; }
+body.light-mode .tracker-connection-card,
+body.light-mode .tracker-auto-stats { background: rgba(20,20,20,0.07); color: #171717; }
 body.light-mode .tracker-connection-card span { color: rgba(20,20,20,0.58); }
 body.light-mode .tracker-connection-card strong { color: #171717; }
+body.light-mode .tracker-auto-stats-head small { color: rgba(20,20,20,0.58); }
 @media (min-width: 720px) {
   .tracker-link-sheet { left: 50%; right: auto; bottom: 22px; width: min(520px, calc(100vw - 36px)); border-radius: 18px; transform: translate3d(-50%, 16px, 0); }
   .tracker-link-overlay.is-open .tracker-link-sheet { transform: translate3d(-50%, 0, 0); }

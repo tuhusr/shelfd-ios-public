@@ -2585,7 +2585,7 @@ function readAnimeTitleDisplayModeFromPage() {
 }
 
 async function saveProfileSettingsPatch(patch = {}) {
-  // v429/v944 hardening: when a provider-only patch is being saved, scrub
+  // v429/v945 hardening: when a provider-only patch is being saved, scrub
   // root-level Shelfd identity fields out of the patch even if a caller accidentally
   // passes them. Shelfd profile name/photo/bio/customName/customPhoto must never be
   // overwritten as a side-effect of Steam or Tracker connect/sync.

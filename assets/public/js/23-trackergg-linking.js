@@ -1,7 +1,7 @@
-/* v944: Tracker.gg competitive profile linking framework. */
+/* v945: Tracker.gg API-only competitive stats linking framework. */
 (function initScreenListTrackerLinking() {
-  if (window.__screenListTrackerLinkingV944) return;
-  window.__screenListTrackerLinkingV944 = true;
+  if (window.__screenListTrackerLinkingV945) return;
+  window.__screenListTrackerLinkingV945 = true;
 
   const TRACKER_GAME_CONFIGS = [
     { key: 'valorant', label: 'Valorant', aliases: ['valorant'], profileKind: 'riot', profileBase: 'https://tracker.gg/valorant/profile/riot/' },
@@ -12,6 +12,7 @@
     { key: 'rocket-league', label: 'Rocket League', aliases: ['rocket league'], profileKind: 'platform', profileBase: 'https://tracker.gg/rocket-league/profile/' },
     { key: 'cs2', label: 'Counter-Strike 2', aliases: ['counter strike 2', 'counter-strike 2', 'cs2', 'counter strike'], profileKind: 'steam', profileBase: 'https://tracker.gg/cs2/profile/steam/' }
   ];
+  let trackerModalFetchedStats = null;
 
   function html(value = '') {
     if (typeof escHtml === 'function') return escHtml(value);
@@ -198,6 +199,43 @@
     `;
   }
 
+  function renderPreviewStatCell(key, label, value) {
+    return `
+      <span class="tracker-stat-cell tracker-preview-stat-cell">
+        <span>${html(label)}</span>
+        <strong data-tracker-stat-value="${attr(key)}">${html(value || '-')}</strong>
+      </span>
+    `;
+  }
+
+  function normalizeTrackerApiStats(profile = {}) {
+    return {
+      currentRank: cleanText(profile.currentRank || ''),
+      peakRank: cleanText(profile.peakRank || ''),
+      winRate: normalizePercent(profile.winRate || ''),
+      kd: normalizeDecimal(profile.kd || '')
+    };
+  }
+
+  function setTrackerStatsPreview(stats = {}, message = '') {
+    const normalized = normalizeTrackerApiStats(stats);
+    trackerModalFetchedStats = normalized;
+    const overlay = document.getElementById('tracker-link-overlay');
+    if (overlay) {
+      overlay.dataset.trackerCurrentRank = normalized.currentRank;
+      overlay.dataset.trackerPeakRank = normalized.peakRank;
+      overlay.dataset.trackerWinRate = normalized.winRate;
+      overlay.dataset.trackerKd = normalized.kd;
+    }
+    Object.entries(normalized).forEach(([key, value]) => {
+      const el = document.querySelector(`[data-tracker-stat-value="${key}"]`);
+      if (el) el.textContent = value || '-';
+    });
+    const note = document.getElementById('tracker-auto-stats-note');
+    if (note && message) note.textContent = message;
+    return normalized;
+  }
+
   function renderTrackerStatsCardHtml(item = {}) {
     const snapshot = getTrackerSnapshot(item);
     if (!hasTrackerBreakdownForItem(item)) return '';
@@ -242,18 +280,11 @@
     const config = getConfigByKey(snapshot.gameSlug) || getConfigForTitle(item.title || '');
     const gameSelect = document.getElementById('tracker-link-game-kind');
     const accountInput = document.getElementById('tracker-link-account');
-    const currentRank = document.getElementById('tracker-link-current-rank');
-    const peakRank = document.getElementById('tracker-link-peak-rank');
-    const winRate = document.getElementById('tracker-link-win-rate');
-    const kd = document.getElementById('tracker-link-kd');
     const platform = document.getElementById('tracker-link-platform');
     if (gameSelect) gameSelect.value = config.key;
     if (accountInput) accountInput.value = snapshot.sourceUrl || snapshot.displayName || '';
-    if (currentRank) currentRank.value = snapshot.currentRank || '';
-    if (peakRank) peakRank.value = snapshot.peakRank || '';
-    if (winRate) winRate.value = snapshot.winRate || '';
-    if (kd) kd.value = snapshot.kd || '';
     if (platform) platform.value = item.gamePlatform || item.platform || 'pc';
+    setTrackerStatsPreview(snapshot, snapshot.updatedAt ? 'Current saved stats. Fetch again to refresh from Tracker.gg.' : 'Stats will be fetched from Tracker.gg.');
   }
 
   function getTrackerGameSelectHtml(selected = '') {
@@ -279,6 +310,7 @@
     const config = getConfigByKey(snapshot.gameSlug || connection.gameSlug) || getConfigForTitle(selectedItem?.title || '');
     const profileValue = snapshot.sourceUrl || connection.profileUrl || snapshot.displayName || connection.displayName || '';
     const platformValue = snapshot.platform || connection.platform || selectedItem?.gamePlatform || selectedItem?.platform || 'pc';
+    trackerModalFetchedStats = normalizeTrackerApiStats(snapshot);
 
     const overlay = document.createElement('div');
     overlay.id = 'tracker-link-overlay';
@@ -318,22 +350,18 @@
             <span>Profile URL or account</span>
             <input id="tracker-link-account" type="text" value="${attr(profileValue)}" placeholder="Riot ID, gamertag, or tracker.gg URL">
           </label>
-          <label class="tracker-link-field">
-            <span>Current rank</span>
-            <input id="tracker-link-current-rank" type="text" value="${attr(snapshot.currentRank || '')}" placeholder="Diamond 2">
-          </label>
-          <label class="tracker-link-field">
-            <span>Peak rank</span>
-            <input id="tracker-link-peak-rank" type="text" value="${attr(snapshot.peakRank || '')}" placeholder="Ascendant 1">
-          </label>
-          <label class="tracker-link-field">
-            <span>Win %</span>
-            <input id="tracker-link-win-rate" type="text" inputmode="decimal" value="${attr(snapshot.winRate || '')}" placeholder="54.2%">
-          </label>
-          <label class="tracker-link-field">
-            <span>K/D</span>
-            <input id="tracker-link-kd" type="text" inputmode="decimal" value="${attr(snapshot.kd || '')}" placeholder="1.18">
-          </label>
+        </div>
+        <div class="tracker-auto-stats">
+          <div class="tracker-auto-stats-head">
+            <span>API stats</span>
+            <small id="tracker-auto-stats-note">${snapshot.updatedAt ? 'Current saved stats. Fetch again to refresh from Tracker.gg.' : 'Stats will be fetched from Tracker.gg.'}</small>
+          </div>
+          <div class="tracker-card-stat-grid">
+            ${renderPreviewStatCell('currentRank', 'Rank', snapshot.currentRank)}
+            ${renderPreviewStatCell('peakRank', 'Peak', snapshot.peakRank)}
+            ${renderPreviewStatCell('winRate', 'Win', snapshot.winRate)}
+            ${renderPreviewStatCell('kd', 'K/D', snapshot.kd)}
+          </div>
         </div>
         <div id="tracker-link-status" class="tracker-link-status" aria-live="polite"></div>
         <div class="tracker-link-actions">
@@ -344,6 +372,7 @@
       </div>
     `;
     document.body.appendChild(overlay);
+    setTrackerStatsPreview(snapshot);
     document.body.classList.add('tracker-link-open');
     overlay.addEventListener('click', event => {
       if (event.target?.closest?.('[data-tracker-close]')) closeTrackerLinkModal();
@@ -384,41 +413,40 @@
     }
   }
 
-  async function syncScreenListTrackerStats(button = null) {
+  async function fetchTrackerStatsFromModal({ showSuccess = true } = {}) {
     const game = cleanText(document.getElementById('tracker-link-game-kind')?.value || '');
     const platform = cleanText(document.getElementById('tracker-link-platform')?.value || 'pc');
     const account = cleanText(document.getElementById('tracker-link-account')?.value || '');
     const identifier = getTrackerIdentifierFromInput(account);
     if (!game || !identifier) {
       setTrackerLinkStatus('Add a Tracker profile URL or account before fetching stats.', 'error');
-      return;
+      return null;
     }
+    const params = new URLSearchParams({ game, platform, identifier });
+    const res = await fetch(`/api/trackergg/profile?${params.toString()}`, { cache: 'no-store' });
+    const json = await res.json().catch(() => null);
+    if (!json?.ok) {
+      const message = json?.error || 'Tracker.gg stats are not available for this title yet.';
+      setTrackerLinkStatus(message, json?.unsupported ? '' : 'error');
+      setTrackerStatsPreview({}, message);
+      return null;
+    }
+    const normalized = setTrackerStatsPreview(json.profile || {}, 'Fetched from Tracker.gg.');
+    if (showSuccess) setTrackerLinkStatus('Tracker.gg stats fetched from the API. Save the link to attach them.', '');
+    return normalized;
+  }
+
+  async function syncScreenListTrackerStats(button = null) {
     if (button) {
       button.disabled = true;
       button.dataset.originalText = button.textContent || 'Fetch stats';
       button.textContent = 'Fetching';
     }
     try {
-      const params = new URLSearchParams({ game, platform, identifier });
-      const res = await fetch(`/api/trackergg/profile?${params.toString()}`, { cache: 'no-store' });
-      const json = await res.json().catch(() => null);
-      if (!json?.ok) {
-        setTrackerLinkStatus(json?.error || 'Tracker.gg sync is not available for this title yet.', json?.unsupported ? '' : 'error');
-        return;
-      }
-      const profile = json.profile || {};
-      const currentRank = document.getElementById('tracker-link-current-rank');
-      const peakRank = document.getElementById('tracker-link-peak-rank');
-      const winRate = document.getElementById('tracker-link-win-rate');
-      const kd = document.getElementById('tracker-link-kd');
-      if (currentRank && profile.currentRank) currentRank.value = profile.currentRank;
-      if (peakRank && profile.peakRank) peakRank.value = profile.peakRank;
-      if (winRate && profile.winRate) winRate.value = profile.winRate;
-      if (kd && profile.kd) kd.value = profile.kd;
-      setTrackerLinkStatus('Tracker.gg stats fetched. Save the link to attach them.', '');
+      await fetchTrackerStatsFromModal({ showSuccess: true });
     } catch (error) {
       console.warn('Tracker.gg sync failed:', error);
-      setTrackerLinkStatus('Could not fetch Tracker.gg stats. You can still save the profile snapshot.', 'error');
+      setTrackerLinkStatus('Could not fetch Tracker.gg stats.', 'error');
     } finally {
       if (button) {
         button.disabled = false;
@@ -499,23 +527,8 @@
     const displayName = connection.displayName;
     const platform = connection.platform;
     const now = new Date().toISOString();
-    const snapshot = {
-      provider: 'tracker.gg',
-      gameSlug: config.key,
-      gameLabel: config.label,
-      displayName,
-      platform,
-      currentRank: cleanText(document.getElementById('tracker-link-current-rank')?.value || ''),
-      peakRank: cleanText(document.getElementById('tracker-link-peak-rank')?.value || ''),
-      winRate: normalizePercent(document.getElementById('tracker-link-win-rate')?.value || ''),
-      kd: normalizeDecimal(document.getElementById('tracker-link-kd')?.value || ''),
-      sourceUrl: profileUrl,
-      syncMode: 'profile-link-snapshot',
-      linkedAt: record.item?.competitiveStats?.linkedAt || now,
-      updatedAt: now
-    };
 
-    if (!snapshot.sourceUrl && !snapshot.displayName) {
+    if (!profileUrl && !displayName) {
       setTrackerLinkStatus('Add a Tracker.gg profile URL or account name.', 'error');
       return;
     }
@@ -523,10 +536,29 @@
     if (button) {
       button.disabled = true;
       button.dataset.originalText = button.textContent || 'Save link';
-      button.textContent = 'Saving';
+      button.textContent = 'Fetching';
     }
 
     try {
+      const fetchedStats = await fetchTrackerStatsFromModal({ showSuccess: false });
+      if (!fetchedStats) throw new Error('Tracker.gg did not return API stats for this profile.');
+      if (!hasUsefulStat(fetchedStats)) throw new Error('Tracker.gg returned this profile, but no rank, peak rank, win %, or K/D stats were available.');
+      if (button) button.textContent = 'Saving';
+      const snapshot = {
+        provider: 'tracker.gg',
+        gameSlug: config.key,
+        gameLabel: config.label,
+        displayName,
+        platform,
+        currentRank: fetchedStats.currentRank,
+        peakRank: fetchedStats.peakRank,
+        winRate: fetchedStats.winRate,
+        kd: fetchedStats.kd,
+        sourceUrl: profileUrl,
+        syncMode: 'tracker-api',
+        linkedAt: record.item?.competitiveStats?.linkedAt || now,
+        updatedAt: now
+      };
       const nextData = typeof cloneListData === 'function'
         ? cloneListData(data)
         : JSON.parse(JSON.stringify(data || { games: [] }));
@@ -575,7 +607,7 @@
       if (typeof showToast === 'function') showToast('Tracker.gg linked');
     } catch (error) {
       console.warn('Tracker.gg link save failed:', error);
-      setTrackerLinkStatus('Could not save the Tracker.gg link. Try again.', 'error');
+      setTrackerLinkStatus(error?.message || 'Could not save the Tracker.gg link. Try again.', 'error');
     } finally {
       if (button) {
         button.disabled = false;

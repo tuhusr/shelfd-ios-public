@@ -1,1 +1,1 @@
-v944_2026-05-14_trackergg_profile_connect_fix
+v945_2026-05-14_trackergg_api_only_stats
