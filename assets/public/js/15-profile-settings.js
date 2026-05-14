@@ -847,6 +847,7 @@ function normalizeUserProfile(raw = {}) {
     animeTitleDisplayMode: normalizeAnimeTitleDisplayMode(raw.animeTitleDisplayMode || raw.animeTitleDisplay),
     socialLinks: normalizeSocialLinks(raw.socialLinks),
     steamConnection: normalizeSteamConnection(raw.steamConnection || raw.steam || {}),
+    trackerConnection: normalizeTrackerConnection(raw.trackerConnection || raw.tracker || {}),
     pinnedFavorites: normalizePinnedFavorites(raw.pinnedFavorites),
     profileVisibility: normalizeProfileVisibility(raw.profileVisibility),
     listTabVisibility: normalizeListTabVisibility(raw.listTabVisibility),
@@ -882,6 +883,20 @@ function normalizeSteamConnection(raw = {}) {
     connectedAt: String(source.connectedAt || '').trim(),
     lastSyncedAt: String(source.lastSyncedAt || '').trim(),
     lastSyncTotal: Number.isFinite(total) && total > 0 ? Math.round(total) : 0
+  };
+}
+
+function normalizeTrackerConnection(raw = {}) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  return {
+    provider: 'tracker.gg',
+    gameSlug: String(source.gameSlug || source.defaultGameSlug || '').trim(),
+    gameLabel: String(source.gameLabel || '').trim(),
+    displayName: String(source.displayName || source.accountName || source.handle || '').trim(),
+    platform: String(source.platform || 'pc').trim(),
+    profileUrl: String(source.profileUrl || source.sourceUrl || source.url || '').trim(),
+    connectedAt: String(source.connectedAt || '').trim(),
+    updatedAt: String(source.updatedAt || '').trim()
   };
 }
 
@@ -2570,13 +2585,14 @@ function readAnimeTitleDisplayModeFromPage() {
 }
 
 async function saveProfileSettingsPatch(patch = {}) {
-  // v429 hardening: when a Steam-only patch (steamConnection) is being saved, scrub
+  // v429/v944 hardening: when a provider-only patch is being saved, scrub
   // root-level Shelfd identity fields out of the patch even if a caller accidentally
-  // passes them. Shelfd profile name/photo/bio/customName/customPhoto must NEVER be
-  // overwritten as a side-effect of Steam connect/sync.
+  // passes them. Shelfd profile name/photo/bio/customName/customPhoto must never be
+  // overwritten as a side-effect of Steam or Tracker connect/sync.
   let safePatch = { ...(patch && typeof patch === 'object' ? patch : {}) };
-  const looksSteamOnly = Object.keys(safePatch).every(k => k === 'steamConnection');
-  if (looksSteamOnly) {
+  const providerPatchKeys = new Set(['steamConnection', 'trackerConnection']);
+  const looksProviderOnly = Object.keys(safePatch).every(k => providerPatchKeys.has(k));
+  if (looksProviderOnly) {
     delete safePatch.name;
     delete safePatch.nameLower;
     delete safePatch.photo;

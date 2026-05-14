@@ -1,9 +1,8 @@
-/* v943: Tracker.gg competitive account linking framework. */
+/* v944: Tracker.gg competitive profile linking framework. */
 (function initScreenListTrackerLinking() {
-  if (window.__screenListTrackerLinkingV943) return;
-  window.__screenListTrackerLinkingV943 = true;
+  if (window.__screenListTrackerLinkingV944) return;
+  window.__screenListTrackerLinkingV944 = true;
 
-  const TRACKER_LINKED_ACCOUNTS_URL = 'https://tracker.gg/account/linked-accounts';
   const TRACKER_GAME_CONFIGS = [
     { key: 'valorant', label: 'Valorant', aliases: ['valorant'], profileKind: 'riot', profileBase: 'https://tracker.gg/valorant/profile/riot/' },
     { key: 'marvel-rivals', label: 'Marvel Rivals', aliases: ['marvel rivals', 'marvelrivals'], profileKind: 'ign', profileBase: 'https://tracker.gg/marvel-rivals/profile/ign/' },
@@ -97,8 +96,31 @@
   }
 
   function getOwnGameItems() {
-    const list = Array.isArray(window.data?.games) ? window.data.games : [];
+    const source = (typeof getVisibleListData === 'function')
+      ? getVisibleListData()
+      : (typeof data !== 'undefined' ? data : (window.data || {}));
+    const list = Array.isArray(source?.games) ? source.games : [];
     return list.map((item, index) => ({ item, index, id: getGameItemKey(item, index) }));
+  }
+
+  function normalizeTrackerConnection(raw = {}) {
+    const source = raw && typeof raw === 'object' ? raw : {};
+    const config = getConfigByKey(source.gameSlug || source.defaultGameSlug || '') || null;
+    return {
+      provider: 'tracker.gg',
+      gameSlug: config?.key || cleanText(source.gameSlug || source.defaultGameSlug || ''),
+      gameLabel: config?.label || cleanText(source.gameLabel || ''),
+      displayName: cleanText(source.displayName || source.accountName || source.handle || ''),
+      platform: cleanText(source.platform || 'pc'),
+      profileUrl: normalizeUrl(source.profileUrl || source.sourceUrl || source.url || ''),
+      connectedAt: cleanText(source.connectedAt || ''),
+      updatedAt: cleanText(source.updatedAt || '')
+    };
+  }
+
+  function getTrackerConnection() {
+    const profile = typeof userProfile !== 'undefined' ? userProfile : {};
+    return normalizeTrackerConnection(profile?.trackerConnection || {});
   }
 
   function getGameItemKey(item = {}, index = 0) {
@@ -253,7 +275,10 @@
       : (games.find(row => hasTrackerBreakdownForItem(row.item))?.id || games[0]?.id || '');
     const selectedItem = findGameRecord(selected)?.item || null;
     const snapshot = selectedItem ? getTrackerSnapshot(selectedItem) : {};
-    const config = getConfigByKey(snapshot.gameSlug) || getConfigForTitle(selectedItem?.title || '');
+    const connection = getTrackerConnection();
+    const config = getConfigByKey(snapshot.gameSlug || connection.gameSlug) || getConfigForTitle(selectedItem?.title || '');
+    const profileValue = snapshot.sourceUrl || connection.profileUrl || snapshot.displayName || connection.displayName || '';
+    const platformValue = snapshot.platform || connection.platform || selectedItem?.gamePlatform || selectedItem?.platform || 'pc';
 
     const overlay = document.createElement('div');
     overlay.id = 'tracker-link-overlay';
@@ -271,7 +296,11 @@
           </div>
           <button class="tracker-link-close" type="button" data-tracker-close aria-label="Close">x</button>
         </div>
-        <div class="tracker-link-copy">Connect a public Tracker.gg profile to a game in My Lists and save the stats Shelfd should show on the title card.</div>
+        <div class="tracker-link-copy">Tracker.gg does not provide a Steam-style callback to Shelfd. Paste a public Tracker profile URL or handle, then Shelfd saves it as your connected competitive profile and attaches the stats to the selected game.</div>
+        <div class="tracker-connection-card">
+          <span>Connected profile</span>
+          <strong>${html(connection.displayName || connection.profileUrl || 'Not connected')}</strong>
+        </div>
         <div class="tracker-link-form">
           <label class="tracker-link-field tracker-link-field-wide">
             <span>Game in My Lists</span>
@@ -283,11 +312,11 @@
           </label>
           <label class="tracker-link-field">
             <span>Platform</span>
-            <input id="tracker-link-platform" type="text" value="${attr(selectedItem?.gamePlatform || selectedItem?.platform || 'pc')}" placeholder="pc">
+            <input id="tracker-link-platform" type="text" value="${attr(platformValue)}" placeholder="pc">
           </label>
           <label class="tracker-link-field tracker-link-field-wide">
             <span>Profile URL or account</span>
-            <input id="tracker-link-account" type="text" value="${attr(snapshot.sourceUrl || snapshot.displayName || '')}" placeholder="Riot ID, gamertag, or tracker.gg URL">
+            <input id="tracker-link-account" type="text" value="${attr(profileValue)}" placeholder="Riot ID, gamertag, or tracker.gg URL">
           </label>
           <label class="tracker-link-field">
             <span>Current rank</span>
@@ -308,8 +337,8 @@
         </div>
         <div id="tracker-link-status" class="tracker-link-status" aria-live="polite"></div>
         <div class="tracker-link-actions">
-          <button class="tracker-link-secondary" type="button" onclick="openTrackerAccountSignIn()">Open Tracker.gg sign in</button>
-          <button class="tracker-link-secondary" type="button" onclick="syncScreenListTrackerStats(this)">Sync API</button>
+          <button class="tracker-link-secondary" type="button" onclick="saveScreenListTrackerConnection(this)">Connect profile</button>
+          <button class="tracker-link-secondary" type="button" onclick="syncScreenListTrackerStats(this)">Fetch stats</button>
           <button class="tracker-link-primary" type="button" onclick="saveScreenListTrackerLink(this)">Save link</button>
         </div>
       </div>
@@ -337,10 +366,6 @@
     el.textContent = message;
   }
 
-  function openTrackerAccountSignIn() {
-    window.open(TRACKER_LINKED_ACCOUNTS_URL, '_blank', 'noopener');
-  }
-
   function getTrackerIdentifierFromInput(value = '') {
     const clean = cleanText(value);
     if (!clean) return '';
@@ -365,13 +390,13 @@
     const account = cleanText(document.getElementById('tracker-link-account')?.value || '');
     const identifier = getTrackerIdentifierFromInput(account);
     if (!game || !identifier) {
-      setTrackerLinkStatus('Add a game and account before syncing.', 'error');
+      setTrackerLinkStatus('Add a Tracker profile URL or account before fetching stats.', 'error');
       return;
     }
     if (button) {
       button.disabled = true;
-      button.dataset.originalText = button.textContent || 'Sync API';
-      button.textContent = 'Syncing';
+      button.dataset.originalText = button.textContent || 'Fetch stats';
+      button.textContent = 'Fetching';
     }
     try {
       const params = new URLSearchParams({ game, platform, identifier });
@@ -390,14 +415,71 @@
       if (peakRank && profile.peakRank) peakRank.value = profile.peakRank;
       if (winRate && profile.winRate) winRate.value = profile.winRate;
       if (kd && profile.kd) kd.value = profile.kd;
-      setTrackerLinkStatus('Tracker.gg stats synced. Save the link to attach them.', '');
+      setTrackerLinkStatus('Tracker.gg stats fetched. Save the link to attach them.', '');
     } catch (error) {
       console.warn('Tracker.gg sync failed:', error);
-      setTrackerLinkStatus('Could not reach Tracker.gg sync. You can still save the profile snapshot.', 'error');
+      setTrackerLinkStatus('Could not fetch Tracker.gg stats. You can still save the profile snapshot.', 'error');
     } finally {
       if (button) {
         button.disabled = false;
-        button.textContent = button.dataset.originalText || 'Sync API';
+        button.textContent = button.dataset.originalText || 'Fetch stats';
+      }
+    }
+  }
+
+  function buildTrackerConnectionFromModal() {
+    const gameKey = cleanText(document.getElementById('tracker-link-game-kind')?.value || '');
+    const platform = cleanText(document.getElementById('tracker-link-platform')?.value || 'pc');
+    const accountRaw = cleanText(document.getElementById('tracker-link-account')?.value || '');
+    const configFromUrl = parseTrackerGameFromUrl(accountRaw);
+    const selectedItem = getSelectedModalItem();
+    const config = configFromUrl || getConfigByKey(gameKey) || getConfigForTitle(selectedItem?.title || '');
+    const profileUrl = buildTrackerProfileUrl(config.key, accountRaw, platform);
+    const parsedIdentifier = getTrackerIdentifierFromInput(accountRaw);
+    const displayName = /^https?:\/\//i.test(normalizeUrl(accountRaw))
+      ? cleanText(parsedIdentifier || getTrackerConnection().displayName || '')
+      : accountRaw;
+    const now = new Date().toISOString();
+    return {
+      provider: 'tracker.gg',
+      gameSlug: config.key,
+      gameLabel: config.label,
+      displayName,
+      platform,
+      profileUrl,
+      connectedAt: getTrackerConnection().connectedAt || now,
+      updatedAt: now
+    };
+  }
+
+  async function saveScreenListTrackerConnection(button = null) {
+    if (!currentUser || viewingUser) return;
+    const next = buildTrackerConnectionFromModal();
+    if (!next.profileUrl && !next.displayName) {
+      setTrackerLinkStatus('Add a Tracker.gg profile URL or account name first.', 'error');
+      return;
+    }
+    if (button) {
+      button.disabled = true;
+      button.dataset.originalText = button.textContent || 'Connect profile';
+      button.textContent = 'Connecting';
+    }
+    try {
+      if (typeof saveProfileSettingsPatch === 'function') {
+        await saveProfileSettingsPatch({ trackerConnection: next });
+      } else {
+        if (!userProfile) userProfile = {};
+        userProfile.trackerConnection = next;
+      }
+      setTrackerLinkStatus(`Connected ${next.displayName || 'Tracker.gg profile'} to Shelfd.`, '');
+      if (typeof showToast === 'function') showToast('Tracker.gg profile connected');
+    } catch (error) {
+      console.warn('Tracker.gg profile connect failed:', error);
+      setTrackerLinkStatus('Could not save the Tracker.gg connection. Try again.', 'error');
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = button.dataset.originalText || 'Connect profile';
       }
     }
   }
@@ -411,16 +493,11 @@
       return;
     }
 
-    const gameKey = cleanText(document.getElementById('tracker-link-game-kind')?.value || '');
-    const platform = cleanText(document.getElementById('tracker-link-platform')?.value || 'pc');
-    const accountRaw = cleanText(document.getElementById('tracker-link-account')?.value || '');
-    const configFromUrl = parseTrackerGameFromUrl(accountRaw);
-    const config = configFromUrl || getConfigByKey(gameKey) || getConfigForTitle(record.item?.title || '');
-    const profileUrl = buildTrackerProfileUrl(config.key, accountRaw, platform);
-    const parsedIdentifier = getTrackerIdentifierFromInput(accountRaw);
-    const displayName = /^https?:\/\//i.test(normalizeUrl(accountRaw))
-      ? cleanText(parsedIdentifier || record.item?.trackerAccountName || record.item?.title || '')
-      : accountRaw;
+    const connection = buildTrackerConnectionFromModal();
+    const config = getConfigByKey(connection.gameSlug) || getConfigForTitle(record.item?.title || '');
+    const profileUrl = connection.profileUrl;
+    const displayName = connection.displayName;
+    const platform = connection.platform;
     const now = new Date().toISOString();
     const snapshot = {
       provider: 'tracker.gg',
@@ -486,6 +563,12 @@
       } else {
         data = typeof normalizeListData === 'function' ? normalizeListData(nextData) : nextData;
         if (typeof save === 'function') save();
+      }
+      if (typeof saveProfileSettingsPatch === 'function') {
+        await saveProfileSettingsPatch({ trackerConnection: connection });
+      } else {
+        if (!userProfile) userProfile = {};
+        userProfile.trackerConnection = connection;
       }
       closeTrackerLinkModal();
       if (typeof render === 'function') render();
@@ -580,9 +663,9 @@
   window.openTrackerLinkModal = openTrackerLinkModal;
   window.closeTrackerLinkModal = closeTrackerLinkModal;
   window.saveScreenListTrackerLink = saveScreenListTrackerLink;
+  window.saveScreenListTrackerConnection = saveScreenListTrackerConnection;
   window.syncScreenListTrackerStats = syncScreenListTrackerStats;
   window.openTrackerStatsPage = openTrackerStatsPage;
   window.closeTrackerStatsPage = closeTrackerStatsPage;
-  window.openTrackerAccountSignIn = openTrackerAccountSignIn;
   window.syncTrackerModalGameDefaults = syncTrackerModalGameDefaults;
 })();

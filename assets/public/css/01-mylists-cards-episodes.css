@@ -900,7 +900,7 @@ body.light-mode .game-card-stat-val { color: #241640; }
 body.light-mode .game-card-tracker-icon-link { color: #6d28d9; }
 body.light-mode .game-card-tracker-icon-link:hover { color: #241640; }
 
-/* v943: Tracker.gg competitive stats framework */
+/* v944: Tracker.gg competitive stats/profile connection framework */
 .tracker-import-logo {
   display: inline-grid;
   place-items: center;
@@ -970,6 +970,9 @@ body.light-mode .game-card-tracker-icon-link:hover { color: #241640; }
 .tracker-link-copy,
 .tracker-stats-note,
 .tracker-stats-updated { margin-top: 10px; color: rgba(255,255,255,0.58); font-size: 13px; line-height: 1.35; }
+.tracker-connection-card { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; padding: 10px 11px; border-radius: 10px; background: rgba(196,181,253,0.08); }
+.tracker-connection-card span { color: rgba(255,255,255,0.52); font-size: 11px; font-weight: 720; text-transform: uppercase; letter-spacing: 0.35px; }
+.tracker-connection-card strong { min-width: 0; color: #f6f1ff; font-size: 13px; font-weight: 760; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tracker-link-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
 .tracker-link-field { display: flex; flex-direction: column; gap: 6px; }
 .tracker-link-field-wide { grid-column: 1 / -1; }
@@ -1013,7 +1016,10 @@ body.light-mode .tracker-stats-topbar h2,
 body.light-mode .tracker-stats-account { color: #171717; }
 body.light-mode .tracker-link-field input,
 body.light-mode .tracker-link-field select,
-body.light-mode .tracker-stats-grid .tracker-stat-cell { background: rgba(20,20,20,0.07); color: #171717; }
+body.light-mode .tracker-stats-grid .tracker-stat-cell,
+body.light-mode .tracker-connection-card { background: rgba(20,20,20,0.07); color: #171717; }
+body.light-mode .tracker-connection-card span { color: rgba(20,20,20,0.58); }
+body.light-mode .tracker-connection-card strong { color: #171717; }
 @media (min-width: 720px) {
   .tracker-link-sheet { left: 50%; right: auto; bottom: 22px; width: min(520px, calc(100vw - 36px)); border-radius: 18px; transform: translate3d(-50%, 16px, 0); }
   .tracker-link-overlay.is-open .tracker-link-sheet { transform: translate3d(-50%, 0, 0); }
