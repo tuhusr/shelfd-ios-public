@@ -769,6 +769,15 @@ function normalizeGameDetailFieldsForStorage(item = {}) {
 function normalizeListEntry(item, fallbackSection) {
   if (!item || typeof item !== 'object') return null;
   let next = { ...item };
+  if (fallbackSection === 'movies' || fallbackSection === 'shows' || fallbackSection === 'anime' || fallbackSection === 'games') {
+    const rawPriority = Number(next.watchPriority || next.watchlistPriority || next.priority || 0);
+    if (Number.isFinite(rawPriority) && rawPriority > 0) {
+      next.watchPriority = Math.max(1, Math.floor(rawPriority));
+    } else {
+      delete next.watchPriority;
+      delete next.watchlistPriority;
+    }
+  }
   if (isShowSection(fallbackSection)) {
     const resolvedSection = resolveShowSection(next, fallbackSection);
     next.mediaCategory = resolvedSection;
@@ -872,6 +881,7 @@ let data = getEmptyListData();
 let ownDataCache = null; // durable in-session copy of the signed-in user's own library
 let friendViewData = null; // isolated data for a friend's profile; never used for saving your own list
 let viewingReturnTab = 'mylist';
+let viewingReturnState = null;
 function cloneListData(source) {
   return normalizeListData(source);
 }

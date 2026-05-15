@@ -514,6 +514,13 @@ async function buildTmdbLibraryItem(type, tmdbId, status = 'planned', rating = 0
     item.mediaCategory = detectAnimeFromMetadata(item) ? 'anime' : 'shows';
     item.librarySection = item.mediaCategory;
     item.isAnime = item.mediaCategory === 'anime';
+    const nextEpisode = typeof normalizeMyListTmdbNextEpisodeMetadata === 'function'
+      ? normalizeMyListTmdbNextEpisodeMetadata(d)
+      : null;
+    if (nextEpisode?.airDate) {
+      item.nextEpisodeAirDate = nextEpisode.airDate;
+      item.next_episode_to_air = nextEpisode.episode;
+    }
     if (item.isAnime) await hydrateAnimeTitleVariants(item);
     try {
       const extRes = await fetchTmdbProxy(`tv/${tmdbId}/external_ids`);
@@ -536,6 +543,8 @@ async function buildTmdbLibraryItem(type, tmdbId, status = 'planned', rating = 0
           seasonName: seasonDisplayName,
           epNum: ep.episode_number,
           title: ep.name || '',
+          airDate: ep.air_date || '',
+          air_date: ep.air_date || '',
           cover: (sData.poster_path || season.poster_path) ? `https://image.tmdb.org/t/p/w500${sData.poster_path || season.poster_path}` : '',
         }));
         seasonEpisodes.forEach(ep => {
@@ -546,6 +555,8 @@ async function buildTmdbLibraryItem(type, tmdbId, status = 'planned', rating = 0
             epNum: ep.epNum,
             seasonName: ep.seasonName || '',
             title: ep.title,
+            airDate: ep.airDate || ep.air_date || '',
+            air_date: ep.air_date || ep.airDate || '',
             cover: ep.cover || '',
             watched: status === 'watched',
             rating: 0,

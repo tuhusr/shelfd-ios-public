@@ -1753,6 +1753,15 @@ async function getCachedImdbRatingForItem(env, ctx, originUrl, item = {}) {
    Concurrency capped to 8 in-flight to avoid hammering OMDb. Per-item 7-day
    Cloudflare cache + this routing endpoint means subsequent calls for the
    same items are served from cache. */
+function getImdbBatchResultKey(item = {}, index = 0) {
+  const type = normalizeImdbMediaType(item.type);
+  const tmdbId = String(item.tmdbId || item.id || "").trim();
+  if (tmdbId) return `${type}:${tmdbId}`;
+  const imdbId = normalizeImdbTitleId(item.imdbId || "");
+  if (imdbId) return `imdb:${imdbId}`;
+  return `idx:${index}`;
+}
+
 async function runImdbRatingBatchEndpoint(request, env, ctx) {
   if (request.method !== "POST") {
     return jsonResponse({ ok: false, error: "POST required." }, 405);
@@ -1764,6 +1773,11 @@ async function runImdbRatingBatchEndpoint(request, env, ctx) {
 
   const url = new URL(request.url);
   const ratings = {};
+  const legacyKeyCounts = new Map();
+  items.forEach((item, index) => {
+    const legacyKey = String(item?.tmdbId || item?.id || item?.imdbId || `idx:${index}`);
+    legacyKeyCounts.set(legacyKey, Number(legacyKeyCounts.get(legacyKey) || 0) + 1);
+  });
   /* v673: OMDb fair-use guidance suggests modest concurrency. 4 in flight at
      once is the sweet spot — fast enough to clear a 25-item batch in ~3 hops
      and gentle on the upstream. */
@@ -1775,8 +1789,12 @@ async function runImdbRatingBatchEndpoint(request, env, ctx) {
       const i = cursor++;
       const item = items[i] || {};
       const result = await getCachedImdbRatingForItem(env, ctx, url, item);
-      const key = String(item.tmdbId || item.id || item.imdbId || `idx:${i}`);
-      ratings[key] = result;
+      const typedKey = getImdbBatchResultKey(item, i);
+      const legacyKey = String(item.tmdbId || item.id || item.imdbId || `idx:${i}`);
+      ratings[typedKey] = result;
+      if (legacyKey && (legacyKey.startsWith("idx:") || legacyKeyCounts.get(legacyKey) === 1)) {
+        ratings[legacyKey] = result;
+      }
     }
   }
 

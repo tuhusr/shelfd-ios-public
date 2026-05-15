@@ -7,10 +7,14 @@
   let duelState = null;
   let duelSwapTimer = 0;
   let duelMediaKey = 'movies';
+  let duelReadOnlyUser = null;
   let movieDuelVisibleTierList = null;
   let movieDuelVisibleTierActiveId = '';
   let movieDuelVisibleTierMediaKey = duelMediaKey;
   let movieDuelTierVisibleCounts = {};
+  const movieDuelTierListCache = {};
+  const movieDuelTierListSaveQueues = {};
+  const MOVIE_DUEL_TIER_STORAGE_PREFIX = 'shelfd-tier-list-cache-v1';
   const duelSelectedItemIds = {};
   const TIER_ROW_INITIAL_LIMIT = 12;
   const TIER_ROW_LOAD_STEP = 12;
@@ -126,6 +130,91 @@
     return MEDIA_CONFIGS[mediaKey] || MEDIA_CONFIGS.movies;
   }
 
+  function isMovieDuelReadOnly() {
+    return !!duelReadOnlyUser;
+  }
+
+  function getTierListProfileSource() {
+    return duelReadOnlyUser?.profileData || duelReadOnlyUser || userProfile || null;
+  }
+
+  function getTierListCacheKey(mediaKey = duelMediaKey) {
+    return getMediaConfig(mediaKey).key;
+  }
+
+  function cloneTierListPayload(payload = null) {
+    if (!payload || typeof payload !== 'object') return null;
+    try {
+      return JSON.parse(JSON.stringify(payload));
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function getTierListStorageOwnerId() {
+    return cleanText(currentUser?.uid || userProfile?.uid || '');
+  }
+
+  function getTierListStorageKey(mediaKey = duelMediaKey) {
+    const ownerId = getTierListStorageOwnerId();
+    if (!ownerId) return '';
+    return `${MOVIE_DUEL_TIER_STORAGE_PREFIX}:${ownerId}:${getTierListCacheKey(mediaKey)}`;
+  }
+
+  function readPersistedTierList(mediaKey = duelMediaKey) {
+    const storageKey = getTierListStorageKey(mediaKey);
+    if (!storageKey || typeof localStorage === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function writePersistedTierList(mediaKey = duelMediaKey, payload = null) {
+    const storageKey = getTierListStorageKey(mediaKey);
+    if (!storageKey || typeof localStorage === 'undefined') return;
+    try {
+      if (payload && typeof payload === 'object') {
+        localStorage.setItem(storageKey, JSON.stringify(payload));
+      } else {
+        localStorage.removeItem(storageKey);
+      }
+    } catch (error) {}
+  }
+
+  function getTierListUpdatedAt(raw = null) {
+    const iso = cleanText(raw?.updatedAt || '');
+    return iso ? (Date.parse(iso) || 0) : 0;
+  }
+
+  function pickLatestTierListSource(cached = null, saved = null) {
+    if (!cached) return saved || null;
+    if (!saved) return cached;
+    return getTierListUpdatedAt(cached) >= getTierListUpdatedAt(saved) ? cached : saved;
+  }
+
+  function readCachedTierList(mediaKey = duelMediaKey) {
+    const key = getTierListCacheKey(mediaKey);
+    if (movieDuelTierListCache[key]) return cloneTierListPayload(movieDuelTierListCache[key]);
+    const persisted = readPersistedTierList(mediaKey);
+    if (!persisted) return null;
+    movieDuelTierListCache[key] = cloneTierListPayload(persisted);
+    return cloneTierListPayload(persisted);
+  }
+
+  function writeCachedTierList(mediaKey = duelMediaKey, payload = null) {
+    const key = getTierListCacheKey(mediaKey);
+    const cloned = cloneTierListPayload(payload);
+    if (cloned) movieDuelTierListCache[key] = cloned;
+    else delete movieDuelTierListCache[key];
+    writePersistedTierList(mediaKey, cloned);
+    return cloned ? normalizeSavedTierList(cloned, mediaKey) : null;
+  }
+
   function getDefaultDuelMediaKey() {
     const current = cleanText(typeof activeSection !== 'undefined' ? activeSection : '').toLowerCase();
     return MEDIA_CONFIGS[current] ? current : 'movies';
@@ -154,7 +243,7 @@
   }
 
   function getDuelItems(mediaKey = duelMediaKey) {
-    if (viewingUser) return [];
+    if (viewingUser || isMovieDuelReadOnly()) return [];
     const config = getMediaConfig(mediaKey);
     const source = getDuelListData();
     const items = Array.isArray(source?.[config.sourceSection]) ? source[config.sourceSection] : [];
@@ -243,7 +332,18 @@
 
   function getSavedTierList(mediaKey = duelMediaKey) {
     const config = getMediaConfig(mediaKey);
-    return seedTierListFromLibrary(mediaKey, userProfile?.[config.profileKey]);
+    const profileSource = getTierListProfileSource();
+    const savedTierList = profileSource?.[config.profileKey];
+    const cachedTierList = !isMovieDuelReadOnly() ? readCachedTierList(mediaKey) : null;
+    const activeTierList = !isMovieDuelReadOnly()
+      ? pickLatestTierListSource(cachedTierList, savedTierList)
+      : savedTierList;
+    if (!isMovieDuelReadOnly() && activeTierList && activeTierList === savedTierList) {
+      writeCachedTierList(mediaKey, activeTierList);
+    }
+    return isMovieDuelReadOnly()
+      ? normalizeSavedTierList(activeTierList, mediaKey)
+      : seedTierListFromLibrary(mediaKey, activeTierList);
   }
 
   function getTierEntryMap(mediaKey = duelMediaKey) {
@@ -390,17 +490,51 @@
 
   async function saveTierList(mediaKey = duelMediaKey, tierList = null) {
     const config = getMediaConfig(mediaKey);
+    const normalized = normalizeSavedTierList(tierList, mediaKey);
     const payload = {
       version: 2,
       mediaType: config.key,
       updatedAt: new Date().toISOString(),
-      tiers: normalizeSavedTierList(tierList, mediaKey)
+      tiers: normalized
     };
+    writeCachedTierList(mediaKey, payload);
     if (!userProfile) userProfile = {};
     userProfile[config.profileKey] = payload;
-    if (typeof saveProfileSettingsPatch === 'function') {
-      await saveProfileSettingsPatch({ [config.profileKey]: payload });
+    if (currentUser?.uid) {
+      usersMap[currentUser.uid] = {
+        ...(usersMap[currentUser.uid] || {}),
+        uid: currentUser.uid,
+        [config.profileKey]: payload
+      };
     }
+
+    const cacheKey = getTierListCacheKey(mediaKey);
+    const persist = async () => {
+      if ((typeof isPreviewMode === 'function' && isPreviewMode()) || !currentUser) return true;
+      if (typeof saveProfileSettingsPatch === 'function') {
+        const saved = await saveProfileSettingsPatch({ [config.profileKey]: payload });
+        if (saved === false) throw new Error(`Could not sync ${config.tierTitle}.`);
+        return true;
+      }
+      if (typeof db !== 'undefined' && db?.collection && currentUser?.uid) {
+        await db.collection('users').doc(currentUser.uid).set({
+          [config.profileKey]: payload,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        return true;
+      }
+      throw new Error('No profile save path is available.');
+    };
+
+    const previousSave = movieDuelTierListSaveQueues[cacheKey] || Promise.resolve();
+    const nextSave = previousSave.catch(() => {}).then(persist);
+    const queuedSave = nextSave
+      .catch(() => {})
+      .finally(() => {
+        if (movieDuelTierListSaveQueues[cacheKey] === queuedSave) delete movieDuelTierListSaveQueues[cacheKey];
+      });
+    movieDuelTierListSaveQueues[cacheKey] = queuedSave;
+    await nextSave;
     return payload;
   }
 
@@ -812,6 +946,7 @@
     const overlay = document.getElementById('movie-rating-duel-overlay');
     if (!overlay || !duelState?.targetItem || !duelState?.currentOpponent) return;
     const config = getMediaConfig(duelState.mediaKey);
+    overlay.classList.remove('has-tier-list-page');
     overlay.classList.remove('has-tier-result');
     overlay.classList.remove('has-movie-picker');
     overlay.classList.add('has-active-round');
@@ -854,7 +989,7 @@
     const poster = cleanText(entry.poster || '');
     const title = cleanText(entry.title || 'Untitled');
     const entryId = cleanText(entry.id || '');
-    const clickable = !!entryId;
+    const clickable = !!entryId && !isMovieDuelReadOnly();
     return `
       <button type="button" class="movie-duel-tier-poster${clickable ? ' is-clickable' : ''}" title="${attr(title)}" ${clickable ? `onclick="startMovieRatingDuelFromTierList('${attr(entryId)}')"` : 'disabled'} aria-label="${attr(`Play tier list game for ${title}`)}">
         ${poster ? `<img src="${attr(poster)}" alt="${attr(title)}" loading="lazy" decoding="async" fetchpriority="low">` : `<span>${html(title.charAt(0).toUpperCase() || '?')}</span>`}
@@ -893,13 +1028,15 @@
                 <strong>${html(tier.key)}</strong>
                 <span>${tier.meta}</span>
               </div>
-              <div class="movie-duel-tier-scroll" aria-label="${attr(tier.label)}">
+              <div class="movie-duel-tier-scroll-wrap" data-movie-duel-tier-row="${attr(tier.key)}">
+                <div class="movie-duel-tier-scroll" data-movie-duel-tier-scroll="${attr(tier.key)}" aria-label="${attr(tier.label)}">
                 ${visibleEntries.length ? visibleEntries.map(entry => `
                   <div class="movie-duel-tier-item${cleanText(entry.id) === cleanActiveId ? ' is-new' : ''}">
                     ${renderTierPoster(entry)}
                   </div>
                 `).join('') : `<div class="movie-duel-tier-empty">No titles yet</div>`}
                 ${hasMore ? `<button type="button" class="movie-duel-tier-load-more" onclick="loadMoreMovieRatingDuelTier('${attr(tier.key)}')">Load More</button>` : ''}
+                </div>
               </div>
             </section>
           `;
@@ -953,6 +1090,7 @@
     if (!overlay || !duelState?.targetItem) return;
     const mediaKey = duelState.mediaKey || duelMediaKey;
     const config = getMediaConfig(mediaKey);
+    overlay.classList.remove('has-tier-list-page');
     overlay.classList.add('has-tier-result');
     overlay.classList.remove('has-active-round');
     const title = getDuelTitle(duelState.targetItem, mediaKey) || 'This title';
@@ -997,22 +1135,27 @@
   function renderTierListPage() {
     const overlay = ensureMovieDuelOverlay();
     const config = getMediaConfig(duelMediaKey);
+    const readOnly = isMovieDuelReadOnly();
+    const viewingName = cleanText(duelReadOnlyUser?.name || duelReadOnlyUser?.displayName || '') || config.label;
     duelState = null;
     overlay.classList.add('has-tier-result');
+    overlay.classList.add('has-tier-list-page');
     overlay.classList.remove('has-movie-picker');
     overlay.classList.remove('has-active-round');
     overlay.querySelector('.movie-duel-sheet').innerHTML = `
       <div class="movie-duel-header">
         <div>
-          <div class="movie-duel-kicker">Saved Tier List</div>
+          <div class="movie-duel-kicker">${readOnly ? 'Friend Tier List' : 'Saved Tier List'}</div>
           <h2>${html(config.tierTitle)}</h2>
-          <p>Swap categories at the top. Tap any poster to start the game from its current spot. Each tier list is saved separately and does not change My Lists ratings.</p>
+          <p>${readOnly
+            ? `${html(viewingName)}'s tier list is read-only. Swap categories at the top to view movies, TV shows, anime, or video games.`
+            : 'Swap categories at the top. Tap any poster to start the game from its current spot. Each tier list is saved separately and does not change My Lists ratings.'}</p>
         </div>
         <button type="button" class="movie-duel-close" onclick="closeMovieRatingDuel()" aria-label="Close">&times;</button>
       </div>
       ${renderMediaTabs('tier')}
       ${renderMovieDuelTierList(getSavedTierList(duelMediaKey), '', { mediaKey: duelMediaKey })}
-      <div class="movie-duel-actions movie-duel-actions-result">
+      <div class="movie-duel-actions movie-duel-actions-result"${readOnly ? ' style="display:none;"' : ''}>
         <button type="button" class="movie-duel-secondary" onclick="openMovieRatingDuelLauncher(false)">Back</button>
       </div>
     `;
@@ -1048,9 +1191,11 @@
       if (typeof showToast === 'function') showToast('Open your own My Lists to play this game');
       return;
     }
+    duelReadOnlyUser = null;
     if (resetToActiveSection) duelMediaKey = getDefaultDuelMediaKey();
     duelState = null;
     const overlay = ensureMovieDuelOverlay();
+    overlay.classList.remove('has-tier-list-page');
     overlay.classList.remove('has-tier-result');
     overlay.classList.remove('has-movie-picker');
     overlay.classList.remove('has-active-round');
@@ -1066,6 +1211,7 @@
       return;
     }
     const overlay = ensureMovieDuelOverlay();
+    overlay.classList.remove('has-tier-list-page');
     lockMovieDuelScroll();
     requestAnimationFrame(() => overlay.classList.add('is-open'));
     renderMovieDuelPickerPage();
@@ -1077,7 +1223,39 @@
       if (typeof showToast === 'function') showToast('Open your own My Lists to view this tier list');
       return;
     }
+    duelReadOnlyUser = null;
     duelMediaKey = MEDIA_CONFIGS[duelMediaKey] ? duelMediaKey : getDefaultDuelMediaKey();
+    renderTierListPage();
+    lockMovieDuelScroll();
+    requestAnimationFrame(() => ensureMovieDuelOverlay().classList.add('is-open'));
+  }
+
+  async function refreshViewingUserTierListProfile() {
+    const uid = cleanText(viewingUser?.uid || '');
+    if (!uid || typeof db === 'undefined' || !db?.collection) return viewingUser || null;
+    try {
+      const userDoc = await db.collection('users').doc(uid).get();
+      if (!userDoc.exists) return viewingUser || null;
+      const latestProfile = { ...(userDoc.data() || {}), uid };
+      usersMap[uid] = { ...(usersMap[uid] || {}), ...latestProfile, uid };
+      const nextViewingUser = {
+        ...(viewingUser || {}),
+        ...latestProfile,
+        uid,
+        profileData: latestProfile
+      };
+      viewingUser = nextViewingUser;
+      return nextViewingUser;
+    } catch (error) {
+      console.warn('Tier list viewer refresh failed:', error);
+      return viewingUser || null;
+    }
+  }
+
+  async function openViewingUserTierListPage(mediaKey = '') {
+    if (!viewingUser) return;
+    duelReadOnlyUser = await refreshViewingUserTierListProfile() || viewingUser;
+    duelMediaKey = MEDIA_CONFIGS[mediaKey] ? mediaKey : getDefaultDuelMediaKey();
     renderTierListPage();
     lockMovieDuelScroll();
     requestAnimationFrame(() => ensureMovieDuelOverlay().classList.add('is-open'));
@@ -1090,6 +1268,7 @@
       return;
     }
     const overlay = ensureMovieDuelOverlay();
+    overlay.classList.remove('has-tier-list-page');
     overlay.classList.remove('has-tier-result');
     overlay.classList.remove('has-movie-picker');
     overlay.classList.remove('has-active-round');
@@ -1099,6 +1278,7 @@
   function selectMovieRatingDuelMovie(itemId = '') {
     duelSelectedItemIds[duelMediaKey] = cleanText(itemId);
     const overlay = ensureMovieDuelOverlay();
+    overlay.classList.remove('has-tier-list-page');
     overlay.classList.remove('has-movie-picker');
     overlay.classList.remove('has-active-round');
     overlay.querySelector('.movie-duel-sheet').innerHTML = getLauncherBodyHtml('');
@@ -1108,10 +1288,12 @@
     const overlay = document.getElementById('movie-rating-duel-overlay');
     window.clearTimeout(duelSwapTimer);
     duelState = null;
+    duelReadOnlyUser = null;
     if (!overlay) {
       unlockMovieDuelScroll();
       return;
     }
+    overlay.classList.remove('has-tier-list-page');
     overlay.classList.remove('is-open');
     setTimeout(() => {
       overlay.remove();
@@ -1161,12 +1343,13 @@
     }
     const displacedFromS = finalBand === 10 ? enforceSTierCap(tierList) : null;
     duelState.finalTierList = tierList;
+    const savePromise = saveTierList(mediaKey, tierList);
     renderResult(finalBand, defeatedBand, tierList, {
       ...(options || {}),
       displacedFromS
     });
     try {
-      await saveTierList(mediaKey, tierList);
+      await savePromise;
     } catch (error) {
       console.warn('Tier list save failed:', error);
       if (typeof showToast === 'function') showToast('Tier list saved locally, but sync failed');
@@ -1229,4 +1412,5 @@
   window.startMovieRatingDuelFromTierList = startMovieRatingDuelFromTierList;
   window.chooseMovieRatingDuelWinner = chooseMovieRatingDuelWinner;
   window.loadMoreMovieRatingDuelTier = loadMoreMovieRatingDuelTier;
+  window.openViewingUserTierListPage = openViewingUserTierListPage;
 })();

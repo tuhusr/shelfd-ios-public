@@ -18,7 +18,9 @@
 (function() {
   'use strict';
 
-  const LS_PREFIX = 'shelfd:imdb-rating:v3:';
+  /* v677: bump cache namespace so any old display-side fallback entries are
+     ignored after switching Discover/profile rendering to IMDb-only output. */
+  const LS_PREFIX = 'shelfd:imdb-rating:v6:';
   const TTL_DEFAULT_MS = 7 * 24 * 60 * 60 * 1000;
   const TTL_MISS_MS = 6 * 60 * 60 * 1000;
   const memCache = new Map();
@@ -31,6 +33,15 @@
 
   function getImdbCacheKey(imdbId) {
     return `imdb:${String(imdbId || '').trim()}`;
+  }
+
+  function getBatchResultKey(tmdbId, type, imdbId = '', fallback = '') {
+    const cleanTmdbId = String(tmdbId || '').trim();
+    const cleanType = String(type || '').toLowerCase() === 'movie' ? 'movie' : 'tv';
+    if (cleanTmdbId) return `${cleanType}:${cleanTmdbId}`;
+    const cleanImdbId = String(imdbId || '').trim();
+    if (cleanImdbId) return `imdb:${cleanImdbId}`;
+    return String(fallback || '').trim();
   }
 
   /* Variable TTL by title recency — matches the worker policy:
@@ -70,6 +81,11 @@
       if (!raw) return null;
       const entry = JSON.parse(raw);
       if (!entry || !entry.data) return null;
+      entry.data = normalizeRatingData(entry.data);
+      if (!entry.data) {
+        try { localStorage.removeItem(LS_PREFIX + key); } catch (_) {}
+        return null;
+      }
       if (!isEntryFresh(entry)) {
         try { localStorage.removeItem(LS_PREFIX + key); } catch (_) {}
         return null;
@@ -99,11 +115,12 @@
   function writeCache(tmdbId, type, data) {
     const key = getCacheKey(tmdbId, type);
     if (key.endsWith(':')) return;
-    const ttl = ttlForData(data);
-    const entry = { savedAt: Date.now(), expiresAt: Date.now() + ttl, data };
+    const normalized = normalizeRatingData(data) || { ok: false };
+    const ttl = ttlForData(normalized);
+    const entry = { savedAt: Date.now(), expiresAt: Date.now() + ttl, data: normalized };
     writeEntry(key, entry);
     /* Secondary IMDb-ID-keyed copy so a future direct-imdb lookup hits cache. */
-    if (data && data.imdbId) writeEntry(getImdbCacheKey(data.imdbId), entry);
+    if (normalized && normalized.imdbId) writeEntry(getImdbCacheKey(normalized.imdbId), entry);
   }
 
   function parseImdbVotes(value) {
@@ -112,6 +129,20 @@
     if (!clean) return 0;
     const n = Number(clean);
     return Number.isFinite(n) ? n : 0;
+  }
+
+  function normalizeRatingData(data) {
+    if (!data || typeof data !== 'object') return null;
+    if (data.ok === false) return { ok: false };
+    const imdbRating = Number(data.imdbRating || 0);
+    if (!(imdbRating > 0)) return null;
+    return {
+      ...data,
+      ok: true,
+      imdbRating,
+      imdbVotesNumber: Number(data.imdbVotesNumber) || parseImdbVotes(data.imdbVotes),
+      ratingSource: 'imdb'
+    };
   }
 
   /* Detect a TMDB-shaped item (movie or tv). Returns {tmdbId, type} or null. */
@@ -155,6 +186,23 @@
       item.vote_average = r;
       item.vote_count = v;
     }
+  }
+
+  function getDisplayTitleRatingValue(item = {}) {
+    if (!item || typeof item !== 'object') return 0;
+    if (item.__jikan) {
+      const animeRating = Number(item.score || item.vote_average || 0);
+      return animeRating > 0 ? animeRating : 0;
+    }
+    const ref = getItemRatingKey(item);
+    if (!ref) return 0;
+    const imdbRating = Number(item.imdbRating || 0);
+    return imdbRating > 0 ? imdbRating : 0;
+  }
+
+  function formatDisplayTitleRating(item = {}) {
+    const n = getDisplayTitleRatingValue(item);
+    return n > 0 ? n.toFixed(1) : '';
   }
 
   async function fetchBatchFromServer(items) {
@@ -224,8 +272,10 @@
         inflight.set(inflightKey, promise);
       }
       const ratings = await promise;
-      chunk.forEach(({ item, tmdbId, type }) => {
-        const r = ratings[tmdbId];
+      chunk.forEach(({ item, tmdbId, type, imdbId }) => {
+        const typedKey = getBatchResultKey(tmdbId, type, imdbId, '');
+        const imdbKey = getBatchResultKey('', type, imdbId, '');
+        const r = ratings[typedKey] || (imdbKey ? ratings[imdbKey] : null);
         if (r && r.ok) {
           const data = { ...r, ratingFetchedAt: Date.now() };
           writeCache(tmdbId, type, data);
@@ -312,5 +362,7 @@
   window.getImdbRatingData = getImdbRatingData;
   window.formatImdbRating = formatImdbRating;
   window.formatImdbVotes = formatImdbVotes;
+  window.getDisplayTitleRatingValue = getDisplayTitleRatingValue;
+  window.formatDisplayTitleRating = formatDisplayTitleRating;
   window.parseImdbVotes = parseImdbVotes;
 })();

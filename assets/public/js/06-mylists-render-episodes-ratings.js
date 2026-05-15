@@ -398,6 +398,14 @@ function save() {
   }, 500);
 }
 
+function invalidateActivityFeedAfterLibraryMutation(options = {}) {
+  if (typeof friendActivityCache !== 'undefined') friendActivityCache = null;
+  if (typeof friendActivityPromise !== 'undefined') friendActivityPromise = null;
+  if (options.reloadIfVisible !== false && typeof loadFriendActivity === 'function') {
+    loadFriendActivity();
+  }
+}
+
 // Render
 function render() {
   ensureGameWishlistStatusTab();
@@ -1366,6 +1374,41 @@ function renderMyListBottomExternalBadge(item = {}, section = activeSection) {
   return `<a class="mylist-bottom-export-badge ${section === 'anime' ? 'mal-export-badge' : 'imdb-export-badge'}" href="${escAttr(config.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" aria-label="Open ${escAttr(config.label)}"><span>${escHtml(config.label)}</span></a>`;
 }
 
+function canUseWatchlistPriority(item = {}, section = activeSection, tab = activeTab) {
+  const normalizedStatus = String(item?.status || '');
+  const isPlannedPrioritySection = tab === 'planned'
+    && (section === 'movies' || section === 'shows' || section === 'anime')
+    && normalizedStatus === 'planned';
+  const isWishlistPrioritySection = tab === 'wishlist'
+    && section === 'games'
+    && normalizedStatus === 'wishlist';
+  return !viewingUser
+    && (isPlannedPrioritySection || isWishlistPrioritySection);
+}
+
+function getWatchlistPriorityValue(item = {}) {
+  const value = Number(item?.watchPriority || 0);
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : '';
+}
+
+function normalizeWatchlistPriorityValue(value = '') {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.max(1, Math.floor(parsed)) : 0;
+}
+
+function renderWatchlistPriorityControl(item = {}, section = activeSection) {
+  if (!canUseWatchlistPriority(item, section, activeTab)) return '';
+  const value = getWatchlistPriorityValue(item);
+  const priorityLabel = section === 'games' && activeTab === 'wishlist' ? 'Wishlist priority' : 'Priority';
+  const priorityAria = section === 'games' && activeTab === 'wishlist'
+    ? `Wishlist priority for ${item.title || 'this title'}`
+    : `Watchlist priority for ${item.title || 'this title'}`;
+  return `<label class="watchlist-priority-slot" onclick="event.stopPropagation()">
+    <span>${escHtml(priorityLabel)}</span>
+    <input class="watchlist-priority-input" type="number" inputmode="numeric" pattern="[0-9]*" min="1" step="1" value="${escAttr(value)}" placeholder="-" aria-label="${escAttr(priorityAria)}" data-mylist-action="watch-priority" data-mylist-item-id="${escAttr(item.id)}" oninput="event.stopPropagation()" onchange="event.stopPropagation();setWatchlistPriority('${escAttr(item.id)}', this.value)">
+  </label>`;
+}
+
 function parseScreenListDateMs(value = '') {
   const clean = String(value || '').trim();
   if (!clean) return 0;
@@ -1394,6 +1437,118 @@ function formatScreenListReleaseDateLabel(value = '') {
   }
 }
 
+function parseScreenListDateOnly(value = '') {
+  const clean = String(value || '').trim();
+  if (!clean) return null;
+  const ymd = clean.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (ymd) {
+    const year = Number(ymd[1]);
+    const month = Number(ymd[2]);
+    const day = Number(ymd[3]);
+    if (year && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return new Date(year, month - 1, day);
+    }
+  }
+  const parsed = new Date(clean);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+}
+
+function getScreenListTodayStart() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+}
+
+function isScreenListDateToday(value = '') {
+  const date = parseScreenListDateOnly(value);
+  return !!date && date.getTime() === getScreenListTodayStart();
+}
+
+function isScreenListDateTodayOrFuture(value = '') {
+  const date = parseScreenListDateOnly(value);
+  return !!date && date.getTime() >= getScreenListTodayStart();
+}
+
+function formatMyListNextEpisodeDate(value = '') {
+  const date = parseScreenListDateOnly(value);
+  if (!date) return '';
+  try {
+    return date.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
+  } catch (e) {
+    const clean = String(value || '').trim();
+    const m = clean.match(/^\d{4}-(\d{2})-(\d{2})/);
+    return m ? `${Number(m[1])}/${Number(m[2])}` : clean;
+  }
+}
+
+function normalizeMyListTmdbNextEpisodeMetadata(details = {}) {
+  const ep = details?.next_episode_to_air || details?.nextEpisodeToAir || null;
+  const airDate = String(
+    ep?.air_date ||
+    ep?.airDate ||
+    details?.nextEpisodeAirDate ||
+    ''
+  ).trim();
+  if (!airDate) return null;
+  return {
+    airDate,
+    episode: {
+      id: ep?.id || '',
+      name: ep?.name || '',
+      air_date: airDate,
+      airDate,
+      season_number: ep?.season_number || ep?.seasonNumber || '',
+      seasonNum: ep?.season_number || ep?.seasonNumber || '',
+      episode_number: ep?.episode_number || ep?.episodeNumber || '',
+      epNum: ep?.episode_number || ep?.episodeNumber || ''
+    }
+  };
+}
+
+function getMyListNextEpisodeAirDate(item = {}) {
+  const candidates = [
+    item?.nextEpisodeAirDate,
+    item?.next_episode_to_air?.air_date,
+    item?.next_episode_to_air?.airDate,
+    item?.nextEpisodeToAir?.air_date,
+    item?.nextEpisodeToAir?.airDate,
+    item?.nextEpisode?.airDate,
+    item?.nextEpisode?.air_date
+  ];
+  for (const candidate of candidates) {
+    const value = String(candidate || '').trim();
+    if (value) return value;
+  }
+  const datedEpisodes = (Array.isArray(item?.episodes) ? item.episodes : [])
+    .map(ep => String(ep?.airDate || ep?.air_date || ep?.releaseDate || '').trim())
+    .filter(Boolean)
+    .filter(isScreenListDateTodayOrFuture)
+    .sort((a, b) => (parseScreenListDateOnly(a)?.getTime() || 0) - (parseScreenListDateOnly(b)?.getTime() || 0));
+  return datedEpisodes[0] || '';
+}
+
+function getMyListNextEpisodeLabel(item = {}, section = activeSection) {
+  if (section !== 'shows' && section !== 'anime') return '';
+  const airDate = getMyListNextEpisodeAirDate(item);
+  if (!isScreenListDateTodayOrFuture(airDate)) return '';
+  if (isScreenListDateToday(airDate)) return 'NEW EPISODE OUT';
+  const labelDate = formatMyListNextEpisodeDate(airDate);
+  return labelDate ? `Next episode airing ${labelDate}` : '';
+}
+
+function renderMyListNextEpisodeHtml(item = {}, section = activeSection) {
+  const label = getMyListNextEpisodeLabel(item, section);
+  if (!label) return '';
+  const isNew = label === 'NEW EPISODE OUT';
+  return `<div class="card-next-episode${isNew ? ' is-new' : ''}">${escHtml(label)}</div>`;
+}
+
+function renderMyListNextEpisodeActionHtml(item = {}, section = activeSection, tab = activeTab) {
+  if (tab !== 'watching') return '';
+  if (section !== 'shows' && section !== 'anime') return '';
+  return renderMyListNextEpisodeHtml(item, section);
+}
+
 function getScreenListKnownReleaseDate(item = {}) {
   const candidates = [
     item?.releaseDate,
@@ -1405,9 +1560,7 @@ function getScreenListKnownReleaseDate(item = {}) {
     item?.premiered,
     item?.premiereDate,
     item?.airedFrom,
-    item?.aired?.from,
-    item?.nextEpisodeAirDate,
-    item?.next_episode_to_air?.air_date
+    item?.aired?.from
   ];
   for (const candidate of candidates) {
     const value = String(candidate || '').trim();
@@ -1430,6 +1583,8 @@ function getMyListUpcomingReleaseLabel(item = {}, section = activeSection) {
 const SHELFD_THEATRICAL_WINDOW_MS = 75 * 24 * 60 * 60 * 1000;
 const SHELFD_WATCHLIST_PROVIDER_LOOKUP_INFLIGHT = new Set();
 const SHELFD_WATCHLIST_PROVIDER_LOOKUP_DONE = new Set();
+const SHELFD_NEXT_EPISODE_LOOKUP_INFLIGHT = new Set();
+const SHELFD_NEXT_EPISODE_LOOKUP_DONE = new Set();
 
 function getMyListWatchListAvailabilityState(item = {}, section = activeSection) {
   // v435: streaming-aware decision tree.
@@ -1552,21 +1707,7 @@ function updateMyListUpcomingReleaseDateElement(item = {}, section = activeSecti
   // hydration refreshes the date, and removes it when the title transitions to
   // released/in-theaters so the availability line takes over.
   const cardSelector = `#card-${CSS.escape(String(item?.id || ''))}`;
-  const avail = typeof getMyListWatchListAvailabilityState === 'function'
-    ? getMyListWatchListAvailabilityState(item, section) : { state: '' };
-
-  // Keep the action-row release-label span in sync when state is still unreleased.
   const actionRowSpan = document.querySelector(`${cardSelector} .card-upcoming-release-label`);
-  if (avail.state === 'unreleased') {
-    const label = typeof getMyListUpcomingReleaseLabel === 'function'
-      ? (getMyListUpcomingReleaseLabel(item, section) || '') : '';
-    if (actionRowSpan) actionRowSpan.textContent = label;
-    // Nothing else to do — unreleased titles don't use .card-availability-line.
-    return;
-  }
-
-  // Title is now released/in-theaters/where-to-watch — remove the action-row label
-  // (it will be replaced by the full availability line below).
   if (actionRowSpan) actionRowSpan.remove();
 
   const html = renderMyListWatchListAvailabilityHtml(item, section);
@@ -1651,6 +1792,113 @@ async function fetchMyListTvMazeReleaseDate(item = {}) {
   } catch (e) {
     return '';
   }
+}
+
+async function resolveMyListTmdbTvId(item = {}) {
+  let tmdbId = String(item?.tmdbId || item?.tmdb_id || '').trim();
+  if (tmdbId) return tmdbId;
+  const title = String(item?.title || item?.name || '').trim();
+  if (!title) return '';
+  try {
+    const params = { query: title, include_adult: false };
+    const year = String(item.year || item.first_air_date || item.firstAirDate || '').match(/^(18|19|20)\d{2}/)?.[0] || '';
+    if (year) params.first_air_date_year = year;
+    const searchRes = await fetchTmdbProxy('search/tv', params);
+    const searchJson = searchRes.ok ? await searchRes.json() : null;
+    const results = Array.isArray(searchJson?.results) ? searchJson.results : [];
+    const match = results.find(row => year && String((row.first_air_date || '').slice(0, 4)) === year) || results[0];
+    if (match?.id) {
+      tmdbId = String(match.id);
+      item.tmdbId = tmdbId;
+      return tmdbId;
+    }
+  } catch (e) {}
+  return '';
+}
+
+async function fetchMyListNextEpisodeMetadata(item = {}, section = activeSection) {
+  if (section !== 'shows' && section !== 'anime') return null;
+  const tmdbId = await resolveMyListTmdbTvId(item);
+  if (!tmdbId) return null;
+  try {
+    const detailRes = await fetchTmdbProxy(`tv/${encodeURIComponent(tmdbId)}`);
+    const detailJson = detailRes.ok ? await detailRes.json() : null;
+    return normalizeMyListTmdbNextEpisodeMetadata(detailJson);
+  } catch (e) {
+    return null;
+  }
+}
+
+function setMyListNextEpisodeMetadata(item = {}, metadata = null) {
+  if (!item || !metadata?.airDate) return false;
+  const airDate = String(metadata.airDate || '').trim();
+  const episode = metadata.episode || {};
+  const previous = String(item.nextEpisodeAirDate || item.next_episode_to_air?.air_date || '').trim();
+  item.nextEpisodeAirDate = airDate;
+  item.next_episode_to_air = {
+    ...(item.next_episode_to_air || {}),
+    ...episode,
+    air_date: airDate,
+    airDate
+  };
+  item.nextEpisodeHydratedAt = new Date().toISOString();
+  return previous !== airDate;
+}
+
+function updateMyListNextEpisodeElement(item = {}, section = activeSection) {
+  const cardId = String(item?.id || '');
+  if (!cardId) return;
+  const cardSelector = `#card-${CSS.escape(cardId)}`;
+  const card = document.querySelector(cardSelector);
+  if (!card) return;
+  const existing = card.querySelector('.card-next-episode');
+  const html = renderMyListNextEpisodeActionHtml(item, section, activeTab);
+  if (!html) {
+    if (existing) existing.remove();
+    return;
+  }
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  const node = tmp.firstElementChild;
+  if (!node) return;
+  if (existing) {
+    existing.replaceWith(node);
+    return;
+  }
+  const actionRow = card.querySelector('.card-action-row');
+  const footerActions = actionRow?.querySelector('.card-footer-actions');
+  if (!actionRow) return;
+  actionRow.classList.add('has-next-episode');
+  if (footerActions?.parentNode === actionRow) actionRow.insertBefore(node, footerActions);
+  else actionRow.prepend(node);
+}
+
+function queueMyListNextEpisodeHydration(item = {}, section = activeSection) {
+  if (section !== 'shows' && section !== 'anime') return;
+  const known = getMyListNextEpisodeAirDate(item);
+  if (known) {
+    updateMyListNextEpisodeElement(item, section);
+    return;
+  }
+  if (!item?.tmdbId && !item?.title) return;
+  const key = `${section}:${item?.id || ''}:${item?.tmdbId || ''}:${item?.title || ''}`;
+  if (SHELFD_NEXT_EPISODE_LOOKUP_INFLIGHT.has(key) || SHELFD_NEXT_EPISODE_LOOKUP_DONE.has(key)) return;
+  SHELFD_NEXT_EPISODE_LOOKUP_INFLIGHT.add(key);
+  setTimeout(async () => {
+    try {
+      const metadata = await fetchMyListNextEpisodeMetadata(item, section);
+      if (metadata?.airDate) {
+        const changed = setMyListNextEpisodeMetadata(item, metadata);
+        updateMyListNextEpisodeElement(item, section);
+        if (changed && currentUser && !viewingUser) save();
+      }
+      SHELFD_NEXT_EPISODE_LOOKUP_DONE.add(key);
+    } catch (error) {
+      console.warn('Next episode hydration failed:', error);
+    } finally {
+      SHELFD_NEXT_EPISODE_LOOKUP_INFLIGHT.delete(key);
+    }
+  }, 0);
 }
 
 async function fetchMyListUpcomingReleaseDate(item = {}, section = activeSection) {
@@ -1762,6 +2010,7 @@ function renderCard(item, isDraggable) {
     queueAnimeTitleVariantHydration(item, activeSection);
     queueMissingMalPosterHydration(item, activeSection);
   }
+  if (activeSection === 'shows' || activeSection === 'anime') queueMyListNextEpisodeHydration(item, activeSection);
   const canOpenProfile = canOpenLibraryMediaProfile(activeSection);
   const canOpenTrackerBreakdown = isGameCard
     && typeof hasScreenListTrackerBreakdownForItem === 'function'
@@ -1774,19 +2023,9 @@ function renderCard(item, isDraggable) {
   const coverProfileAttrs = canOpenProfile ? `data-library-item-id="${itemIdAttr}" data-library-section="${itemSectionAttr}" role="button" tabindex="0" aria-label="Open ${escAttr(displayTitle)} profile"` : '';
   const coverProfileClass = canOpenProfile ? ' card-cover-profile-btn' : '';
   if (activeTab === 'planned' && isScreenListMovieTvAnimeSection(activeSection)) queueMyListUpcomingReleaseDateHydration(item, activeSection);
-  // Pre-compute release label for unreleased titles so it can be placed in the
-  // action row (far-left) rather than the old rating-area slot.
   let releaseLabelForActionRow = '';
   if (activeTab === 'planned') {
-    if (isScreenListMovieTvAnimeSection(activeSection)) {
-      const avail = typeof getMyListWatchListAvailabilityState === 'function'
-        ? getMyListWatchListAvailabilityState(item, activeSection)
-        : { state: '' };
-      if (avail.state === 'unreleased' && typeof getMyListUpcomingReleaseLabel === 'function') {
-        releaseLabelForActionRow = getMyListUpcomingReleaseLabel(item, activeSection) || '';
-      }
-    }
-    if (!releaseLabelForActionRow && isGameCard) {
+    if (isGameCard) {
       const gameDate = String(item?.releaseDate || item?.released || item?.release_date || '').trim();
       if (gameDate && typeof isScreenListFutureReleaseDate === 'function' && isScreenListFutureReleaseDate(gameDate)) {
         const formatted = typeof formatScreenListReleaseDateLabel === 'function'
@@ -1796,6 +2035,8 @@ function renderCard(item, isDraggable) {
     }
   }
   const bottomExternalBadgeHtml = renderMyListBottomExternalBadge(item, activeSection);
+  const watchlistPriorityHtml = renderWatchlistPriorityControl(item, activeSection);
+  const nextEpisodeActionHtml = renderMyListNextEpisodeActionHtml(item, activeSection, activeTab);
   const showCommentButton = !shouldHideMyListCommentButton(activeSection, item);
 
   let watchedCount = 0, totalEps = 0, progress = 0;
@@ -1902,16 +2143,8 @@ function renderCard(item, isDraggable) {
           ${(activeTab === 'planned' && isScreenListMovieTvAnimeSection(activeSection) && item.year) ? `<div class="card-year mylist-watchlist-year">${escHtml(String(item.year).slice(0, 4))}</div>` : ''}
           ${(!shouldHideMyListCardGenre(activeSection, item) && item.genre) ? `<div class="card-genre">${escHtml(item.genre)}</div>` : ''}
           ${(() => {
-            /* v652: render the availability line under the genre ONLY for
-               released states (in-theaters / where-to-watch). The
-               "unreleased" release date moved to the rating-area slot
-               (slightly higher than rating, see card-future-release-area). */
             if (activeTab !== 'planned') return '';
             if (!isScreenListMovieTvAnimeSection(activeSection)) return '';
-            const avail = typeof getMyListWatchListAvailabilityState === 'function'
-              ? getMyListWatchListAvailabilityState(item, activeSection)
-              : { state: '' };
-            if (avail.state === 'unreleased') return '';
             return renderMyListWatchListAvailabilityHtml(item, activeSection);
           })()}
           ${!viewingUser ? `<div class="status-pills status-pills-selector-wrap" id="status-pills-${item.id}">${statusSelectorHtml}</div>` : ''}
@@ -1925,27 +2158,17 @@ function renderCard(item, isDraggable) {
               <div class="progress-bar"><div class="progress-fill" id="progress-fill-${item.id}" style="width:${progress}%"></div></div>
             </div>
           `) : ''}
-          ${(() => {
-            /* v652: only show "Next Episode" line if the show actually has
-               an upcoming episode airing. If all episodes are out, this
-               text is misleading and shouldn't render. */
-            if (type !== 'show') return '';
-            if (item.status === 'planned') return '';
-            if (totalEps <= 0 || watchedCount >= totalEps) return '';
-            if (activeSection !== 'shows' && activeSection !== 'anime') return '';
-            const hasUpcomingEpisode = !!(item?.nextEpisodeAirDate || item?.next_episode_to_air?.air_date);
-            if (!hasUpcomingEpisode) return '';
-            return `<div class="card-next-episode">Next Episode ${watchedCount + 1}/${totalEps}</div>`;
-          })()}
           ${item.status !== 'planned' ? `<div class="rating-area">
             <div class="rating-label">Rating</div>
             ${renderStars(item.rating || 0, item.id, 'overall', 16)}
           </div>` : ''}
+          ${buildCardCommentBodyHtml(item)}
         </div>
       </div>
-      <div class="card-action-row${bottomExternalBadgeHtml ? ' has-bottom-export' : ''}">
-        ${buildCardCommentBodyHtml(item)}
+      <div class="card-action-row${bottomExternalBadgeHtml ? ' has-bottom-export' : ''}${watchlistPriorityHtml ? ' has-watch-priority' : ''}${nextEpisodeActionHtml ? ' has-next-episode' : ''}">
+        ${nextEpisodeActionHtml}
         ${bottomExternalBadgeHtml ? `<div class="mylist-card-bottom-export">${bottomExternalBadgeHtml}</div>` : ''}
+        ${watchlistPriorityHtml}
         <div class="card-footer-actions">
           ${releaseLabelForActionRow ? `<span class="card-upcoming-release-label">${escHtml(releaseLabelForActionRow)}</span>` : ''}
           ${showCommentButton ? `<button class="comments-btn" onclick="event.stopPropagation();${commentsOnclick}">
@@ -2511,6 +2734,7 @@ function shelfdEnterSeasonFocusMode(itemId, sNum, epScroll, seasonBlock) {
 function shelfdExitSeasonFocusMode(itemId) {
   const epScroll = document.querySelector('#ep-list-' + itemId + ' .ep-scroll');
   if (!epScroll) return;
+  const stableScrollTop = epScroll.scrollTop;
   epScroll.classList.remove('ep-season-focused');
   delete epScroll.dataset.shelfdFocusedSeason;
   document.querySelectorAll('#ep-list-' + itemId + ' .season-block.ep-season-active-block')
@@ -2546,7 +2770,9 @@ function shelfdExitSeasonFocusMode(itemId) {
       }
     }
   }
-  requestAnimationFrame(() => { if (epScroll) epScroll.scrollTop = 0; });
+  requestAnimationFrame(() => {
+    if (epScroll) epScroll.scrollTop = stableScrollTop;
+  });
 }
 
 function toggleSeason(itemId, sNum) {
@@ -2578,6 +2804,7 @@ function toggleSeason(itemId, sNum) {
       // upper bound for iOS 'smooth' scroll; we use a rAF-double-tick at ~350 ms
       // to minimise the perceivable flash before other seasons fade out).
       setTimeout(() => {
+        if (!openStates['s-' + itemId + '-' + sNum] || el.style.display === 'none') return;
         shelfdEnterSeasonFocusMode(itemId, sNum, epScroll, seasonBlock);
       }, 350);
     });
@@ -3146,19 +3373,26 @@ function renderGameMediaProfileShell(seed, rawgId = '') {
   const poster = getGameMediaImage(seed);
   const year = String(seed?.released || seed?.year || '').slice(0, 4);
   const overview = seed?.description_raw || seed?.description || 'Loading this game profile...';
-  return `<section class="discover-media-page game-media-page" role="dialog" aria-modal="true" aria-label="${escAttr(title)} details">
+  const genres = (seed?.genres || []).map(g => g?.name).filter(Boolean).slice(0, 4);
+  return `<section class="discover-media-page game-media-page discover-desktop-title-page" role="dialog" aria-modal="true" aria-label="${escAttr(title)} details">
     <button class="discover-media-back" type="button" onclick="closeGameMediaProfile('back')">Back</button>
     ${renderMediaProfileTopActions(renderMediaProfileShareButton('game', rawgId || getGameRawgIdValue(seed), title, poster), `${rawgId ? renderGameMediaProfileAddButton(rawgId, seed) : ''}${currentUser && !viewingUser ? `<button class="discover-media-add-floating screenlist-game-profile-cover-btn" type="button" onclick="event.preventDefault();event.stopPropagation();openScreenListGameCoverPickerForSeed('${escAttr(String(rawgId || getGameRawgIdValue(seed) || ''))}','${escAttr(title)}')">Change Cover</button>` : ''}`)}
     <div class="discover-media-hero game-media-hero" style="${poster ? `background-image:url('${escAttr(poster)}')` : ''}">
       <div class="discover-media-hero-shade"></div>
       <div class="discover-media-hero-content">
-        <div class="discover-media-poster game-media-poster${poster ? '' : ' screenlist-game-cover-pending'}">${poster ? `<img src="${escAttr(poster)}" alt="">` : `<span>${SCREENLIST_GAME_COVER_PLACEHOLDER_TEXT}</span>`}</div>
-        <div class="discover-media-kicker">Game Profile${year ? ` · ${escHtml(year)}` : ''}</div>
-        <h2>${escHtml(title)}</h2>
-        <p>${escHtml(overview)}</p>
+        <div class="discover-media-hero-top">
+          <div class="discover-media-poster game-media-poster${poster ? '' : ' screenlist-game-cover-pending'}">${poster ? `<img src="${escAttr(poster)}" alt="">` : `<span>${SCREENLIST_GAME_COVER_PLACEHOLDER_TEXT}</span>`}</div>
+          <div class="discover-media-hero-main">
+            <div class="discover-media-kicker">Game Profile${year ? ` · ${escHtml(year)}` : ''}</div>
+            <h2>${escHtml(title)}</h2>
+          </div>
+        </div>
+        <p class="discover-media-synopsis">${escHtml(overview)}</p>
+        ${genres.length ? `<div class="discover-media-chips">${genres.map(name => `<span>${escHtml(name)}</span>`).join('')}</div>` : ''}
+        ${renderGameProfileFloatingExports(seed)}
       </div>
     </div>
-    <div class="discover-media-body">
+    <div class="discover-media-body discover-media-body-cinema">
       <div class="discover-media-loading">Building this game page...</div>
     </div>
   </section>`;
@@ -3193,6 +3427,17 @@ function getGameMetacriticScore(details = {}) {
     if (Number.isFinite(score) && score > 0) return Math.round(score);
   }
   return null;
+}
+
+function getGameMediaCredits(details = {}) {
+  const rows = [];
+  const developers = (details.developers || []).map(dev => dev.name).filter(Boolean).slice(0, 3);
+  const publishers = (details.publishers || []).map(pub => pub.name).filter(Boolean).slice(0, 3);
+  const website = String(details.website || '').trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+  if (developers.length) rows.push({ label: 'Developed By', value: developers.join(', ') });
+  if (publishers.length) rows.push({ label: 'Published By', value: publishers.join(', ') });
+  if (website) rows.push({ label: 'Official Site', value: website });
+  return rows;
 }
 
 function getGameMediaTrailer(details = {}) {
@@ -3617,6 +3862,92 @@ function renderGameMediaProfileDetails(details, rawgId = '') {
   </section>`;
 }
 
+function getGameMediaCredits(details = {}) {
+  const rows = [];
+  const developers = (details.developers || []).map(dev => dev.name).filter(Boolean).slice(0, 3);
+  const publishers = (details.publishers || []).map(pub => pub.name).filter(Boolean).slice(0, 3);
+  const website = String(details.website || '').trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+  if (developers.length) rows.push({ label: 'Developed By', value: developers.join(', ') });
+  if (publishers.length) rows.push({ label: 'Published By', value: publishers.join(', ') });
+  if (website) rows.push({ label: 'Official Site', value: website });
+  return rows;
+}
+
+function renderGameMediaProfileShellModern(seed, rawgId = '') {
+  const title = getGameTitleValue(seed) || 'Game Profile';
+  const poster = getGameMediaImage(seed);
+  const year = String(seed?.released || seed?.year || '').slice(0, 4);
+  const overview = seed?.description_raw || seed?.description || 'Loading this game profile...';
+  const genres = (seed?.genres || []).map(g => g?.name).filter(Boolean).slice(0, 4);
+  return `<section class="discover-media-page game-media-page discover-desktop-title-page" role="dialog" aria-modal="true" aria-label="${escAttr(title)} details">
+    <button class="discover-media-back" type="button" onclick="closeGameMediaProfile('back')">Back</button>
+    ${renderMediaProfileTopActions(renderMediaProfileShareButton('game', rawgId || getGameRawgIdValue(seed), title, poster), `${rawgId ? renderGameMediaProfileAddButton(rawgId, seed) : ''}${currentUser && !viewingUser ? `<button class="discover-media-add-floating screenlist-game-profile-cover-btn" type="button" onclick="event.preventDefault();event.stopPropagation();openScreenListGameCoverPickerForSeed('${escAttr(String(rawgId || getGameRawgIdValue(seed) || ''))}','${escAttr(title)}')">Change Cover</button>` : ''}`)}
+    <div class="discover-media-hero game-media-hero" style="${poster ? `background-image:url('${escAttr(poster)}')` : ''}">
+      <div class="discover-media-hero-shade"></div>
+      <div class="discover-media-hero-content">
+        <div class="discover-media-hero-top">
+          <div class="discover-media-poster game-media-poster${poster ? '' : ' screenlist-game-cover-pending'}">${poster ? `<img src="${escAttr(poster)}" alt="">` : `<span>${SCREENLIST_GAME_COVER_PLACEHOLDER_TEXT}</span>`}</div>
+          <div class="discover-media-hero-main">
+            <div class="discover-media-kicker">Game Profile${year ? ` · ${escHtml(year)}` : ''}</div>
+            <h2>${escHtml(title)}</h2>
+          </div>
+        </div>
+        <p class="discover-media-synopsis">${escHtml(overview)}</p>
+        ${genres.length ? `<div class="discover-media-chips">${genres.map(name => `<span>${escHtml(name)}</span>`).join('')}</div>` : ''}
+        ${renderGameProfileFloatingExports(seed)}
+      </div>
+    </div>
+    <div class="discover-media-body discover-media-body-cinema">
+      <div class="discover-media-loading">Building this game page...</div>
+    </div>
+  </section>`;
+}
+
+function renderGameMediaProfileDetailsModern(details, rawgId = '') {
+  const title = getGameTitleValue(details) || 'Game Profile';
+  const poster = getGameMediaImage(details);
+  const year = String(details.released || '').slice(0, 4);
+  const overview = String(details.description_raw || details.description || 'No overview is available yet.').replace(/<[^>]*>/g, '');
+  const genres = (details.genres || []).map(g => g.name).filter(Boolean).slice(0, 4);
+  const facts = getGameMediaFacts(details);
+  const credits = getGameMediaCredits(details);
+  const metacriticScore = getGameMetacriticScore(details);
+  const score = metacriticScore !== null ? String(metacriticScore) : 'N/A';
+  const trailer = getGameMediaTrailer(details);
+  const screenshots = (details.screenshots?.results || details.short_screenshots || []).filter(img => img?.image).slice(0, 8);
+  return `<section class="discover-media-page game-media-page discover-desktop-title-page" role="dialog" aria-modal="true" aria-label="${escAttr(title)} details">
+    <button class="discover-media-back" type="button" onclick="closeGameMediaProfile('back')">Back</button>
+    ${renderMediaProfileTopActions(renderMediaProfileShareButton('game', rawgId || getGameRawgIdValue(details), title, poster), `${renderGameMediaProfileAddButton(rawgId || getGameRawgIdValue(details), details)}${currentUser && !viewingUser ? `<button class="discover-media-add-floating screenlist-game-profile-cover-btn" type="button" onclick="event.preventDefault();event.stopPropagation();openScreenListGameCoverPickerForSeed('${escAttr(String(rawgId || getGameRawgIdValue(details) || ''))}','${escAttr(title)}')">Change Cover</button>` : ''}`)}
+    <div class="discover-media-hero game-media-hero" style="${poster ? `background-image:url('${escAttr(poster)}')` : ''}">
+      <div class="discover-media-hero-shade"></div>
+      <div class="discover-media-hero-content">
+        <div class="discover-media-hero-top">
+          <div class="discover-media-poster game-media-poster${poster ? '' : ' screenlist-game-cover-pending'}">${poster ? `<img src="${escAttr(poster)}" alt="">` : `<span>${SCREENLIST_GAME_COVER_PLACEHOLDER_TEXT}</span>`}</div>
+          <div class="discover-media-hero-main">
+            <div class="discover-media-kicker">Game Profile${year ? ` · ${escHtml(year)}` : ''}</div>
+            <h2>${escHtml(title)}</h2>
+            <div class="discover-media-score discover-media-score-hero"><span class="discover-media-score-star" aria-hidden="true">★</span><span class="discover-media-score-value">${escHtml(score)}</span></div>
+          </div>
+        </div>
+        <p class="discover-media-synopsis" onclick="this.classList.toggle('expanded')">${escHtml(overview)}</p>
+        ${genres.length ? `<div class="discover-media-chips">${genres.map(name => `<span>${escHtml(name)}</span>`).join('')}</div>` : ''}
+        ${renderGameProfileFloatingExports(details)}
+      </div>
+    </div>
+    <div class="discover-media-body discover-media-body-cinema">
+      ${(facts.length || credits.length || trailer) ? `<div class="discover-media-detail-grid${trailer ? ' has-trailer' : ''}">
+        ${(facts.length || credits.length) ? `<div class="discover-media-detail-stack">
+          ${facts.length ? `<div class="discover-media-facts">${facts.map(fact => `<div class="${fact.priority ? 'primary' : ''}"><strong>${escHtml(fact.value)}</strong><span>${escHtml(fact.label)}</span></div>`).join('')}</div>` : ''}
+          ${credits.length ? `<div class="discover-media-credits">${credits.map(row => `<div><span>${escHtml(row.label)}</span><strong>${escHtml(row.value)}</strong></div>`).join('')}</div>` : ''}
+        </div>` : ''}
+        ${trailer ? `<div class="discover-media-trailer discover-media-trailer-panel"><video controls playsinline preload="metadata" ${trailer.poster ? `poster="${escAttr(trailer.poster)}"` : ''}><source src="${escAttr(trailer.url)}"></video></div>` : ''}
+      </div>` : ''}
+      ${screenshots.length ? `<div class="discover-media-section discover-media-section-cast"><h3>Screenshots</h3><div class="discover-media-similar game-media-screenshots">${screenshots.map(img => `<a class="discover-media-similar-card" href="${escAttr(img.image)}" target="_blank" rel="noopener"><img src="${escAttr(img.image)}" alt=""><span>Screenshot</span></a>`).join('')}</div></div>` : ''}
+      ${renderDeepSeekMoreLikeThisSection('game', details)}
+    </div>
+  </section>`;
+}
+
 function bindGameMediaProfileActions(overlay) {
   const addButton = overlay?.querySelector?.('.discover-media-add-floating');
   bindDiscoverMediaProfileSwipeBack(overlay);
@@ -3665,7 +3996,7 @@ async function openGameMediaProfile(event, rawgId = '', seedOverride = null, tra
   if (transitionOrigin && typeof transitionOrigin.closest === 'function' && transitionOrigin.closest('.activity-poster-col, .activity-poster-placeholder')) {
     overlay.classList.add('activity-origin-media-profile');
   }
-  overlay.innerHTML = renderGameMediaProfileShell(initialSeed, rawgId);
+  overlay.innerHTML = renderGameMediaProfileShellModern(initialSeed, rawgId);
   bindGameMediaProfileActions(overlay);
   document.body.appendChild(overlay);
   document.body.classList.add('discover-media-profile-open', 'game-media-profile-open');
@@ -3677,7 +4008,7 @@ async function openGameMediaProfile(event, rawgId = '', seedOverride = null, tra
     if (!resolvedId) {
       if (!document.getElementById('discover-media-profile')) return;
       const mergedGameDetails = await ensureScreenListIgdbCoverOnGameDetails({ ...initialSeed, rawgId: '' });
-      overlay.innerHTML = renderGameMediaProfileDetails(mergedGameDetails, '');
+      overlay.innerHTML = renderGameMediaProfileDetailsModern(mergedGameDetails, '');
       bindGameMediaProfileActions(overlay);
       hydrateDeepSeekMoreLikeThis('game', mergedGameDetails);
       return;
@@ -3698,14 +4029,14 @@ async function openGameMediaProfile(event, rawgId = '', seedOverride = null, tra
     }
     if (!document.getElementById('discover-media-profile')) return;
     const mergedGameDetails = await ensureScreenListIgdbCoverOnGameDetails({ ...initialSeed, ...details, rawgId: String(resolvedId) });
-    overlay.innerHTML = renderGameMediaProfileDetails(mergedGameDetails, String(resolvedId));
+    overlay.innerHTML = renderGameMediaProfileDetailsModern(mergedGameDetails, String(resolvedId));
     bindGameMediaProfileActions(overlay);
     hydrateDeepSeekMoreLikeThis('game', mergedGameDetails);
   } catch (e) {
     console.error('Game media profile failed:', e);
     if (!document.getElementById('discover-media-profile')) return;
     const mergedGameDetails = await ensureScreenListIgdbCoverOnGameDetails({ ...initialSeed, rawgId: rawgId || getGameRawgIdValue(initialSeed) });
-    overlay.innerHTML = renderGameMediaProfileDetails(mergedGameDetails, rawgId || getGameRawgIdValue(initialSeed));
+    overlay.innerHTML = renderGameMediaProfileDetailsModern(mergedGameDetails, rawgId || getGameRawgIdValue(initialSeed));
     bindGameMediaProfileActions(overlay);
     hydrateDeepSeekMoreLikeThis('game', mergedGameDetails);
   }
@@ -5257,6 +5588,106 @@ function deleteItem(eventOrId, maybeId) {
   }
 }
 
+function updateSeasonRatingUI(item = {}, seasonNum = '', section = activeSection) {
+  if (!item?.id || !seasonNum) return;
+  const prefix = `season:${seasonNum}`;
+  const rating = Number((item.seasonRatings && item.seasonRatings[seasonNum]) || 0);
+  const tmp = document.createElement('div');
+  tmp.innerHTML = buildRatingStarsMarkup(rating, item.id, prefix, 14, section, !viewingUser);
+  const replacement = tmp.firstElementChild;
+  if (replacement) {
+    document.querySelectorAll('.stars[data-item-id][data-prefix]').forEach(node => {
+      if (node.dataset.itemId === String(item.id) && node.dataset.prefix === prefix) {
+        node.replaceWith(replacement.cloneNode(true));
+      }
+    });
+  }
+
+  const seasonBody = document.getElementById(`s-eps-${item.id}-${seasonNum}`);
+  const seasonBlock = seasonBody ? seasonBody.closest('.season-block') : null;
+  const headerLeft = seasonBlock ? seasonBlock.querySelector('.season-header-left') : null;
+  if (!headerLeft) return;
+  let chip = headerLeft.querySelector('.season-rating-chip');
+  if (rating > 0) {
+    if (!chip) {
+      chip = document.createElement('span');
+      chip.className = 'season-rating-chip';
+      const progress = headerLeft.querySelector('.season-progress');
+      if (progress && progress.parentNode === headerLeft) progress.insertAdjacentElement('afterend', chip);
+      else headerLeft.appendChild(chip);
+    }
+    chip.textContent = `★ ${formatRatingValueForSection(rating, section)}`;
+  } else if (chip) {
+    chip.remove();
+  }
+}
+
+function applyWatchlistPriorityDomino(section = activeSection, targetItem = {}, targetPriority = 0) {
+  if (!targetItem) return;
+  const now = new Date().toISOString();
+  const priorityStatus = section === 'games' ? 'wishlist' : 'planned';
+  const plannedItems = (Array.isArray(data?.[section]) ? data[section] : [])
+    .filter(item => item && String(item.status || '') === priorityStatus);
+  const markEdited = (item) => {
+    item.lastEditedAt = now;
+    item.dateLastEdited = now;
+  };
+  if (!targetPriority) {
+    delete targetItem.watchPriority;
+    delete targetItem.watchlistPriority;
+    markEdited(targetItem);
+    return;
+  }
+
+  const targetKey = typeof getSortItemKey === 'function'
+    ? getSortItemKey(targetItem)
+    : String(targetItem.id || targetItem.title || '');
+  const occupied = new Set([targetPriority]);
+  const placements = [{ item: targetItem, priority: targetPriority }];
+  plannedItems
+    .filter(item => item !== targetItem)
+    .map((item, index) => ({
+      item,
+      index,
+      key: typeof getSortItemKey === 'function' ? getSortItemKey(item) : String(item.id || item.title || ''),
+      priority: normalizeWatchlistPriorityValue(item.watchPriority || item.watchlistPriority)
+    }))
+    .filter(entry => entry.priority > 0 && entry.key !== targetKey)
+    .sort((a, b) => {
+      if (a.priority !== b.priority) return a.priority - b.priority;
+      const aAdded = Date.parse(a.item.dateAdded || a.item.createdAt || '') || 0;
+      const bAdded = Date.parse(b.item.dateAdded || b.item.createdAt || '') || 0;
+      if (aAdded !== bAdded) return bAdded - aAdded;
+      return a.index - b.index;
+    })
+    .forEach(entry => {
+      let nextPriority = entry.priority;
+      while (occupied.has(nextPriority)) nextPriority += 1;
+      occupied.add(nextPriority);
+      placements.push({ item: entry.item, priority: nextPriority });
+    });
+
+  placements.forEach(({ item, priority }) => {
+    item.watchPriority = priority;
+    delete item.watchlistPriority;
+    markEdited(item);
+  });
+}
+
+function setWatchlistPriority(itemId = '', rawValue = '') {
+  if (viewingUser) return;
+  const record = findOwnLibraryItemRecord(itemId, activeSection);
+  const item = record.item;
+  const section = record.section || activeSection;
+  if (!item || !canUseWatchlistPriority(item, section, activeTab)) return;
+  applyWatchlistPriorityDomino(section, item, normalizeWatchlistPriorityValue(rawValue));
+  save();
+  if (getActiveSortKey() === 'watchlist-priority') {
+    if (typeof clearLastEditedResortHold === 'function') clearLastEditedResortHold(getSortStateKey(section, activeTab));
+  }
+  render();
+}
+
 let _lastRate = { key: null, time: 0 };
 // v436: rating-edit activity guard.
 // Each time the user rates a title we now decide whether this is a FIRST-TIME
@@ -5294,51 +5725,66 @@ function rate(itemId, prefix, score) {
 
   // Capture the pre-change rating so we can classify first-time vs edit below.
   const prevOverallRating = prefix === 'overall' ? Number(item.rating || 0) : null;
+  let prevSeasonRating = null;
+  let prevEpisodeRating = null;
+  let inlineSeasonRatingNum = '';
 
   if (prefix === "overall") {
     item.rating = item.rating === score ? 0 : score;
-    /* v560: timestamp the show-rating change so the activity processor
-       can fire a 'rated' activity ONLY when the show rating actually
-       changed (instead of any time dateModified updates). */
-    if (Number(item.rating) > 0) {
-      item.lastShowRatingAt = new Date().toISOString();
-    }
   } else if (prefix.startsWith("season:")) {
     const sNum = parseInt(prefix.slice(7));
     if (!item.seasonRatings) item.seasonRatings = {};
+    prevSeasonRating = Number(item.seasonRatings[sNum] || 0);
     item.seasonRatings[sNum] = (item.seasonRatings[sNum] === score) ? 0 : score;
-    /* v560: track most-recent season rating so the activity feed can fire
-       a SEPARATE 'season-rated' activity card (not mergeable). */
-    if (Number(item.seasonRatings[sNum]) > 0) {
-      item.lastSeasonRatingValue = Number(item.seasonRatings[sNum]);
-      item.lastSeasonRatingNum = String(sNum);
-      item.lastSeasonRatingAt = new Date().toISOString();
-    }
+    inlineSeasonRatingNum = String(sNum);
   } else if (prefix.startsWith("ep:")) {
     const epId = prefix.slice(3);
     const ep = (item.episodes || []).find(e => e.id === epId);
+    prevEpisodeRating = ep ? Number(ep.rating || 0) : 0;
     if (ep) ep.rating = ep.rating === score ? 0 : score;
     /* v557: track the most recent episode rating on the item so the
        activity feed's merged "watched + rated" card shows
        "EP rated ★ {value}" rather than the show's rating. Mirrors the
        tracking that rateEpPopup writes. */
-    if (ep && Number(ep.rating) > 0) {
-      item.lastEpisodeRatingValue = Number(ep.rating);
-      item.lastEpisodeRatingAt = new Date().toISOString();
-      item.lastEpisodeRatingEpId = String(epId || '');
-    }
   }
 
   const newOverallRating = prefix === 'overall' ? Number(item.rating || 0) : null;
+  const seasonRatingKey = prefix.startsWith("season:") ? parseInt(prefix.slice(7), 10) : null;
+  const newSeasonRating = prefix.startsWith("season:")
+    ? Number(item.seasonRatings?.[seasonRatingKey] || 0)
+    : null;
+  const episodeRatingKey = prefix.startsWith("ep:") ? prefix.slice(3) : '';
+  const newEpisodeRating = prefix.startsWith("ep:")
+    ? Number(((item.episodes || []).find(e => e.id === episodeRatingKey) || {}).rating || 0)
+    : null;
   const isFirstTimeRating = prefix === 'overall' && prevOverallRating === 0 && newOverallRating > 0;
-  const isRatingEdit      = prefix === 'overall' && prevOverallRating > 0 && newOverallRating > 0;
+  const isRatingEdit = prefix === 'overall' && prevOverallRating > 0 && prevOverallRating !== newOverallRating;
+  const isFirstTimeSeasonRating = prefix.startsWith("season:") && prevSeasonRating === 0 && newSeasonRating > 0;
+  const isExistingSeasonRatingChange = prefix.startsWith("season:") && prevSeasonRating > 0 && prevSeasonRating !== newSeasonRating;
+  const isFirstTimeEpisodeRating = prefix.startsWith("ep:") && prevEpisodeRating === 0 && newEpisodeRating > 0;
+  const isExistingEpisodeRatingChange = prefix.startsWith("ep:") && prevEpisodeRating > 0 && prevEpisodeRating !== newEpisodeRating;
+  const shouldEmitPublicRatingActivity = isFirstTimeRating || isFirstTimeSeasonRating || isFirstTimeEpisodeRating;
+  const shouldKeepRatingChangePrivate = isRatingEdit || isExistingSeasonRatingChange || isExistingEpisodeRatingChange;
 
   if (isFirstTimeRating) {
+    item.lastShowRatingAt = new Date().toISOString();
+  } else if (isFirstTimeSeasonRating) {
+    item.lastSeasonRatingValue = Number(item.seasonRatings?.[seasonRatingKey] || 0);
+    item.lastSeasonRatingNum = String(seasonRatingKey);
+    item.lastSeasonRatingAt = new Date().toISOString();
+  } else if (isFirstTimeEpisodeRating) {
+    const ep = (item.episodes || []).find(e => e.id === episodeRatingKey);
+    item.lastEpisodeRatingValue = Number(ep?.rating || 0);
+    item.lastEpisodeRatingAt = new Date().toISOString();
+    item.lastEpisodeRatingEpId = String(episodeRatingKey || '');
+  }
+
+  if (shouldEmitPublicRatingActivity) {
     // First-time: normal edit tracking — updates dateModified so activity fires.
     item.shelfdRatingFirstSetAt = item.shelfdRatingFirstSetAt || new Date().toISOString();
     if (typeof markOwnItemLastEdited === 'function') markOwnItemLastEdited(item, section);
     else touchItem(item);
-  } else if (isRatingEdit) {
+  } else if (shouldKeepRatingChangePrivate) {
     // Edit existing rating: update lastEditedAt only — do NOT touch dateModified.
     _shelfdMarkRatingEdit(item, section);
   } else {
@@ -5347,7 +5793,9 @@ function rate(itemId, prefix, score) {
     else touchItem(item);
   }
 
-  save(); render();
+  save();
+  if (inlineSeasonRatingNum) updateSeasonRatingUI(item, inlineSeasonRatingNum, section);
+  else render();
   if (score > 0) playRatingAnimation(itemId, prefix);
 
   // v442: defer the "Rating updated privately" toast until AFTER the star animation
@@ -5359,7 +5807,7 @@ function rate(itemId, prefix, score) {
   // intensity peak lands well before the final tail). Toast is canceled if the user
   // immediately edits again — showRatingEditPrivateToast already removes the prior
   // toast/timer in that case.
-  if (isRatingEdit) {
+  if (isRatingEdit && newOverallRating > 0) {
     if (typeof _shelfdRatingEditDeferredTimer !== 'undefined' && _shelfdRatingEditDeferredTimer) {
       clearTimeout(_shelfdRatingEditDeferredTimer);
     }
@@ -5994,6 +6442,7 @@ function toggleEp(itemId, epId) {
     if (typeof markOwnItemLastEdited === 'function') markOwnItemLastEdited(item, activeSection);
     else touchItem(item);
     save();
+    if (becameWatched) invalidateActivityFeedAfterLibraryMutation();
     if (statusChangedNow && !itemMatchesCurrentView(item)) {
       render();
       return;
@@ -6026,6 +6475,7 @@ function markAllEps(id, val) {
       if (typeof markOwnItemLastEdited === 'function') markOwnItemLastEdited(item, activeSection);
       else touchItem(item);
       save();
+      if (val) invalidateActivityFeedAfterLibraryMutation();
       if (statusChangedNow && !itemMatchesCurrentView(item)) {
         render();
         return;

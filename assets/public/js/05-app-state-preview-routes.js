@@ -19,6 +19,8 @@ let sessionLastEditedResortHold = {}; // delays Last Edited visual resort until 
 let sessionCustomOrder = {}; // { "section:tab": [id, ...] }
 const DEFAULT_SORT = 'recently-added';
 const WATCHED_RATING_DEFAULT_SECTIONS = new Set(['movies', 'shows', 'anime']);
+const WATCHLIST_PRIORITY_SECTIONS = new Set(['movies', 'shows', 'anime']);
+const WISHLIST_PRIORITY_SECTIONS = new Set(['games']);
 const SORT_OPTIONS = [
   { key: 'recently-added',    label: 'Recently Added' },
   { key: 'title-az',          label: 'Title A–Z' },
@@ -49,15 +51,22 @@ const LAST_EDITED_SORT_SECTIONS = new Set(['games', 'shows', 'anime']);
 function normalizeSortDirection(value = '') { return value === 'asc' ? 'asc' : 'desc'; }
 function getSortOptionsForSection(section = activeSection) {
   const base = section === 'games' ? GAME_SORT_OPTIONS : SORT_OPTIONS;
-  if (!LAST_EDITED_SORT_SECTIONS.has(section) || section === 'games') return base;
-  if (base.some(option => option.key === 'last-edited')) return base;
-  const next = [...base];
+  let next = [...base];
+  if (WATCHLIST_PRIORITY_SECTIONS.has(section) && activeTab === 'planned' && !next.some(option => option.key === 'watchlist-priority')) {
+    next.unshift({ key: 'watchlist-priority', label: 'Priority' });
+  }
+  if (WISHLIST_PRIORITY_SECTIONS.has(section) && activeTab === 'wishlist' && !next.some(option => option.key === 'watchlist-priority')) {
+    next.unshift({ key: 'watchlist-priority', label: 'Priority' });
+  }
+  if (!LAST_EDITED_SORT_SECTIONS.has(section) || section === 'games') return next;
+  if (next.some(option => option.key === 'last-edited')) return next;
   const insertAt = Math.max(1, next.findIndex(option => option.key === 'title-az'));
   next.splice(insertAt, 0, { key: 'last-edited', label: 'Last Edited' });
   return next;
 }
 function getDefaultSortDirectionFor(sortKey = getActiveSortKey()) {
   switch (sortKey) {
+    case 'watchlist-priority':
     case 'title-az':
     case 'rating-low':
     case 'release-oldest':
@@ -131,6 +140,12 @@ function getDefaultSortKeyFor(section = activeSection, tab = activeTab) {
   if ((normalizedSection === 'shows' || normalizedSection === 'anime') && normalizedTab === 'watching') {
     return 'last-edited';
   }
+  if (WATCHLIST_PRIORITY_SECTIONS.has(normalizedSection) && normalizedTab === 'planned') {
+    return 'watchlist-priority';
+  }
+  if (WISHLIST_PRIORITY_SECTIONS.has(normalizedSection) && normalizedTab === 'wishlist') {
+    return 'watchlist-priority';
+  }
   /* v690: Watched (shows/movies/anime) and Played (games) default to
      last-edited — most-recently-touched first. "Last edited" falls back
      to dateAdded when no lastEditedAt is set, so it covers "last added"
@@ -193,6 +208,21 @@ function applySortOrder(items, sortKey, stateKey) {
   }
 
   switch (sortKey) {
+    case 'watchlist-priority': {
+      const fallback = [...arr].sort((a, b) => new Date(b.dateAdded || 0) - new Date(a.dateAdded || 0));
+      const fallbackIndex = {};
+      fallback.forEach((item, index) => { fallbackIndex[getSortItemKey(item)] = index; });
+      arr.sort((a, b) => {
+        const ap = Number(a.watchPriority || 0);
+        const bp = Number(b.watchPriority || 0);
+        const ah = Number.isFinite(ap) && ap > 0;
+        const bh = Number.isFinite(bp) && bp > 0;
+        if (ah && bh && ap !== bp) return ap - bp;
+        if (ah !== bh) return ah ? -1 : 1;
+        return (fallbackIndex[getSortItemKey(a)] ?? 99999) - (fallbackIndex[getSortItemKey(b)] ?? 99999);
+      });
+      break;
+    }
     case 'recently-added':
       arr.sort((a, b) => new Date(b.dateAdded || 0) - new Date(a.dateAdded || 0));
       break;

@@ -1525,10 +1525,10 @@ async function renderFriendsList() {
     grid.innerHTML = `<div class="user-card friend-list-card" style="justify-content:space-between;">
       <div class="friend-card-main" style="display:flex;align-items:center;gap:14px;flex:1;min-width:0;cursor:pointer;" onclick="openGuestCreatorListsView({ returnTab: 'community' })">
         <img class="user-card-avatar" src="${escAttr(avatar)}" alt="">
-        <div class="friend-card-copy"><div class="user-card-name">${renderDisplayNameHTML(creator, CREATOR_DEFAULT_NAME)}</div><div class="user-card-stats">Creator activity and public shelf</div></div>
+        <div class="friend-card-copy"><div class="user-card-name">${renderDisplayNameHTML(creator, CREATOR_DEFAULT_NAME)}</div></div>
       </div>
       <div class="friend-actions-group">
-        <button class="friend-action-btn friend-mobile-list-btn friend-screenlist-btn" onclick="event.stopPropagation(); openGuestCreatorListsView({ returnTab: 'community' })">Screen List</button>
+        <button class="friend-action-btn friend-mobile-list-btn friend-screenlist-btn" onclick="event.stopPropagation(); openGuestCreatorListsView({ returnTab: 'community' })">View Shelf</button>
         <button class="friend-action-btn friend-profile-btn friend-mobile-profile-btn" onclick="event.stopPropagation(); openUserProfile('${CREATOR_PUBLIC_UID}')">Profile</button>
         <button class="friend-action-btn friend-profile-btn friend-profile-desktop-btn" onclick="event.stopPropagation(); openUserProfile('${CREATOR_PUBLIC_UID}')">Profile</button>
       </div>
@@ -1559,10 +1559,10 @@ async function renderFriendsList() {
       html += `<div class="user-card friend-list-card" style="justify-content:space-between;">
         <div class="friend-card-main" style="display:flex;align-items:center;gap:14px;flex:1;min-width:0;cursor:pointer;" onclick="viewUserFromMap('${u.uid}')">
           <img class="user-card-avatar" src="${avatar}" alt="">
-          <div class="friend-card-copy"><div class="user-card-name">${renderDisplayNameHTML(u, 'User')}</div><div class="user-card-stats">Tap to view list</div></div>
+          <div class="friend-card-copy"><div class="user-card-name">${renderDisplayNameHTML(u, 'User')}</div></div>
         </div>
         <div class="friend-actions-group">
-          <button class="friend-action-btn friend-mobile-list-btn friend-screenlist-btn" onclick="event.stopPropagation(); viewUserFromMap('${u.uid}')">Screen List</button>
+          <button class="friend-action-btn friend-mobile-list-btn friend-screenlist-btn" onclick="event.stopPropagation(); viewUserFromMap('${u.uid}')">View Shelf</button>
           <button class="friend-action-btn friend-profile-btn friend-message-btn" onclick="event.stopPropagation(); openDirectMessageFromUser('${u.uid}')">Message</button>
           <button class="friend-action-btn friend-profile-btn friend-mobile-profile-btn" onclick="event.stopPropagation(); openUserProfile('${u.uid}')">Profile</button>
           <button class="friend-action-btn friend-profile-btn friend-profile-desktop-btn" onclick="event.stopPropagation(); openUserProfile('${u.uid}')">Profile</button>
@@ -1594,6 +1594,99 @@ async function renderFriendsList() {
 
 
 let peopleSearchGridOverrideId = '';
+const FRIEND_HOME_ENTER_TRANSITION_MS = 600;
+let friendHomeTransitionTimer = 0;
+
+function cloneFriendRouteState(state = null) {
+  if (!state || typeof state !== 'object') return null;
+  return { ...state };
+}
+
+function captureCommunityReturnState(source = 'community') {
+  return {
+    kind: 'community',
+    source,
+    mainTab: 'community',
+    friendsTab: ['friends', 'requests', 'activity'].includes(activeFriendsTab) ? activeFriendsTab : 'activity',
+    requestsSubTab: activeRequestsSubTab === 'friends' ? 'friends' : 'friends',
+    activitySubTab: ['feed', 'friendWatch', 'sharedWatch'].includes(activeActivitySubTab) ? activeActivitySubTab : 'feed',
+    messagesSubTab: ['chats', 'requests'].includes(activeMessagesSubTab) ? activeMessagesSubTab : 'chats',
+    friendsListMode: document.body.classList.contains('shelfd-friends-list-mode') || activeFriendsTab === 'friends'
+  };
+}
+
+function normalizeCommunityReturnState(state = null) {
+  const fallback = captureCommunityReturnState();
+  const next = cloneFriendRouteState(state) || {};
+  return {
+    kind: 'community',
+    source: next.source || fallback.source,
+    mainTab: 'community',
+    friendsTab: ['friends', 'requests', 'activity'].includes(next.friendsTab) ? next.friendsTab : fallback.friendsTab,
+    requestsSubTab: next.requestsSubTab === 'friends' ? 'friends' : fallback.requestsSubTab,
+    activitySubTab: ['feed', 'friendWatch', 'sharedWatch'].includes(next.activitySubTab) ? next.activitySubTab : fallback.activitySubTab,
+    messagesSubTab: ['chats', 'requests'].includes(next.messagesSubTab) ? next.messagesSubTab : fallback.messagesSubTab,
+    friendsListMode: typeof next.friendsListMode === 'boolean' ? next.friendsListMode : fallback.friendsListMode
+  };
+}
+
+function clearFriendHomeChrome() {
+  document.body.classList.remove('viewing-other-user');
+  syncViewingUserHeaderBackButton(false);
+  const addBtn = document.getElementById('add-btn');
+  const bannerArea = document.getElementById('viewing-banner-area');
+  if (addBtn) addBtn.style.display = '';
+  if (bannerArea) bannerArea.innerHTML = '';
+  clearListSearch();
+}
+
+async function restoreOwnLibraryAfterFriendView(previousFriendData = null) {
+  if (isPreviewMode()) {
+    const previewOwnData = ownDataCache ? cloneListData(ownDataCache) : cloneListData(DEMO_DATA);
+    data = cloneListData(previewOwnData);
+    ownDataCache = cloneListData(previewOwnData);
+    myData = null;
+    return previewOwnData;
+  }
+
+  let freshOwnData = await loadOwnDataFromFirestore();
+  if (previousFriendData && isSameListData(freshOwnData, previousFriendData)) {
+    const backup = readOwnLocalBackup(previousFriendData);
+    if (backup) {
+      freshOwnData = await writeOwnDataDirect(backup);
+      showToast("Restored your library");
+    }
+  }
+  freshOwnData = await autoSortAnimeBuckets(freshOwnData, true);
+  data = cloneListData(freshOwnData);
+  ownDataCache = cloneListData(freshOwnData);
+  myData = null;
+  if (currentUser) {
+    localStorage.setItem("screenlist-own-data-backup-" + currentUser.uid, JSON.stringify(freshOwnData));
+  }
+  return freshOwnData;
+}
+
+async function restoreCommunityReturnState(state = null) {
+  const nextState = normalizeCommunityReturnState(state);
+  activeFriendsTab = nextState.friendsTab;
+  activeRequestsSubTab = nextState.requestsSubTab;
+  activeActivitySubTab = nextState.activitySubTab;
+  activeMessagesSubTab = nextState.messagesSubTab;
+  document.body.classList.toggle('shelfd-friends-list-mode', nextState.friendsListMode || nextState.friendsTab === 'friends');
+  setBottomNavVisibility(true);
+  syncMainNavButtons('community');
+  setMainNavVisibility('community');
+  await loadCommunity(false);
+  if (nextState.friendsTab === 'activity') {
+    loadFriendActivity();
+  }
+  persistUiState();
+  return nextState;
+}
+
+window.captureCommunityReturnState = captureCommunityReturnState;
+window.restoreCommunityReturnState = restoreCommunityReturnState;
 
 function getPeopleSearchGrid() {
   const override = String(peopleSearchGridOverrideId || '').trim();
@@ -2213,6 +2306,7 @@ async function viewUserList(uid, name, photo) {
     const userDoc = await db.collection("users").doc(uid).get();
     const theirProfileData = userDoc.exists ? (userDoc.data() || {}) : {};
     usersMap[uid] = { ...(usersMap[uid] || {}), ...theirProfileData, uid };
+    sourceUser.profileData = theirProfileData;
     sourceUser.listTabVisibility = normalizeListTabVisibility(theirProfileData.listTabVisibility);
     sourceUser.ratingPreferences = normalizeRatingPreferences(theirProfileData.ratingPreferences);
     const theirFriends = (userDoc.exists && userDoc.data().friends) || [];
@@ -2231,6 +2325,9 @@ async function viewUserList(uid, name, photo) {
     ownDataCache = cloneListData(freshOwnData);
   }
   viewingReturnTab = getActiveMainTab ? getActiveMainTab() : 'community';
+  viewingReturnState = !viewingUser
+    ? captureCommunityReturnState('friend-home')
+    : (cloneFriendRouteState(viewingReturnState) || captureCommunityReturnState('friend-home'));
   viewingUser = sourceUser;
   let loadFailed = false;
   try {
@@ -2246,13 +2343,13 @@ async function viewUserList(uid, name, photo) {
   
   // Add class to body for viewing user styling
   document.body.classList.add('viewing-other-user');
+  syncViewingUserHeaderBackButton(true);
   
   const communityView = document.getElementById('community-view');
   const myListView = document.getElementById('mylist-view');
   const myListHeader = document.getElementById('mylist-header');
   const addBtn = document.getElementById('add-btn');
   const bannerArea = document.getElementById('viewing-banner-area');
-  if (communityView) communityView.style.display = 'none';
   if (myListView) myListView.style.display = 'block';
   if (myListHeader) myListHeader.style.display = 'block';
   if (addBtn) addBtn.style.display = 'none';
@@ -2264,6 +2361,7 @@ async function viewUserList(uid, name, photo) {
     <div class="viewing-banner-divider" aria-hidden="true"></div>
     <div class="viewing-banner-actions">
       <button class="back-btn profile-view-btn" onclick="openUserProfile('${uid}')">View Profile</button>
+      <button class="back-btn friend-list-tier-btn" onclick="openViewingUserTierListPage()">View Tier List</button>
       <button class="back-btn friend-list-dm-btn" onclick="openDirectMessageFromUser('${uid}')">Direct Message</button>
     </div>
     <button class="friend-list-floating-back-btn" type="button" onclick="backToMyList()" aria-label="Back">‹</button>
@@ -2272,6 +2370,7 @@ async function viewUserList(uid, name, photo) {
   activeSection = initialView.section;
   activeTab = normalizeVisibleMyListStatusTab(initialView.tab, activeSection);
   render();
+  startFriendHomeEnterTransition();
   persistUiState();
   if (loadFailed) {
     const grid = document.getElementById('cards-grid');
@@ -2282,15 +2381,20 @@ async function viewUserList(uid, name, photo) {
 }
 
 async function backToMyList(targetTab = null) {
+  resetFriendHomeEnterTransition();
   const previousFriendData = friendViewData ? cloneListData(friendViewData) : null;
+  const savedReturnState = !targetTab ? cloneFriendRouteState(viewingReturnState) : null;
   const returnTab = targetTab || viewingReturnTab || 'mylist';
   if (typeof isShelfdGuestBrowsing === 'function' && isShelfdGuestBrowsing() && !currentUser) {
     viewingUser = null;
     friendViewData = null;
+    viewingReturnState = null;
+    viewingReturnTab = 'mylist';
     profileViewingUser = null;
     profileViewingProfile = null;
     profileViewingData = null;
     document.body.classList.remove('viewing-other-user', 'landing-public-lists', 'profile-active', 'guest-creator-lists');
+    syncViewingUserHeaderBackButton(false);
     const addBtn = document.getElementById('add-btn');
     const bannerArea = document.getElementById('viewing-banner-area');
     if (addBtn) addBtn.style.display = '';
@@ -2316,41 +2420,38 @@ async function backToMyList(targetTab = null) {
   if (landingPublicProfileActive && !currentUser && returnTab === 'landing') {
     viewingUser = null;
     friendViewData = null;
+    viewingReturnState = null;
+    viewingReturnTab = 'mylist';
     profileViewingUser = null;
     profileViewingProfile = null;
     profileViewingData = null;
     document.body.classList.remove('viewing-other-user', 'landing-public-lists', 'profile-active');
+    syncViewingUserHeaderBackButton(false);
     showLandingPage();
     return;
   }
   viewingUser = null;
   friendViewData = null;
-  
-  // Remove viewing user styling
-  document.body.classList.remove('viewing-other-user');
-
-  const addBtn = document.getElementById('add-btn');
-  const bannerArea = document.getElementById('viewing-banner-area');
-
-  if (addBtn) addBtn.style.display = '';
-  if (bannerArea) bannerArea.innerHTML = '';
+  viewingReturnState = null;
+  viewingReturnTab = 'mylist';
+  clearFriendHomeChrome();
   setBottomNavVisibility(true);
-  syncMainNavButtons(returnTab);
-  setMainNavVisibility(returnTab);
 
   if (isPreviewMode()) {
-    const previewOwnData = ownDataCache ? cloneListData(ownDataCache) : cloneListData(DEMO_DATA);
-    clearListSearch();
-    data = cloneListData(previewOwnData);
+    await restoreOwnLibraryAfterFriendView(previousFriendData);
+    if (!targetTab && savedReturnState?.kind === 'community') {
+      await restoreCommunityReturnState(savedReturnState);
+      return;
+    }
+    syncMainNavButtons(returnTab);
+    setMainNavVisibility(returnTab);
     if (returnTab === 'community') {
       loadCommunity();
       loadFriendActivity();
-    }
-    else if (returnTab === 'discover' || returnTab === 'games-discover') {
+    } else if (returnTab === 'discover' || returnTab === 'games-discover') {
       if (returnTab === 'games-discover') activeDiscoveryHub = 'gaming';
       loadActiveDiscoveryHub();
-    }
-    else {
+    } else {
       activeSection = "shows";
       activeTab = "watching";
       render();
@@ -2359,22 +2460,14 @@ async function backToMyList(targetTab = null) {
     return;
   }
 
-  let freshOwnData = await loadOwnDataFromFirestore();
-  if (previousFriendData && isSameListData(freshOwnData, previousFriendData)) {
-    const backup = readOwnLocalBackup(previousFriendData);
-    if (backup) {
-      freshOwnData = await writeOwnDataDirect(backup);
-      showToast("Restored your library");
-    }
+  await restoreOwnLibraryAfterFriendView(previousFriendData);
+  if (!targetTab && savedReturnState?.kind === 'community') {
+    await restoreCommunityReturnState(savedReturnState);
+    return;
   }
-  freshOwnData = await autoSortAnimeBuckets(freshOwnData, true);
 
-  clearListSearch();
-
-  data = cloneListData(freshOwnData);
-  ownDataCache = cloneListData(freshOwnData);
-  myData = null;
-  if (currentUser) localStorage.setItem("screenlist-own-data-backup-" + currentUser.uid, JSON.stringify(freshOwnData));
+  syncMainNavButtons(returnTab);
+  setMainNavVisibility(returnTab);
   if (returnTab === 'community') {
     loadCommunity();
     loadFriendActivity();
@@ -2389,4 +2482,67 @@ async function backToMyList(targetTab = null) {
     render();
   }
   persistUiState();
+}
+
+function syncViewingUserHeaderBackButton(enabled = false) {
+  const importBtn = document.querySelector('.header-import-btn');
+  if (!importBtn) return;
+  if (enabled) {
+    if (!importBtn.dataset.defaultLabel) importBtn.dataset.defaultLabel = importBtn.textContent || 'Import';
+    if (!importBtn.dataset.defaultTitle) importBtn.dataset.defaultTitle = importBtn.getAttribute('title') || '';
+    if (!importBtn.dataset.defaultAriaLabel) importBtn.dataset.defaultAriaLabel = importBtn.getAttribute('aria-label') || '';
+    if (!importBtn.dataset.defaultOnclick) importBtn.dataset.defaultOnclick = importBtn.getAttribute('onclick') || 'openImportPage()';
+    importBtn.textContent = 'Back';
+    importBtn.setAttribute('title', 'Go back');
+    importBtn.setAttribute('aria-label', 'Go back');
+    importBtn.setAttribute('onclick', 'backToMyList()');
+    return;
+  }
+  if (importBtn.dataset.defaultLabel) importBtn.textContent = importBtn.dataset.defaultLabel;
+  if (Object.prototype.hasOwnProperty.call(importBtn.dataset, 'defaultTitle')) {
+    if (importBtn.dataset.defaultTitle) importBtn.setAttribute('title', importBtn.dataset.defaultTitle);
+    else importBtn.removeAttribute('title');
+  }
+  if (Object.prototype.hasOwnProperty.call(importBtn.dataset, 'defaultAriaLabel')) {
+    if (importBtn.dataset.defaultAriaLabel) importBtn.setAttribute('aria-label', importBtn.dataset.defaultAriaLabel);
+    else importBtn.removeAttribute('aria-label');
+  }
+  if (importBtn.dataset.defaultOnclick) importBtn.setAttribute('onclick', importBtn.dataset.defaultOnclick);
+}
+
+function shouldAnimateFriendHomeEnterTransition() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return false;
+  if (!window.matchMedia('(max-width: 700px)').matches) return false;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+  return true;
+}
+
+function resetFriendHomeEnterTransition() {
+  window.clearTimeout(friendHomeTransitionTimer);
+  friendHomeTransitionTimer = 0;
+  document.body.classList.remove('friend-home-transitioning');
+  const myListView = document.getElementById('mylist-view');
+  if (myListView) myListView.classList.remove('friend-home-enter-active');
+}
+
+function startFriendHomeEnterTransition() {
+  const communityView = document.getElementById('community-view');
+  const myListView = document.getElementById('mylist-view');
+  if (!communityView || !myListView) return;
+  resetFriendHomeEnterTransition();
+  if (!shouldAnimateFriendHomeEnterTransition()) {
+    communityView.style.display = 'none';
+    return;
+  }
+  communityView.style.display = 'block';
+  document.body.classList.add('friend-home-transitioning');
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      myListView.classList.add('friend-home-enter-active');
+    });
+  });
+  friendHomeTransitionTimer = window.setTimeout(() => {
+    communityView.style.display = 'none';
+    resetFriendHomeEnterTransition();
+  }, FRIEND_HOME_ENTER_TRANSITION_MS + 60);
 }

@@ -103,6 +103,36 @@ function getStableActivityDocId(activity = {}, fallbackId = '') {
   return 'activity-' + screenlistStableHash(rawKey);
 }
 
+const SCREENLIST_ACTIVITY_INTERACTION_META_PREFIX = 'activity-interaction-';
+
+function getActivityInteractionMetaDocId(stableId = '') {
+  const cleanStableId = String(stableId || '').trim();
+  return cleanStableId ? `${SCREENLIST_ACTIVITY_INTERACTION_META_PREFIX}${cleanStableId}` : '';
+}
+
+async function getLegacyActivityInteractionState(rawId = '', stableId = '') {
+  const candidateIds = Array.from(new Set([rawId, stableId].map(value => String(value || '').trim()).filter(Boolean)));
+  for (const candidateId of candidateIds) {
+    try {
+      const snap = await db.collection('activities').doc(candidateId).get();
+      if (!snap.exists) continue;
+      const data = snap.data() || {};
+      const likes = Array.isArray(data.likes) ? data.likes : [];
+      const replies = Array.isArray(data.replies) ? data.replies : [];
+      if (!likes.length && !replies.length) continue;
+      return {
+        id: candidateId,
+        ref: db.collection('activities').doc(candidateId),
+        collection: 'activities',
+        data: { likes, replies }
+      };
+    } catch (error) {
+      console.warn('Could not read legacy activity interaction state:', candidateId, error);
+    }
+  }
+  return null;
+}
+
 
 const SCREENLIST_ACTIVITY_DELETED_IDS_FIELD = 'activityDeletedIds';
 const SCREENLIST_ACTIVITY_DELETED_LOCAL_PREFIX = 'screenlist-deleted-activity-ids-';
@@ -1149,33 +1179,70 @@ async function resolveActivityInteractionTarget(activityId = '') {
     return { id: rawId, collection: 'feed', ref: feedDoc, activity: { ...feedSnap.data(), id: rawId, _collection: 'feed' } };
   }
 
-  const activityDoc = db.collection('activities').doc(rawId);
-  const activitySnap = await activityDoc.get();
-  if (activitySnap.exists) {
-    return { id: rawId, collection: 'activities', ref: activityDoc, activity: { ...activitySnap.data(), id: rawId, _collection: 'activities' } };
-  }
-
   const inMemoryActivity = friendActivityClickTargets[rawId];
-  if (!inMemoryActivity) return null;
-
-  const stableId = getStableActivityDocId(inMemoryActivity, rawId);
-  const stableRef = db.collection('activities').doc(stableId);
-  const stableSnap = await stableRef.get();
-  if (!stableSnap.exists) {
-    const baseActivity = {
-      ...inMemoryActivity,
-      id: stableId,
-      activityId: stableId,
-      originalActivityId: rawId,
-      likes: Array.isArray(inMemoryActivity.likes) ? inMemoryActivity.likes : [],
-      replies: Array.isArray(inMemoryActivity.replies) ? inMemoryActivity.replies : []
-    };
-    await stableRef.set(baseActivity, { merge: true });
-    return { id: stableId, collection: 'activities', ref: stableRef, activity: { ...baseActivity, _collection: 'activities' } };
+  if (!inMemoryActivity) {
+    const activityDoc = db.collection('activities').doc(rawId);
+    const activitySnap = await activityDoc.get();
+    if (activitySnap.exists) {
+      return { id: rawId, collection: 'activities', ref: activityDoc, activity: { ...activitySnap.data(), id: rawId, _collection: 'activities' } };
+    }
+    return null;
   }
 
-  const mergedStableActivity = { ...inMemoryActivity, ...stableSnap.data(), id: stableId, activityId: stableId, originalActivityId: rawId };
-  return { id: stableId, collection: 'activities', ref: stableRef, activity: { ...mergedStableActivity, _collection: 'activities' } };
+  const stableId = getStableActivityDocId(inMemoryActivity, rawId) || rawId;
+  const interactionDocId = getActivityInteractionMetaDocId(stableId);
+  const interactionRef = db.collection('meta').doc(interactionDocId);
+  const activityPersistenceRef = db.collection('activities').doc(stableId);
+
+  let interactionData = null;
+  const interactionSnap = await interactionRef.get();
+  if (interactionSnap.exists) {
+    interactionData = interactionSnap.data() || {};
+  } else {
+    const legacy = await getLegacyActivityInteractionState(rawId, stableId);
+    if (legacy?.data) {
+      interactionData = {
+        likes: Array.isArray(legacy.data.likes) ? legacy.data.likes : [],
+        replies: Array.isArray(legacy.data.replies) ? legacy.data.replies : [],
+        migratedFromActivityDoc: legacy.id,
+        migratedAt: Date.now()
+      };
+      try {
+        await interactionRef.set(interactionData, { merge: true });
+      } catch (error) {
+        console.warn('Could not migrate legacy activity interactions to meta:', interactionDocId, error);
+      }
+    }
+  }
+
+  const likes = Array.isArray(interactionData?.likes)
+    ? interactionData.likes
+    : (Array.isArray(inMemoryActivity.likes) ? inMemoryActivity.likes : []);
+  const replies = Array.isArray(interactionData?.replies)
+    ? interactionData.replies
+    : (Array.isArray(inMemoryActivity.replies) ? inMemoryActivity.replies : []);
+  const mergedActivity = {
+    ...inMemoryActivity,
+    ...(interactionData || {}),
+    id: rawId,
+    activityId: stableId,
+    originalActivityId: rawId,
+    interactionDocId,
+    likes,
+    replies
+  };
+  return {
+    id: rawId,
+    cardId: rawId,
+    interactionDocId,
+    collection: 'meta',
+    ref: interactionRef,
+    activity: { ...mergedActivity, _collection: 'meta' },
+    activityPersistenceId: stableId,
+    activityPersistenceCollection: 'activities',
+    activityPersistenceRef,
+    deleteCollection: 'activities'
+  };
 }
 
 
@@ -1218,15 +1285,50 @@ async function getPersistedActivityInteractionState(activityId = '') {
     const feedSnap = await db.collection('feed').doc(rawId).get();
     if (feedSnap.exists) return { id: rawId, collection: 'feed', activity: { ...feedSnap.data(), id: rawId, _collection: 'feed' } };
 
-    const activitySnap = await db.collection('activities').doc(rawId).get();
-    if (activitySnap.exists) return { id: rawId, collection: 'activities', activity: { ...activitySnap.data(), id: rawId, _collection: 'activities' } };
-
     const inMemoryActivity = friendActivityClickTargets[rawId];
     if (inMemoryActivity) {
-      const stableId = getStableActivityDocId(inMemoryActivity, rawId);
-      const stableSnap = await db.collection('activities').doc(stableId).get();
-      if (stableSnap.exists) return { id: stableId, collection: 'activities', activity: { ...stableSnap.data(), id: stableId, _collection: 'activities' } };
+      const stableId = getStableActivityDocId(inMemoryActivity, rawId) || rawId;
+      const interactionDocId = getActivityInteractionMetaDocId(stableId);
+      const interactionSnap = await db.collection('meta').doc(interactionDocId).get();
+      if (interactionSnap.exists) {
+        const data = interactionSnap.data() || {};
+        return {
+          id: rawId,
+          collection: 'meta',
+          activity: {
+            ...inMemoryActivity,
+            ...data,
+            id: rawId,
+            activityId: stableId,
+            originalActivityId: rawId,
+            interactionDocId,
+            likes: Array.isArray(data.likes) ? data.likes : [],
+            replies: Array.isArray(data.replies) ? data.replies : [],
+            _collection: 'meta'
+          }
+        };
+      }
+      const legacy = await getLegacyActivityInteractionState(rawId, stableId);
+      if (legacy?.data) {
+        return {
+          id: rawId,
+          collection: legacy.collection,
+          activity: {
+            ...inMemoryActivity,
+            ...legacy.data,
+            id: rawId,
+            activityId: stableId,
+            originalActivityId: rawId,
+            likes: Array.isArray(legacy.data.likes) ? legacy.data.likes : [],
+            replies: Array.isArray(legacy.data.replies) ? legacy.data.replies : [],
+            _collection: legacy.collection
+          }
+        };
+      }
     }
+
+    const activitySnap = await db.collection('activities').doc(rawId).get();
+    if (activitySnap.exists) return { id: rawId, collection: 'activities', activity: { ...activitySnap.data(), id: rawId, _collection: 'activities' } };
   } catch (error) {
     console.error('Could not hydrate activity interaction state:', error);
   }
@@ -1684,8 +1786,9 @@ async function confirmScreenListDeletePost(postId = '', collection = 'feed') {
       await target.ref.delete();
     } else {
       await persistCurrentUserDeletedActivityIds(deleteIds);
-      if (target?.ref && target.collection === 'activities') {
-        await target.ref.set({ deletedByOwner: true, deletedAt: Date.now(), deletedByUid: currentUser.uid }, { merge: true }).catch(() => {});
+      const persistenceRef = target?.activityPersistenceRef || (target?.collection === 'activities' ? target.ref : null);
+      if (persistenceRef) {
+        await persistenceRef.set({ deletedByOwner: true, deletedAt: Date.now(), deletedByUid: currentUser.uid }, { merge: true }).catch(() => {});
       }
     }
 
@@ -1698,7 +1801,11 @@ async function confirmScreenListDeletePost(postId = '', collection = 'feed') {
         if (cid && deleteIds.includes(cid)) cardEl.remove();
       });
     } catch (error) {}
-    if (currentFeedPostId === cleanPostId || deleteIds.includes(String(currentFeedPostId || ''))) {
+    if (
+      currentFeedPostId === cleanPostId ||
+      deleteIds.includes(String(currentFeedPostId || '')) ||
+      deleteIds.includes(String(currentFeedPostActivityId || ''))
+    ) {
       try { closeFeedPostPage(); } catch (error) {}
     }
     closeScreenListDeletePostPrompt();
@@ -2309,9 +2416,9 @@ async function toggleActivityLike(activityId, btnEl) {
     if (!target || !target.ref) throw new Error('Activity not found for like action');
 
     if (isLiked) {
-      await target.ref.update({
+      await target.ref.set({
         likes: firebase.firestore.FieldValue.arrayRemove(currentUser.uid)
-      });
+      }, { merge: true });
     } else {
       await target.ref.set({ likes: firebase.firestore.FieldValue.arrayUnion(currentUser.uid) }, { merge: true });
     }
@@ -2379,16 +2486,17 @@ async function openActivityReplyPage(activityId) {
       return;
     }
 
-    currentFeedPostId = target.id;
+    currentFeedPostId = target.interactionDocId || target.id;
+    currentFeedPostActivityId = target.cardId || target.id;
     currentFeedPostCollection = target.collection || 'activities';
-    const activity = { ...target.activity, id: target.id, _collection: target.collection };
+    const activity = { ...target.activity, id: target.cardId || target.id, _collection: target.collection };
     const canDeleteDetailPost = canCurrentUserDeleteActivity(activity);
-    setFeedPostPageDeleteButton(target.id, currentFeedPostCollection, canDeleteDetailPost);
+    setFeedPostPageDeleteButton(target.activityPersistenceId || target.cardId || target.id, target.deleteCollection || 'activities', canDeleteDetailPost);
     console.log('Activity loaded:', activity);
 
     if (detailContainer) {
       console.log('Rendering activity detail...');
-      detailContainer.innerHTML = buildActivityPostDetailHTML(activity, target.id, target.collection);
+      detailContainer.innerHTML = buildActivityPostDetailHTML(activity, target.cardId || target.id, target.deleteCollection || 'activities');
       hydrateActivityInteractionCounts(detailContainer);
     }
 
@@ -2400,7 +2508,7 @@ async function openActivityReplyPage(activityId) {
     }
 
     console.log('Loading replies...');
-    loadActivityReplies(target.id, target.collection);
+    loadActivityReplies(currentFeedPostId, currentFeedPostCollection, currentFeedPostActivityId);
 
   } catch(err) {
     console.error('Error loading activity:', err);
@@ -2479,25 +2587,31 @@ function renderFeedRepliesList(replies = []) {
 
 function updateActivityReplyCountBadge(postId, count) {
   if (!postId) return;
-  document.querySelectorAll(`.activity-card[data-post-id="${CSS.escape(postId)}"] .activity-reply-count`).forEach(el => {
+  const selectors = [
+    `.activity-card[data-post-id="${CSS.escape(postId)}"] .activity-reply-count`,
+    `[data-activity-card-id="${CSS.escape(postId)}"] [data-activity-reply-count]`,
+    `[data-activity-id="${CSS.escape(postId)}"] [data-activity-reply-count]`
+  ];
+  document.querySelectorAll(selectors.join(', ')).forEach(el => {
     el.textContent = String(Math.max(0, Number(count) || 0));
   });
 }
 
-async function loadActivityReplies(activityId, collection = 'feed') {
+async function loadActivityReplies(activityId, collection = 'feed', displayActivityId = '') {
   const repliesList = document.getElementById('feed-post-replies-list');
   if (!repliesList) return;
   
   try {
     const doc = await db.collection(collection).doc(activityId).get();
     if (!doc.exists) {
+      updateActivityReplyCountBadge(displayActivityId || activityId, 0);
       repliesList.innerHTML = '';
       return;
     }
     
     const data = doc.data();
     const replies = Array.isArray(data.replies) ? data.replies : [];
-    updateActivityReplyCountBadge(activityId, replies.length);
+    updateActivityReplyCountBadge(displayActivityId || activityId, replies.length);
 
     if (!replies.length) {
       repliesList.innerHTML = '<div class="x-empty-replies">No replies yet. Be the first to reply.</div>';
@@ -2839,6 +2953,7 @@ async function openMediaProfileFromTrailer(content, triggerEl = null) {
 
 // Feed Post Detail Page
 let currentFeedPostId = null;
+let currentFeedPostActivityId = null;
 let currentFeedPostCollection = 'feed';
 let currentFeedReplyParentId = '';
 let feedPostSwipeBackReady = false;
@@ -3042,6 +3157,7 @@ async function openFeedPostPage(postId) {
   }
   
   currentFeedPostId = postId;
+  currentFeedPostActivityId = postId;
   currentFeedPostCollection = 'feed';
   
   const page = document.getElementById('feed-post-page');
@@ -3303,6 +3419,7 @@ function closeFeedPostPage() {
   document.documentElement.style.removeProperty('--feed-post-composer-height');
   currentFeedReplyParentId = '';
   currentFeedPostId = null;
+  currentFeedPostActivityId = null;
   currentFeedPostCollection = 'feed';
 }
 
@@ -3514,6 +3631,7 @@ function installShelfdFeedSheetGestures(page) {
       document.documentElement.style.removeProperty('--feed-post-composer-height');
       currentFeedReplyParentId = '';
       currentFeedPostId = null;
+      currentFeedPostActivityId = null;
       currentFeedPostCollection = 'feed';
     } else {
       // Snap back: clear inline transform → .is-open CSS rule animates back to 0.
@@ -3596,6 +3714,7 @@ async function submitFeedReply() {
   try {
     const replyId = crypto.randomUUID ? crypto.randomUUID() : `reply-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const parentReplyId = String(currentFeedReplyParentId || '').trim();
+    const activityCardId = String(currentFeedPostActivityId || currentFeedPostId || '').trim();
     const reply = {
       id: replyId,
       uid: currentUser.uid,
@@ -3609,10 +3728,26 @@ async function submitFeedReply() {
     await ref.set({ replies: firebase.firestore.FieldValue.arrayUnion(reply) }, { merge: true });
 
     const latest = await ref.get();
-    const latestActivity = latest.exists ? { ...latest.data(), id: currentFeedPostId, _collection: collection } : { replies: [reply] };
-    refreshVisibleActivityInteractionCards(currentFeedPostId, latestActivity);
+    const latestActivity = latest.exists
+      ? {
+          ...latest.data(),
+          id: activityCardId || currentFeedPostId,
+          activityId: activityCardId || currentFeedPostId,
+          originalActivityId: activityCardId || currentFeedPostId,
+          interactionDocId: currentFeedPostId,
+          _collection: collection
+        }
+      : {
+          id: activityCardId || currentFeedPostId,
+          activityId: activityCardId || currentFeedPostId,
+          originalActivityId: activityCardId || currentFeedPostId,
+          interactionDocId: currentFeedPostId,
+          replies: [reply],
+          _collection: collection
+        };
+    refreshVisibleActivityInteractionCards(activityCardId || currentFeedPostId, latestActivity);
 
-    const rawMemory = friendActivityClickTargets[currentFeedPostId];
+    const rawMemory = friendActivityClickTargets[activityCardId || currentFeedPostId];
     if (rawMemory) rawMemory.replies = Array.isArray(latestActivity.replies) ? latestActivity.replies : [reply];
 
     input.value = '';
@@ -3625,7 +3760,7 @@ async function submitFeedReply() {
     if (collection === 'feed') {
       loadFeedPostReplies(currentFeedPostId);
     } else {
-      loadActivityReplies(currentFeedPostId, collection);
+      loadActivityReplies(currentFeedPostId, collection, activityCardId || currentFeedPostId);
     }
   } catch(err) {
     console.error('Error posting reply:', err);
@@ -4137,23 +4272,23 @@ function buildActivityCardHTML(a, activityId, options = {}) {
       <button class="sl-activity-action-btn activity-interaction-btn sl-activity-stack-action-count" data-activity-action="stack" data-inline-stack-toggle onclick="toggleScreenListInlineActivityStack('${escAttr(stackActivityId)}', event)" aria-expanded="${screenListExpandedInlineActivityStacks.has(String(stackActivityId || '')) ? 'true' : 'false'}" aria-label="Toggle ${stackExtraCount} more grouped activities">+${stackExtraCount}</button>` : '';
   const deleteHtml = canCurrentUserDeleteActivity(a) ? `
       <button class="sl-activity-action-btn activity-interaction-btn" data-activity-action="delete" onclick="event.stopPropagation(); openScreenListDeletePostPrompt('${escAttr(activityId)}','activities')" aria-label="Delete activity">
-        ${getScreenListTrashIconSvg()}
+        <span class="sl-activity-icon-slot">${getScreenListTrashIconSvg()}</span>
       </button>` : '';
   const noteHtml = canCurrentUserNoteActivity(a) ? `
       <button class="sl-activity-action-btn activity-interaction-btn" data-activity-action="note" onclick="event.stopPropagation(); openScreenListActivityNoteComposer('${escAttr(activityId)}')" aria-label="Add note to activity">
-        ${getScreenListPlusIconSvg()}
+        <span class="sl-activity-icon-slot">${getScreenListPlusIconSvg()}</span>
       </button>` : '';
   const interactionsHtml = options.hideInteractions ? '' : `
     <div class="sl-activity-actions activity-interactions" data-activity-interactions>
       ${stackExtraHtml}
       ${noteHtml}
-      <button class="sl-activity-action-btn activity-interaction-btn" data-activity-action="reply" onclick="event.stopPropagation(); openActivityReplyPage('${escAttr(activityId)}')" aria-label="Open comments">
-        ${getScreenListReplyIconSvg()}
-        <span data-activity-reply-count>${replyCount}</span>
-      </button>
       <button class="sl-activity-action-btn activity-interaction-btn ${isLiked ? 'liked' : ''}" data-activity-action="like" onclick="event.stopPropagation(); toggleActivityLike('${escAttr(activityId)}', this)" aria-label="Like activity">
-        <span data-like-icon-slot>${getScreenListHeartIconSvg(isLiked)}</span>
+        <span class="sl-activity-icon-slot" data-like-icon-slot>${getScreenListHeartIconSvg(isLiked)}</span>
         <span data-activity-like-count>${likeCount}</span>
+      </button>
+      <button class="sl-activity-action-btn activity-interaction-btn" data-activity-action="reply" onclick="event.stopPropagation(); openActivityReplyPage('${escAttr(activityId)}')" aria-label="Open comments">
+        <span class="sl-activity-icon-slot">${getScreenListReplyIconSvg()}</span>
+        <span data-activity-reply-count>${replyCount}</span>
       </button>${deleteHtml}
     </div>`;
 
@@ -4372,8 +4507,9 @@ async function persistActivityGameIgdbCover(activityId = '', activity = {}, cove
 
   try {
     const target = await resolveActivityInteractionTarget(activityId);
-    if (!target?.ref) return;
-    await target.ref.set({
+    const persistenceRef = target?.activityPersistenceRef || target?.ref;
+    if (!persistenceRef) return;
+    await persistenceRef.set({
       item: activity.item,
       igdbCoverUrl: coverUrl,
       cover: coverUrl,
@@ -4751,8 +4887,8 @@ async function fetchShelfdGuestCreatorActivities(dayLimit = 7) {
           eventKey: [uid, 'episode-rated', mediaKey, epRatingAt].join('|')
         });
       }
-      if ((showRatingAt || modifiedAt) && hasRating) {
-        const ratingAt = showRatingAt || modifiedAt;
+      if (showRatingAt && hasRating) {
+        const ratingAt = showRatingAt;
         pushActivity({
           item: enriched,
           timestamp: ratingAt,

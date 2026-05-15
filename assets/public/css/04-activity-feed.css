@@ -91,7 +91,11 @@
   }
 
   /* Feed container */
-  .activity-feed-list { display: flex; flex-direction: column; gap: 10px; }
+  .activity-feed-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
 
   /* -- Group labels -- */
   .activity-group-label {
@@ -1689,7 +1693,7 @@
   width: 100% !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
-  padding: clamp(14px, 1.85vw, 20px) clamp(11px, 2vw, 20px) 0 clamp(15px, 2.45vw, 24px) !important;
+  padding: clamp(16px, 2.1vw, 22px) clamp(11px, 2vw, 20px) 0 clamp(15px, 2.45vw, 24px) !important;
   overflow: hidden !important;
   border: 1px solid rgba(255, 255, 255, .18) !important;
   border-radius: clamp(22px, 2.95vw, 28px) !important;
@@ -1709,9 +1713,9 @@
   grid-column: 1 !important;
   grid-row: 1 !important;
   display: grid !important;
-  grid-template-columns: clamp(49px, 8.4vw, 64px) minmax(0, 1fr) !important;
+  grid-template-columns: clamp(37px, 6.5vw, 46px) minmax(0, 1fr) !important;
   align-items: start !important;
-  gap: clamp(10px, 1.58vw, 15px) !important;
+  gap: clamp(8px, 1.3vw, 12px) !important;
   min-width: 0 !important;
   max-width: 100% !important;
   min-height: 0 !important;
@@ -1723,13 +1727,15 @@
   grid-column: 1 !important;
   align-self: start !important;
   justify-self: start !important;
+  transform: none !important;
+  padding-top: 1px !important;
   min-width: 0 !important;
   max-width: 100% !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-avatar-btn,
 .activity-page .shelfd-social-card .sl-activity-avatar-btn {
-  width: clamp(47px, 8vw, 61px) !important;
-  height: clamp(47px, 8vw, 61px) !important;
+  width: clamp(35px, 6.1vw, 42px) !important;
+  height: clamp(35px, 6.1vw, 42px) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -1837,21 +1843,22 @@
   min-width: 0 !important;
   white-space: nowrap !important;
   overflow: hidden !important;
-  margin: 0 0 4px !important;
+  margin: 0 0 8px !important;
   font-family: 'Sohne', 'DM Sans', sans-serif !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-name,
 .activity-page .shelfd-social-card .sl-activity-name {
   display: inline-flex !important;
   align-items: center !important;
+  flex: 1 1 auto !important;
   min-width: 0 !important;
-  max-width: min(58vw, 285px) !important;
+  max-width: min(58vw, 300px) !important;
   padding: 0 !important;
   border: 0 !important;
   background: transparent !important;
   color: #f7f2ff !important;
-  font: 500 clamp(10.7px, 1.9vw, 15.5px)/1.05 'Sohne', 'DM Sans', sans-serif !important;
-  letter-spacing: -.026em !important;
+  font: 600 clamp(16px, 1.35vw, 17px)/1.1 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: -.012em !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
@@ -1870,29 +1877,61 @@
   color: inherit !important;
   font: inherit !important;
 }
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-name .creator-name-wrap,
+.activity-page .shelfd-social-card .sl-activity-name .creator-name-wrap {
+  display: flex !important;
+  align-items: center !important;
+  flex: 1 1 auto !important;
+  flex-wrap: nowrap !important;
+  gap: 6px !important;
+  width: 100% !important;
+}
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-name .creator-name-wrap > span:first-child,
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-name .creator-name,
+.activity-page .shelfd-social-card .sl-activity-name .creator-name-wrap > span:first-child,
+.activity-page .shelfd-social-card .sl-activity-name .creator-name {
+  display: block !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-name .creator-role,
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-name .creative-team-role,
+.activity-page .shelfd-social-card .sl-activity-name .creator-role,
+.activity-page .shelfd-social-card .sl-activity-name .creative-team-role {
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+}
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-dot,
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-time,
 .activity-page .shelfd-social-card .sl-activity-dot,
 .activity-page .shelfd-social-card .sl-activity-time {
   flex: 0 0 auto !important;
   color: rgba(235, 229, 255, .68) !important;
-  font: 400 clamp(10.7px, 1.75vw, 13.1px)/1.05 'Sohne', 'DM Sans', sans-serif !important;
-  letter-spacing: -.02em !important;
+  font: 400 clamp(12px, .95vw, 13px)/1.1 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: -.01em !important;
 }
 /* Action line: verb + title behave like one flowing phrase, detail can follow */
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-line,
 .activity-page .shelfd-social-card .sl-activity-action-line {
-  display: block !important;
-  margin: 0 0 6px !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: flex-start !important;
+  gap: 0 clamp(4px, .45vw, 6px) !important;
+  margin: 0 0 9px !important;
   max-width: 100% !important;
   min-width: 0 !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-headline,
 .activity-page .shelfd-social-card .sl-activity-headline {
-  display: inline-grid !important;
+  display: grid !important;
+  flex: 1 1 0% !important;
   justify-items: start !important;
   align-content: start !important;
-  gap: 6px !important;
+  gap: 7px !important;
+  width: auto !important;
   min-width: 0 !important;
   max-width: 100% !important;
   overflow: hidden !important;
@@ -1900,29 +1939,32 @@
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-headline.sl-activity-title,
 .activity-page .shelfd-social-card .sl-activity-headline.sl-activity-title {
-  display: inline-grid !important;
+  display: grid !important;
+  flex: 1 1 0% !important;
   justify-items: start !important;
   align-content: start !important;
-  gap: 6px !important;
-  line-height: 1.02 !important;
+  gap: 7px !important;
+  width: auto !important;
+  line-height: 1.34 !important;
   white-space: normal !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-headline.sl-activity-title.sl-activity-headline-combined,
 .activity-page .shelfd-social-card .sl-activity-headline.sl-activity-title.sl-activity-headline-combined {
   display: -webkit-box !important;
+  flex-basis: 100% !important;
   -webkit-box-orient: vertical !important;
   -webkit-line-clamp: 2 !important;
   white-space: normal !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
-  line-height: 1.08 !important;
+  line-height: 1.34 !important;
 }
 /* Action verb ? gold */
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-verb,
 .activity-page .shelfd-social-card .sl-activity-action-verb {
   color: #ffd84c !important;
-  font: 400 clamp(14px, 2.6vw, 22px)/1 'Sohne', 'DM Sans', sans-serif !important;
-  letter-spacing: -.03em !important;
+  font: 700 clamp(16px, 1.35vw, 17px)/1.34 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: -.012em !important;
   display: block !important;
   white-space: nowrap !important;
 }
@@ -1941,8 +1983,8 @@
   background: transparent !important;
   text-align: left !important;
   color: rgba(255,255,255,.97) !important;
-  font: 400 clamp(15px, 2.8vw, 24px)/1 'Sohne', 'DM Sans', sans-serif !important;
-  letter-spacing: -.04em !important;
+  font: 400 clamp(16px, 1.35vw, 17px)/1.34 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: -.012em !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
@@ -1960,6 +2002,7 @@
   color: inherit !important;
   font: inherit !important;
   letter-spacing: inherit !important;
+  max-width: 100% !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
@@ -1974,8 +2017,10 @@
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-detail,
 .activity-page .shelfd-social-card .sl-activity-action-detail {
   color: rgba(255,255,255,.60) !important;
-  font: 400 clamp(12px, 2.1vw, 17px)/1 'Sohne', 'DM Sans', sans-serif !important;
-  letter-spacing: -.02em !important;
+  font: 400 clamp(15px, 1.15vw, 16px)/1.34 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: -.01em !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
   display: inline !important;
   white-space: normal !important;
   margin-left: 0.28em !important;
@@ -1984,9 +2029,9 @@
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-status,
 .activity-page .shelfd-social-card .sl-activity-status {
   color: rgba(255,255,255,.96) !important;
-  font: 400 clamp(10.7px, 1.95vw, 15.5px)/1.06 'Sohne', 'DM Sans', sans-serif !important;
-  letter-spacing: -.03em !important;
-  margin: 0 0 6px !important;
+  font: 400 clamp(15px, 1.2vw, 16px)/1.34 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: -.01em !important;
+  margin: 0 0 8px !important;
   max-width: 100% !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
@@ -1999,7 +2044,7 @@
   gap: clamp(7px, .87vw, 9px) !important;
   max-width: 100% !important;
   min-width: 0 !important;
-  margin: 3px 0 6px !important;
+  margin: 3px 0 9px !important;
   white-space: nowrap !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-stars,
@@ -2065,8 +2110,8 @@
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-score,
 .activity-page .shelfd-social-card .sl-activity-score {
   color: rgba(255,255,255,.78) !important;
-  font: 400 clamp(11.9px, 2.33vw, 19px)/1 'Sohne', 'DM Sans', sans-serif !important;
-  letter-spacing: -.04em !important;
+  font: 400 clamp(15px, 1.15vw, 16px)/1 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: -.012em !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-comment-wrap,
 .activity-page .shelfd-social-card .sl-activity-comment-wrap {
@@ -2081,6 +2126,10 @@
   background: transparent !important;
   box-shadow: none !important;
 }
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-rating + .sl-activity-comment-wrap,
+.activity-page .shelfd-social-card .sl-activity-rating + .sl-activity-comment-wrap {
+  margin-top: 4px !important;
+}
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-comment,
 .activity-page .shelfd-social-card .sl-activity-comment {
   display: block !important;
@@ -2092,8 +2141,8 @@
   background: transparent !important;
   box-shadow: none !important;
   color: rgba(232,226,255,.78) !important;
-  font: 400 clamp(13.5px, 2.72vw, 15px)/1.35 'Sohne', 'DM Sans', sans-serif !important;
-  letter-spacing: 0 !important;
+  font: 400 clamp(16px, 1.2vw, 16px)/1.34 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: -.01em !important;
   overflow-wrap: anywhere !important;
   word-break: normal !important;
 }
@@ -2106,12 +2155,12 @@
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-show-more,
 .activity-page .shelfd-social-card .sl-activity-show-more {
-  margin: 5px 0 0 !important;
+  margin: 6px 0 0 !important;
   padding: 0 !important;
   border: 0 !important;
   background: transparent !important;
   color: rgba(255,217,70,.9) !important;
-  font: 400 11px/1 'Sohne', 'DM Sans', sans-serif !important;
+  font: 400 12px/1.1 'Sohne', 'DM Sans', sans-serif !important;
   cursor: pointer !important;
   appearance: none !important;
 }
@@ -2166,10 +2215,10 @@
   display: flex !important;
   align-items: center !important;
   min-width: 0 !important;
-  min-height: 38px !important;
+  min-height: 34px !important;
   border-top: 0 !important;
   padding-left: clamp(49px, 8.4vw, 64px) !important;
-  padding-bottom: 7px !important;
+  padding-bottom: 6px !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-actions,
 .activity-page .shelfd-social-card .sl-activity-actions {
@@ -2177,8 +2226,8 @@
   display: flex !important;
   align-items: center !important;
   justify-content: flex-start !important;
-  gap: 9px !important;
-  margin-left: 6px !important;
+  gap: 14px !important;
+  margin-left: 0 !important;
   width: auto !important;
   min-width: 0 !important;
   padding: 0 !important;
@@ -2193,37 +2242,59 @@
 .activity-page .shelfd-social-card .sl-activity-action-btn {
   display: inline-flex !important;
   align-items: center !important;
-  gap: 6px !important;
+  justify-content: center !important;
+  gap: 4px !important;
   width: auto !important;
   height: auto !important;
-  /* v458: min-width ensures every button occupies the same base width so
-     icons are equidistant even when reply/heart carry a count label and
-     the X button does not */
-  min-width: clamp(36px, 6.5vw, 44px) !important;
-  padding: 0 !important;
+  min-width: clamp(30px, 4.9vw, 36px) !important;
+  min-height: clamp(28px, 4.6vw, 34px) !important;
+  padding: 2px 0 !important;
   border: 0 !important;
   background: transparent !important;
   color: #ffffff !important;
-  font: 400 clamp(10.7px, 2.14vw, 15.5px)/1 'Sohne', 'DM Sans', sans-serif !important;
+  font: 500 11px/1 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: 0 !important;
   box-shadow: none !important;
   cursor: pointer !important;
   appearance: none !important;
   transition: color 180ms ease, transform 180ms ease !important;
 }
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-icon-slot,
+.activity-page .shelfd-social-card .sl-activity-icon-slot {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 12px !important;
+  height: 12px !important;
+  flex: 0 0 12px !important;
+}
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-btn svg,
 .activity-page .shelfd-social-card .sl-activity-action-btn svg {
-  width: clamp(19px, 3vw, 22px) !important;
-  height: clamp(19px, 3vw, 22px) !important;
+  width: 12px !important;
+  height: 12px !important;
   color: currentColor !important;
+}
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-action-btn [data-activity-like-count],
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-action-btn [data-activity-reply-count],
+.activity-page .shelfd-social-card .sl-activity-action-btn [data-activity-like-count],
+.activity-page .shelfd-social-card .sl-activity-action-btn [data-activity-reply-count] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 0 !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-btn[data-activity-action="delete"],
 .activity-page .shelfd-social-card .sl-activity-action-btn[data-activity-action="delete"] {
-  margin-left: 3px !important;
+  margin-left: 0 !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-btn[data-activity-action="delete"] svg,
 .activity-page .shelfd-social-card .sl-activity-action-btn[data-activity-action="delete"] svg {
-  width: clamp(19px, 3vw, 22px) !important;
-  height: clamp(19px, 3vw, 22px) !important;
+  width: 12px !important;
+  height: 12px !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-btn[data-activity-action="like"],
 .activity-page .shelfd-social-card .sl-activity-action-btn[data-activity-action="like"] { color: rgba(255,255,255,.92) !important; }
@@ -2299,17 +2370,17 @@ body.true-dark-mode .activity-page .shelfd-social-card {
 
 .sl-activity-user-note {
   max-width: min(100%, 420px) !important;
-  margin: 0 0 6px !important;
+  margin: 0 0 8px !important;
   padding: 0 !important;
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
   color: rgba(232,226,255,.78) !important;
-  font-size: clamp(11.5px, 2.72vw, 13px) !important;
+  font-size: 16px !important;
   font-weight: 400 !important;
-  line-height: 1.35 !important;
-  letter-spacing: 0 !important;
+  line-height: 1.34 !important;
+  letter-spacing: -.01em !important;
 }
 
 body.light-mode .sl-activity-user-note {
@@ -2321,7 +2392,7 @@ body.light-mode .sl-activity-user-note {
   display: block !important;
   width: auto !important;
   max-width: min(100%, 420px) !important;
-  margin: 0 0 6px !important;
+  margin: 0 0 8px !important;
   padding: 0 !important;
   border: 0 !important;
   border-radius: 0 !important;
@@ -2329,8 +2400,8 @@ body.light-mode .sl-activity-user-note {
   background: none !important;
   box-shadow: none !important;
   color: rgba(232,226,255,.78) !important;
-  font: 400 clamp(11.5px, 2.72vw, 13px)/1.35 'Sohne', 'DM Sans', sans-serif !important;
-  letter-spacing: 0 !important;
+  font: 400 16px/1.34 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: -.01em !important;
   white-space: pre-wrap !important;
   overflow-wrap: anywhere !important;
   word-break: normal !important;
@@ -2519,40 +2590,40 @@ body.light-mode .activity-page .shelfd-social-card .sl-activity-plain-note {
     border-radius: 999px !important;
   }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-name,
-  .activity-page .shelfd-social-card .sl-activity-name { font-size: clamp(10.7px, 3.08vw, 11.9px) !important; }
+  .activity-page .shelfd-social-card .sl-activity-name { font-size: 16px !important; }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-time,
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-dot,
   .activity-page .shelfd-social-card .sl-activity-time,
-  .activity-page .shelfd-social-card .sl-activity-dot { font-size: clamp(10.7px, 2.67vw, 11.9px) !important; }
+  .activity-page .shelfd-social-card .sl-activity-dot { font-size: 12px !important; }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-line,
-  .activity-page .shelfd-social-card .sl-activity-action-line { margin-bottom: 4px !important; }
+  .activity-page .shelfd-social-card .sl-activity-action-line { margin-bottom: 8px !important; }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-verb,
-  .activity-page .shelfd-social-card .sl-activity-action-verb { font-size: clamp(13px, 3.5vw, 18px) !important; }
+  .activity-page .shelfd-social-card .sl-activity-action-verb { font-size: 16px !important; }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-title,
   .activity-page .shelfd-social-card .sl-activity-title {
-    font-size: clamp(14px, 3.7vw, 19px) !important;
-    letter-spacing: -.038em !important;
+    font-size: 16px !important;
+    letter-spacing: -.012em !important;
   }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-detail,
-  .activity-page .shelfd-social-card .sl-activity-action-detail { font-size: clamp(11px, 2.8vw, 14px) !important; }
+  .activity-page .shelfd-social-card .sl-activity-action-detail { font-size: 15px !important; }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-status,
   .activity-page .shelfd-social-card .sl-activity-status {
-    font-size: clamp(10.7px, 2.86vw, 11.9px) !important;
-    margin-bottom: 6px !important;
+    font-size: 15px !important;
+    margin-bottom: 8px !important;
   }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-rating,
   .activity-page .shelfd-social-card .sl-activity-rating {
     gap: 6px !important;
-    margin-bottom: 18px !important;
+    margin-bottom: 10px !important;
   }
   #community-view #activity-tab-view .shelfd-social-card .sl-rating-star,
   .activity-page .shelfd-social-card .sl-rating-star {
     --sl-star-size: clamp(11.9px, 3.08vw, 15.5px);
   }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-score,
-  .activity-page .shelfd-social-card .sl-activity-score { font-size: clamp(11.9px, 3.56vw, 14.3px) !important; }
+  .activity-page .shelfd-social-card .sl-activity-score { font-size: 15px !important; }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-comment,
-  .activity-page .shelfd-social-card .sl-activity-comment { font-size: clamp(10.7px, 2.86vw, 11.9px) !important; }
+  .activity-page .shelfd-social-card .sl-activity-comment { font-size: 16px !important; }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-poster,
   .activity-page .shelfd-social-card .sl-activity-poster {
     width: clamp(81px, 22.2vw, 94px) !important;
@@ -2566,17 +2637,22 @@ body.light-mode .activity-page .shelfd-social-card .sl-activity-plain-note {
     padding-bottom: 6px !important;
   }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-btn,
-  .activity-page .shelfd-social-card .sl-activity-action-btn { font-size: clamp(10.7px, 2.91vw, 11.9px) !important; }
+  .activity-page .shelfd-social-card .sl-activity-action-btn { font-size: 11px !important; }
+  #community-view #activity-tab-view .shelfd-social-card .sl-activity-icon-slot,
+  .activity-page .shelfd-social-card .sl-activity-icon-slot {
+    width: 12px !important;
+    height: 12px !important;
+    flex-basis: 12px !important;
+  }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-btn svg,
   .activity-page .shelfd-social-card .sl-activity-action-btn svg {
-    width: clamp(17.5px, 4.7vw, 20.5px) !important;
-    height: clamp(17.5px, 4.7vw, 20.5px) !important;
+    width: 12px !important;
+    height: 12px !important;
   }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-btn[data-activity-action="delete"] svg,
   .activity-page .shelfd-social-card .sl-activity-action-btn[data-activity-action="delete"] svg {
-    /* v458: match reply/heart mobile size */
-    width: clamp(17.5px, 4.7vw, 20.5px) !important;
-    height: clamp(17.5px, 4.7vw, 20.5px) !important;
+    width: 12px !important;
+    height: 12px !important;
   }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-stack-action-count,
   .activity-page .shelfd-social-card .sl-activity-stack-action-count {
@@ -3848,7 +3924,6 @@ body.light-mode .activity-page .activity-card {
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-score,
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-comment,
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-show-more,
-#community-view #activity-tab-view .shelfd-social-card .sl-activity-action-btn,
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-stack-action-count,
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-user-note,
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-plain-note,
@@ -3862,7 +3937,6 @@ body.light-mode .activity-page .activity-card {
 .activity-page .shelfd-social-card .sl-activity-score,
 .activity-page .shelfd-social-card .sl-activity-comment,
 .activity-page .shelfd-social-card .sl-activity-show-more,
-.activity-page .shelfd-social-card .sl-activity-action-btn,
 .activity-page .shelfd-social-card .sl-activity-stack-action-count,
 .activity-page .shelfd-social-card .sl-activity-user-note,
 .activity-page .shelfd-social-card .sl-activity-plain-note {
@@ -3894,7 +3968,6 @@ body.light-mode .activity-page .activity-card {
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-score,
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-comment,
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-show-more,
-#community-view #activity-tab-view .shelfd-social-card .sl-activity-action-btn,
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-stack-action-count,
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-user-note,
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-plain-note,
@@ -3907,7 +3980,6 @@ body.light-mode .activity-page .activity-card {
 .activity-page .shelfd-social-card .sl-activity-score,
 .activity-page .shelfd-social-card .sl-activity-comment,
 .activity-page .shelfd-social-card .sl-activity-show-more,
-.activity-page .shelfd-social-card .sl-activity-action-btn,
 .activity-page .shelfd-social-card .sl-activity-stack-action-count,
 .activity-page .shelfd-social-card .sl-activity-user-note,
 .activity-page .shelfd-social-card .sl-activity-plain-note {

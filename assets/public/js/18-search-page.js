@@ -99,7 +99,9 @@
     const isAnime = isJikan
       || (!isMovie && (typeof window.isAnimeDiscoverCandidate === 'function' ? window.isAnimeDiscoverCandidate(item) : false));
     const kind = isAnime ? 'anime' : (isMovie ? 'movie' : 'tv');
-    const rating = Number(item.vote_average || 0);
+    const displayRating = typeof window.formatDisplayTitleRating === 'function'
+      ? window.formatDisplayTitleRating(item)
+      : (Number(item.imdbRating || 0) > 0 ? Number(item.imdbRating).toFixed(1) : '');
     /* v736: popularity signal.
        - Jikan: `members` (MAL trackers) is the strongest popularity proxy.
          Falls back to `favorites`, then to inverse `popularity` (which is
@@ -130,7 +132,7 @@
       id: item.id,
       title,
       year,
-      rating: rating > 0 ? rating.toFixed(1) : '',
+      rating: displayRating,
       popularity,
       poster: tmdbPoster(item.poster_path),
       overview: String(item.overview || '').trim(),
@@ -266,10 +268,9 @@
     if (myToken !== queryToken) return;
 
     /* v671: Enrich movie/TV results with IMDb rating before normalizing so
-       r.rating reflects IMDb (display + sort by IMDb rating). Games keep
-       RAWG's own rating. */
+       r.rating only reflects OMDb/IMDb. Games keep RAWG's own rating. */
     if (typeof window.enrichItemsWithImdbRatings === 'function' && tmdbItems.length) {
-      try { await window.enrichItemsWithImdbRatings(tmdbItems); } catch (e) { /* fall through with TMDB */ }
+      try { await window.enrichItemsWithImdbRatings(tmdbItems); } catch (e) { /* fail soft: leave rating blank */ }
       if (myToken !== queryToken) return;
     }
 

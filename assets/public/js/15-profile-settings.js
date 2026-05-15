@@ -1,4 +1,5 @@
 let profileReturnTab = 'mylist';
+let profileReturnState = null;
 let landingPublicProfileActive = false;
 let profileViewingUser = null;
 let profileViewingProfile = null;
@@ -14,6 +15,38 @@ let profileFavoriteAutoSaveSeq = 0;
 let profileEditModeOpen = false;
 let profileSharedFavoriteFocus = null;
 let profileSharedFavoriteOpening = false;
+
+function cloneProfileReturnState(state = null) {
+  if (!state || typeof state !== 'object') return null;
+  const next = { ...state };
+  if (state.user && typeof state.user === 'object') next.user = { ...state.user };
+  if (state.returnState && typeof state.returnState === 'object') next.returnState = { ...state.returnState };
+  return next;
+}
+
+function buildProfileReturnState() {
+  if (viewingUser?.uid) {
+    return {
+      kind: 'friend-home',
+      tab: 'community',
+      user: {
+        uid: viewingUser.uid,
+        name: viewingUser.name || 'Friend',
+        photo: viewingUser.photo || ''
+      },
+      returnState: cloneProfileReturnState(viewingReturnState) || (typeof captureCommunityReturnState === 'function'
+        ? captureCommunityReturnState('friend-home')
+        : null)
+    };
+  }
+
+  const mainTab = getActiveMainTab ? getActiveMainTab() : 'community';
+  if (mainTab === 'community' && typeof captureCommunityReturnState === 'function') {
+    return captureCommunityReturnState('profile');
+  }
+
+  return { kind: 'main', tab: mainTab };
+}
 
 const PROFILE_LINK_CONFIG = [
   { key: 'imdb', label: 'IMDb', domain: 'imdb.com', placeholder: 'https://www.imdb.com/user/...' },
@@ -658,7 +691,7 @@ function closeProfileSocialModal() {
   if (!modal) return;
   /* v706: support both old plm-open and new profile-social-open classes */
   modal.classList.remove('plm-open', 'profile-social-open');
-  setTimeout(() => modal.remove(), 400);
+  setTimeout(() => modal.remove(), 320);
 }
 
 function openProfileSocialUser(uid) {
@@ -699,11 +732,40 @@ async function refreshProfileSocialModal() {
   if (!list) return;
   const users = await getProfileSocialUsers(mode);
   if (!document.body.contains(modal)) return;
+  syncProfileSocialModalSummary(modal, users.length);
   if (!users.length) {
-    list.innerHTML = `<div class="friends-empty"><div class="friends-empty-icon">👥</div><p style="color:#7a6f99;">No ${mode} yet</p></div>`;
+    list.innerHTML = renderProfileSocialEmptyState(mode);
     return;
   }
   list.innerHTML = users.map(renderProfileSocialUserRow).join('');
+}
+
+function syncProfileSocialModalSummary(modal, count) {
+  if (!modal) return;
+  const countNode = modal.querySelector('[data-profile-social-count]');
+  const summaryNode = modal.querySelector('[data-profile-social-summary]');
+  const total = Math.max(0, Number(count) || 0);
+  if (countNode) countNode.textContent = String(total);
+  if (summaryNode) {
+    summaryNode.textContent = total
+      ? `${total.toLocaleString('en-US')} ${total === 1 ? 'person' : 'people'}`
+      : 'Tap a row to open a profile';
+  }
+}
+
+function renderProfileSocialLoadingState() {
+  return `<div class="profile-social-state-card profile-social-state-loading">
+    <div class="profile-social-state-spinner" aria-hidden="true"></div>
+    <p>Loading people...</p>
+  </div>`;
+}
+
+function renderProfileSocialEmptyState(mode) {
+  const label = mode === 'followers' ? 'followers' : 'following';
+  return `<div class="profile-social-state-card profile-social-state-empty">
+    <div class="profile-social-state-icon" aria-hidden="true">+</div>
+    <p>No ${escHtml(label)} yet</p>
+  </div>`;
 }
 
 function renderProfileSocialUserRow(user) {
@@ -714,7 +776,10 @@ function renderProfileSocialUserRow(user) {
   return `<div class="profile-social-user-row">
     <button type="button" class="profile-social-user-main" onclick="openProfileSocialUser('${escAttr(user.uid)}')">
       <img class="profile-social-avatar" src="${escAttr(photo)}" alt="">
-      <span>${renderDisplayNameHTML(user, name)}</span>
+      <span class="profile-social-user-copy">
+        <span class="profile-social-user-name">${renderDisplayNameHTML(user, name)}</span>
+        <span class="profile-social-user-meta">Open profile</span>
+      </span>
     </button>
     <div class="friend-actions-group">
       <button type="button" class="profile-social-view-btn" onclick="openProfileSocialUser('${escAttr(user.uid)}')">Profile</button>
@@ -742,7 +807,14 @@ async function openProfileSocialModal(kind) {
         <div class="profile-social-drag-pip"></div>
       </div>
       <div class="profile-social-header-v2">
-        <span class="profile-social-title-v2">${escHtml(label)}</span>
+        <div class="profile-social-heading-v2">
+          <span class="profile-social-kicker-v2">Connections</span>
+          <div class="profile-social-title-row-v2">
+            <span class="profile-social-title-v2">${escHtml(label)}</span>
+            <span class="profile-social-count-v2" data-profile-social-count>0</span>
+          </div>
+          <span class="profile-social-summary-v2" data-profile-social-summary>Tap a row to open a profile</span>
+        </div>
         <button class="profile-social-close-v2" type="button"
                 onclick="closeProfileSocialModal()" aria-label="Close">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
@@ -752,10 +824,8 @@ async function openProfileSocialModal(kind) {
           </svg>
         </button>
       </div>
-      <div class="profile-social-list profile-social-body-v2">
-        <div style="color:rgba(167,139,250,0.52);font-size:13px;text-align:center;padding:36px 0;font-family:'Sohne',sans-serif">
-          Loading people…
-        </div>
+      <div class="profile-social-list profile-social-body-v2" role="list">
+        ${renderProfileSocialLoadingState()}
       </div>
     </div>`;
   /* Close on backdrop tap */
@@ -766,13 +836,9 @@ async function openProfileSocialModal(kind) {
   const list = modal.querySelector('.profile-social-list');
   const users = await getProfileSocialUsers(mode);
   if (!document.body.contains(modal) || !list) return;
+  syncProfileSocialModalSummary(modal, users.length);
   if (!users.length) {
-    list.innerHTML = `
-      <div style="display:flex;flex-direction:column;align-items:center;padding:52px 20px;gap:12px;
-                  color:rgba(167,139,250,0.45);text-align:center;font-family:'Sohne',sans-serif">
-        <div style="font-size:38px;margin-bottom:2px">👥</div>
-        <p style="margin:0;font-size:13.5px">No ${escHtml(mode)} yet</p>
-      </div>`;
+    list.innerHTML = renderProfileSocialEmptyState(mode);
     return;
   }
   list.innerHTML = users.map(renderProfileSocialUserRow).join('');
@@ -2844,7 +2910,8 @@ function openPreviewUserProfile(uid) {
     showToast('Preview profile unavailable');
     return;
   }
-  profileReturnTab = viewingUser ? viewingReturnTab : (getActiveMainTab ? getActiveMainTab() : 'community');
+  profileReturnState = buildProfileReturnState();
+  profileReturnTab = profileReturnState?.tab || 'community';
   profileViewingUser = { uid: user.uid, name: user.name, photo: user.photo, preview: true };
   profileViewingProfile = buildPreviewProfileForUser(user);
   profileViewingData = cloneListData(user.listData || getEmptyListData());
@@ -2956,7 +3023,8 @@ async function openProfileRouteDirect(route = parseScreenListProfileRoute()) {
       return true;
     }
     if (!currentUser) prepareSignedOutProfileRouteView();
-    profileReturnTab = currentUser ? (getActiveMainTab ? getActiveMainTab() : 'community') : 'landing';
+    profileReturnState = currentUser ? buildProfileReturnState() : { kind: 'main', tab: 'landing' };
+    profileReturnTab = profileReturnState?.tab || 'landing';
     const profileDoc = await db.collection('users').doc(route.uid).get();
     if (!profileDoc.exists) throw new Error('Profile not found');
     const raw = { ...(profileDoc.data() || {}), uid: route.uid };
@@ -2991,7 +3059,8 @@ async function openUserProfile(uid, name = '', photo = '') {
     showPrivateModal();
     return;
   }
-  profileReturnTab = viewingUser ? viewingReturnTab : (getActiveMainTab ? getActiveMainTab() : 'community');
+  profileReturnState = buildProfileReturnState();
+  profileReturnTab = profileReturnState?.tab || 'community';
   let profileDoc = null;
   try {
     profileDoc = await db.collection('users').doc(uid).get();
@@ -3044,6 +3113,7 @@ function openProfile() {
   profileSettingsOpen = false;
   profileEditModeOpen = false;
   if (!userProfile) userProfile = normalizeUserProfile({});
+  profileReturnState = { kind: 'main', tab: getActiveMainTab ? getActiveMainTab() : 'mylist' };
   profileReturnTab = getActiveMainTab ? getActiveMainTab() : 'mylist';
   openProfilePageShell();
 }
@@ -3132,26 +3202,54 @@ async function openProfileListsView() {
 function bindProfilePageSwipeBack(profilePage = document.getElementById('profile-page')) {
   if (!profilePage || profilePage.dataset.profileSwipeBackBound === 'true') return;
   profilePage.dataset.profileSwipeBackBound = 'true';
+  const EDGE_WIDTH = 48;
+  const MIN_ARM_DISTANCE = 12;
+  const DIRECTION_LOCK_RATIO = 1.45;
+  const VERTICAL_CANCEL_RATIO = 1.12;
+  const VELOCITY_CLOSE_PX_PER_MS = 0.75;
+  const INTERACTIVE_SELECTOR = [
+    'button',
+    'a',
+    'input',
+    'textarea',
+    'select',
+    '[contenteditable="true"]',
+    '[role="button"]',
+    '.profile-favorites-grid',
+    '.profile-links-grid',
+    '.profile-social-counts',
+    '.profile-stat-card',
+    '.profile-mobile-links-zone',
+    '.profile-favorite-picker-bottom-sheet',
+    '.profile-character-editor-overlay',
+    '.plm-overlay'
+  ].join(', ');
   let startX = 0, startY = 0, lastX = 0, lastT = 0, velocityX = 0, viewportW = 0;
-  let canSwipe = false, swiping = false, pointerId = null, rafId = 0, pendingX = 0;
+  let canSwipe = false, swiping = false, closing = false, pointerId = null, rafId = 0, pendingX = 0;
+  const hasBlockingProfileOverlay = () => (
+    !!document.getElementById('profile-social-modal') ||
+    !!document.getElementById('profile-link-edit-modal') ||
+    !!document.getElementById('profile-favorite-picker-modal') ||
+    !!document.getElementById('profile-character-editor-overlay') ||
+    document.body.classList.contains('profile-character-editor-open')
+  );
   const applyFrame = () => {
     rafId = 0;
     const x = Math.max(0, Math.min(pendingX, viewportW || 390));
-    const progress = Math.min(1, x / Math.max(1, viewportW || 390));
     profilePage.style.transform = `translate3d(${x}px, 0, 0)`;
-    profilePage.style.boxShadow = `-${Math.round(18 + progress * 12)}px 0 ${Math.round(44 + progress * 18)}px rgba(0,0,0,${Math.max(0.12, 0.34 - progress * 0.20)})`;
+    profilePage.style.boxShadow = '-18px 0 42px rgba(0,0,0,0.28)';
   };
   const scheduleFrame = () => { if (!rafId) rafId = requestAnimationFrame(applyFrame); };
   const clearFrame = () => { if (rafId) cancelAnimationFrame(rafId); rafId = 0; };
   const reset = () => {
-    clearFrame(); canSwipe = false; swiping = false; pointerId = null; pendingX = 0;
+    clearFrame(); canSwipe = false; swiping = false; closing = false; pointerId = null; pendingX = 0;
     profilePage.classList.remove('profile-swipe-back-dragging', 'profile-swipe-back-snapping');
     document.body.classList.remove('profile-swipe-back-active');
     profilePage.style.transition = ''; profilePage.style.transform = ''; profilePage.style.willChange = ''; profilePage.style.boxShadow = '';
     profilePage.style.borderTopLeftRadius = ''; profilePage.style.borderBottomLeftRadius = ''; profilePage.style.touchAction = '';
   };
   const arm = () => {
-    if (swiping) return; swiping = true;
+    if (swiping || closing) return; swiping = true;
     profilePage.classList.add('profile-swipe-back-dragging'); document.body.classList.add('profile-swipe-back-active');
     profilePage.style.transition = 'none'; profilePage.style.willChange = 'transform';
     profilePage.style.borderTopLeftRadius = '18px'; profilePage.style.borderBottomLeftRadius = '18px'; profilePage.style.touchAction = 'none';
@@ -3163,17 +3261,22 @@ function bindProfilePageSwipeBack(profilePage = document.getElementById('profile
     window.setTimeout(reset, 240);
   };
   const completeBack = () => {
+    if (closing) return;
+    closing = true;
     clearFrame(); profilePage.classList.add('profile-swipe-back-snapping');
     profilePage.style.transition = 'transform 0.22s cubic-bezier(0.18, 0.92, 0.18, 1), box-shadow 0.22s ease';
-    profilePage.style.transform = 'translate3d(105vw, 0, 0)'; profilePage.style.boxShadow = '-10px 0 24px rgba(0,0,0,0.10)';
-    window.setTimeout(() => { reset(); closeProfile(); }, 225);
+    profilePage.style.transform = 'translate3d(105vw, 0, 0)'; profilePage.style.boxShadow = '-20px 0 44px rgba(0,0,0,0.12)';
+    window.setTimeout(() => {
+      Promise.resolve(closeProfile()).finally(reset);
+    }, 225);
   };
   const start = event => {
     const point = event.touches?.[0] || event; if (!point) return;
+    if (closing || hasBlockingProfileOverlay()) return;
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     if (event.touches && event.touches.length !== 1) return;
-    if (point.clientX > 48) return;
-    if (event.target?.closest?.('button, a, input, textarea, select, [contenteditable="true"], .profile-favorites-grid, .profile-links-grid')) return;
+    if (point.clientX > EDGE_WIDTH) return;
+    if (event.target?.closest?.(INTERACTIVE_SELECTOR)) return;
     startX = point.clientX; startY = point.clientY; lastX = startX; lastT = performance.now(); velocityX = 0; viewportW = window.innerWidth || 390;
     canSwipe = true; swiping = false; pointerId = event.pointerId ?? null;
   };
@@ -3181,9 +3284,10 @@ function bindProfilePageSwipeBack(profilePage = document.getElementById('profile
     if (!canSwipe) return; const point = event.touches?.[0] || event; if (!point) return;
     if (pointerId !== null && event.pointerId !== undefined && event.pointerId !== pointerId) return;
     const dx = point.clientX - startX, dy = point.clientY - startY, absDx = Math.abs(dx), absDy = Math.abs(dy);
+    if (dx < 0) { reset(); return; }
     if (!swiping) {
-      if (dx > 14 && absDx > absDy * 1.35) { arm(); try { profilePage.setPointerCapture?.(event.pointerId); } catch(e) {} }
-      else if (absDy > absDx * 1.12) { canSwipe = false; return; }
+      if (dx > MIN_ARM_DISTANCE && absDx > absDy * DIRECTION_LOCK_RATIO) { arm(); try { if (event.pointerId !== undefined) profilePage.setPointerCapture?.(event.pointerId); } catch(e) {} }
+      else if (absDy > absDx * VERTICAL_CANCEL_RATIO) { reset(); return; }
       else return;
     }
     if (event.cancelable) event.preventDefault();
@@ -3193,17 +3297,28 @@ function bindProfilePageSwipeBack(profilePage = document.getElementById('profile
   const end = event => {
     if (!canSwipe && !swiping) return; const point = event.changedTouches?.[0] || event; const dx = point ? point.clientX - startX : pendingX;
     try { if (pointerId !== null) profilePage.releasePointerCapture?.(pointerId); } catch(e) {}
-    if (swiping) { const shouldClose = dx >= viewportW * 0.34 || (dx > 58 && velocityX > 0.75); shouldClose ? completeBack() : snapBack(); }
+    if (swiping) { const shouldClose = dx >= viewportW * 0.34 || (dx > 58 && velocityX > VELOCITY_CLOSE_PX_PER_MS); shouldClose ? completeBack() : snapBack(); }
     else reset();
   };
-  if (window.PointerEvent) { profilePage.addEventListener('pointerdown', start, { passive: true }); profilePage.addEventListener('pointermove', move, { passive: false }); profilePage.addEventListener('pointerup', end, { passive: true }); profilePage.addEventListener('pointercancel', reset, { passive: true }); }
-  profilePage.addEventListener('touchstart', start, { passive: true }); profilePage.addEventListener('touchmove', move, { passive: false }); profilePage.addEventListener('touchend', end, { passive: true }); profilePage.addEventListener('touchcancel', reset, { passive: true });
+  if (window.PointerEvent) {
+    profilePage.addEventListener('pointerdown', start, { passive: true });
+    profilePage.addEventListener('pointermove', move, { passive: false });
+    profilePage.addEventListener('pointerup', end, { passive: true });
+    profilePage.addEventListener('pointercancel', reset, { passive: true });
+  } else {
+    profilePage.addEventListener('touchstart', start, { passive: true });
+    profilePage.addEventListener('touchmove', move, { passive: false });
+    profilePage.addEventListener('touchend', end, { passive: true });
+    profilePage.addEventListener('touchcancel', reset, { passive: true });
+  }
 }
 
-function closeProfile() {
+async function closeProfile() {
+  const returnState = cloneProfileReturnState(profileReturnState);
   if (typeof isShelfdGuestBrowsing === 'function' && isShelfdGuestBrowsing() && !currentUser) {
     const returnTab = profileReturnTab || 'discover';
     profileSettingsOpen = false;
+    profileReturnState = null;
     profileViewingUser = null;
     profileViewingProfile = null;
     profileViewingData = null;
@@ -3228,6 +3343,7 @@ function closeProfile() {
   }
   if (landingPublicProfileActive || !currentUser) {
     profileSettingsOpen = false;
+    profileReturnState = null;
     profileViewingUser = null;
     profileViewingProfile = null;
     profileViewingData = null;
@@ -3236,6 +3352,7 @@ function closeProfile() {
     return;
   }
   profileSettingsOpen = false;
+  profileReturnState = null;
   profileViewingUser = null;
   profileViewingProfile = null;
   profileViewingData = null;
@@ -3245,6 +3362,15 @@ function closeProfile() {
   }
   document.body.classList.remove('profile-active', 'landing-public-lists');
   setBottomNavVisibility(true);
+  if (returnState?.kind === 'friend-home' && returnState.user?.uid) {
+    await viewUserList(returnState.user.uid, returnState.user.name || 'Friend', returnState.user.photo || '');
+    return;
+  }
+  if (returnState?.kind === 'community' && typeof restoreCommunityReturnState === 'function') {
+    await restoreCommunityReturnState(returnState);
+    window.scrollTo({ top: 0, behavior: 'auto' });
+    return;
+  }
   setMainNavVisibility(profileReturnTab || 'mylist');
   if (profileReturnTab === 'community') loadCommunity();
   if (profileReturnTab === 'discover') loadActiveDiscoveryHub();
@@ -3255,8 +3381,8 @@ function closeProfile() {
 /* v706: Animated close for the profile back-button path.
    Plays the CSS exit-to-right keyframe first, then calls closeProfile()
    which triggers setMainNavVisibility → display:none.
-   The swipe-back path (completeBack → closeProfile) bypasses this and
-   uses its own inline-style animation — left intentionally unchanged. */
+   The swipe-back path uses finger-tracked inline transform, then
+   calls closeProfile() for the same state restoration. */
 function closeProfileWithAnimation() {
   const profilePage = document.getElementById('profile-page');
   if (!profilePage ||

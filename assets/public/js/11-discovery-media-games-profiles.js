@@ -662,9 +662,12 @@ function compareDiscoverCalculatedScoreDesc(a = {}, b = {}) {
 function buildDiscoverTmdbContext(prefix = '', item = {}) {
   const parts = [];
   if (prefix) parts.push(prefix);
-  const sourceLabel = item.imdbRating ? 'IMDb' : 'TMDB';
-  if (Number(item.vote_average || 0) > 0) parts.push(`${Number(item.vote_average).toFixed(1)} ${sourceLabel}`);
-  if (Number(item.vote_count || 0) > 0) parts.push(`${Number(item.vote_count).toLocaleString()} votes`);
+  const ratingText = typeof window.formatDisplayTitleRating === 'function'
+    ? window.formatDisplayTitleRating(item)
+    : (Number(item.imdbRating || 0) > 0 ? Number(item.imdbRating).toFixed(1) : '');
+  const imdbVotes = Number(item.imdbVotes || 0);
+  if (ratingText) parts.push(`${ratingText} IMDb`);
+  if (imdbVotes > 0) parts.push(`${imdbVotes.toLocaleString()} votes`);
   return parts.join(' · ');
 }
 
@@ -992,15 +995,10 @@ async function fetchAndRankThisYearsBest(mediaType = 'mixed') {
   const ranked = (window.rankDiscoverTitles || (() => candidates))('yearsBest', candidates, { mediaType: type });
   return ranked
     .filter(item => Number(item.vote_average || 0) >= 6.0)
-    .map(item => {
-      const rating = Number(item.vote_average || 0);
-      const votes = Number(item.vote_count || 0);
-      const sourceLabel = item.imdbRating ? 'IMDb' : 'TMDB';
-      return {
-        ...item,
-        discoverContext: `${year} release · ${rating.toFixed(1)} ${sourceLabel} · ${votes.toLocaleString()} votes`
-      };
-    })
+    .map(item => ({
+      ...item,
+      discoverContext: buildDiscoverTmdbContext(`${year} release`, item)
+    }))
     .slice(0, DISCOVER_LIMIT);
 }
 
@@ -1077,15 +1075,10 @@ async function fetchDiscoverTopRatedMedia(mediaType = 'tv') {
      so a 9.4 with 1k votes can't beat a 9.1 with 2M votes. */
   const ranked = (window.rankDiscoverTitles || (() => candidates))('topRated', candidates, { mediaType: type });
   return ranked
-    .map(item => {
-      const rating = Number(item.vote_average || 0);
-      const votes = Number(item.vote_count || 0);
-      const sourceLabel = item.imdbRating ? 'IMDb' : 'TMDB';
-      return {
-        ...item,
-        discoverContext: `${rating.toFixed(1)} ${sourceLabel} · ${votes.toLocaleString()} votes`
-      };
-    })
+    .map(item => ({
+      ...item,
+      discoverContext: buildDiscoverTmdbContext('', item)
+    }))
     .slice(0, DISCOVER_LIMIT);
 }
 
@@ -1139,13 +1132,10 @@ async function fetchAndRankHiddenGems(mediaType = 'mixed') {
      v742: anime exclusion — only anime category accepts anime titles. */
   const ranked = (window.rankDiscoverTitles || (() => allGems))('hiddenGems', allGems, { mediaType: type });
   return ranked
-    .map(item => {
-      const sourceLabel = item.imdbRating ? 'IMDb' : 'TMDB';
-      return {
-        ...item,
-        discoverContext: `${Number(item.vote_average || 0).toFixed(1)} ${sourceLabel} · ${Number(item.vote_count || 0).toLocaleString()} votes`
-      };
-    })
+    .map(item => ({
+      ...item,
+      discoverContext: buildDiscoverTmdbContext('', item)
+    }))
     .slice(0, DISCOVER_LIMIT);
 }
 
@@ -4944,13 +4934,34 @@ function renderDiscoverPersonProfileShell(person = {}) {
   </section>`;
 }
 
-function renderDiscoverPersonCreditCard(item = {}) {
-  const itemType = getDiscoverSimilarType(item, item.media_type === 'tv' ? 'tv' : 'movie');
+function getDiscoverPersonCreditMediaType(item = {}) {
+  return String(item?.media_type || '').toLowerCase() === 'tv' ? 'tv' : 'movie';
+}
+
+function getDiscoverPersonCreditLookupKey(item = {}) {
+  const id = String(item?.id || item?.tmdbId || '').trim();
+  if (!id) return '';
+  return `${getDiscoverPersonCreditMediaType(item)}:${id}`;
+}
+
+function formatDiscoverPersonCreditImdbRating(item = {}) {
+  const rating = Number(item?.imdbRating || 0);
+  return rating > 0 ? rating.toFixed(1) : '';
+}
+
+function renderDiscoverPersonCreditCard(item = {}, options = {}) {
+  const itemType = getDiscoverSimilarType(item, getDiscoverPersonCreditMediaType(item));
   const itemTitle = item.title || item.name || 'Untitled';
   const year = (item.release_date || item.first_air_date || '').slice(0, 4);
   const roleMeta = getDiscoverPersonCreditRoleMeta(item);
   const hasRole = !!getDiscoverPersonCreditRole(item);
-  return `<button class="discover-media-similar-card discover-person-credit-card" type="button" onclick="openDiscoverMediaProfile(event, '${itemType}', ${item.id})"><img src="${getTmdbImageUrl(item.poster_path || item.backdrop_path, 'w342')}" alt=""><span class="discover-person-credit-title">${escHtml(itemTitle)}</span><small class="discover-person-credit-role" data-person-role-missing="${hasRole ? '0' : '1'}" data-media-title="${escAttr(itemTitle)}" data-media-type="${escAttr(itemType)}" data-media-year="${escAttr(year)}">${escHtml(roleMeta)}</small></button>`;
+  const showImdbRating = !!options.showImdbRating;
+  const creditKey = getDiscoverPersonCreditLookupKey(item);
+  const imdbRating = formatDiscoverPersonCreditImdbRating(item);
+  const ratingHtml = showImdbRating
+    ? `<div class="discover-person-credit-rating${imdbRating ? ' is-ready' : ''}" data-person-credit-rating ${imdbRating ? '' : 'hidden'}><span class="discover-person-credit-rating-star" aria-hidden="true">★</span><span data-person-credit-rating-value>${escHtml(imdbRating)}</span></div>`
+    : '';
+  return `<button class="discover-media-similar-card discover-person-credit-card${showImdbRating ? ' discover-person-credit-card-filmography' : ''}" type="button" data-person-credit-key="${escAttr(creditKey)}" onclick="openDiscoverMediaProfile(event, '${itemType}', ${item.id})"><img src="${getTmdbImageUrl(item.poster_path || item.backdrop_path, 'w342')}" alt=""><span class="discover-person-credit-title">${escHtml(itemTitle)}</span>${ratingHtml}<small class="discover-person-credit-role" data-person-role-missing="${hasRole ? '0' : '1'}" data-media-title="${escAttr(itemTitle)}" data-media-type="${escAttr(itemType)}" data-media-year="${escAttr(year)}">${escHtml(roleMeta)}</small></button>`;
 }
 
 function renderDiscoverPersonProfileDetails(details = {}) {
@@ -4999,11 +5010,11 @@ function renderDiscoverPersonProfileDetails(details = {}) {
       </div>
       ${mostKnownFor.length ? `<div class="discover-media-section discover-person-most-known discover-person-section-card"><h3>Most Known For</h3><div class="discover-media-similar">${mostKnownFor.map(renderDiscoverPersonCreditCard).join('')}</div></div>` : ''}
       ${filmographyPreview.length ? `<div class="discover-media-section discover-person-filmography discover-person-section-card">
-        <button class="discover-person-filmography-header" type="button" onclick="openPersonFilmographyPage('${escAttr(personId)}')" aria-label="Open full filmography">
+        <button class="discover-person-filmography-header" type="button" onclick="handlePersonFilmographyHeaderClick(event, '${escAttr(personId)}')" aria-label="Open full filmography">
           <h3>Filmography</h3>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
-        <div class="discover-media-similar">${filmographyPreview.map(renderDiscoverPersonCreditCard).join('')}</div>
+        <div class="discover-media-similar">${filmographyPreview.map(item => renderDiscoverPersonCreditCard(item, { showImdbRating: true })).join('')}</div>
       </div>` : ''}
     </div>
   </section>`;
@@ -5032,7 +5043,8 @@ function filmographyMatchesFilter(item, filter) {
 }
 
 function renderFilmographyCard(item) {
-  const mediaType = String(item?.media_type || '').toLowerCase() === 'tv' ? 'tv' : 'movie';
+  const mediaType = getDiscoverPersonCreditMediaType(item);
+  const creditKey = getDiscoverPersonCreditLookupKey(item);
   const title = item?.title || item?.name || 'Untitled';
   const poster = item?.poster_path ? getTmdbImageUrl(item.poster_path, 'w342') : '';
   const character = String(getDiscoverPersonCreditRole(item) || '').trim();
@@ -5045,7 +5057,7 @@ function renderFilmographyCard(item) {
   const contentRating = String(item?.imdbRated || '').trim();
   const metaParts = [year, contentRating, runtime].filter(Boolean);
   const metaText = metaParts.length ? metaParts.join(' · ') : ' ';
-  return `<button class="filmography-card" type="button" data-tmdb-id="${escAttr(item?.id || '')}" data-media-type="${escAttr(mediaType)}" onclick="openDiscoverMediaProfile(event, '${mediaType}', ${item?.id || 0})">
+  return `<button class="filmography-card" type="button" data-tmdb-id="${escAttr(item?.id || '')}" data-media-type="${escAttr(mediaType)}" data-credit-key="${escAttr(creditKey)}" onclick="openDiscoverMediaProfile(event, '${mediaType}', ${item?.id || 0})">
     <div class="filmography-card-poster">${poster ? `<img src="${escAttr(poster)}" alt="" loading="lazy" decoding="async">` : ''}</div>
     <div class="filmography-card-title">${escHtml(title)}</div>
     <div class="filmography-card-rating"><span aria-hidden="true">★</span><span data-card-imdb-rating>${escHtml(ratingText)}</span></div>
@@ -5131,6 +5143,13 @@ async function openPersonFilmographyPage(personIdRaw) {
   document.addEventListener('keydown', handleFilmographyEsc);
 }
 
+function handlePersonFilmographyHeaderClick(event, personIdRaw) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  event?.stopImmediatePropagation?.();
+  openPersonFilmographyPage(personIdRaw);
+}
+
 function bindFilmographyPageActions(overlay) {
   if (!overlay) return;
   overlay.querySelectorAll('.filmography-chip[data-filmography-filter]').forEach(btn => {
@@ -5182,8 +5201,9 @@ function patchFilmographyCardEnrichment(items = []) {
   const overlay = document.getElementById('filmography-page-overlay');
   if (!overlay) return;
   items.forEach(item => {
-    const id = String(item.id);
-    const card = overlay.querySelector(`.filmography-card[data-tmdb-id="${CSS.escape(id)}"]`);
+    const creditKey = getDiscoverPersonCreditLookupKey(item);
+    if (!creditKey) return;
+    const card = overlay.querySelector(`.filmography-card[data-credit-key="${CSS.escape(creditKey)}"]`);
     if (!card) return;
     const ratingEl = card.querySelector('[data-card-imdb-rating]');
     const metaEl = card.querySelector('[data-card-meta]');
@@ -5215,8 +5235,43 @@ function handleFilmographyEsc(event) {
 }
 
 window.openPersonFilmographyPage = openPersonFilmographyPage;
+window.handlePersonFilmographyHeaderClick = handlePersonFilmographyHeaderClick;
 window.closePersonFilmographyPage = closePersonFilmographyPage;
 window.loadMoreFilmographyItems = loadMoreFilmographyItems;
+
+async function hydrateDiscoverPersonFilmographyRatings(details = {}) {
+  if (typeof window.enrichItemsWithImdbRatings !== 'function') return;
+  const previewItems = getDiscoverPersonFilmographyPreview(details);
+  if (!previewItems.length) return;
+  try {
+    await window.enrichItemsWithImdbRatings(previewItems);
+  } catch (e) { /* fail soft: keep layout, omit IMDb rating text */ }
+  patchDiscoverPersonFilmographyRatings(previewItems);
+}
+
+function patchDiscoverPersonFilmographyRatings(items = []) {
+  const overlay = document.getElementById('discover-media-profile');
+  if (!overlay) return;
+  items.forEach(item => {
+    const creditKey = getDiscoverPersonCreditLookupKey(item);
+    if (!creditKey) return;
+    const card = overlay.querySelector(`.discover-person-filmography .discover-person-credit-card[data-person-credit-key="${CSS.escape(creditKey)}"]`);
+    if (!card) return;
+    const ratingWrap = card.querySelector('[data-person-credit-rating]');
+    const ratingValue = card.querySelector('[data-person-credit-rating-value]');
+    if (!ratingWrap || !ratingValue) return;
+    const imdbRating = formatDiscoverPersonCreditImdbRating(item);
+    if (imdbRating) {
+      ratingValue.textContent = imdbRating;
+      ratingWrap.hidden = false;
+      ratingWrap.classList.add('is-ready');
+    } else {
+      ratingValue.textContent = '';
+      ratingWrap.hidden = true;
+      ratingWrap.classList.remove('is-ready');
+    }
+  });
+}
 
 async function openDiscoverPersonProfile(event, personId) {
   event?.preventDefault?.();
@@ -5253,6 +5308,7 @@ async function openDiscoverPersonProfile(event, personId) {
     bindDiscoverMediaProfileSwipeBack(overlay);
     hydrateDiscoverPersonBioFacts(details);
     hydrateDiscoverPersonRoleFallbacks(details);
+    hydrateDiscoverPersonFilmographyRatings(details);
   } catch (error) {
     console.error('Discover person profile failed:', error);
     if (!document.getElementById('discover-media-profile')) return;
@@ -5349,13 +5405,9 @@ function renderDiscoverMediaProfileDetails(type, details, id) {
   const year = getDiscoverMediaDate(details, type).slice(0, 4);
   const genres = (details.genres || []).map(g => g.name).filter(Boolean).slice(0, 4);
   const facts = getDiscoverMediaFacts(type, details);
-  /* v671: prefer IMDb rating from OMDb if it has been resolved on this
-     details object; otherwise fall back to TMDB vote_average. */
-  const imdbScore = Number(details.imdbRating || 0);
-  const tmdbScore = Number(details.vote_average || 0);
-  const score = imdbScore > 0
-    ? imdbScore.toFixed(1)
-    : (tmdbScore > 0 ? tmdbScore.toFixed(1) : 'N/A');
+  const score = typeof window.formatDisplayTitleRating === 'function'
+    ? window.formatDisplayTitleRating(details)
+    : (Number(details.imdbRating || 0) > 0 ? Number(details.imdbRating).toFixed(1) : '');
   const tagline = String(details.tagline || '').trim();
   const overview = details.overview || 'No overview is available yet.';
   const cast = (details.credits?.cast || []).filter(person => person?.name).slice(0, 8);
@@ -5366,9 +5418,9 @@ function renderDiscoverMediaProfileDetails(type, details, id) {
   const trailer = getDiscoverMediaTrailer(details.videos);
   const companies = (details.production_companies || []).map(company => company.name).filter(Boolean).slice(0, 2);
   const networks = (details.networks || []).map(network => network.name).filter(Boolean).slice(0, 2);
-  const isStandardMovieTvProfile = !details?.isAnime && (type === 'movie' || type === 'tv');
+  const isDesktopTitleProfile = type === 'movie' || type === 'tv';
 
-  return `<section class="discover-media-page${isStandardMovieTvProfile ? ' discover-standard-title-page' : ''}" role="dialog" aria-modal="true" aria-label="${escAttr(title)} details">
+  return `<section class="discover-media-page${isDesktopTitleProfile ? ' discover-standard-title-page discover-desktop-title-page' : ''}" role="dialog" aria-modal="true" aria-label="${escAttr(title)} details">
     <button class="discover-media-back" type="button" onclick="closeDiscoverMediaProfile('back')">Back</button>
     ${renderMediaProfileTopActions(renderMediaProfileShareButton(getShareableMediaKind(type, details), id, title, poster), renderDiscoverMediaProfileAddButton(type, id, details))}
     <div class="discover-media-hero" style="${backdrop ? `background-image:url('${escAttr(backdrop)}')` : ''}">
@@ -5380,7 +5432,7 @@ function renderDiscoverMediaProfileDetails(type, details, id) {
             <div class="discover-media-kicker">${type === 'tv' ? 'Series Profile' : 'Movie Profile'}${year ? ` · ${escHtml(year)}` : ''}</div>
             <h2>${escHtml(title)}</h2>
             ${tagline ? `<div class="discover-media-tagline">${escHtml(tagline)}</div>` : ''}
-            <div class="discover-media-score discover-media-score-hero"><span class="discover-media-score-star" aria-hidden="true">★</span><span class="discover-media-score-value">${escHtml(score)}</span></div>
+            ${score ? `<div class="discover-media-score discover-media-score-hero"><span class="discover-media-score-star" aria-hidden="true">★</span><span class="discover-media-score-value">${escHtml(score)}</span></div>` : ''}
           </div>
         </div>
         <p class="discover-media-synopsis" onclick="this.classList.toggle('expanded')">${escHtml(overview)}</p>
@@ -5389,7 +5441,7 @@ function renderDiscoverMediaProfileDetails(type, details, id) {
         ${renderDiscoverWhereToWatchInline(details)}
       </div>
     </div>
-    <div class="discover-media-body${isStandardMovieTvProfile ? ' discover-media-body-cinema' : ''}">
+    <div class="discover-media-body${isDesktopTitleProfile ? ' discover-media-body-cinema' : ''}">
       ${(facts.length || creators.length || writers.length || companies.length || networks.length || trailer) ? `<div class="discover-media-detail-grid${trailer ? ' has-trailer' : ''}">
         ${(facts.length || creators.length || writers.length || companies.length || networks.length) ? `<div class="discover-media-detail-stack">
           ${facts.length ? `<div class="discover-media-facts">${facts.map(fact => `<div class="${fact.priority ? 'primary' : ''}"><strong>${escHtml(fact.value)}</strong><span>${escHtml(fact.label)}</span></div>`).join('')}</div>` : ''}
@@ -5468,7 +5520,7 @@ async function openDiscoverMediaProfile(event, type, id, transitionOrigin = null
           details.ratingSource = 'imdb';
           discoverMediaProfileCache.set(key, details);
         }
-      } catch (e) { /* silent — fall back to TMDB rating already in details */ }
+      } catch (e) { /* silent — leave IMDb score hidden if lookup fails */ }
     }
     const watchProviderDisplay = details.watchProviderDisplay || await fetchDiscoverWatchProviderDisplay(type, id, { ...seed, ...details });
     if (watchProviderDisplay) {
@@ -6360,11 +6412,12 @@ function buildDiscoverFilteredRequestParams(mediaType = 'tv', yearFilter = null)
 }
 
 function getDiscoverFilteredContextLine(item = {}) {
-  const rating = Number(item.vote_average || 0);
-  const votes = Number(item.vote_count || 0);
   const year = String(getDiscoverReleaseDate(item) || '').slice(0, 4);
-  const sourceLabel = item.imdbRating ? 'IMDb' : 'TMDB';
-  return [year, rating ? `${rating.toFixed(1)} ${sourceLabel}` : '', votes ? `${votes.toLocaleString()} votes` : '']
+  const ratingText = typeof window.formatDisplayTitleRating === 'function'
+    ? window.formatDisplayTitleRating(item)
+    : (Number(item.imdbRating || 0) > 0 ? Number(item.imdbRating).toFixed(1) : '');
+  const imdbVotes = Number(item.imdbVotes || 0);
+  return [year, ratingText ? `${ratingText} IMDb` : '', imdbVotes ? `${imdbVotes.toLocaleString()} votes` : '']
     .filter(Boolean)
     .join(' · ');
 }
@@ -6648,12 +6701,6 @@ function initDiscoverCategoryTitleLinks() {
   }
 })();
 
-function sanitizeDiscoverCardContextLine(value = '') {
-  const text = String(value || '').trim();
-  if (!text) return '';
-  return /\bTMDB\b/i.test(text) || /\bvotes?\b/i.test(text) ? '' : text;
-}
-
 function renderDiscoverCards(type, items, gridId) {
   const resolvedGridId = gridId || (type === 'movie' ? 'discover-movie-popular-grid' : 'discover-tv-popular-grid');
   storeDiscoverCategoryData(resolvedGridId, type, items, 'cards');
@@ -6678,10 +6725,12 @@ function renderDiscoverCards(type, items, gridId) {
     const titleAttr = escAttr(title);
     const addClick = `openDiscoveryAddModal('${itemType}', ${item.id}, this)`;
     const removeClick = `removeDiscoveryTitle(this)`;
-    const tmdbRating = Number(item.vote_average || 0);
+    const displayRating = typeof window.formatDisplayTitleRating === 'function'
+      ? window.formatDisplayTitleRating(item)
+      : (Number(item.imdbRating || 0) > 0 ? Number(item.imdbRating).toFixed(1) : '');
     /* v568: rating first, then title, then genre, then date (date-grids only) */
-    const ratingHtml = tmdbRating > 0
-      ? `<div class="dc-rating"><span class="dc-rating-star" aria-hidden="true">★</span>${tmdbRating.toFixed(1)}</div>`
+    const ratingHtml = displayRating
+      ? `<div class="dc-rating"><span class="dc-rating-star" aria-hidden="true">★</span>${displayRating}</div>`
       : '';
     const releaseLine = showDateLine ? getDiscoverCardReleaseLine(item) : '';
     setDiscoverMediaProfileSeed(itemType, item.id, {
@@ -6818,7 +6867,6 @@ function renderRankedDiscoverCards(type, items, gridId) {
     /* v654: getTmdbImageUrl handles full https URLs (Jikan-sourced) and TMDB paths. */
     const poster = getDiscoverTitleCardPosterUrl(item, itemType, gridId);
     const overview = item.overview || '';
-    const contextLine = isNewReleaseGrid ? '' : sanitizeDiscoverCardContextLine(item.discoverContext || item.sourceLabel || '');
     const section = itemType === 'movie' ? 'movies' : 'shows';
     const releaseLine = formatDiscoverReleaseCardDate(getDiscoverReleaseDate(item));
     const alreadyAdded = isDuplicateTitle(title, section);
@@ -6829,13 +6877,12 @@ function renderRankedDiscoverCards(type, items, gridId) {
     const metaHtml = isNewReleaseGrid
       ? `<div class="discover-card-meta discover-new-release-date">Released: ${escHtml(releaseLine || formatDiscoverReleaseDate(getDiscoverReleaseDate(item)))}</div>`
       : '';
-    /* v671: vote_average is overwritten with IMDb's imdbRating during
-       enrichment (window.enrichItemsWithImdbRatings), so this card score
-       displays IMDb when OMDb knew the title, else falls back to TMDB. */
-    const cardRating = Number(item.vote_average || 0);
+    const cardRating = typeof window.formatDisplayTitleRating === 'function'
+      ? window.formatDisplayTitleRating(item)
+      : (Number(item.imdbRating || 0) > 0 ? Number(item.imdbRating).toFixed(1) : '');
     /* v568: rating line first, then title, then genre, date only for new-release / upcoming grids */
-    const ratingHtmlRanked = cardRating > 0
-      ? `<div class="dc-rating"><span class="dc-rating-star" aria-hidden="true">★</span>${cardRating.toFixed(1)}</div>`
+    const ratingHtmlRanked = cardRating
+      ? `<div class="dc-rating"><span class="dc-rating-star" aria-hidden="true">★</span>${cardRating}</div>`
       : '';
     const cardReleaseLine = isDateOnlyGrid ? getDiscoverCardReleaseLine(item) : '';
 

@@ -1393,18 +1393,50 @@ body.light-mode #mylist-view #mylist-toolbar .tab-btn.active {
 /* Friend list mobile header: compact profile top + actions under divider */
 .viewing-banner-divider { display: none; }
 .friend-list-floating-back-btn { display: none; }
+body.viewing-other-user .header,
+body.viewing-other-user .header .container,
+body.viewing-other-user .header-top {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-bottom: 0 !important;
+}
+body.viewing-other-user .mylist-header-cog,
+body.viewing-other-user .mylist-rating-duel-header-btn {
+  display: none !important;
+}
 
 @media (max-width: 700px) {
-  body.viewing-other-user .header {
-    padding: 0;
-    min-height: 0;
+  body.friend-home-transitioning #community-view {
+    display: block !important;
   }
-  body.viewing-other-user .header-top,
+  body.friend-home-transitioning #mylist-view {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 2400 !important;
+    overflow-y: auto !important;
+    background: #0E0E0E !important;
+    transform: translate3d(100%, 0, 0);
+    opacity: 0.76;
+    will-change: transform, opacity;
+    pointer-events: none;
+    contain: paint;
+    backface-visibility: hidden;
+  }
+  body.friend-home-transitioning #mylist-view.friend-home-enter-active {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+    pointer-events: auto;
+    transition: transform 600ms cubic-bezier(0.22, 1, 0.36, 1), opacity 600ms ease;
+  }
+  body.viewing-other-user .header {
+    padding: 0 0 6px;
+    min-height: auto;
+  }
   body.viewing-other-user .header .main-nav {
     display: none !important;
   }
   body.viewing-other-user #mylist-view .main-content {
-    padding-top: 14px;
+    padding-top: 4px;
   }
   body.viewing-other-user .friend-list-viewing-banner {
     display: flex;
@@ -1445,7 +1477,7 @@ body.light-mode #mylist-view #mylist-toolbar .tab-btn.active {
   }
   body.viewing-other-user .friend-list-viewing-banner .viewing-banner-actions {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
     width: 100%;
     margin-bottom: 13px;
@@ -1458,11 +1490,15 @@ body.light-mode #mylist-view #mylist-toolbar .tab-btn.active {
   }
   body.viewing-other-user .friend-list-viewing-banner .back-btn {
     min-height: 34px;
-    padding: 8px 10px;
+    min-width: 0;
+    padding: 8px 8px;
     border-radius: 999px;
-    font-size: 11px;
+    font-size: 10px;
     line-height: 1;
     text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     transition: transform 300ms ease, background 300ms ease, border-color 300ms ease, color 300ms ease;
     will-change: transform;
     transform: translateZ(0);
@@ -1471,7 +1507,7 @@ body.light-mode #mylist-view #mylist-toolbar .tab-btn.active {
     transform: scale(0.97) translateZ(0);
   }
   body.viewing-other-user .friend-list-floating-back-btn {
-    display: inline-flex;
+    display: none !important;
     align-items: center;
     justify-content: center;
     position: fixed;

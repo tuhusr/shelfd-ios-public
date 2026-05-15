@@ -80,26 +80,26 @@
 </script>
 <link rel="stylesheet" href="/css/sohne-fonts.css?v=576_sohne_font_setup">
 <link rel="stylesheet" href="/css/00-base-layout.css?v=643_revert_old_icon_again">
-<link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=959_games_playing_subfilter_true_dark_refresh">
+<link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=1026_next_episode_priority_refine">
 <link rel="stylesheet" href="/css/02-comments-login-theme.css?v=927_add_shelf_modal_scroll_lock_results_fix">
 <link rel="stylesheet" href="/css/03-friends-discovery-base.css?v=925_requested_btn_lavender">
-<link rel="stylesheet" href="/css/04-activity-feed.css?v=965_add_shelf_post_prompt_fix">
-<link rel="stylesheet" href="/css/05-messages-early-polish.css?v=942_game_status_competitive_selector">
-<link rel="stylesheet" href="/css/06-profile.css?v=980_input_zoom_guard">
+<link rel="stylesheet" href="/css/04-activity-feed.css?v=1028_activity_action_row_count_balance">
+<link rel="stylesheet" href="/css/05-messages-early-polish.css?v=1032_actor_filmography_imdb_open_fix">
+<link rel="stylesheet" href="/css/06-profile.css?v=1033_profile_back_slide_fix">
 <link rel="stylesheet" href="/css/07-imports-discover-rankings.css?v=942_game_status_competitive_selector">
 <link rel="stylesheet" href="/css/08-watch-together.css?v=404-shared-watch-copy-underline">
 <link rel="stylesheet" href="/css/09-direct-messages.css?v=280-dm-plaintext-aptos-composer">
 <link rel="stylesheet" href="/css/10-mobile-transitions-media-profile.css?v=643_revert_old_icon_again">
 <link rel="stylesheet" href="/css/11-patch-notes-friends-refinements.css?v=670_stat_weight_500_clean">
 <link rel="stylesheet" href="/css/12-pwa-header-continuity.css?v=814_browser_header_color_fix">
-<link rel="stylesheet" href="/css/13-e2ee-activity-post.css?v=981_tier_list_footer_edge_fix">
+<link rel="stylesheet" href="/css/13-e2ee-activity-post.css?v=1030_tier_list_persist_footer_fix">
 <link rel="stylesheet" href="/css/14-live-update-discover-controls.css?v=985_desktop_discover_four_cards">
 <link rel="stylesheet" href="/css/15-universal-discovery-search.css?v=994_desktop_nav_bottom">
-<link rel="stylesheet" href="/css/16-light-mode-contrast.css?v=994_desktop_nav_bottom">
+<link rel="stylesheet" href="/css/16-light-mode-contrast.css?v=1038_add_shelf_flow_modernize">
 <link rel="stylesheet" href="/css/17-auth-flow-setup.css?v=909_remove_creator_divider">
 
-<meta name="screenlist-build-version" content="2026-05-14-v995_friend_requests_rules_safe">
-<script>window.SCREENLIST_BUILD_VERSION = "2026-05-14-v995_friend_requests_rules_safe"; window.SCREENLIST_DISPLAY_VERSION = "v.995-May 14th, 2026";</script>
+<meta name="screenlist-build-version" content="2026-05-15-v10.38_add_shelf_flow_modernize">
+<script>window.SCREENLIST_BUILD_VERSION = "2026-05-15-v10.38_add_shelf_flow_modernize"; window.SCREENLIST_DISPLAY_VERSION = "v10.38-May 15th, 2026";</script>
 <script>
   window.__shelfdGuestContinueQueued = false;
   window.continueWithoutSignIn = window.continueWithoutSignIn || function() {
@@ -1331,7 +1331,10 @@
   <div class="container profile-shell">
     <div class="profile-topbar">
       <div class="profile-topbar-left">
-        <button class="profile-back-btn" onclick="closeProfileWithAnimation()">? Back</button>
+        <button class="profile-back-btn" type="button" onclick="closeProfileWithAnimation()" aria-label="Back">
+          <svg class="profile-back-btn-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4.5 3.5 10 9 15.5"></path><path d="M16.5 10H4"></path></svg>
+          <span>Back</span>
+        </button>
         <div>
           <div class="profile-topbar-title">Profile Studio</div>
           <div class="profile-topbar-sub">Customize your Shelfd home page</div>
@@ -1400,7 +1403,10 @@
   <div id="profile-settings-page" class="profile-settings-page" style="display:none;">
     <div class="container profile-settings-shell">
       <div class="profile-settings-topbar">
-        <button class="profile-back-btn" type="button" onclick="closeProfileSettingsPage()">? Back</button>
+        <button class="profile-back-btn" type="button" onclick="closeProfileSettingsPage()" aria-label="Back">
+          <svg class="profile-back-btn-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4.5 3.5 10 9 15.5"></path><path d="M16.5 10H4"></path></svg>
+          <span>Back</span>
+        </button>
         <div>
           <div class="profile-topbar-title">Profile Settings</div>
           <div class="profile-topbar-sub">Choose how Shelfd looks and how ratings appear.</div>
@@ -1623,26 +1629,26 @@
 <script src="/js/01-firebase-login-state.js?v=902_guest_readonly_mode"></script>
 <script src="/js/02-messages-e2ee.js?v=280-dm-plaintext-aptos-composer"></script>
 <script src="/js/03-watch-together.js?v=294-watch-together-modal-search"></script>
-<script src="/js/04-shared-utils-data.js?v=957_games_backloggd_no_cover_button"></script>
-<script src="/js/20-imdb-ratings.js?v=734_filmography_page"></script>
+<script src="/js/04-shared-utils-data.js?v=1035_games_wishlist_priority"></script>
+<script src="/js/20-imdb-ratings.js?v=1037_omdb_discover_profile_ratings"></script>
 <script src="/js/21-discover-ranking.js?v=673_central_ranking_module"></script>
-<script src="/js/05-app-state-preview-routes.js?v=902_guest_readonly_mode"></script>
+<script src="/js/05-app-state-preview-routes.js?v=1035_games_wishlist_priority"></script>
 <script src="/js/23-trackergg-linking.js?v=951_tracker_stats_persist_real_valorant_badges"></script>
-<script src="/js/06-mylists-render-episodes-ratings.js?v=983_mylist_empty_state_no_icon"></script>
-<script src="/js/07-add-shelf-import-search.js?v=969_add_shelf_modal_lock_layout"></script>
+<script src="/js/06-mylists-render-episodes-ratings.js?v=1035_games_wishlist_priority"></script>
+<script src="/js/07-add-shelf-import-search.js?v=1038_add_shelf_flow_modernize"></script>
 <script src="/js/08-discovery-state.js?v=673_central_ranking_module"></script>
 <script src="/js/09-direct-messages.js?v=902_guest_readonly_mode"></script>
-<script src="/js/10-activity-feed.js?v=965_add_shelf_post_prompt_fix"></script>
+<script src="/js/10-activity-feed.js?v=1027_activity_rating_privacy_feed_polish"></script>
 <script src="/js/20-jikan-anime.js?v=704_viewall_slide_profile_fix"></script>
-<script src="/js/11-discovery-media-games-profiles.js?v=987_desktop_discover_friends_arrow_media_profile"></script>
+<script src="/js/11-discovery-media-games-profiles.js?v=1037_omdb_discover_profile_ratings"></script>
 <script src="/js/12-patch-notes.js?v=420_activity_feed_inline_stack_expand_collapse"></script>
-<script src="/js/13-discover-add-imports.js?v=957_games_backloggd_no_cover_button"></script>
+<script src="/js/13-discover-add-imports.js?v=1022_next_episode_card_metadata"></script>
 <script src="/js/14-navigation.js?v=984_desktop_mylist_nav_rating_button"></script>
-<script src="/js/15-profile-settings.js?v=984_desktop_mylist_nav_rating_button"></script>
-<script src="/js/24-movie-rating-duel.js?v=982_tier_list_remove_done_button"></script>
-<script src="/js/16-friends-requests.js?v=924_ispublic_true_for_all_users"></script>
+<script src="/js/15-profile-settings.js?v=1033_profile_back_slide_fix"></script>
+<script src="/js/24-movie-rating-duel.js?v=1030_tier_list_persist_footer_fix"></script>
+<script src="/js/16-friends-requests.js?v=1000_friends_back_route_state_fix"></script>
 <script src="/js/17-comments-auth-init.js?v=902_guest_readonly_mode"></script>
-<script src="/js/18-search-page.js?v=948_game_search_profile_id_fix"></script>
+<script src="/js/18-search-page.js?v=1037_omdb_discover_profile_ratings"></script>
 <script src="/js/19-gis-signin.js?v=907_landing_google_cleanup"></script>
 <script src="/js/19b-email-password-auth.js?v=752_email_auth_fullscreen_page"></script>
 <script src="/js/19c-auth-flow-setup.js?v=835_pwa_landing_inline_signin_form"></script>

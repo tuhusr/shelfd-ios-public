@@ -167,6 +167,54 @@ body.light-mode .screenlist-patch-note-card ul {
   background: rgba(255,255,255,0.035) !important;
   color: #d8cff3 !important;
 }
+@media (min-width: 701px) {
+  #friends-list-view .friend-list-card {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: 14px !important;
+    padding: 18px !important;
+    min-height: 0 !important;
+  }
+  #friends-list-view .friend-list-card .friend-card-main {
+    width: 100% !important;
+    min-width: 0 !important;
+    align-items: center !important;
+    gap: 14px !important;
+  }
+  #friends-list-view .friend-list-card .friend-card-copy {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+  }
+  #friends-list-view .friend-list-card .user-card-name {
+    display: block !important;
+    width: 100% !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    line-height: 1.1 !important;
+  }
+  #friends-list-view .friend-list-card .user-card-stats {
+    display: none !important;
+  }
+  #friends-list-view .friend-list-card .friend-actions-group {
+    width: 100% !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    gap: 10px !important;
+    margin-top: 0 !important;
+  }
+  #friends-list-view .friend-list-card .friend-action-btn {
+    flex: 0 0 auto !important;
+    min-width: 108px !important;
+  }
+  #friends-list-view .friend-list-card .friend-remove-desktop-btn {
+    display: none !important;
+  }
+}
 @media (max-width: 700px) {
   #friends-list-view .friend-list-card {
     display: grid !important;

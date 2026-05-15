@@ -81,6 +81,9 @@
     margin-top: 2px;
   }
   .profile-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     padding: 9px 15px;
     border: 1px solid rgba(196,181,253,0.20);
     border-radius: 999px;
@@ -90,7 +93,13 @@
     font-family: 'DM Sans', sans-serif;
     font-size: 13px;
     font-weight: 800;
+    line-height: 1;
     white-space: nowrap;
+  }
+  .profile-back-btn-icon {
+    width: 15px;
+    height: 15px;
+    flex: 0 0 auto;
   }
   .profile-back-btn:hover { border-color: #8b5cf6; background: rgba(139,92,246,0.14); }
   .profile-topbar-actions {

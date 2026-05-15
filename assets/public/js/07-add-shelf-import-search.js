@@ -377,9 +377,12 @@ let addTitleLiveSearchTimer = null;
 let addTitleSearchRequestToken = 0;
 let addShelfSearchFilter = 'all';
 let pendingModalStatusSelection = '';
+let pendingModalRatingSelection = 0;
 let modalAddSubmitting = false;
 let addShelfModalBackHandler = null;
 let addShelfModalScrollLockState = null;
+let addShelfModalSearchSnapshot = null;
+let addShelfModalSelectionState = null;
 
 function lockAddShelfModalBackgroundScroll() {
   if (addShelfModalScrollLockState) return;
@@ -426,18 +429,99 @@ function unlockAddShelfModalBackgroundScroll() {
   window.scrollTo(0, state.scrollY || 0);
 }
 
+function cloneAddShelfModalStateValue(value) {
+  if (value == null) return value;
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch (_) {
+    return typeof value === 'object' ? { ...value } : value;
+  }
+}
+
+function syncAddShelfFilterUi(filter = addShelfSearchFilter) {
+  addShelfSearchFilter = filter;
+  document.querySelectorAll('.shelf-filter-pill').forEach(pill => {
+    pill.classList.toggle('active', pill.dataset.filter === filter);
+  });
+  setAddShelfSearchPlaceholder(filter);
+}
+
+function captureAddShelfSearchSnapshot() {
+  const results = document.getElementById('tmdb-results');
+  const input = document.getElementById('inp-tmdb-search');
+  return {
+    filter: addShelfSearchFilter,
+    query: input?.value || '',
+    resultsHtml: results?.innerHTML || '',
+    resultsScrollTop: results?.scrollTop || 0
+  };
+}
+
+function rememberAddShelfSelectionState(item = selectedTmdb, searchSnapshot = null) {
+  const activeItem = item || selectedTmdb;
+  if (!activeItem) return;
+  addShelfModalSearchSnapshot = searchSnapshot || captureAddShelfSearchSnapshot();
+  addShelfModalSelectionState = {
+    item: cloneAddShelfModalStateValue(activeItem),
+    status: '',
+    rating: 0
+  };
+}
+
+function getActiveAddShelfSelectedItem() {
+  return addShelfModalSelectionState?.item || selectedTmdb || null;
+}
+
+function setAddShelfModalSelectionChoice({ status = pendingModalStatusSelection, rating = pendingModalRatingSelection } = {}) {
+  const activeItem = getActiveAddShelfSelectedItem();
+  if (!activeItem) return;
+  if (!addShelfModalSelectionState) {
+    addShelfModalSelectionState = {
+      item: cloneAddShelfModalStateValue(activeItem),
+      status: '',
+      rating: 0
+    };
+  }
+  if (typeof status === 'string') addShelfModalSelectionState.status = status;
+  if (rating !== undefined) addShelfModalSelectionState.rating = Number(rating || 0) || 0;
+}
+
+function removeAddShelfSearchFlashMessage() {
+  document.getElementById('add-shelf-search-flash')?.remove();
+}
+
+function flashAddShelfSearchMessage(message = 'Added to library') {
+  const searchArea = document.getElementById('tmdb-search-area');
+  const results = document.getElementById('tmdb-results');
+  if (!searchArea || !results) return;
+  removeAddShelfSearchFlashMessage();
+  const banner = document.createElement('div');
+  banner.id = 'add-shelf-search-flash';
+  banner.className = 'add-shelf-search-flash';
+  banner.textContent = message;
+  searchArea.insertBefore(banner, results);
+  window.setTimeout(() => {
+    banner.classList.add('is-hiding');
+    window.setTimeout(() => banner.remove(), 260);
+  }, 2200);
+}
+
 function updateAddShelfModalSelectionLayout(hasSelection = !!selectedTmdb) {
   const modalCard = document.querySelector('#modal .add-title-modal');
   const searchArea = document.getElementById('tmdb-search-area');
   if (modalCard) modalCard.classList.toggle('add-shelf-has-selection', !!hasSelection);
-  if (searchArea) searchArea.style.display = 'block';
+  if (searchArea) searchArea.style.display = hasSelection ? 'none' : '';
 }
 
-function resetAddTitleSelection() {
+function resetAddTitleSelection(options = {}) {
+  const { clearSearchSnapshot = false } = options;
   const selectedArea = document.getElementById("tmdb-selected-area");
   selectedTmdb = null;
+  addShelfModalSelectionState = null;
   pendingModalStatusSelection = '';
+  pendingModalRatingSelection = 0;
   modalAddSubmitting = false;
+  if (clearSearchSnapshot) addShelfModalSearchSnapshot = null;
   if (selectedArea) {
     selectedArea.style.display = "none";
     selectedArea.innerHTML = "";
@@ -519,11 +603,12 @@ function handleModalBackButton() {
 }
 
 function resetAddShelfModalHome() {
-  resetAddTitleSelection();
+  resetAddTitleSelection({ clearSearchSnapshot: true });
   const searchArea = document.getElementById('tmdb-search-area');
   const results = document.getElementById('tmdb-results');
   const input = document.getElementById('inp-tmdb-search');
-  if (searchArea) searchArea.style.display = 'block';
+  removeAddShelfSearchFlashMessage();
+  if (searchArea) searchArea.style.display = '';
   if (results) results.innerHTML = '';
   if (input) input.value = '';
   setAddShelfFilter(getAddShelfDefaultFilter(activeSection));
@@ -531,9 +616,97 @@ function resetAddShelfModalHome() {
   if (input) setTimeout(() => input.focus(), 40);
 }
 
+function restoreAddShelfSearchResults() {
+  resetAddTitleSelection();
+  const searchArea = document.getElementById('tmdb-search-area');
+  const results = document.getElementById('tmdb-results');
+  const input = document.getElementById('inp-tmdb-search');
+  const snapshot = addShelfModalSearchSnapshot;
+  if (searchArea) searchArea.style.display = '';
+  if (snapshot) {
+    syncAddShelfFilterUi(snapshot.filter || getAddShelfDefaultFilter(activeSection));
+    if (input) input.value = snapshot.query || '';
+    if (results) {
+      results.innerHTML = snapshot.resultsHtml || '';
+      const scrollTop = Number(snapshot.resultsScrollTop || 0);
+      requestAnimationFrame(() => { results.scrollTop = scrollTop; });
+    }
+  }
+  setModalBackBtn(false);
+}
+
+function triggerAddShelfSuccessFeedback() {
+  if (typeof playLibraryAddPopSound === 'function') playLibraryAddPopSound();
+  try {
+    if (navigator?.vibrate) navigator.vibrate(18);
+  } catch (_) {}
+}
+
+function getAddShelfModalRatingValue(score = (addShelfModalSelectionState?.rating ?? pendingModalRatingSelection), section = resolveAddShelfSelectedSection(getActiveAddShelfSelectedItem())) {
+  const cleanScore = Number(score || 0) || 0;
+  if (cleanScore <= 0) return 'No rating';
+  if (typeof formatRatingValueForSection === 'function') return formatRatingValueForSection(cleanScore, section, true);
+  return `${cleanScore}/10`;
+}
+
 function getAddShelfStatusLabel(status = '', section = activeSection) {
   const option = (MODAL_STATUS_OPTIONS[section] || []).find(entry => entry.status === status);
   return option?.label || getMyListStatusLabel(status, section) || 'Library';
+}
+
+function buildAddShelfSelectedPreviewDetails(item = getActiveAddShelfSelectedItem()) {
+  const activeItem = item || getActiveAddShelfSelectedItem();
+  const section = resolveAddShelfSelectedSection(activeItem, addShelfSearchFilter);
+  const typeConfig = getAddShelfResultTypeConfig(activeItem || {}, addShelfSearchFilter);
+  const year = String(activeItem?.year || '').slice(0, 4);
+  const detailLines = [];
+  if (activeItem?.genre) detailLines.push(String(activeItem.genre));
+  if (section === 'games' && activeItem?.platforms) detailLines.push(String(activeItem.platforms));
+  if (isShowSection(section)) {
+    const seasons = Number(activeItem?.seasons || activeItem?.animeSeasonItems?.length || 0);
+    const episodeTotal = Number(activeItem?.totalEpisodes || activeItem?.episodes?.length || 0);
+    if (seasons > 0 && episodeTotal > 0) {
+      detailLines.push(`${seasons} season${seasons === 1 ? '' : 's'} - ${episodeTotal} episodes`);
+    } else if (episodeTotal > 0) {
+      detailLines.push(`${episodeTotal} episode${episodeTotal === 1 ? '' : 's'}`);
+    } else {
+      detailLines.push('Episode count TBD');
+    }
+  }
+  if (String(activeItem?.source || '') === 'manual') {
+    detailLines.push(`Manual ${getAddButtonSectionLabel(section)} entry`);
+  }
+  return {
+    typeLabel: typeConfig?.label || getAddButtonSectionLabel(section),
+    year,
+    detailLines: detailLines.filter(Boolean)
+  };
+}
+
+function renderAddShelfSelectedPreview(item = getActiveAddShelfSelectedItem()) {
+  const activeItem = item || getActiveAddShelfSelectedItem();
+  const selectedArea = document.getElementById("tmdb-selected-area");
+  if (!selectedArea || !activeItem) return;
+  const title = activeItem.title || activeItem.name || 'Selected title';
+  const cover = activeItem.cover || activeItem.igdbCoverUrl || '';
+  const { typeLabel, year, detailLines } = buildAddShelfSelectedPreviewDetails(activeItem);
+  const chips = [typeLabel, year].filter(Boolean).map(value => `<span class="add-shelf-selected-chip">${escHtml(value)}</span>`).join('');
+  const detailMarkup = detailLines.map(line => `<div class="add-shelf-selected-line">${escHtml(line)}</div>`).join('');
+  const placeholder = escHtml(String(title || '?').trim().charAt(0) || '?');
+  selectedArea.style.display = "block";
+  selectedArea.innerHTML = `
+    <div class="tmdb-selected add-shelf-selected-card">
+      <div class="add-shelf-selected-poster-wrap${cover ? '' : ' is-empty'}">
+        ${cover ? `<img src="${escAttr(cover)}" alt="${escAttr(title)} poster">` : `<span class="add-shelf-selected-placeholder">${placeholder}</span>`}
+      </div>
+      <div class="tmdb-selected-info add-shelf-selected-info">
+        <div class="add-shelf-selected-kicker">Selected title</div>
+        <div class="tmdb-selected-title">${escHtml(title)}</div>
+        ${chips ? `<div class="add-shelf-selected-chip-row">${chips}</div>` : ''}
+        ${detailMarkup ? `<div class="add-shelf-selected-details">${detailMarkup}</div>` : ''}
+        <button class="tmdb-clear add-shelf-selected-clear" type="button" onclick="clearSelection()">Choose another title</button>
+      </div>
+    </div>`;
 }
 
 function handleAddTitleLiveSearchInput() {
@@ -541,6 +714,7 @@ function handleAddTitleLiveSearchInput() {
   const resultsDiv = document.getElementById("tmdb-results");
   const query = (input?.value || '').trim();
   clearTimeout(addTitleLiveSearchTimer);
+  removeAddShelfSearchFlashMessage();
   resetAddTitleSelection();
   if (!query) {
     addTitleSearchRequestToken++;
@@ -570,11 +744,8 @@ function doSearch() {
 }
 
 function setAddShelfFilter(filter) {
-  addShelfSearchFilter = filter;
-  document.querySelectorAll('.shelf-filter-pill').forEach(p => {
-    p.classList.toggle('active', p.dataset.filter === filter);
-  });
-  setAddShelfSearchPlaceholder(filter);
+  syncAddShelfFilterUi(filter);
+  removeAddShelfSearchFlashMessage();
   const query = (document.getElementById('inp-tmdb-search')?.value || '').trim();
   if (query.length >= 2) doSearch();
   else if (document.getElementById('tmdb-results')) document.getElementById('tmdb-results').innerHTML = '';
@@ -724,16 +895,8 @@ function selectManualReadingTitle() {
     librarySection: targetSection,
     episodes: []
   };
-  if (resultsDiv) resultsDiv.innerHTML = '';
-  const selectedArea = document.getElementById("tmdb-selected-area");
-  selectedArea.style.display = "block";
-  selectedArea.innerHTML = `<div class="tmdb-selected">
-      <div class="tmdb-selected-info">
-        <div class="tmdb-selected-title">${escHtml(title)}</div>
-        <div class="tmdb-selected-detail">Manual ${escHtml(getAddButtonSectionLabel(targetSection))} entry</div>
-        <button class="tmdb-clear" onclick="clearSelection()">Clear selection</button>
-      </div>
-  </div>`;
+  rememberAddShelfSelectionState(selectedTmdb);
+  renderAddShelfSelectedPreview(selectedTmdb);
   showModalStatusPicker();
   updateAddShelfModalSelectionLayout(true);
   setModalBackBtn(true);
@@ -905,6 +1068,7 @@ function buildRAWGResultsHtml(hits) { return buildMergedGameResultsHtml(hits); }
 /* v929: handle selection of an IGDB-sourced game result */
 async function selectRAWGFromIGDB(igdbGame) {
   const resultsDiv = document.getElementById("tmdb-results");
+  const searchSnapshot = captureAddShelfSearchSnapshot();
   resultsDiv.innerHTML = '<div class="cover-search-msg">Loading details...</div>';
   try {
     const title = igdbGame.name || '';
@@ -933,7 +1097,11 @@ async function selectRAWGFromIGDB(igdbGame) {
       metacriticSlug: '',
       overview: igdbGame.summary || ''
     };
-    renderTMDBSelected();
+    rememberAddShelfSelectionState(selectedTmdb, searchSnapshot);
+    renderAddShelfSelectedPreview(selectedTmdb);
+    showModalStatusPicker();
+    updateAddShelfModalSelectionLayout(true);
+    setModalBackBtn(true);
   } catch (e) {
     if (resultsDiv) resultsDiv.innerHTML = '<div class="cover-search-msg">Could not load game details. Try again.</div>';
   }
@@ -941,6 +1109,7 @@ async function selectRAWGFromIGDB(igdbGame) {
 
 async function selectRAWG(id) {
   const resultsDiv = document.getElementById("tmdb-results");
+  const searchSnapshot = captureAddShelfSearchSnapshot();
   resultsDiv.innerHTML = '<div class="cover-search-msg">Loading details...</div>';
   try {
     const res = await fetchRawgProxy(`games/${id}`);
@@ -978,18 +1147,8 @@ async function selectRAWG(id) {
       }
     } catch (e) { /* silent — falls back to RAWG landscape cover */ }
 
-    resultsDiv.innerHTML = '';
-    const selectedArea = document.getElementById("tmdb-selected-area");
-    selectedArea.style.display = "block";
-    selectedArea.innerHTML = `<div class="tmdb-selected">
-      ${cover ? `<img src="${cover}" style="width:90px;height:60px;border-radius:4px;object-fit:cover;">` : ''}
-      <div class="tmdb-selected-info">
-        <div class="tmdb-selected-title">${escHtml(title)} ${year ? '(' + year + ')' : ''}</div>
-        <div class="tmdb-selected-detail">${escHtml(genres)}</div>
-        <div class="tmdb-selected-detail">${escHtml(platforms)}</div>
-        <button class="tmdb-clear" onclick="clearSelection()">Clear selection</button>
-      </div>
-    </div>`;
+    rememberAddShelfSelectionState(selectedTmdb, searchSnapshot);
+    renderAddShelfSelectedPreview(selectedTmdb);
     showModalStatusPicker();
     updateAddShelfModalSelectionLayout(true);
     setModalBackBtn(true);
@@ -1034,6 +1193,7 @@ async function searchTMDB(searchToken = 0) {
 async function selectTMDB(id, knownType = null) {
   const type = knownType || getTmdbTypeForAddShelfFilter();
   const resultsDiv = document.getElementById("tmdb-results");
+  const searchSnapshot = captureAddShelfSearchSnapshot();
   resultsDiv.innerHTML = '<div class="cover-search-msg">Loading details...</div>';
   try {
     const res = await fetchTmdbProxy(`${type}/${id}`);
@@ -1059,6 +1219,13 @@ async function selectTMDB(id, knownType = null) {
       selectedTmdb.mediaCategory = detectAnimeFromMetadata(selectedTmdb) ? 'anime' : 'shows';
       selectedTmdb.librarySection = selectedTmdb.mediaCategory;
       selectedTmdb.isAnime = selectedTmdb.mediaCategory === 'anime';
+      const nextEpisode = typeof normalizeMyListTmdbNextEpisodeMetadata === 'function'
+        ? normalizeMyListTmdbNextEpisodeMetadata(d)
+        : null;
+      if (nextEpisode?.airDate) {
+        selectedTmdb.nextEpisodeAirDate = nextEpisode.airDate;
+        selectedTmdb.next_episode_to_air = nextEpisode.episode;
+      }
     } else {
       selectedTmdb.mediaCategory = 'movies';
       selectedTmdb.librarySection = 'movies';
@@ -1094,6 +1261,8 @@ async function selectTMDB(id, knownType = null) {
             seasonName: seasonDisplayName,
             epNum: ep.episode_number,
             title: ep.name || '',
+            airDate: ep.air_date || '',
+            air_date: ep.air_date || '',
             cover: (sData.poster_path || season.poster_path) ? `https://image.tmdb.org/t/p/w500${sData.poster_path || season.poster_path}` : '',
           }));
           seasonEpisodes.forEach(ep => allEpisodes.push(ep));
@@ -1115,21 +1284,8 @@ async function selectTMDB(id, knownType = null) {
       await hydrateAnimeTitleVariants(selectedTmdb);
     }
 
-    // Show selected preview
-    resultsDiv.innerHTML = '';
-    const selectedArea = document.getElementById("tmdb-selected-area");
-    const coverThumb = d.poster_path ? `https://image.tmdb.org/t/p/w185${d.poster_path}` : '';
-    const epInfo = type === "tv" ? `<div class="tmdb-selected-detail">${selectedTmdb.seasons} season${selectedTmdb.seasons > 1 ? 's' : ''} · ${selectedTmdb.totalEpisodes} episodes</div>` : '';
-    selectedArea.style.display = "block";
-    selectedArea.innerHTML = `<div class="tmdb-selected">
-      ${coverThumb ? `<img src="${coverThumb}">` : ''}
-      <div class="tmdb-selected-info">
-        <div class="tmdb-selected-title">${escHtml(title)} ${year ? '(' + year + ')' : ''}</div>
-        <div class="tmdb-selected-detail">${escHtml(genres)}</div>
-        ${epInfo}
-        <button class="tmdb-clear" onclick="clearSelection()">Clear selection</button>
-      </div>
-    </div>`;
+    rememberAddShelfSelectionState(selectedTmdb, searchSnapshot);
+    renderAddShelfSelectedPreview(selectedTmdb);
     showModalStatusPicker();
     updateAddShelfModalSelectionLayout(true);
     setModalBackBtn(true);
@@ -1146,6 +1302,7 @@ async function selectTMDB(id, knownType = null) {
 async function selectJikanAnime(malId) {
   const id = String(malId || '').trim();
   const resultsDiv = document.getElementById("tmdb-results");
+  const searchSnapshot = captureAddShelfSearchSnapshot();
   if (resultsDiv) resultsDiv.innerHTML = '<div class="cover-search-msg">Loading anime details...</div>';
   try {
     const J = window.JikanAnime;
@@ -1203,24 +1360,8 @@ async function selectJikanAnime(malId) {
       : [];
     selectedTmdb.animeSeasonItems = [];
 
-    /* Render the modal's selected-state preview. */
-    if (resultsDiv) resultsDiv.innerHTML = '';
-    const selectedArea = document.getElementById("tmdb-selected-area");
-    const epInfo = totalEps > 0
-      ? `<div class="tmdb-selected-detail">${totalEps} episode${totalEps > 1 ? 's' : ''}</div>`
-      : '<div class="tmdb-selected-detail">Episode count TBD</div>';
-    if (selectedArea) {
-      selectedArea.style.display = "block";
-      selectedArea.innerHTML = `<div class="tmdb-selected">
-        ${cover ? `<img src="${escAttr(cover)}">` : ''}
-        <div class="tmdb-selected-info">
-          <div class="tmdb-selected-title">${escHtml(title)} ${year ? '(' + year + ')' : ''}</div>
-          <div class="tmdb-selected-detail">${escHtml(genres)}</div>
-          ${epInfo}
-          <button class="tmdb-clear" onclick="clearSelection()">Clear selection</button>
-        </div>
-      </div>`;
-    }
+    rememberAddShelfSelectionState(selectedTmdb, searchSnapshot);
+    renderAddShelfSelectedPreview(selectedTmdb);
     showModalStatusPicker();
     updateAddShelfModalSelectionLayout(true);
     setModalBackBtn(true);
@@ -1231,12 +1372,7 @@ async function selectJikanAnime(malId) {
 }
 
 function clearSelection() {
-  selectedTmdb = null;
-  document.getElementById("tmdb-selected-area").style.display = "none";
-  document.getElementById("tmdb-selected-area").innerHTML = "";
-  hideModalStatusPicker();
-  updateAddShelfModalSelectionLayout(false);
-  setModalBackBtn(false);
+  restoreAddShelfSearchResults();
 }
 
 const MODAL_STATUS_OPTIONS = {
@@ -1283,63 +1419,75 @@ function showModalStatusPicker() {
   if (!picker) return;
   pendingModalStatusSelection = '';
   modalAddSubmitting = false;
-  const targetSection = resolveAddShelfSelectedSection();
+  setAddShelfModalSelectionChoice({ status: '', rating: pendingModalRatingSelection });
+  const targetSection = resolveAddShelfSelectedSection(getActiveAddShelfSelectedItem());
   const options = MODAL_STATUS_OPTIONS[targetSection] || MODAL_STATUS_OPTIONS.shows;
   picker.innerHTML = `
     <div class="modal-status-label">Where do you want it?</div>
     <div class="modal-status-grid">
-      ${options.map(o => `<button class="modal-status-btn" onclick="showModalAddConfirmation('${o.status}')">${escHtml(o.label)}</button>`).join('')}
+      ${options.map(o => `<button class="modal-status-btn" type="button" onclick="showModalAddConfirmation('${o.status}')">${escHtml(o.label)}</button>`).join('')}
     </div>
   `;
   picker.style.display = "flex";
   setModalBackBtn(true, clearSelection);
 }
 
-function showModalAddConfirmation(status) {
-  if (!selectedTmdb) return;
-  pendingModalStatusSelection = status;
-  modalAddSubmitting = false;
+function renderModalAddConfirmation(status, backHandler = showModalStatusPicker) {
   const picker = document.getElementById('modal-status-picker');
-  if (!picker) return;
-  const targetSection = resolveAddShelfSelectedSection();
-  if (status === 'watched' && typeof openScreenListCompletionRatingPrompt === 'function') {
-    openScreenListCompletionRatingPrompt({
-      item: selectedTmdb,
-      section: targetSection,
-      status,
-      source: 'add-shelf-modal',
-      onApply: async (rating) => {
-        const result = await submitModal('watched', rating);
-        if (result?.ok) {
-          playLibraryAddPopSound();
-          showToast(result.message || 'Added to your library');
-          const postPromptPayload = {
-            item: result.item,
-            section: result.section,
-            status: result.status,
-            rating: Number(result.rating ?? rating ?? 0) || 0,
-            source: 'add-shelf-modal'
-          };
-          resetAddShelfModalHome();
-          closeModal();
-          if (typeof openScreenListActivityPostPrompt === 'function') {
-            window.setTimeout(() => openScreenListActivityPostPrompt(postPromptPayload), 420);
-          }
-        }
-        return result?.ok ? { ...result, promptPost: false } : result;
-      }
-    });
-    return;
-  }
+  const selectedItem = getActiveAddShelfSelectedItem();
+  if (!picker || !selectedItem) return;
+  const targetSection = resolveAddShelfSelectedSection(selectedItem);
   const statusLabel = getAddShelfStatusLabel(status, targetSection);
+  const ratingCopy = status === 'watched'
+    ? `<div class="modal-status-confirm-copy">Selected rating: <strong>${escHtml(getAddShelfModalRatingValue(pendingModalRatingSelection, targetSection))}</strong></div>`
+    : '';
+  const confirmCopy = status === 'watched'
+    ? `Add this title to <strong>${escHtml(statusLabel)}</strong> with your rating?`
+    : `Add this title to <strong>${escHtml(statusLabel)}</strong>?`;
   picker.innerHTML = `
     <div class="modal-status-label">Confirm add</div>
-    <div class="modal-status-confirm">
-      <div class="modal-status-confirm-title">${escHtml(selectedTmdb.title || 'This title')}</div>
-      <div class="modal-status-confirm-copy">Add this title to <strong>${escHtml(statusLabel)}</strong>?</div>
+    <div class="modal-status-confirm add-shelf-confirm-panel">
+      <div class="modal-status-confirm-title">Ready to add</div>
+      <div class="add-shelf-confirm-summary">
+        <span class="add-shelf-confirm-chip">${escHtml(statusLabel)}</span>
+        ${status === 'watched' ? `<span class="add-shelf-confirm-chip add-shelf-confirm-chip-rating">${escHtml(getAddShelfModalRatingValue(pendingModalRatingSelection, targetSection))}</span>` : ''}
+      </div>
+      <div class="add-shelf-confirm-readout">${escHtml(selectedItem.title || 'This title')}</div>
+      <div class="modal-status-confirm-copy">${confirmCopy}</div>
+      ${ratingCopy}
       <div class="modal-status-confirm-actions">
-        <button class="btn-secondary modal-status-confirm-back" onclick="showModalStatusPicker()">Back</button>
-        <button class="btn-primary modal-status-confirm-submit" onclick="confirmModalAdd()">Confirm</button>
+        <button class="btn-secondary modal-status-confirm-back" type="button" onclick="handleAddShelfConfirmBack()">Back</button>
+        <button class="btn-primary modal-status-confirm-submit" type="button" onclick="confirmModalAdd()">Confirm</button>
+      </div>
+    </div>
+  `;
+  picker.style.display = 'flex';
+  setModalBackBtn(true, backHandler);
+}
+
+function showModalRatingPrompt(selectedRating = pendingModalRatingSelection) {
+  const selectedItem = getActiveAddShelfSelectedItem();
+  if (!selectedItem) return;
+  pendingModalStatusSelection = 'watched';
+  modalAddSubmitting = false;
+  setAddShelfModalSelectionChoice({ status: 'watched', rating: selectedRating });
+  const picker = document.getElementById('modal-status-picker');
+  if (!picker) return;
+  const targetSection = resolveAddShelfSelectedSection(selectedItem);
+  const stars = typeof buildStandaloneRatingStarsMarkup === 'function'
+    ? buildStandaloneRatingStarsMarkup(Number(selectedRating || 0) || 0, targetSection, 'selectAddShelfModalRating')
+    : '';
+  picker.innerHTML = `
+    <div class="modal-status-label">Rate this title</div>
+    <div class="discover-rating-prompt add-shelf-rating-prompt">
+      <div class="modal-status-confirm-title">Set your rating</div>
+      <div class="add-shelf-confirm-readout">${escHtml(selectedItem.title || 'This title')}</div>
+      <div class="discover-add-desc">Choose it once here. The next screen is a read-only confirmation.</div>
+      ${stars}
+      <div class="modal-status-confirm-actions">
+        <button class="btn-secondary modal-status-confirm-back" type="button" onclick="showModalStatusPicker()">Back</button>
+        <button class="btn-secondary" type="button" onclick="skipAddShelfModalRating()">Skip</button>
+        <button class="btn-primary modal-status-confirm-submit" type="button" onclick="confirmAddShelfModalRating()" ${Number(selectedRating || 0) > 0 ? '' : 'disabled'}>Confirm</button>
       </div>
     </div>
   `;
@@ -1347,8 +1495,52 @@ function showModalAddConfirmation(status) {
   setModalBackBtn(true, showModalStatusPicker);
 }
 
+function selectAddShelfModalRating(score) {
+  const cleanScore = Math.max(0, Number(score || 0) || 0);
+  pendingModalRatingSelection = cleanScore;
+  setAddShelfModalSelectionChoice({ status: 'watched', rating: cleanScore });
+  showModalRatingPrompt(cleanScore);
+}
+
+function skipAddShelfModalRating() {
+  pendingModalRatingSelection = 0;
+  setAddShelfModalSelectionChoice({ status: 'watched', rating: 0 });
+  renderModalAddConfirmation('watched', showModalRatingPrompt);
+}
+
+function confirmAddShelfModalRating() {
+  if ((Number(pendingModalRatingSelection || 0) || 0) < 1) {
+    showToast('Pick a rating or tap Skip.');
+    return;
+  }
+  renderModalAddConfirmation('watched', showModalRatingPrompt);
+}
+
+function handleAddShelfConfirmBack() {
+  if (pendingModalStatusSelection === 'watched') {
+    showModalRatingPrompt(pendingModalRatingSelection);
+    return;
+  }
+  showModalStatusPicker();
+}
+
+function showModalAddConfirmation(status) {
+  if (!getActiveAddShelfSelectedItem()) return;
+  pendingModalStatusSelection = status;
+  if (status !== 'watched') pendingModalRatingSelection = 0;
+  modalAddSubmitting = false;
+  setAddShelfModalSelectionChoice({ status, rating: status === 'watched' ? pendingModalRatingSelection : 0 });
+  if (status === 'watched') {
+    showModalRatingPrompt(pendingModalRatingSelection);
+    return;
+  }
+  renderModalAddConfirmation(status, showModalStatusPicker);
+}
+
 async function confirmModalAdd() {
-  if (!selectedTmdb || !pendingModalStatusSelection || modalAddSubmitting) return;
+  const selectedItem = getActiveAddShelfSelectedItem();
+  const selectedStatus = addShelfModalSelectionState?.status || pendingModalStatusSelection;
+  if (!selectedItem || !selectedStatus || modalAddSubmitting) return;
   const picker = document.getElementById('modal-status-picker');
   const confirmBtn = picker?.querySelector('.modal-status-confirm-submit');
   const backBtn = picker?.querySelector('.modal-status-confirm-back');
@@ -1356,11 +1548,19 @@ async function confirmModalAdd() {
   if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'Adding...'; }
   if (backBtn) backBtn.disabled = true;
   try {
-    const result = await submitModal(pendingModalStatusSelection);
-    if (!result?.ok) return;
-    playLibraryAddPopSound();
+    const rating = selectedStatus === 'watched'
+      ? (Number(addShelfModalSelectionState?.rating ?? pendingModalRatingSelection ?? 0) || 0)
+      : 0;
+    const result = await submitModal(selectedStatus, rating, selectedItem);
+    if (!result?.ok) {
+      if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = 'Confirm'; }
+      if (backBtn) backBtn.disabled = false;
+      return;
+    }
+    triggerAddShelfSuccessFeedback();
     showToast(result.message || 'Added to your library');
-    resetAddShelfModalHome();
+    restoreAddShelfSearchResults();
+    flashAddShelfSearchMessage(result.message || 'Added to library');
   } catch (error) {
     console.error('Add to Shelf confirmation failed:', error);
     showToast('Could not add this title. Try again.');
@@ -1392,8 +1592,9 @@ function openModal() {
 }
 function closeModal() {
   document.getElementById("modal").style.display = "none";
-  resetAddTitleSelection();
+  resetAddTitleSelection({ clearSearchSnapshot: true });
   setModalBackBtn(false);
+  removeAddShelfSearchFlashMessage();
   unlockAddShelfModalBackgroundScroll();
 }
 function isDuplicateTitle(title, section, excludeId = null) {
@@ -1715,20 +1916,21 @@ async function addFriendTitleToMyList(itemId, btn, status = 'planned', rating = 
   }
 }
 
-async function submitModal(status, rating = 0) {
+async function submitModal(status, rating = 0, itemOverride = null) {
   if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return { ok: false };
-  if (!selectedTmdb) return { ok: false };
-  const targetSection = resolveAddShelfSelectedSection();
+  const selectedItem = itemOverride || getActiveAddShelfSelectedItem() || selectedTmdb;
+  if (!selectedItem) return { ok: false };
+  const targetSection = resolveAddShelfSelectedSection(selectedItem);
   const validStatuses = (MODAL_STATUS_OPTIONS[targetSection] || []).map(o => o.status);
   if (!validStatuses.includes(status)) status = getDefaultTabForSection(targetSection);
   const targetData = ownDataCache ? cloneListData(ownDataCache) : cloneListData(data);
   targetData[targetSection] = Array.isArray(targetData[targetSection]) ? targetData[targetSection] : [];
-  const isAnimeSeriesAdd = targetSection === 'anime' && (selectedTmdb.isAnime || selectedTmdb.mediaCategory === 'anime') && selectedTmdb.tmdbId;
-  const cleanedAnimeList = isAnimeSeriesAdd ? removeAnimeSeasonSplitEntries(targetData[targetSection], selectedTmdb) : targetData[targetSection];
+  const isAnimeSeriesAdd = targetSection === 'anime' && (selectedItem.isAnime || selectedItem.mediaCategory === 'anime') && selectedItem.tmdbId;
+  const cleanedAnimeList = isAnimeSeriesAdd ? removeAnimeSeasonSplitEntries(targetData[targetSection], selectedItem) : targetData[targetSection];
   const removedSplitAnimeEntries = isAnimeSeriesAdd && cleanedAnimeList.length !== targetData[targetSection].length;
   if (isAnimeSeriesAdd) targetData[targetSection] = cleanedAnimeList;
 
-  if (isDuplicateTitleInList(selectedTmdb.title, targetSection, targetData)) {
+  if (isDuplicateTitleInList(selectedItem.title, targetSection, targetData)) {
     if (removedSplitAnimeEntries) {
       await writeOwnDataDirect(targetData);
       render();
@@ -1739,51 +1941,55 @@ async function submitModal(status, rating = 0) {
 
   const item = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    title: selectedTmdb.title,
-    cover: selectedTmdb.cover,
-    igdbCoverUrl: selectedTmdb.igdbCoverUrl || '',
-    genre: selectedTmdb.genre,
-    year: selectedTmdb.year || '',
+    title: selectedItem.title,
+    cover: selectedItem.cover,
+    igdbCoverUrl: selectedItem.igdbCoverUrl || '',
+    genre: selectedItem.genre,
+    year: selectedItem.year || '',
     status,
     rating: Number(rating || 0) || 0,
     dateAdded: new Date().toISOString(),
-    imdbId: selectedTmdb.imdbId || '',
-    platforms: selectedTmdb.platforms || '',
-    metacritic: selectedTmdb.metacritic || '',
-    metacriticSlug: selectedTmdb.metacriticSlug || '',
-    rawgId: selectedTmdb.rawgId || '',
-    rawgSlug: selectedTmdb.rawgSlug || '',
-    backloggdSlug: selectedTmdb.backloggdSlug || selectedTmdb.rawgSlug || selectedTmdb.metacriticSlug || '',
-    source: selectedTmdb.source || (targetSection === 'games' ? 'rawg' : ''),
-    stores: Array.isArray(selectedTmdb.stores) ? selectedTmdb.stores : [],
-    tmdbId: selectedTmdb.tmdbId || '',
-    mediaCategory: selectedTmdb.mediaCategory || targetSection,
-    librarySection: selectedTmdb.librarySection || selectedTmdb.mediaCategory || targetSection,
-    originalTitle: selectedTmdb.originalTitle || '',
-    originalLanguage: selectedTmdb.originalLanguage || '',
-    originCountries: Array.isArray(selectedTmdb.originCountries) ? selectedTmdb.originCountries : [],
-    genreNames: Array.isArray(selectedTmdb.genreNames) ? selectedTmdb.genreNames : [],
-    isAnime: (selectedTmdb.mediaCategory || '') === 'anime',
-    titleVariants: normalizeAnimeTitleVariants(selectedTmdb.titleVariants, selectedTmdb.title || ''),
-    englishTitle: selectedTmdb.englishTitle || selectedTmdb.titleVariants?.english || '',
-    romajiTitle: selectedTmdb.romajiTitle || selectedTmdb.titleVariants?.romaji || '',
-    japaneseTitle: selectedTmdb.japaneseTitle || selectedTmdb.titleVariants?.japanese || '',
+    imdbId: selectedItem.imdbId || '',
+    platforms: selectedItem.platforms || '',
+    metacritic: selectedItem.metacritic || '',
+    metacriticSlug: selectedItem.metacriticSlug || '',
+    rawgId: selectedItem.rawgId || '',
+    rawgSlug: selectedItem.rawgSlug || '',
+    backloggdSlug: selectedItem.backloggdSlug || selectedItem.rawgSlug || selectedItem.metacriticSlug || '',
+    source: selectedItem.source || (targetSection === 'games' ? 'rawg' : ''),
+    stores: Array.isArray(selectedItem.stores) ? selectedItem.stores : [],
+    tmdbId: selectedItem.tmdbId || '',
+    mediaCategory: selectedItem.mediaCategory || targetSection,
+    librarySection: selectedItem.librarySection || selectedItem.mediaCategory || targetSection,
+    originalTitle: selectedItem.originalTitle || '',
+    originalLanguage: selectedItem.originalLanguage || '',
+    originCountries: Array.isArray(selectedItem.originCountries) ? selectedItem.originCountries : [],
+    genreNames: Array.isArray(selectedItem.genreNames) ? selectedItem.genreNames : [],
+    isAnime: (selectedItem.mediaCategory || '') === 'anime',
+    titleVariants: normalizeAnimeTitleVariants(selectedItem.titleVariants, selectedItem.title || ''),
+    englishTitle: selectedItem.englishTitle || selectedItem.titleVariants?.english || '',
+    romajiTitle: selectedItem.romajiTitle || selectedItem.titleVariants?.romaji || '',
+    japaneseTitle: selectedItem.japaneseTitle || selectedItem.titleVariants?.japanese || '',
+    nextEpisodeAirDate: selectedItem.nextEpisodeAirDate || '',
+    next_episode_to_air: selectedItem.next_episode_to_air || null,
   };
-  if (isShowSection(targetSection) && selectedTmdb.episodes) {
-    item.totalEpisodes = selectedTmdb.totalEpisodes;
-    item.episodes = selectedTmdb.episodes.map((ep, i) => ({
+  if (isShowSection(targetSection) && selectedItem.episodes) {
+    item.totalEpisodes = selectedItem.totalEpisodes;
+    item.episodes = selectedItem.episodes.map((ep, i) => ({
       id: item.id + '-ep-' + (i + 1),
       number: ep.number,
       seasonNum: ep.seasonNum,
       seasonName: ep.seasonName || '',
       epNum: ep.epNum,
       title: ep.title,
+      airDate: ep.airDate || ep.air_date || '',
+      air_date: ep.air_date || ep.airDate || '',
       cover: ep.cover || '',
       watched: status === 'watched',
       rating: 0,
     }));
-    if (Array.isArray(selectedTmdb.animeSeasonItems) && selectedTmdb.animeSeasonItems.length) {
-      item.seasonsInfo = selectedTmdb.animeSeasonItems.map(season => ({
+    if (Array.isArray(selectedItem.animeSeasonItems) && selectedItem.animeSeasonItems.length) {
+      item.seasonsInfo = selectedItem.animeSeasonItems.map(season => ({
         seasonNum: season.seasonNum || season.season_number || 0,
         season_number: season.season_number || season.seasonNum || 0,
         name: season.name || '',

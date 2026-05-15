@@ -1556,6 +1556,51 @@ body.light-mode .game-platform-option:active {
   flex-shrink: 0;
 }
 
+#mylist-view .watchlist-priority-slot {
+  min-height: 28px;
+  min-width: 68px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(5,5,10,0.72);
+  border: 1px solid rgba(255,255,255,0.16);
+  color: rgba(232,227,243,0.76);
+  font-family: 'Sohne', 'DM Sans', sans-serif;
+  font-size: 9.5px;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+#mylist-view .watchlist-priority-slot span {
+  pointer-events: none;
+}
+#mylist-view .watchlist-priority-input {
+  width: 24px;
+  min-width: 24px;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  background: transparent;
+  color: #fbbf24;
+  font: 800 11px/1 'Sohne', 'DM Sans', sans-serif;
+  text-align: center;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+#mylist-view .watchlist-priority-input::-webkit-outer-spin-button,
+#mylist-view .watchlist-priority-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+#mylist-view .watchlist-priority-input::placeholder {
+  color: rgba(232,227,243,0.42);
+}
+
 #mylist-view .card-action-row .comments-btn,
 #mylist-view .card-action-row .ep-toggle-bar.card-footer-btn,
 #mylist-view .game-library-card .comments-btn,
@@ -1617,6 +1662,17 @@ body.light-mode #mylist-view .game-details-expand-btn {
   background: rgba(124,58,237,0.08) !important;
   border-color: rgba(124,58,237,0.22) !important;
   color: #4c1d95 !important;
+}
+body.light-mode #mylist-view .watchlist-priority-slot {
+  background: rgba(124,58,237,0.06);
+  border-color: rgba(124,58,237,0.18);
+  color: rgba(55,43,86,0.76);
+}
+body.light-mode #mylist-view .watchlist-priority-input {
+  color: #b45309;
+}
+body.light-mode #mylist-view .watchlist-priority-input::placeholder {
+  color: rgba(55,43,86,0.36);
 }
 
 @media (max-width: 700px) {
@@ -2333,22 +2389,18 @@ body.screenlist-game-cover-picker-open { overflow: hidden !important; }
    instead of opening the edit modal). Native button = reliable clicks
    on iOS Safari + PWA. Below resets all native button styling so it
    still renders as flat text in line with the rest of the card. */
-/* v850: flex-fill the entire action row, ending 5px before the
-   right-controls cluster. Earlier attempts (v848 `flex: 1 1 0`, v849
-   `flex: 1 1 auto`) didn't grow because the parent's
-   `justify-content: space-between !important` prevented the flex
-   distribution from giving leftover space to the comment. Using
-   `:has()` to switch the action-row to `flex-start` only when a
-   comment is present + `margin-left: auto` on the right-controls
-   pushes the controls right and lets the comment claim all the
-   horizontal space between the poster padding and the controls. */
+/* v851: posted comment now lives in the card body above the action row.
+   This keeps it out of the footer flex row so buttons/overlays cannot cover
+   or squeeze it out of view. */
 #mylist-view .card-comment-body {
-  display: inline-flex;
+  position: relative;
+  z-index: 2;
+  display: flex;
   align-items: center;
   padding: 0;
-  margin: 0;
-  flex: 1 1 0;
-  min-width: 0;
+  margin: 9px 0 0;
+  width: 100%;
+  min-width: 100%;
   max-width: 100%;
   color: #ffffff;
   font-family: 'Sohne', 'DM Sans', sans-serif;
@@ -2373,28 +2425,16 @@ body.screenlist-game-cover-picker-open { overflow: hidden !important; }
   word-break: normal;
   overflow-wrap: normal;
 }
-/* v850: when the action row contains a comment body, switch its flex
-   distribution from space-between to flex-start, push the right-controls
-   right via auto-margin, and reserve a 5px gap between the comment's
-   right edge and the right-controls (Episodes button). */
-#mylist-view .card-action-row:has(.card-comment-body) {
-  justify-content: flex-start !important;
-  gap: 5px !important;
-}
-#mylist-view .card-action-row:has(.card-comment-body) .card-right-controls {
-  margin-left: auto !important;
-}
 /* When the owner-edit element is rendered as a <button>, kill the
    native UA button look so it visually matches the read-only <div>.
-   v848: no margin-right:auto (flex:1 on the base rule already claims
-   the full available row width). */
+   The posted comment is no longer inside the action row. */
 button.card-comment-body,
 #mylist-view button.card-comment-body {
   appearance: none;
   -webkit-appearance: none;
   background: transparent;
   border: 0;
-  margin: 0;
+  margin: 9px 0 0;
   text-align: left;
   font: inherit;
   color: inherit;
@@ -2443,6 +2483,7 @@ button.card-comment-body,
     font-weight: 300;
     opacity: 0.9;
     padding: 0;
+    margin-top: 8px;
   }
   #mylist-view .card-action-row .card-comment-add-btn { width: 30px; height: 30px; min-width: 30px; min-height: 30px; }
   #mylist-view .card-action-row .card-comment-add-btn svg { width: 15px; height: 15px; }

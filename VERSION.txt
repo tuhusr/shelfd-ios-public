@@ -1,1 +1,1 @@
-v995_2026-05-14_friend_requests_rules_safe
+v10.38_2026-05-15_add_shelf_flow_modernize
