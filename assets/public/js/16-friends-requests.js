@@ -705,7 +705,13 @@ function updateRequestsBadges() {
     0
   ) || 0;
   const requestTabTotal = friendIncomingTotal + sharedWatchIncomingTotal;
-  const communityAlertTotal = requestTabTotal + directMessageTotal;
+  /* v10.281: include activity-notification unread count in the bottom-nav
+     alert total. Previously the nav badge only lit up for friend requests,
+     watch-together requests, and DMs — likes/comments on the user's own
+     posts (which produce `activity_like` / `activity_comment` notifications)
+     went undetected by the bottom nav. Now the community icon shows the
+     red dot for any of these. */
+  const communityAlertTotal = requestTabTotal + directMessageTotal + activityNotificationTotal;
   const requestsTab = document.getElementById('ftab-requests');
 
   if (tabBadge) {
@@ -2740,16 +2746,24 @@ function syncViewingUserHeaderBackButton(enabled = false) {
   if (!importBtn) return;
   if (enabled) {
     if (!importBtn.dataset.defaultLabel) importBtn.dataset.defaultLabel = importBtn.textContent || 'Import';
+    if (!importBtn.dataset.defaultHtml) importBtn.dataset.defaultHtml = importBtn.innerHTML || '';
     if (!importBtn.dataset.defaultTitle) importBtn.dataset.defaultTitle = importBtn.getAttribute('title') || '';
     if (!importBtn.dataset.defaultAriaLabel) importBtn.dataset.defaultAriaLabel = importBtn.getAttribute('aria-label') || '';
     if (!importBtn.dataset.defaultOnclick) importBtn.dataset.defaultOnclick = importBtn.getAttribute('onclick') || 'openImportPage()';
-    importBtn.textContent = 'Back';
+    /* v10.266: instead of just text-swapping the cyan Import pill, also add
+       a back-mode class so the CSS in 17-auth-flow-setup.css overrides the
+       cyan look + renders a chevron + "Back" label matching the standard
+       Shelfd back button (.profile-back-btn) elsewhere in the app. */
+    importBtn.innerHTML = '<svg class="header-back-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4.5 3.5 10 9 15.5"></path><path d="M16.5 10H4"></path></svg><span class="header-back-label">Back</span>';
+    importBtn.classList.add('header-import-btn--back-mode');
     importBtn.setAttribute('title', 'Go back');
     importBtn.setAttribute('aria-label', 'Go back');
     importBtn.setAttribute('onclick', 'backToMyList()');
     return;
   }
-  if (importBtn.dataset.defaultLabel) importBtn.textContent = importBtn.dataset.defaultLabel;
+  importBtn.classList.remove('header-import-btn--back-mode');
+  if (importBtn.dataset.defaultHtml) importBtn.innerHTML = importBtn.dataset.defaultHtml;
+  else if (importBtn.dataset.defaultLabel) importBtn.textContent = importBtn.dataset.defaultLabel;
   if (Object.prototype.hasOwnProperty.call(importBtn.dataset, 'defaultTitle')) {
     if (importBtn.dataset.defaultTitle) importBtn.setAttribute('title', importBtn.dataset.defaultTitle);
     else importBtn.removeAttribute('title');

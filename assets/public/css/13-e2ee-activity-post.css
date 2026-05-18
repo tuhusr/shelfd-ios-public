@@ -1577,11 +1577,14 @@ body.mylist-settings-open {
 
 
 .mylist-settings-import-box {
-  border: 1px solid rgba(239,68,68,0.78);
+  /* v10.287: red outline + tinted background removed. Was a visual nudge
+     while the panel was new — no longer wanted now that Tracker.gg is
+     gone and only one Import row sits in this box. */
+  border: 0;
   border-radius: 13px;
   padding: 8px 10px;
-  background: rgba(239,68,68,0.035);
-  box-shadow: inset 0 0 0 1px rgba(127,29,29,0.16);
+  background: transparent;
+  box-shadow: none;
 }
 .mylist-settings-milky-divider {
   height: 1px;

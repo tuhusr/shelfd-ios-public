@@ -6,7 +6,7 @@
    bump, the SW bytes were byte-identical across deploys, no new install
    happened, and PWAs sat on stale JS until the user manually deleted
    and re-added the home-screen app. */
-const CACHE = 'shelfd-v10-263-fpreview-composer-palette';
+const CACHE = 'shelfd-v10-295-dm-topbar-capacitor-fix';
 const DISCOVER_POSTER_CACHE = 'screenlist-discover-posters-v1';
 const MYLIST_POSTER_CACHE = 'screenlist-mylist-posters-v1';
 

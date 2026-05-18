@@ -1231,6 +1231,37 @@ body.main-tab-discover .edit-profile-btn {
   display: none !important;
 }
 
+/* v10.276: tighten the top/bottom padding on .header.
+   Default is 24px top + 24px bottom, which combined with the iOS Dynamic
+   Island safe-area-inset-top (~59px) created ~80+px of empty space above
+   the Import / Logo / Search row. Dropping the header's own padding to
+   4px each side pulls the row way up under the status bar with no
+   functional change — safe-area-inset is still respected on body.
+   v10.277: extended from main-tab-discover only → all top-level tabs
+   (Discover, Community, MyList) so the entire app's header sits at the
+   same tight position. */
+body.main-tab-discover .header,
+body.main-tab-community .header,
+body.main-tab-mylist .header {
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+}
+
+/* v10.280: pull content closer to the header. The default
+   `.main-content { padding: 20px 20px 60px }` adds 20px of empty space
+   right under the header. Drop it to 6px on Discover + Community.
+   MyList is unchanged.
+   v10.281: reverted the sticky-header positioning that lived here in
+   v10.280 — user only wanted the iOS native top safe-area bar (which
+   is already stationary because it sits outside the WebView in
+   Capacitor's `contentInset: "always"` mode) to be stationary, NOT the
+   in-page Import/Shelfd/search row. Sticky positioning removed.
+   The .main-content padding tightening stays. */
+body.main-tab-discover .main-content,
+body.main-tab-community .main-content {
+  padding-top: 6px !important;
+}
+
 @media (max-width: 700px) {
   body.main-tab-discover .header-top,
   body.main-tab-community .header-top {

@@ -2,10 +2,25 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html {
     scrollbar-width: none;
+    /* v10.278: bounce/rubber-band scrolling. `overscroll-behavior-y: auto` is the
+       default but we set it explicitly to defend against any inherited
+       suppression elsewhere in the stylesheet stack. */
+    overscroll-behavior-y: auto;
   }
   html::-webkit-scrollbar { display: none; }
   body {
-    min-height: 100vh;
+    /* v10.278: was 100vh — bumped to 100vh + 1px so the body always has at
+       least 1px of overflow. iOS WKWebView only bounces if content
+       overflows (default `alwaysBounceVertical: false`), so on short pages
+       (Notifications empty state, login, etc.) bounce wouldn't engage.
+       1px extra is invisible to the eye but enough for iOS to enable the
+       rubber-band gesture at both top and bottom. Long pages already
+       overflow more than this so behavior is unchanged for them.
+       For a more polished feel, the iOS native side should also set
+       `webView.scrollView.alwaysBounceVertical = true` in ViewController.swift. */
+    min-height: calc(100vh + 1px);
+    overscroll-behavior-y: auto;
+    -webkit-overflow-scrolling: touch;
     /* v482: furthest-back page background changed to #0E0E0E (neutral grey).
        Cards and panels retain their own darker surfaces so they float on
        this grey base. Light mode overrides this via body.light-mode in

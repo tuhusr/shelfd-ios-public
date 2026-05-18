@@ -1,5 +1,5 @@
 {
-  "appId": "com.myscreenlist.app",
+  "appId": "com.myshelfd.app",
   "appName": "Shelfd",
   "webDir": "assets/public",
   "server": {
@@ -7,15 +7,18 @@
     "cleartext": false
   },
   "ios": {
-    "contentInset": "always"
+    "contentInset": "never",
+    "backgroundColor": "#0E0E0E",
+    "appendUserAgent": " ShelfdNativeNoInset"
   },
+  "backgroundColor": "#0E0E0E",
   "plugins": {
     "PushNotifications": {
       "presentationOptions": ["badge", "sound", "alert"]
     },
     "StatusBar": {
       "style": "dark",
-      "backgroundColor": "#050410"
+      "backgroundColor": "#0E0E0E"
     }
   }
 }

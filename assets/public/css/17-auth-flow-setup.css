@@ -800,3 +800,535 @@ body.guest-browsing-mode .user-avatar {
    was redundant AND actively harmful. Class name kept so any future
    per-panel rules can still hook off body.shelfd-auth-page-open. */
 body.shelfd-auth-page-open { /* no-op intentionally — see comment above */ }
+
+/* ============================================================================
+   v10.283 → v10.284 (fixed): sticky top strip covering the Dynamic Island
+   ----------------------------------------------------------------------------
+   v10.284 fix: cap the strip's height so it can't accidentally render
+   larger than the actual dynamic island. The old `height: env(safe-area-inset-top)`
+   visually combined with body's own `padding-top: env(safe-area-inset-top)`
+   in standalone mode, so the dark area at scroll-0 looked twice as tall as
+   it should — then "shrank" when the body's padding scrolled away.
+   The fix:
+     1. Cap the strip at a fixed pixel height (max 60px). The strip is now
+        height: max(50px, env(safe-area-inset-top, 50px)) — never larger.
+     2. Override body's `padding-top: env(safe-area-inset-top)` to 0 in
+        Capacitor / standalone modes so it doesn't visually stack with the
+        strip.
+   Content remains visible because main page-level wrappers carry their own
+   top spacing — body padding was redundant. */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: max(0px, env(safe-area-inset-top, 0px));
+  max-height: 60px;
+  background: #0E0E0E;
+  z-index: 99998;
+  pointer-events: none;
+}
+body.light-mode::before {
+  background: #ffffff;
+}
+/* v10.284: stop body padding from stacking with the fixed strip — both
+   shared the safe-area-inset-top value and both rendered #0E0E0E, so at
+   scroll-0 the dark area at top looked double-height. The strip alone is
+   enough. */
+@media (display-mode: standalone) {
+  body { padding-top: 0 !important; }
+}
+
+/* ============================================================================
+   v10.294 — Capacitor TestFlight: kill ALL redundant top-padding layers
+   ----------------------------------------------------------------------------
+   When the app runs inside Capacitor's WKWebView on iOS, the native shell
+   ALREADY covers the Dynamic Island / safe area zone (outside the WebView).
+   Capacitor's `contentInset: "always"` positions the WebView so its content
+   starts BELOW the Dynamic Island. There is nothing to "cover" with a CSS
+   strip — but env(safe-area-inset-top) inside the WebView STILL returns
+   the full screen safe-area inset (~59px), so:
+     - `body { padding-top: env(safe-area-inset-top) }` pushes content
+       DOWN by another 59px (already inset by the WebView)
+     - `body::before` fixed strip overlays another 59px on top
+   Result: 3 stacked dark zones (native shell + my strip + body padding)
+   that visually merge into a 150-200px dark area at the top of the page,
+   cutting into avatar / content.
+   Killing both the body padding-top and the body::before strip in
+   Capacitor mode collapses this to JUST the native shell layer — exactly
+   "ends just below the Dynamic Island," which is what the user wants.
+   The 4-attempt history of patches missed this because each patch tried
+   to capture the strip via env() rather than recognizing the WebView is
+   already inset and needs no CSS strip at all. */
+html.shelfd-capacitor-ios body {
+  padding-top: 0 !important;
+}
+html.shelfd-capacitor-ios body::before {
+  display: none !important;
+  height: 0 !important;
+}
+
+/* v10.295: DM page top-padding fix for Capacitor.
+   The .direct-messages-topbar still had `padding-top: calc(env(safe-area-inset-top) + 4px)`
+   from v10.284. In Capacitor, env(safe-area-inset-top) inside the WebView
+   still returns the full screen safe area (~59px), even though the WebView
+   is physically positioned below the Dynamic Island. That added ~63px of
+   padding inside the topbar AFTER the native shell had already covered
+   the Dynamic Island — pushing the "Messages" title way down the page.
+   In Capacitor, the safe-area is already handled at the WebView level —
+   so the topbar's padding-top should NOT add env() on top. Drop to a
+   constant 4px, and pin the --dm-main-topbar-h variable to 52px so the
+   topbar is exactly as tall as its content. */
+html.shelfd-capacitor-ios .direct-messages-topbar {
+  padding-top: 4px !important;
+}
+html.shelfd-capacitor-ios .direct-messages-page {
+  --dm-main-topbar-h: 52px !important;
+  --dm-thread-topbar-h: 56px !important;
+}
+
+/* v10.296: TestFlight DM inbox header realignment.
+   v10.295 had the right idea, but it lost to the later true-dark selector:
+   `#direct-messages-page:not(.dm-thread-open) .direct-messages-topbar`.
+   Match and exceed that specificity in Capacitor only so the native iOS
+   WebView starts the inbox directly below the Dynamic Island instead of
+   stacking another safe-area-sized header inside the page. */
+html.shelfd-capacitor-ios #direct-messages-page:not(.dm-thread-open) {
+  --dm-main-topbar-h: 58px !important;
+}
+html.shelfd-capacitor-ios #direct-messages-page:not(.dm-thread-open) .direct-messages-topbar {
+  min-height: var(--dm-main-topbar-h) !important;
+  height: var(--dm-main-topbar-h) !important;
+  padding: 5px 13px 7px !important;
+  align-items: center !important;
+  grid-template-columns: 44px minmax(0, 1fr) 44px !important;
+}
+html.shelfd-capacitor-ios #direct-messages-page:not(.dm-thread-open) .direct-messages-close,
+html.shelfd-capacitor-ios #direct-messages-page:not(.dm-thread-open) .direct-messages-new-btn {
+  align-self: center !important;
+  margin: 0 !important;
+}
+html.shelfd-capacitor-ios #direct-messages-page:not(.dm-thread-open) .direct-messages-title-wrap {
+  align-self: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+}
+html.shelfd-capacitor-ios #direct-messages-page:not(.dm-thread-open) .direct-messages-content {
+  height: calc(100dvh - var(--dm-main-topbar-h)) !important;
+  padding-top: 4px !important;
+}
+
+/* ============================================================================
+   v10.283 — Force the 3 Activity sub-tabs onto ONE row
+   ----------------------------------------------------------------------------
+   11-patch-notes-friends-refinements.css line 279-285 set
+   `.activity-feed-actions { flex-wrap: wrap !important; }` which forces the
+   pills onto multiple lines when `display: flex` is in effect.
+   16-light-mode-contrast.css line 4700 tries to fix this with
+   `display: grid; grid-template-columns: repeat(3, 1fr)`, but that rule is
+   scoped behind `body.main-tab-community:not(.shelfd-friends-list-mode)`,
+   which can fail to apply in some navigation states (especially while
+   transitioning sub-tabs). The result is wrap re-appears.
+   This rule beats both by using a higher specificity selector chain
+   (#community-view #activity-tab-view .activity-feed-actions) WITHOUT the
+   :not() condition, so the grid layout applies unconditionally.
+   ============================================================================ */
+#community-view #activity-tab-view .activity-feed-actions {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  flex-wrap: nowrap !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  gap: clamp(4px, 1.4vw, 10px) !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  white-space: nowrap !important;
+}
+#community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* v10.285: unify the three pill colors — active = white + purple underline,
+   inactive = gray (matches the Shared Watch styling the user liked).
+   Previously some pills were purple-tinted when active or had different
+   font weights. This applies the same treatment to all three regardless
+   of active/secondary class. */
+#community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill,
+#community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill.secondary,
+#community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill.activity-feed-pill,
+#community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill.notifications-tab-pill,
+#community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill.shared-watch-tab-pill {
+  color: rgba(244, 244, 246, 0.55) !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  transition: color 200ms ease, border-color 200ms ease;
+}
+#community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill.active,
+#community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill.activity-feed-pill.active,
+#community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill.notifications-tab-pill.active,
+#community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill.shared-watch-tab-pill.active {
+  color: #ffffff !important;
+  background: transparent !important;
+  border-bottom: 2px solid rgba(167, 139, 250, 0.95) !important;
+  font-weight: 700 !important;
+}
+/* Light-mode mirror */
+body.light-mode #community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill {
+  color: rgba(23, 23, 27, 0.5) !important;
+}
+body.light-mode #community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill.active {
+  color: #17171b !important;
+  border-bottom-color: rgba(124, 58, 237, 0.95) !important;
+}
+
+/* ============================================================================
+   v10.283 — Direct Messages inbox: shift content up + remove divider
+   ----------------------------------------------------------------------------
+   The DM inbox page has too much empty space above the "Messages" title and
+   a divider line under it that user explicitly wants removed. Targets the
+   top safe-area padding and the divider element. The line-row redesign is
+   queued for a separate deploy.
+   ============================================================================ */
+/* v10.284: DM inbox top padding overhaul. The existing
+   .direct-messages-topbar (in 09-direct-messages.css:1208) used
+   `padding: calc(env(safe-area-inset-top, 0px) + 34px) 16px 15px`. On a
+   dynamic-island iPhone that's 59 + 34 = 93px of top padding INSIDE a 108px
+   tall topbar — so the "Messages" title sat low and a huge empty zone
+   appeared at the top of the page. Drop the +34 to +4 so the title sits
+   right under the safe area / Dynamic Island. Also tightens the topbar's
+   total height so the chat rows below it sit higher. */
+.direct-messages-topbar {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 4px) !important;
+  padding-bottom: 8px !important;
+  min-height: 56px !important;
+  height: auto !important;
+}
+.direct-messages-page .direct-messages-header::after,
+#direct-messages-page .direct-messages-header::after,
+.direct-messages-page .direct-messages-divider,
+#direct-messages-page .direct-messages-divider {
+  display: none !important;
+}
+.direct-messages-page,
+#direct-messages-page {
+  padding-top: 0 !important;
+}
+
+/* v10.286: kill the giant empty "black footer" zone above the composer in
+   DM chat. Three things were stacking to create it:
+     1. .direct-messages-page::after — a fade gradient pseudo-element
+        positioned ~70-104px above the bottom of the screen, drawn as a
+        black-to-transparent gradient. Visually reads as a solid bar near
+        the composer.
+     2. .direct-messages-content's `padding-bottom: env(safe-area-inset-bottom)
+        + 88px` — pushes message list content 88px+ above the actual bottom
+        edge to make room for the fixed composer. Combined with the composer
+        being at safe-area-inset-bottom only, this leaves a 50+px solid
+        background zone right above the composer.
+     3. The composer in v75 layout (line 1303) overrode an older rule that
+        positioned it 84px above bottom — but the 84px assumption baked into
+        the gradient + padding remained.
+   This block removes the gradient, tightens the bottom padding on the
+   message list so messages sit closer to the composer, and ensures the
+   composer is at the very bottom edge so the visible chat surface fills
+   the entire screen below the topbar. */
+.direct-messages-page::after,
+#direct-messages-page::after {
+  display: none !important;
+}
+.direct-messages-page.dm-thread-open .dm-message-list,
+#direct-messages-page.dm-thread-open .dm-message-list {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 64px) !important;
+}
+.direct-messages-page .dm-compose-row,
+#direct-messages-page .dm-compose-row {
+  bottom: env(safe-area-inset-bottom, 0px) !important;
+  z-index: 9999 !important;
+}
+
+/* v10.289: DM inbox flat-row "Shelfd line UI" — strip card chrome from
+   chat rows so they look like simple list items instead of bubble cards.
+   The user wants the inbox to match the rest of Shelfd's flat-row design
+   pattern (friends list, etc.). Border, gradient bg, big shadow, and
+   backdrop-filter all removed. Padding kept so touch targets stay
+   comfortable. A subtle bottom hairline divider replaces the boxed look
+   so rows still feel separated. */
+.direct-messages-page .dm-chat-row,
+#direct-messages-page .dm-chat-row {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+body.light-mode .direct-messages-page .dm-chat-row,
+body.light-mode #direct-messages-page .dm-chat-row {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+  background: transparent !important;
+  background-image: none !important;
+}
+
+/* ============================================================================
+   v10.266 — Friend-profile back button (replaces the cyan Import pill)
+   ----------------------------------------------------------------------------
+   When the user is viewing another user's profile, 16-friends-requests.js's
+   `syncViewingUserHeaderBackButton(true)` repurposes the header Import button
+   as a Back button. Previously it kept its cyan Import styling, which felt
+   like the wrong affordance for "go back". Now we add a back-mode class that
+   overrides the cyan look with a clean chevron + "Back" label that matches
+   the standard .profile-back-btn elsewhere in the app.
+   ============================================================================ */
+.header-import-btn.header-import-btn--back-mode {
+  /* Override the cyan Import pill colors. !important is needed because the
+     base .header-import-btn styles use specificity from body.main-tab-*
+     selectors that would otherwise win. */
+  background: rgba(255, 255, 255, 0.06) !important;
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  background-image: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  color: #f4f4f6 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  padding: 7px 12px !important;
+  border-radius: 999px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em !important;
+  white-space: nowrap !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  /* Beat any hover/active glow rules from the cyan import variant. */
+  transform: none !important;
+}
+.header-import-btn.header-import-btn--back-mode:hover,
+.header-import-btn.header-import-btn--back-mode:active,
+.header-import-btn.header-import-btn--back-mode:focus {
+  background: rgba(255, 255, 255, 0.10) !important;
+  background-color: rgba(255, 255, 255, 0.10) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  color: #ffffff !important;
+}
+.header-import-btn.header-import-btn--back-mode .header-back-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  display: inline-block;
+  vertical-align: middle;
+}
+.header-import-btn.header-import-btn--back-mode .header-back-label {
+  font-size: 13px;
+  line-height: 1;
+}
+/* Light mode override — match the dark-mode aesthetic of subtle / not-cyan. */
+body.light-mode .header-import-btn.header-import-btn--back-mode {
+  background: rgba(0, 0, 0, 0.06) !important;
+  background-color: rgba(0, 0, 0, 0.06) !important;
+  border: 1px solid rgba(0, 0, 0, 0.14) !important;
+  color: #17171b !important;
+}
+body.light-mode .header-import-btn.header-import-btn--back-mode:hover,
+body.light-mode .header-import-btn.header-import-btn--back-mode:active {
+  background: rgba(0, 0, 0, 0.10) !important;
+  background-color: rgba(0, 0, 0, 0.10) !important;
+  border-color: rgba(0, 0, 0, 0.22) !important;
+}
+
+/* ----------------------------------------------------------------------------
+   v10.267 — Belt-and-suspenders: kill all remaining cyan tints on the
+   friend-profile/MyList view. There are 4 places cyan can leak through:
+
+     1. .header-import-btn when viewing-other-user is active, regardless of
+        whether 16-friends-requests.js has stamped --back-mode on it yet
+        (covers the "device cache still on old SW" race).
+     2. The "View Profile" button (.back-btn.profile-view-btn) — has its own
+        explicit lavender style but if that fails for any reason, the base
+        cyan .back-btn rule leaks through.
+     3. The "View Tier List" button (.back-btn.friend-list-tier-btn).
+     4. The "Direct Message" button (.back-btn.friend-list-dm-btn).
+
+   We override ALL .back-btn instances inside .friend-list-viewing-banner
+   that DON'T have a more specific style applied via their secondary class.
+   The :not() guards on the specific-action buttons make sure we don't
+   accidentally clobber the lavender View Profile / outlined Tier List / DM
+   styles those buttons get from their own per-class rules elsewhere.
+   ---------------------------------------------------------------------------- */
+body.viewing-other-user .header-import-btn,
+body.viewing-other-user .header-import-btn:hover,
+body.viewing-other-user .header-import-btn:active,
+body.viewing-other-user .header-import-btn:focus {
+  background: rgba(255, 255, 255, 0.06) !important;
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  background-image: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  color: #f4f4f6 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+body.viewing-other-user .header-import-btn:hover,
+body.viewing-other-user .header-import-btn:active {
+  background: rgba(255, 255, 255, 0.10) !important;
+  background-color: rgba(255, 255, 255, 0.10) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+/* Friend banner's plain .back-btn (no specific action class) — neutral pill */
+body.viewing-other-user .friend-list-viewing-banner .back-btn {
+  /* Strip the cyan from 02-comments-login-theme.css's .back-btn rule. */
+  border-color: rgba(255, 255, 255, 0.16) !important;
+}
+
+/* Light mode mirror for the same belt-and-suspenders */
+body.light-mode.viewing-other-user .header-import-btn {
+  background: rgba(0, 0, 0, 0.06) !important;
+  background-color: rgba(0, 0, 0, 0.06) !important;
+  background-image: none !important;
+  border: 1px solid rgba(0, 0, 0, 0.14) !important;
+  color: #17171b !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+/* ============================================================================
+   v10.266 — Edge-swipe-back gesture visual feedback
+   ----------------------------------------------------------------------------
+   When the user starts a swipe from the left edge, 31-edge-swipe-back.js
+   shows a thin sliding indicator so the gesture is discoverable and gives
+   visual confirmation that the back gesture is being recognized. The
+   indicator follows the finger's X delta until release.
+   ============================================================================ */
+.shelfd-edge-swipe-indicator {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(90deg, rgba(167,139,250,0.85), rgba(167,139,250,0));
+  pointer-events: none;
+  z-index: 2147483646;
+  transform: translateX(-100%);
+  opacity: 0;
+  transition: opacity 160ms ease;
+  will-change: transform, opacity;
+}
+.shelfd-edge-swipe-indicator.is-active {
+  opacity: 1;
+  transition: opacity 80ms ease;
+}
+.shelfd-edge-swipe-indicator.is-snapping-back {
+  transition: transform 220ms cubic-bezier(0.33, 1, 0.68, 1), opacity 220ms ease;
+  opacity: 0;
+}
+
+/* ============================================================================
+   v10.299 - Universal fixed app-shell header
+   ----------------------------------------------------------------------------
+   The shared Shelfd header now pins to the visual viewport instead of relying
+   on sticky flow. Current TestFlight builds with Capacitor contentInset:always
+   keep CSS safe-area padding at 0 to avoid double inset. Re-archived builds
+   with the ShelfdNativeNoInset UA marker manage the safe area in CSS.
+   ============================================================================ */
+:root {
+  --shelfd-sticky-header-safe-top: 0px;
+  --shelfd-sticky-header-surface: #0E0E0E;
+  --shelfd-sticky-header-offset: 58px;
+}
+
+@media (display-mode: standalone) {
+  html:not(.shelfd-capacitor-ios) {
+    --shelfd-sticky-header-safe-top: env(safe-area-inset-top, 0px);
+  }
+}
+
+html.shelfd-capacitor-ios {
+  --shelfd-sticky-header-safe-top: 0px;
+}
+
+html.shelfd-capacitor-no-inset,
+html.shelfd-capacitor-ios.shelfd-capacitor-no-inset {
+  --shelfd-sticky-header-safe-top: env(safe-area-inset-top, 0px);
+}
+
+#app-container > .header {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 2050 !important;
+  width: 100% !important;
+  background: var(--shelfd-sticky-header-surface) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.28) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transform: translateZ(0);
+}
+
+body:not(.profile-active):not(.import-page-active):not(.steam-sync-page-active) #app-container {
+  padding-top: calc(var(--shelfd-sticky-header-safe-top) + var(--shelfd-sticky-header-offset)) !important;
+}
+
+body.main-tab-discover #app-container > .header,
+body.main-tab-community #app-container > .header,
+body.main-tab-mylist #app-container > .header,
+body.true-dark-mode #app-container > .header,
+body.light-mode #app-container > .header {
+  background: var(--shelfd-sticky-header-surface) !important;
+}
+
+@media (max-width: 700px) {
+  #app-container > .header,
+  body.main-tab-discover #app-container > .header,
+  body.main-tab-community #app-container > .header,
+  body.main-tab-mylist #app-container > .header {
+    padding-top: calc(var(--shelfd-sticky-header-safe-top) + 4px) !important;
+    padding-bottom: 4px !important;
+  }
+}
+
+@media (min-width: 701px) {
+  :root {
+    --shelfd-sticky-header-offset: 82px;
+  }
+
+  #app-container > .header,
+  body.main-tab-discover #app-container > .header,
+  body.main-tab-community #app-container > .header,
+  body.main-tab-mylist #app-container > .header {
+    padding-top: calc(var(--shelfd-sticky-header-safe-top) + 14px) !important;
+    padding-bottom: 10px !important;
+  }
+}
+
+.profile-topbar,
+.profile-settings-topbar,
+.mylist-media-review-topbar,
+.import-topbar,
+.steam-sync-shell .import-topbar {
+  background: var(--shelfd-sticky-header-surface) !important;
+}
+
+/* v10.298: My Lists profile was being pulled upward under the now-sticky
+   header by older mobile layout offsets. Keep the profile block below the
+   header so the avatar is never covered at scroll position zero. */
+@media (max-width: 700px) {
+  body.main-tab-mylist #mylist-view #mylist-profile-controls {
+    margin-top: 8px !important;
+  }
+}

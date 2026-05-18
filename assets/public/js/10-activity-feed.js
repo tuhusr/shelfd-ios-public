@@ -1587,17 +1587,60 @@ async function createActivityNotification(options = {}) {
     createdAtMs: eventMs,
     updatedAtMs: nowMs,
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    read: false
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
+  /* v10.293: only stamp `read: false` on FRESH writes (non-backfill). The
+     backfill runs on every session and was re-writing `read: false` over
+     notifications the user had previously marked read — so dismissed
+     notifications kept resurfacing. By omitting `read` from backfill
+     payloads, the existing read state (true OR false) is preserved by
+     Firestore's merge. Live triggers (new likes/comments) still set
+     `read: false` because the doc didn't exist yet — set+merge creates
+     it with that initial value. */
   if (options.backfilled) {
     payload.backfilled = true;
     payload.backfilledAtMs = nowMs;
+  } else {
+    payload.read = false;
   }
 
   try {
     const ref = db.collection('notifications').doc(recipientUid).collection('items').doc(docId);
     await ref.set(payload, { merge: true });
+    /* v10.275: fire push notification via the Cloudflare Worker. Fire-and-forget;
+       failures are non-fatal and just log. Skip pushes for backfilled docs
+       (those represent past events the user has already seen in-app). */
+    if (!options.backfilled) {
+      try {
+        const pushTitle = getShelfdNotificationCopy(payload);
+        const mediaTitle = String(payload.mediaTitle || '').trim();
+        const snippet = String(payload.textSnippet || '').trim();
+        const bodyParts = [];
+        if (mediaTitle) bodyParts.push(mediaTitle);
+        if (snippet) bodyParts.push(snippet);
+        const pushBody = bodyParts.join(' · ');
+        fetch('/api/push/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'omit',
+          cache: 'no-store',
+          body: JSON.stringify({
+            recipientUid,
+            notificationId: docId,
+            title: pushTitle,
+            body: pushBody,
+            data: {
+              notificationId: docId,
+              type,
+              targetActivityId: payload.targetActivityId || '',
+              targetCommentId: payload.targetCommentId || '',
+              targetKind: payload.targetKind || '',
+              targetCollection: payload.targetCollection || ''
+            }
+          })
+        }).catch(() => {});
+      } catch (_) {}
+    }
     return true;
   } catch (error) {
     console.warn('[shelfd notifications] create failed:', error && error.message ? error.message : error);
@@ -2030,6 +2073,42 @@ async function renderActivityNotificationsPage() {
   renderActivityNotificationsList();
   /* Fire backfill once per session per user; non-blocking. */
   backfillRecentActivityNotifications();
+  /* v10.283: auto-mark all unread notifications as read when the user visits
+     the Notifications tab. Letting them just SEE the list is enough to clear
+     the badge — they shouldn't have to tap each individual row. Slight delay
+     so they see the unread count for ~600ms before it drops to zero. */
+  window.setTimeout(() => {
+    try { markAllActivityNotificationsRead(); } catch (e) {}
+  }, 600);
+}
+
+/* v10.283: batch-mark every visible unread notification as read in Firestore.
+   Uses a single batch write so it's one network round-trip regardless of
+   how many notifications are unread. Failures are non-fatal — the next
+   snapshot will retry the un-marked ones the next time the user visits. */
+async function markAllActivityNotificationsRead() {
+  if (!currentUser || !db) return;
+  const unread = (activityNotificationsList || []).filter(item => item && item.read !== true);
+  if (!unread.length) return;
+  try {
+    const batch = db.batch();
+    const nowMs = Date.now();
+    for (const notif of unread) {
+      const notifId = String(notif.notificationId || '').trim();
+      if (!notifId) continue;
+      const ref = db.collection('notifications').doc(currentUser.uid).collection('items').doc(notifId);
+      batch.set(ref, {
+        read: true,
+        readAtMs: nowMs,
+        updatedAtMs: nowMs,
+        readAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    }
+    await batch.commit();
+  } catch (e) {
+    console.warn('[shelfd notifications] mark-all-read batch failed:', e && e.message ? e.message : e);
+  }
 }
 
 window.renderActivityNotificationsPage = renderActivityNotificationsPage;
@@ -5137,6 +5216,9 @@ function buildStackedActivityCardHTML(a = {}, activityId = '', options = {}) {
   html = html.replace('class="shelfd-social-card ', 'class="shelfd-social-card sl-activity-stack-front ');
   html = html.replace('<article ', `<article aria-label="Open grouped activity stack" `);
   html = html.replace(/onclick="handleScreenListActivityCardOpen\('[^']*','activity'\)"/, `onclick="toggleScreenListInlineActivityStack('${escAttr(activityId)}', event)"`);
+  /* v10.272: wrap each child in a `.sl-activity-stack-carousel-item` so the
+     inline-inner can become a horizontal scroll-snap carousel instead of a
+     vertical list. Each item is one snap point (one full card width). */
   const hiddenHtml = hiddenItems.map((activity, index) => {
     const childId = `${activityId}-inline-stack-${index}`;
     friendActivityClickTargets[childId] = activity;
@@ -5151,14 +5233,29 @@ function buildStackedActivityCardHTML(a = {}, activityId = '', options = {}) {
       `onclick="handleScreenListActivityCardOpen('${escAttr(childId)}','activity')"`,
       `onclick="handleScreenListStackChildClick('${escAttr(childId)}','${escAttr(activityId)}', event)"`
     );
-    return childHtml;
+    /* v10.272: snap-item wrapper. data-carousel-index is read by
+       32-stack-carousel.js to update the dots indicator on scroll. */
+    return `<div class="sl-activity-stack-carousel-item" data-carousel-index="${index}">${childHtml}</div>`;
   }).join('');
+  /* v10.272: dots + "Show all" controls live below the carousel. The
+     showAll button opens the existing full-screen Grouped Activity page
+     (vertical list) — same function used for the long-press / poster-tap
+     paths. */
+  const dotsHtml = hiddenItems.map((_, i) => `<span class="sl-activity-stack-carousel-dot${i === 0 ? ' is-active' : ''}" data-dot-index="${i}"></span>`).join('');
+  const carouselControlsHtml = hiddenItems.length > 1
+    ? `<div class="sl-activity-stack-carousel-controls">
+         <div class="sl-activity-stack-carousel-dots" data-stack-dots="${escAttr(activityId)}" aria-hidden="true">${dotsHtml}</div>
+         <button class="sl-activity-stack-carousel-showall" type="button" onclick="event.stopPropagation(); openScreenListStackedActivityPage('${escAttr(activityId)}')">Show all</button>
+       </div>`
+    : `<div class="sl-activity-stack-carousel-controls sl-activity-stack-carousel-controls--single">
+         <button class="sl-activity-stack-carousel-showall" type="button" onclick="event.stopPropagation(); openScreenListStackedActivityPage('${escAttr(activityId)}')">Show all</button>
+       </div>`;
   return `
     <div class="sl-activity-stack-wrap ${isExpanded ? 'is-expanded' : ''}" data-stacked-activity-id="${escAttr(activityId)}">
       <button class="sl-activity-stack-layer sl-activity-stack-layer-one" type="button" data-inline-stack-toggle onclick="toggleScreenListInlineActivityStack('${escAttr(activityId)}', event)" aria-expanded="${isExpanded ? 'true' : 'false'}" aria-label="Toggle grouped activity stack"></button>
       <button class="sl-activity-stack-layer sl-activity-stack-layer-two" type="button" data-inline-stack-toggle onclick="toggleScreenListInlineActivityStack('${escAttr(activityId)}', event)" aria-expanded="${isExpanded ? 'true' : 'false'}" aria-label="Toggle grouped activity stack"></button>
       ${html}
-      ${hiddenHtml ? `<div class="sl-activity-stack-inline-list" data-inline-stack-panel aria-hidden="${isExpanded ? 'false' : 'true'}"><div class="sl-activity-stack-inline-inner">${hiddenHtml}</div></div>` : ''}
+      ${hiddenHtml ? `<div class="sl-activity-stack-inline-list" data-inline-stack-panel aria-hidden="${isExpanded ? 'false' : 'true'}"><div class="sl-activity-stack-inline-inner sl-activity-stack-carousel" data-stack-carousel="${escAttr(activityId)}" data-stack-count="${hiddenItems.length}" role="region" aria-label="Swipe through ${hiddenItems.length} grouped activit${hiddenItems.length === 1 ? 'y' : 'ies'}">${hiddenHtml}</div>${carouselControlsHtml}</div>` : ''}
     </div>`;
 }
 
@@ -5434,9 +5531,22 @@ function buildActivityFeedHeaderHTML(heading = 'Activity Feed', options = {}) {
     const feedActive = activeActivitySubTab === 'feed';
     const notificationsActive = activeActivitySubTab === 'notifications';
     const sharedWatchActive = activeActivitySubTab === 'sharedWatch';
+    /* v10.281: append a small red unread-count badge to the Notifications
+       pill so users see a visual cue when likes/comments come in, without
+       having to open the tab first. The badge auto-hides when count is 0.
+       v10.285: reordered to Activity Feed → Shared Watch → Notifications
+       so Notifications (with its unread badge) sits on the right. */
+    const unreadNotif = Number(
+      (typeof window !== 'undefined' && window.activityNotificationsUnreadCount)
+      || (typeof activityNotificationsUnreadCount !== 'undefined' ? activityNotificationsUnreadCount : 0)
+      || 0
+    ) || 0;
+    const unreadBadgeHtml = unreadNotif > 0
+      ? `<span class="notifications-pill-unread-badge" aria-label="${unreadNotif} unread notification${unreadNotif === 1 ? '' : 's'}">${unreadNotif > 9 ? '9+' : unreadNotif}</span>`
+      : '';
     actionButtons.push(`<button type="button" class="activity-shared-watch-pill activity-feed-pill ${feedActive ? 'active' : 'secondary'}" aria-current="${feedActive ? 'true' : 'false'}" onclick="switchActivitySubTab('feed')">Activity Feed</button>`);
-    actionButtons.push(`<button type="button" class="activity-shared-watch-pill notifications-tab-pill ${notificationsActive ? 'active' : 'secondary'}" aria-current="${notificationsActive ? 'true' : 'false'}" onclick="switchActivitySubTab('notifications')">Notifications</button>`);
     actionButtons.push(`<button type="button" class="activity-shared-watch-pill shared-watch-tab-pill ${sharedWatchActive ? 'active' : 'secondary'}" aria-current="${sharedWatchActive ? 'true' : 'false'}" onclick="switchActivitySubTab('sharedWatch')">Shared Watch</button>`);
+    actionButtons.push(`<button type="button" class="activity-shared-watch-pill notifications-tab-pill ${notificationsActive ? 'active' : 'secondary'}${unreadNotif > 0 ? ' has-unread' : ''}" aria-current="${notificationsActive ? 'true' : 'false'}" onclick="switchActivitySubTab('notifications')">Notifications${unreadBadgeHtml}</button>`);
   }
   if (options.hideHeading && !actionButtons.length) return '';
   return `<div class="activity-feed-header"><span class="activity-feed-heading">${options.hideHeading ? '' : escHtml(heading)}</span><div class="activity-feed-actions">${actionButtons.join('')}</div></div>`;

@@ -7432,12 +7432,17 @@ function buildCardCommentAddBtnHtml(item) {
   // v10.221: once a review exists, owner and viewer BOTH see the layers icon —
   // clicking it opens the Full Page Review for that title. Owners can edit
   // their review from there via the 3-dot menu.
-  if (hasReview) {
+  // v10.282: viewers ALSO see the layers icon when the friend hasn't written
+  // a review yet — the FPReview page still has meaningful content (cover,
+  // title, rating, date watched, who rated it) and viewers should be able
+  // to open it from a friend's card regardless of whether the friend wrote
+  // text. Without this, items the friend rated-only had no viewer entry
+  // point into the FPReview.
+  if (hasReview || viewingUser) {
     return '<button class="card-review-layers-btn" type="button" onclick="event.stopPropagation();openFullPageMediaReview(\'' + itemIdAttr + '\',\'' + sectionAttr + '\')" aria-label="Open full page review" title="Open full page review"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/></svg></button>';
   }
-  // No review yet: viewers see nothing; owners see the legacy + (which now
-  // opens the I-Watched composer for watched/played sections).
-  if (viewingUser) return '';
+  // No review yet AND owner viewing their own list — show the legacy +
+  // button (which opens the I-Watched composer for watched/played sections).
   const text = getCardCommentText(item);
   if (text) return ''; // legacy short-comment posted — no + button
   return '<button class="card-comment-add-btn" type="button" onclick="event.stopPropagation();openCardCommentComposer(\'' + itemIdAttr + '\')" aria-label="Add a comment about this title" title="Add a comment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>';

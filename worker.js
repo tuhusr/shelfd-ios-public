@@ -4646,6 +4646,14 @@ export default {
       return fetchVisitorStats(env);
     }
 
+    /* v10.275: push notifications */
+    if (url.pathname === "/api/push/register") {
+      return runPushRegisterEndpoint(request, env);
+    }
+    if (url.pathname === "/api/push/send") {
+      return runPushSendEndpoint(request, env, ctx);
+    }
+
     if (url.pathname === "/api/rank/media") {
       return runMediaRankEndpoint(request, env, ctx);
     }
@@ -4771,4 +4779,250 @@ export class VisitorCounter {
 
     return new Response("Not found", { status: 404 });
   }
+}
+
+/* ============================================================================
+   v10.275 — Push notifications via APNs HTTP/2
+   ----------------------------------------------------------------------------
+   /api/push/register : client POSTs { uid, token, platform } after the iOS
+                        Capacitor PushNotifications plugin yields a device
+                        token. We dedupe per-uid by token and store in KV
+                        binding PUSH_TOKENS_KV. Soft-fails if KV isn't bound
+                        yet (so this endpoint is safe to deploy before the
+                        operator runs `wrangler kv namespace create`).
+
+   /api/push/send     : client POSTs { recipientUid, title, body, data,
+                        notificationId } right after writing a notification
+                        doc to Firestore. We look up the recipient's tokens
+                        from KV and POST to api.push.apple.com for each one.
+
+   APNs JWT is signed using the .p8 private key with ES256. The JWT is
+   cached in memory for ~50 minutes (Apple allows up to 60). Uses Cloudflare
+   Workers' built-in Web Crypto.
+
+   Required secrets / bindings (operator sets these via wrangler):
+     - APNS_KEY_P8     : raw contents of the .p8 file (PEM)
+     - APNS_KEY_ID     : the 10-char Key ID from Apple
+     - APPLE_TEAM_ID   : the 10-char Team ID from Apple
+     - PUSH_TOKENS_KV  : KV namespace binding (in wrangler.jsonc)
+   ============================================================================ */
+
+const APNS_BUNDLE_ID = "com.myshelfd.app";
+const APNS_HOST = "https://api.push.apple.com";
+/* In-memory JWT cache. Survives between requests on the same Worker isolate.
+   Worth: Apple rate-limits JWT generation; one fresh JWT per ~50 min suffices. */
+let _apnsJwtCache = { jwt: "", expiresAtMs: 0 };
+
+function _jsonOK(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store"
+    }
+  });
+}
+
+async function _readJsonBody(request) {
+  try {
+    const text = await request.text();
+    if (!text) return {};
+    return JSON.parse(text);
+  } catch (_) { return {}; }
+}
+
+async function runPushRegisterEndpoint(request, env) {
+  if (request.method !== "POST") return _jsonOK({ ok: false, error: "method-not-allowed" }, 405);
+  const body = await _readJsonBody(request);
+  const uid = String(body.uid || "").trim();
+  const token = String(body.token || "").trim();
+  const platform = String(body.platform || "ios").trim().toLowerCase();
+  if (!uid || !token) return _jsonOK({ ok: false, error: "missing-uid-or-token" }, 400);
+  if (token.length < 32 || token.length > 200) return _jsonOK({ ok: false, error: "invalid-token-length" }, 400);
+
+  const kv = env.PUSH_TOKENS_KV;
+  if (!kv) {
+    /* KV not bound yet — soft success so the client doesn't keep retrying.
+       Operator will bind PUSH_TOKENS_KV via wrangler.jsonc + namespace
+       creation, and registrations will start sticking on next deploy. */
+    console.warn("[push] PUSH_TOKENS_KV not bound; skipping register");
+    return _jsonOK({ ok: true, stored: false, reason: "kv-not-configured" });
+  }
+
+  try {
+    const key = `tokens:${uid}`;
+    const existingRaw = await kv.get(key);
+    const existing = existingRaw ? JSON.parse(existingRaw) : [];
+    const list = Array.isArray(existing) ? existing : [];
+    /* Dedupe by token. Keep the latest registeredAtMs. */
+    const filtered = list.filter(entry => entry && entry.token !== token);
+    filtered.push({
+      token,
+      platform,
+      appBundleId: String(body.appBundleId || APNS_BUNDLE_ID).trim() || APNS_BUNDLE_ID,
+      registeredAtMs: Number(body.registeredAtMs) || Date.now()
+    });
+    /* Cap list size to last 8 devices per user. */
+    while (filtered.length > 8) filtered.shift();
+    await kv.put(key, JSON.stringify(filtered));
+    return _jsonOK({ ok: true, stored: true, count: filtered.length });
+  } catch (e) {
+    console.warn("[push] register failed:", e && e.message ? e.message : e);
+    return _jsonOK({ ok: false, error: "kv-write-failed" }, 502);
+  }
+}
+
+async function runPushSendEndpoint(request, env, ctx) {
+  if (request.method !== "POST") return _jsonOK({ ok: false, error: "method-not-allowed" }, 405);
+  const body = await _readJsonBody(request);
+  const recipientUid = String(body.recipientUid || "").trim();
+  if (!recipientUid) return _jsonOK({ ok: false, error: "missing-recipientUid" }, 400);
+
+  const kv = env.PUSH_TOKENS_KV;
+  if (!kv) return _jsonOK({ ok: false, error: "kv-not-configured" }, 503);
+
+  const apnsConfigured = !!(env.APNS_KEY_P8 && env.APNS_KEY_ID && env.APPLE_TEAM_ID);
+  if (!apnsConfigured) return _jsonOK({ ok: false, error: "apns-not-configured" }, 503);
+
+  let tokens = [];
+  try {
+    const raw = await kv.get(`tokens:${recipientUid}`);
+    tokens = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(tokens)) tokens = [];
+  } catch (e) {
+    return _jsonOK({ ok: false, error: "kv-read-failed" }, 502);
+  }
+  if (!tokens.length) return _jsonOK({ ok: true, delivered: 0, reason: "no-tokens" });
+
+  let jwt;
+  try {
+    jwt = await getApnsJwt(env);
+  } catch (e) {
+    console.warn("[push] APNs JWT failed:", e && e.message ? e.message : e);
+    return _jsonOK({ ok: false, error: "jwt-failed", detail: String(e && e.message || e) }, 500);
+  }
+
+  const title = String(body.title || "Shelfd").trim();
+  const bodyText = String(body.body || "").trim();
+  const data = (body.data && typeof body.data === "object") ? body.data : {};
+  const apnsPayload = JSON.stringify({
+    aps: {
+      alert: bodyText ? { title, body: bodyText } : { title },
+      sound: "default"
+    },
+    ...data
+  });
+
+  /* Fire one POST per device token. iOS rate limit is generous so parallel
+     dispatch is fine. We collect outcomes for the response. */
+  const results = await Promise.all(tokens.map(async (entry) => {
+    const token = String(entry && entry.token || "").trim();
+    if (!token) return { ok: false, reason: "empty-token" };
+    const bundle = String(entry && entry.appBundleId || APNS_BUNDLE_ID).trim() || APNS_BUNDLE_ID;
+    try {
+      const res = await fetch(`${APNS_HOST}/3/device/${token}`, {
+        method: "POST",
+        headers: {
+          "authorization": `bearer ${jwt}`,
+          "apns-topic": bundle,
+          "apns-push-type": "alert",
+          "apns-priority": "10",
+          "content-type": "application/json"
+        },
+        body: apnsPayload
+      });
+      const status = res.status;
+      let reason = "";
+      if (status !== 200) {
+        try { const rj = await res.json(); reason = String(rj && rj.reason || ""); } catch (_) {}
+      }
+      return { ok: status === 200, status, reason, tokenTail: token.slice(-6) };
+    } catch (e) {
+      return { ok: false, reason: "fetch-failed", error: String(e && e.message || e) };
+    }
+  }));
+
+  /* If APNs reports a permanent failure for a token (Unregistered, BadDeviceToken),
+     prune it from KV so we stop wasting bandwidth on dead tokens. */
+  const deadReasons = new Set(["Unregistered", "BadDeviceToken", "DeviceTokenNotForTopic"]);
+  const survivors = tokens.filter((entry, idx) => {
+    const r = results[idx] && results[idx].reason;
+    return !(r && deadReasons.has(r));
+  });
+  if (survivors.length !== tokens.length) {
+    try {
+      await kv.put(`tokens:${recipientUid}`, JSON.stringify(survivors));
+    } catch (_) {}
+  }
+
+  const delivered = results.filter(r => r.ok).length;
+  return _jsonOK({ ok: true, delivered, total: tokens.length, results });
+}
+
+/* ---------- APNs JWT signing (ES256 / P-256 / SHA-256) ---------- */
+async function getApnsJwt(env) {
+  const now = Date.now();
+  if (_apnsJwtCache.jwt && now < _apnsJwtCache.expiresAtMs) {
+    return _apnsJwtCache.jwt;
+  }
+  const teamId = String(env.APPLE_TEAM_ID || "").trim();
+  const keyId = String(env.APNS_KEY_ID || "").trim();
+  const p8 = String(env.APNS_KEY_P8 || "").trim();
+  if (!teamId || !keyId || !p8) throw new Error("APNs secrets missing");
+
+  const header = { alg: "ES256", kid: keyId, typ: "JWT" };
+  const issuedAtSec = Math.floor(now / 1000);
+  const payload = { iss: teamId, iat: issuedAtSec };
+
+  const enc = (obj) => _b64UrlEncode(new TextEncoder().encode(JSON.stringify(obj)));
+  const headerB64 = enc(header);
+  const payloadB64 = enc(payload);
+  const signingInput = `${headerB64}.${payloadB64}`;
+
+  const privateKey = await _importApnsPrivateKey(p8);
+  const sig = await crypto.subtle.sign(
+    { name: "ECDSA", hash: { name: "SHA-256" } },
+    privateKey,
+    new TextEncoder().encode(signingInput)
+  );
+  const sigB64 = _b64UrlEncode(new Uint8Array(sig));
+  const jwt = `${signingInput}.${sigB64}`;
+  /* Apple lets JWTs live up to 60 min; refresh slightly early to be safe. */
+  _apnsJwtCache = { jwt, expiresAtMs: now + 50 * 60 * 1000 };
+  return jwt;
+}
+
+async function _importApnsPrivateKey(pem) {
+  /* Strip PEM header/footer + whitespace; remaining is base64 of the
+     PKCS8-encoded private key. */
+  const cleaned = pem
+    .replace(/-----BEGIN [^-]+-----/g, "")
+    .replace(/-----END [^-]+-----/g, "")
+    .replace(/\s+/g, "");
+  const der = _b64Decode(cleaned);
+  return crypto.subtle.importKey(
+    "pkcs8",
+    der,
+    { name: "ECDSA", namedCurve: "P-256" },
+    false,
+    ["sign"]
+  );
+}
+
+function _b64UrlEncode(bytes) {
+  let s = "";
+  if (bytes instanceof Uint8Array) {
+    for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  } else {
+    s = String(bytes);
+  }
+  const b64 = btoa(s);
+  return b64.replace(/=+$/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+function _b64Decode(b64) {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out.buffer;
 }

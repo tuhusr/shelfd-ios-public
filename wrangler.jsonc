@@ -1,9 +1,25 @@
 {
   // Required Cloudflare secret for Trakt: TRAKT_CLIENT_ID = your Trakt OAuth app Client ID.
   // Optional accepted aliases in worker.js: TRAKT_API_KEY, TRAKT_KEY, TRAKT_CLIENT_KEY.
+  //
+  // v10.275 — push notifications:
+  //   Required secrets (set via `npx wrangler secret put NAME`):
+  //     APNS_KEY_P8     = full contents of the AuthKey_*.p8 file
+  //     APNS_KEY_ID     = 10-char Key ID from Apple Developer
+  //     APPLE_TEAM_ID   = your 10-char Apple Team ID (also seen in Xcode signing)
+  //   Required binding:
+  //     PUSH_TOKENS_KV  = KV namespace ID. Create with:
+  //                         npx wrangler kv namespace create PUSH_TOKENS
+  //                       Paste the returned id below.
   "name": "watchlist",
   "main": "worker.js",
   "compatibility_date": "2026-04-28",
+  "kv_namespaces": [
+    {
+      "binding": "PUSH_TOKENS_KV",
+      "id": "c9515d02265340bea6a85a64522b2995"
+    }
+  ],
   "assets": {
     "directory": "assets/public",
     "binding": "ASSETS",

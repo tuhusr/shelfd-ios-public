@@ -76,6 +76,16 @@
 
   /* Resolve the library `data` object — same trampoline trick used by the
      album profile module, since `data` is script-scoped, not on window. */
+  /* v10.292: reverted v10.288 — resolveLibraryData now ALWAYS returns the
+     user's own data. The v10.288 attempt to also return friendViewData when
+     viewing a friend leaked across navigation states and caused
+     getLiveMusicItem (used by commitRating) to mutate the wrong object.
+     The result: rating an album on your OWN MyList silently failed because
+     the rating was set on stale friendViewData while save() bailed out
+     early due to a still-truthy viewingUser check.
+     Viewer-side tracklist visibility is now handled by findMusicItem
+     below, which tries friendViewData first as a READ-ONLY lookup but
+     never overrides the canonical data for write paths. */
   function resolveLibraryData() {
     try {
       // eslint-disable-next-line no-new-func
@@ -86,6 +96,23 @@
       if (window.data && typeof window.data === 'object') return window.data;
       if (window.shelfdData && typeof window.shelfdData === 'object') return window.shelfdData;
     }
+    return null;
+  }
+
+  /* v10.292: read-only lookup for friend's library data. Used only by
+     findMusicItem to support viewer-side tracklist rendering. Never
+     returned from resolveLibraryData so save paths can't accidentally
+     mutate a friend's data structure. */
+  function resolveFriendLibraryData() {
+    try {
+      // eslint-disable-next-line no-new-func
+      const liveViewing = new Function('try { return typeof viewingUser !== "undefined" ? viewingUser : null; } catch (_) { return null; }')();
+      // eslint-disable-next-line no-new-func
+      const liveFriendData = new Function('try { return typeof friendViewData !== "undefined" ? friendViewData : null; } catch (_) { return null; }')();
+      if (liveViewing && liveFriendData && typeof liveFriendData === 'object' && Array.isArray(liveFriendData.music)) {
+        return liveFriendData;
+      }
+    } catch (_) {}
     return null;
   }
   function callGlobalFn(name, ...args) {
@@ -119,6 +146,15 @@
   window.closeMyListAlbumPage = closeMyListAlbumPage;
 
   function findMusicItem(itemId) {
+    /* v10.292: try friend's data first when viewing someone else's MyList
+       (so viewers can OPEN the tracklist). Fall back to own data, which is
+       the canonical source for any write paths (rating, fav-track stars).
+       resolveLibraryData() always returns own data — separate by design. */
+    const friendData = resolveFriendLibraryData();
+    if (friendData && Array.isArray(friendData.music)) {
+      const fromFriend = friendData.music.find(it => String(it?.id || '') === String(itemId));
+      if (fromFriend) return fromFriend;
+    }
     const data = resolveLibraryData();
     if (!data || !Array.isArray(data.music)) return null;
     return data.music.find(it => String(it?.id || '') === String(itemId)) || null;

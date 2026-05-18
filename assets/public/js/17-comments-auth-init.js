@@ -810,6 +810,23 @@ auth.onAuthStateChanged(async (user) => {
     bootstrapUserCountIfNeeded();
     startFriendsDataListener(); // live Friends/Requests badge + request list updates
     startWatchTogetherListener();
+    /* v10.281: attach the activity-notifications listener on sign-in instead
+       of only when the user opens the Notifications tab. Previously the
+       Firestore listener was lazy — it only attached the first time the user
+       navigated to Notifications, so the bottom-nav red dot + the activity
+       sub-tab dot never updated UNTIL the user tapped Notifications. Now the
+       listener runs continuously from sign-in onward, so badges update in
+       real time when a friend likes/comments. */
+    if (typeof attachShelfdNotificationsListener === 'function') {
+      try { attachShelfdNotificationsListener(); } catch (e) { console.warn('[shelfd-auth] notifications listener attach failed:', e); }
+    }
+    /* v10.281: also fire the one-shot 11-day backfill in the background so
+       any missed events from before the live listener was wired up are
+       reconstructed into the notifications inbox. Fire-and-forget; failures
+       are non-fatal. */
+    if (typeof backfillRecentActivityNotifications === 'function') {
+      try { backfillRecentActivityNotifications(); } catch (e) {}
+    }
     /* v730: load the user's favoritePeople map (favorited actors/directors)
        into window.shelfdFavoritePeople so cast-card hearts render with the
        correct filled/empty state on first paint. */

@@ -3739,6 +3739,111 @@ body.light-mode .activity-page .activity-card {
   padding: clamp(4px, 1.6vw, 8px) 0 0 clamp(7px, 2vw, 12px) !important;
 }
 
+/* ============================================================================
+   v10.272 — Inline stacked-activity CAROUSEL (replaces the vertical list).
+   ----------------------------------------------------------------------------
+   When the inline-inner has the .sl-activity-stack-carousel class, swap the
+   flex-column layout for a horizontal scroll-snap container. Each child is
+   wrapped in .sl-activity-stack-carousel-item — one snap point per card.
+   The full-screen "Show all" page is still available as the deep-dive.
+   ============================================================================ */
+#community-view #activity-tab-view .sl-activity-stack-inline-inner.sl-activity-stack-carousel,
+.activity-page .sl-activity-stack-inline-inner.sl-activity-stack-carousel {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  gap: 8px !important;
+  /* Reset the inline-inner's vertical padding-left; carousel uses scroll-padding
+     so each card snap-aligns flush with the wrap's left edge. */
+  padding: clamp(4px, 1.6vw, 8px) 0 4px 0 !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scroll-snap-type: x mandatory !important;
+  scroll-behavior: smooth !important;
+  -webkit-overflow-scrolling: touch !important;
+  scroll-padding-left: 0 !important;
+  scrollbar-width: none !important;
+  /* Each .sl-activity-stack-compact-card sets opacity:0 in its base
+     until .is-expanded; inside the carousel they should be visible
+     immediately once the parent is expanded, which already happens
+     via the existing .is-expanded rule. */
+}
+#community-view #activity-tab-view .sl-activity-stack-inline-inner.sl-activity-stack-carousel::-webkit-scrollbar,
+.activity-page .sl-activity-stack-inline-inner.sl-activity-stack-carousel::-webkit-scrollbar {
+  display: none !important;
+}
+
+.sl-activity-stack-carousel-item {
+  flex: 0 0 100% !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  scroll-snap-align: start !important;
+  scroll-snap-stop: always !important;
+  /* Each item contains exactly one .sl-activity-stack-compact-card. The
+     card's own margin/padding does the visual breathing room — the item
+     wrapper is layout-only. */
+}
+
+/* Carousel controls (dots + Show all) sit below the snap track, inside the
+   same `.sl-activity-stack-inline-list` height-animated wrapper so they
+   expand together. */
+.sl-activity-stack-carousel-controls {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  padding: 6px clamp(8px, 2.6vw, 14px) 2px clamp(8px, 2.6vw, 14px) !important;
+}
+.sl-activity-stack-carousel-controls--single {
+  justify-content: flex-end !important;
+}
+
+.sl-activity-stack-carousel-dots {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex: 0 1 auto !important;
+}
+.sl-activity-stack-carousel-dot {
+  display: inline-block !important;
+  width: 5px !important;
+  height: 5px !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.22) !important;
+  transition: background 200ms ease, transform 200ms ease !important;
+}
+.sl-activity-stack-carousel-dot.is-active {
+  background: rgba(167, 139, 250, 0.92) !important;
+  transform: scale(1.35) !important;
+}
+
+.sl-activity-stack-carousel-showall {
+  background: transparent !important;
+  border: 0 !important;
+  color: rgba(167, 139, 250, 0.88) !important;
+  font: 600 12px/1 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: 0.01em !important;
+  padding: 6px 8px !important;
+  margin: 0 !important;
+  cursor: pointer !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+.sl-activity-stack-carousel-showall:hover,
+.sl-activity-stack-carousel-showall:active {
+  color: rgba(196, 181, 253, 1) !important;
+}
+
+/* Light-mode override for the controls */
+body.light-mode .sl-activity-stack-carousel-dot {
+  background: rgba(0, 0, 0, 0.18) !important;
+}
+body.light-mode .sl-activity-stack-carousel-dot.is-active {
+  background: rgba(124, 58, 237, 0.92) !important;
+}
+body.light-mode .sl-activity-stack-carousel-showall {
+  color: rgba(124, 58, 237, 0.88) !important;
+}
+
 #community-view #activity-tab-view .sl-activity-stack-compact-card,
 .activity-page .sl-activity-stack-compact-card {
   grid-template-columns: minmax(0, 1fr) clamp(74px, 22vw, 94px) !important;
@@ -3765,15 +3870,29 @@ body.light-mode .activity-page .activity-card {
 
 #community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-main,
 .activity-page .sl-activity-stack-compact-card .sl-activity-main {
-  grid-template-columns: clamp(38px, 11vw, 44px) minmax(0, 1fr) !important;
-  gap: clamp(8px, 2.2vw, 10px) !important;
+  /* v10.273: avatar is hidden on stack carousel children (it's already
+     shown on the parent card up top, repeating it on every page felt
+     redundant). Single content column now spans the whole left side. */
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 0 !important;
   padding-right: 4px !important;
 }
 
 #community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-avatar-btn,
-.activity-page .sl-activity-stack-compact-card .sl-activity-avatar-btn {
-  width: clamp(36px, 10vw, 42px) !important;
-  height: clamp(36px, 10vw, 42px) !important;
+.activity-page .sl-activity-stack-compact-card .sl-activity-avatar-btn,
+/* v10.291: the actual avatar wrapper in the activity card HTML is
+   `.sl-activity-avatar-zone` (line 5136 of 10-activity-feed.js), NOT
+   `.sl-activity-avatar-btn`. The v10.273 attempt hid the wrong selector,
+   so the profile picture kept rendering on stack-child carousel cards.
+   This rule covers the actual zone class so the avatar IS gone. */
+#community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-avatar-zone,
+.activity-page .sl-activity-stack-compact-card .sl-activity-avatar-zone {
+  /* v10.273 / v10.291: hide entirely on stack carousel children. */
+  display: none !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 #community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-name-spacer,
@@ -3797,13 +3916,19 @@ body.light-mode .activity-page .activity-card {
 #community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-title,
 .activity-page .sl-activity-stack-compact-card .sl-activity-title {
   font-size: clamp(16px, 4.7vw, 21px) !important;
-  margin-bottom: 3px !important;
+  /* v10.270: halved the vertical gap between Rated → title → rating stars.
+     margin-bottom 3px → 1px AND tightened line-height so the visual gap
+     drops by roughly half. */
+  margin-bottom: 1px !important;
+  line-height: 1.12 !important;
 }
 
 #community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-status,
 .activity-page .sl-activity-stack-compact-card .sl-activity-status {
   font-size: clamp(10.5px, 3vw, 13px) !important;
-  margin-bottom: 3px !important;
+  /* v10.270: paired with .sl-activity-title above. */
+  margin-bottom: 1px !important;
+  line-height: 1.15 !important;
 }
 
 #community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-poster,
@@ -3811,6 +3936,13 @@ body.light-mode .activity-page .activity-card {
   width: clamp(66px, 19vw, 82px) !important;
   height: clamp(58px, 17vw, 72px) !important;
   border-radius: 3px !important;
+  /* v10.268 / v10.269 used a translateY hack to push the poster down off
+     the top edge. v10.271: replaced with the right fix — center it vertically
+     across both grid rows it spans (grid-row 1/3 on base). align-self: center
+     is the correct property; the translate is removed entirely so it's an
+     honest centering, not a manual nudge. */
+  align-self: center !important;
+  transform: none !important;
 }
 
 #community-view #activity-tab-view .sl-activity-stack-compact-card .sl-rating-star,
@@ -3821,8 +3953,15 @@ body.light-mode .activity-page .activity-card {
 #community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-bottom-safe,
 .activity-page .sl-activity-stack-compact-card .sl-activity-bottom-safe {
   min-height: 20px !important;
-  padding-left: clamp(38px, 11vw, 44px) !important;
-  padding-bottom: 3px !important;
+  /* v10.270: raise the action row (heart / comment / dots) up 3px from the
+     bottom edge by increasing the row's bottom padding 3px → 6px. The
+     children sit at top of the padding box so adding padding-bottom pushes
+     them up.
+     v10.273: padding-left was previously matching the avatar column width;
+     since the avatar is hidden now, drop it so the action row aligns flush
+     with the card's content edge. */
+  padding-left: 0 !important;
+  padding-bottom: 6px !important;
 }
 
 #community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-actions,
@@ -3885,6 +4024,29 @@ body.light-mode .activity-page .activity-card {
 
 
 /* v409: status-change stacked activity uses existing stack visual; IGDB cover enforcement is handled in activity JS. */
+
+/* v10.281: red unread-count badge that appends to the Notifications sub-tab
+   pill. Tiny pill with white digit on a red background, sits just to the
+   right of the "Notifications" label. */
+.notifications-pill-unread-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  margin-left: 5px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #ffffff;
+  font: 700 10px/1 'Sohne', 'DM Sans', sans-serif;
+  vertical-align: middle;
+}
+.activity-shared-watch-pill.notifications-tab-pill.has-unread {
+  /* No additional pill-level styling needed; the badge itself provides the
+     visual cue. Hook stays here so future polish (e.g. tint the pill text)
+     can land without re-finding the selector. */
+}
 
 /* v410: strict IGDB/Twitch-only game poster placeholder */
 .sl-activity-poster.screenlist-game-cover-pending,

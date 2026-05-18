@@ -782,8 +782,11 @@
       return;
     }
     /* Defense in depth — username step should only be reachable after
-       email verification, but double-check here. */
-    if (!user.emailVerified) {
+       email verification, but double-check here.
+       v10.264: skip the check if the user has a social provider linked
+       (Google/Apple) — those already verified the email server-side and
+       the flag may report false on a freshly-linked password credential. */
+    if (!user.emailVerified && !userHasSocialProvider(user)) {
       setBanner($('shelfd-setup-username-error'), 'Please verify your email first.', 'error');
       try { closeShelfdSetupPage(); } catch (_) {}
       openShelfdVerifyPage({ email: user.email });
@@ -1060,12 +1063,28 @@
       return providers.some(p => p && p.providerId === 'password');
     } catch (_) { return false; }
   }
+  /* v10.264: detect a SOCIAL provider link (Google, Apple, etc.). When a
+     user has linked a social provider, the email is already verified by
+     that provider, so the email/password verify gate must NOT fire even
+     if `user.emailVerified` reports false on a freshly-linked password
+     credential. This is the iOS TestFlight case: user signed in with
+     Google on web, used "Set a password" to link an email/password
+     provider, then signed in to TestFlight via email/password — the
+     verify gate would otherwise lock them out. */
+  function userHasSocialProvider(user) {
+    try {
+      const providers = (user && user.providerData) || [];
+      return providers.some(p => p && p.providerId && p.providerId !== 'password');
+    } catch (_) { return false; }
+  }
 
   async function authOnboardingGate(user) {
     if (!user) return false;
     /* v816: email/password users must verify before anything else. Google
-       users come back with emailVerified=true and skip this gate. */
-    if (isEmailPasswordUser(user) && !user.emailVerified) {
+       users come back with emailVerified=true and skip this gate.
+       v10.264: also skip if the user has ANY social provider linked —
+       Google/Apple already verified the email at the provider level. */
+    if (isEmailPasswordUser(user) && !user.emailVerified && !userHasSocialProvider(user)) {
       openShelfdVerifyPage({ email: user.email });
       return true;
     }

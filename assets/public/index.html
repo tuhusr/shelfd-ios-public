@@ -78,12 +78,38 @@
     document.head.appendChild(style);
   })();
 </script>
+<script>
+  /* v10.299: run native-shell detection before CSS loads so safe-area header
+     rules do not render one frame with browser/PWA inset math in TestFlight. */
+  (function detectShelfdNativeShell() {
+    function markIfNativeIOS() {
+      try {
+        if ((navigator.userAgent || '').indexOf('ShelfdNativeNoInset') !== -1) {
+          document.documentElement.classList.add('shelfd-capacitor-no-inset');
+        }
+        if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function'
+            && window.Capacitor.isNativePlatform()
+            && typeof window.Capacitor.getPlatform === 'function'
+            && window.Capacitor.getPlatform() === 'ios') {
+          document.documentElement.classList.add('shelfd-capacitor-native');
+          document.documentElement.classList.add('shelfd-capacitor-ios');
+          return true;
+        }
+      } catch (_) {}
+      return false;
+    }
+    if (markIfNativeIOS()) return;
+    document.addEventListener('DOMContentLoaded', markIfNativeIOS, { once: true });
+    setTimeout(markIfNativeIOS, 0);
+    setTimeout(markIfNativeIOS, 80);
+  })();
+</script>
 <link rel="stylesheet" href="/css/sohne-fonts.css?v=576_sohne_font_setup">
-<link rel="stylesheet" href="/css/00-base-layout.css?v=10210_portrait_lock_surface_fix">
+<link rel="stylesheet" href="/css/00-base-layout.css?v=10278_bounce_scrolling">
 <link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=10212_full_page_review_actions">
 <link rel="stylesheet" href="/css/02-comments-login-theme.css?v=927_add_shelf_modal_scroll_lock_results_fix">
 <link rel="stylesheet" href="/css/03-friends-discovery-base.css?v=925_requested_btn_lavender">
-<link rel="stylesheet" href="/css/04-activity-feed.css?v=10191_activity_action_spacing_unify">
+<link rel="stylesheet" href="/css/04-activity-feed.css?v=10291_hide_stack_child_avatar_zone">
 <link rel="stylesheet" href="/css/05-messages-early-polish.css?v=10210_portrait_lock_surface_fix">
 <link rel="stylesheet" href="/css/06-profile.css?v=1036_fpmp_title_synopsis_recenter">
 <link rel="stylesheet" href="/css/07-imports-discover-rankings.css?v=942_game_status_competitive_selector">
@@ -92,14 +118,14 @@
 <link rel="stylesheet" href="/css/10-mobile-transitions-media-profile.css?v=1097_trailer_pull_down_experiment">
 <link rel="stylesheet" href="/css/11-patch-notes-friends-refinements.css?v=670_stat_weight_500_clean">
 <link rel="stylesheet" href="/css/12-pwa-header-continuity.css?v=10135_activity_notifications_tab">
-<link rel="stylesheet" href="/css/13-e2ee-activity-post.css?v=1092_tier_list_fullscreen_footer_fix">
-<link rel="stylesheet" href="/css/14-live-update-discover-controls.css?v=1041_comment_sheet_charcoal_redesign">
+<link rel="stylesheet" href="/css/13-e2ee-activity-post.css?v=10287_remove_red_import_outline">
+<link rel="stylesheet" href="/css/14-live-update-discover-controls.css?v=10281_revert_sticky_keep_tight">
 <link rel="stylesheet" href="/css/15-universal-discovery-search.css?v=10171_discovery_search_preset_hub">
 <link rel="stylesheet" href="/css/16-light-mode-contrast.css?v=10189_activity_action_row_alignment">
-<link rel="stylesheet" href="/css/17-auth-flow-setup.css?v=909_remove_creator_divider">
+<link rel="stylesheet" href="/css/17-auth-flow-setup.css?v=10299_native_header_inset_fix">
 
-<meta name="screenlist-build-version" content="2026-05-17-v10.263_fpreview_composer_palette">
-<script>window.SCREENLIST_BUILD_VERSION = "2026-05-17-v10.263_fpreview_composer_palette"; window.SCREENLIST_DISPLAY_VERSION = "v10.263-May 17th, 2026";</script>
+<meta name="screenlist-build-version" content="2026-05-18-v10.299_native_header_inset_fix">
+<script>window.SCREENLIST_BUILD_VERSION = "2026-05-18-v10.299_native_header_inset_fix"; window.SCREENLIST_DISPLAY_VERSION = "v10.299-May 18th, 2026";</script>
 <script>
   window.__shelfdGuestContinueQueued = false;
   window.continueWithoutSignIn = window.continueWithoutSignIn || function() {
@@ -1640,30 +1666,34 @@
 <script src="/js/22-youtube-hype.js?v=10166_5sig_no_search_smarter_match"></script>
 <script src="/js/05-app-state-preview-routes.js?v=1035_games_wishlist_priority"></script>
 <script src="/js/23-trackergg-linking.js?v=951_tracker_stats_persist_real_valorant_badges"></script>
-<script src="/js/06-mylists-render-episodes-ratings.js?v=10212_full_page_review_actions"></script>
+<script src="/js/06-mylists-render-episodes-ratings.js?v=10282_viewer_layers_icon"></script>
 <script src="/js/07-add-shelf-import-search.js?v=10175_discovery_games_engagement_ranking"></script>
 <script src="/js/08-discovery-state.js?v=673_central_ranking_module"></script>
 <script src="/js/09-direct-messages.js?v=902_guest_readonly_mode"></script>
-<script src="/js/10-activity-feed.js?v=10188_activity_dots_icon"></script>
+<script src="/js/10-activity-feed.js?v=10293_preserve_read_on_backfill"></script>
 <script src="/js/20-jikan-anime.js?v=704_viewall_slide_profile_fix"></script>
-<script src="/js/11-discovery-media-games-profiles.js?v=10213_trailer_landscape_close_restore"></script>
+<script src="/js/11-discovery-media-games-profiles.js?v=10290_igdb_fallback"></script>
 <script src="/js/12-patch-notes.js?v=420_activity_feed_inline_stack_expand_collapse"></script>
 <script src="/js/13-discover-add-imports.js?v=1080_games_identity_lock_fix"></script>
 <script src="/js/14-navigation.js?v=10135_activity_notifications_tab"></script>
-<script src="/js/15-profile-settings.js?v=1083_mylist_duel_tier_buttons"></script>
+<script src="/js/15-profile-settings.js?v=10287_remove_trackergg_row"></script>
 <script src="/js/24-movie-rating-duel.js?v=1092_tier_list_fullscreen_footer_fix"></script>
-<script src="/js/16-friends-requests.js?v=10141_activity_notifications_static_list_rebuild"></script>
-<script src="/js/17-comments-auth-init.js?v=902_guest_readonly_mode"></script>
+<script src="/js/16-friends-requests.js?v=10281_nav_badge_includes_notifications"></script>
+<script src="/js/17-comments-auth-init.js?v=10281_eager_notifications_listener"></script>
 <script src="/js/18-search-page.js?v=10175_discovery_games_engagement_ranking"></script>
 <script src="/js/19-gis-signin.js?v=907_landing_google_cleanup"></script>
 <script src="/js/19b-email-password-auth.js?v=752_email_auth_fullscreen_page"></script>
-<script src="/js/19c-auth-flow-setup.js?v=835_pwa_landing_inline_signin_form"></script>
+<script src="/js/19c-auth-flow-setup.js?v=10265_skip_verify_for_social_linked"></script>
 <script src="/js/22-favorite-people.js?v=730_fav_people_actors"></script>
 <script src="/js/25-orientation-lock.js?v=10210_portrait_lock_surface_fix"></script>
 <script src="/js/26-music-album-profile.js?v=10233_music_profile"></script>
-<script src="/js/27-music-album-shelf-page.js?v=10245_mylist_album_shelf"></script>
+<script src="/js/27-music-album-shelf-page.js?v=10292_fix_own_album_rating_save"></script>
 <script src="/js/28-music-artist-profile.js?v=10246_artist_profile"></script>
 <script src="/js/29-favorite-artists.js?v=10258_artist_heart"></script>
+<script src="/js/30-add-password-provider.js?v=10279_auto_open_for_google_users"></script>
+<script src="/js/31-edge-swipe-back.js?v=10272_carousel_safe"></script>
+<script src="/js/32-stack-carousel.js?v=10272_stack_carousel_init"></script>
+<script src="/js/33-push-notifications.js?v=10275_push_notifications"></script>
 <script>
   /* v819: bumped SW registration URL so the browser is *forced* to fetch a
      fresh /sw.js (some Safari/iOS combinations were holding the previous

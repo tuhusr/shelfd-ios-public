@@ -2854,9 +2854,15 @@ function getRawgDateString(date) {
 
 async function fetchRawgPages(params = {}, pageCount = DISCOVER_PAGE_COUNT, limit = DISCOVER_LIMIT) {
   const pages = Array.from({ length: pageCount }, (_, i) => i + 1);
+  /* v10.290: track when RAWG returns a hard failure (401 = quota exceeded,
+     5xx = service down) so we can fall back to IGDB. */
+  let rawgFailed = false;
   const settled = await Promise.allSettled(pages.map(async page => {
     const res = await fetchRawgProxy('games', { page_size: '40', ...params, page: String(page) });
-    if (!res.ok) throw new Error(`RAWG discovery request failed: ${res.status}`);
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 429 || res.status >= 500) rawgFailed = true;
+      throw new Error(`RAWG discovery request failed: ${res.status}`);
+    }
     const json = await res.json();
     return json.results || [];
   }));
@@ -2864,11 +2870,60 @@ async function fetchRawgPages(params = {}, pageCount = DISCOVER_PAGE_COUNT, limi
     .filter(result => result.status === 'fulfilled')
     .flatMap(result => result.value);
   const seen = new Set();
-  return results.filter(item => {
+  const deduped = results.filter(item => {
     if (!item || !item.id || !item.name || !item.background_image || seen.has(item.id)) return false;
     seen.add(item.id);
     return true;
   }).slice(0, limit);
+  /* v10.290: if RAWG totally failed (quota / outage), fall through to IGDB.
+     Caller passes in the original params so we can map them to IGDB's
+     preset/from/to query format. */
+  if (deduped.length === 0 && rawgFailed) {
+    try {
+      const igdbResults = await fetchIgdbGamesFallback(params, limit);
+      if (igdbResults.length) return igdbResults;
+    } catch (e) {
+      console.warn('[games] IGDB fallback failed:', e && e.message ? e.message : e);
+    }
+  }
+  return deduped;
+}
+
+/* v10.290: IGDB fallback. The worker has /api/igdb/discover-games already
+   built (worker.js:639). It accepts ?preset=popular|rated|upcoming&from&to&limit
+   and returns games shaped identically to RAWG results (id, name, released,
+   background_image, genres[], platforms[], rating, ratings_count, etc).
+   We map RAWG-style params to IGDB-style preset:
+     ordering: '-added' / no dates → popular
+     ordering: '-rating' or metacritic= → rated
+     dates with future from → upcoming
+     dates with year start → popular w/ from-to
+*/
+async function fetchIgdbGamesFallback(params = {}, limit = DISCOVER_LIMIT) {
+  const ordering = String(params.ordering || '').trim();
+  const dates = String(params.dates || '').trim();
+  const metacritic = String(params.metacritic || '').trim();
+  let preset = 'popular';
+  if (metacritic || ordering === '-rating' || ordering === '-metacritic') preset = 'rated';
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  let from = '';
+  let to = '';
+  if (dates && dates.includes(',')) {
+    const [a, b] = dates.split(',');
+    if (a && /^\d{4}-\d{2}-\d{2}$/.test(a)) from = a;
+    if (b && /^\d{4}-\d{2}-\d{2}$/.test(b)) to = b;
+    if (from && from > todayStr) preset = 'upcoming';
+  }
+  const url = new URL('/api/igdb/discover-games', window.location.origin);
+  url.searchParams.set('preset', preset);
+  url.searchParams.set('limit', String(Math.min(100, Math.max(20, limit))));
+  if (from) url.searchParams.set('from', from);
+  if (to) url.searchParams.set('to', to);
+  const res = await fetch(url.toString());
+  if (!res.ok) return [];
+  const json = await res.json();
+  return Array.isArray(json?.results) ? json.results : [];
 }
 
 function gameRatingCount(item) {
