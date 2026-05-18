@@ -485,7 +485,7 @@ body.light-mode #community-view #activity-tab-view .activity-card:not(.feed-post
   align-items: center;
   justify-content: flex-start !important;
   gap: 12px;
-  border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 #feed-post-page .overlay-page-back-btn {
   flex: 0 0 auto;

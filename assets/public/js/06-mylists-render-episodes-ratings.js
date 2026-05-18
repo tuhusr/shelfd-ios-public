@@ -8,6 +8,11 @@ function normalizeMyListPosterUrl(value = '') {
   const raw = String(value || '').trim();
   if (!raw) return '';
   if (raw.startsWith('//')) return `https:${raw}`;
+  /* v10.235: don't rewrite same-origin worker proxy paths (e.g. MusicBrainz
+     cover-art at `/api/musicbrainz/cover-art/...`) — those served the album
+     poster URL fine on their own, but the old fallthrough was prepending
+     the TMDB image host and turning the URL into a 404. */
+  if (raw.startsWith('/api/')) return raw;
   if (raw.startsWith('/')) return `https://image.tmdb.org/t/p/original${raw}`;
   const tmdbMatch = raw.match(/^https?:\/\/image\.tmdb\.org\/t\/p\/(?:w\d+|original)(\/.+)$/i);
   if (tmdbMatch?.[1]) return `https://image.tmdb.org/t/p/original${tmdbMatch[1]}`;
@@ -416,9 +421,23 @@ function render() {
   activeTab = normalizeVisibleMyListStatusTab(activeTab, activeSection);
   const stateKey = getSortStateKey();
   const activeSortKey = getActiveSortKey();
+  /* v10.261: music search spans both status tabs (Listened + Planned) and
+     matches title OR artist. So typing "Drake" while on music returns every
+     Drake album regardless of which bucket it's in. Empty query keeps the
+     standard tab filter so the per-tab views stay clean. */
+  const isMusicSearch = activeSection === 'music' && !!searchQuery;
   const baseFiltered = items
-    .filter(itemMatchesActiveListStatus)
-    .filter(i => !searchQuery || (i.title || '').toLowerCase().includes(searchQuery.toLowerCase()));
+    .filter(i => isMusicSearch ? true : itemMatchesActiveListStatus(i))
+    .filter(i => {
+      if (!searchQuery) return true;
+      const q = String(searchQuery).toLowerCase();
+      const title = String(i?.title || '').toLowerCase();
+      if (activeSection === 'music') {
+        const artist = String(i?.artist || '').toLowerCase();
+        return title.includes(q) || artist.includes(q);
+      }
+      return title.includes(q);
+    });
   const filtered = applySortOrder(baseFiltered, activeSortKey, stateKey);
 
   const isPreview = document.body.classList.contains('preview-mode');
@@ -440,23 +459,41 @@ function render() {
   });
 
   // Tab counts
-  const gamesPlayingCount = items.filter(i => i.status === "watching").length;
-  const gamesLiveCount = items.filter(i => i.status === "live" && !isCompetitiveGameItem(i)).length;
-  const gamesCompetitiveCount = items.filter(isCompetitiveGameItem).length;
-  document.getElementById("count-live").textContent = gamesLiveCount;
+  /* v10.69: was 7 separate `items.filter(...).length` passes over the section's
+     full item list — for a large library that's ~7N work every render(). One
+     reduce gives identical counts in a single pass. `isCompetitiveGameItem`
+     remains the canonical "is this 'live' game actually a competitive one"
+     check so behavior for the games-playing subfilter stays intact. */
+  const counts = items.reduce((acc, item) => {
+    const status = item && item.status;
+    if (status === 'watching') acc.watching++;
+    else if (status === 'live') {
+      if (isCompetitiveGameItem(item)) acc.competitive++;
+      else acc.live++;
+    }
+    else if (status === 'competitive') acc.competitive++;
+    else if (status === 'planned') acc.planned++;
+    else if (status === 'watched') acc.watched++;
+    else if (status === 'wishlist') acc.wishlist++;
+    else if (status === 'paused') acc.paused++;
+    else if (status === 'dropped') acc.dropped++;
+    return acc;
+  }, { watching: 0, live: 0, competitive: 0, planned: 0, watched: 0, wishlist: 0, paused: 0, dropped: 0 });
+  document.getElementById("count-live").textContent = counts.live;
   document.getElementById("count-watching").textContent = activeSection === 'games'
-    ? gamesPlayingCount + gamesLiveCount + gamesCompetitiveCount
-    : gamesPlayingCount;
-  document.getElementById("count-planned").textContent = items.filter(i => i.status === "planned").length;
-  document.getElementById("count-watched").textContent = items.filter(i => i.status === "watched").length;
+    ? counts.watching + counts.live + counts.competitive
+    : counts.watching;
+  document.getElementById("count-planned").textContent = counts.planned;
+  document.getElementById("count-watched").textContent = counts.watched;
   const wishlistCountEl = document.getElementById("count-wishlist");
-  if (wishlistCountEl) wishlistCountEl.textContent = items.filter(i => i.status === "wishlist").length;
-  document.getElementById("count-paused").textContent = items.filter(i => i.status === "paused").length;
+  if (wishlistCountEl) wishlistCountEl.textContent = counts.wishlist;
+  document.getElementById("count-paused").textContent = counts.paused;
   const droppedCountEl = document.getElementById("count-dropped");
-  if (droppedCountEl) droppedCountEl.textContent = items.filter(i => i.status === "dropped").length;
+  if (droppedCountEl) droppedCountEl.textContent = counts.dropped;
 
-  // Add button label
-  document.getElementById("add-btn").textContent = '+ Add to Shelf';
+  // Add-to-Shelf can be hidden from My Lists while the underlying modal stays available elsewhere.
+  const addBtn = document.getElementById("add-btn");
+  if (addBtn) addBtn.textContent = '+ Add to Shelf';
   renderGamePlayingSubfilter(items);
 
   // Section buttons
@@ -480,8 +517,10 @@ function render() {
       b.style.display = "none";
       b.classList.remove("active");
     }
+    /* v10.254 / v10.261: music exposes Planned + In Rotation + Listened.
+       Other status tabs (paused/wishlist) are hidden under music. */
     if (b.dataset.tab === "paused") {
-      b.style.display = activeSection === "games" ? "none" : "";
+      b.style.display = (activeSection === "games" || activeSection === "music") ? "none" : "";
     }
     if (b.dataset.tab === "wishlist") {
       b.style.display = activeSection === "games" ? "" : "none";
@@ -489,13 +528,25 @@ function render() {
     }
     if (b.dataset.tab === "watching") {
       b.style.display = activeSection === "movies" ? "none" : "";
-      b.childNodes[0].textContent = activeSection === "games" ? "Playing" : isReadingSection(activeSection) ? "Reading" : "Watching";
+      b.childNodes[0].textContent = activeSection === "games"
+        ? "Playing"
+        : activeSection === "music"
+          ? "In Rotation"
+          : isReadingSection(activeSection) ? "Reading" : "Watching";
     }
     if (b.dataset.tab === "planned") {
-      b.childNodes[0].textContent = activeSection === "games" ? "Backloggd" : isReadingSection(activeSection) ? "TBR" : "Watchlist";
+      b.childNodes[0].textContent = activeSection === "games"
+        ? "Backloggd"
+        : activeSection === "music"
+          ? "Planned"
+          : isReadingSection(activeSection) ? "TBR" : "Watchlist";
     }
     if (b.dataset.tab === "watched") {
-      b.childNodes[0].textContent = activeSection === "games" ? "Played" : isReadingSection(activeSection) ? "Read" : "Watched";
+      b.childNodes[0].textContent = activeSection === "games"
+        ? "Played"
+        : activeSection === "music"
+          ? "Listened"
+          : isReadingSection(activeSection) ? "Read" : "Watched";
     }
   });
   requestAnimationFrame(() => updateSlidingPills());
@@ -506,7 +557,6 @@ function render() {
   const grid = document.getElementById("cards-grid");
   const empty = document.getElementById("empty-state");
   const emptySub = empty.querySelector(".empty-sub");
-  const emptyCta = document.getElementById("empty-cta");
 
   // Inject / update sort button
   let sortBtn = document.getElementById('sort-dropdown-btn');
@@ -556,11 +606,7 @@ function render() {
         ? "No matches for your search. Try a shorter title or clear the search field."
         : viewingUser
           ? "This list is quiet in this section right now."
-          : "Start building this shelf with something you want to track.";
-    }
-    if (emptyCta) {
-      emptyCta.style.display = (!viewingUser && !searchQuery) ? "" : "none";
-      emptyCta.textContent = `Add your first ${getSectionLabel(activeSection, true)}`;
+          : "Start from Discover or Search to add titles to your shelf.";
     }
     return;
   }
@@ -1343,8 +1389,29 @@ function isScreenListTvAnimeWatchingCard(section = activeSection, item = {}) {
   return (section === 'shows' || section === 'anime') && String(item?.status || '') === 'watching';
 }
 
+function isScreenListWatchedMediaCard(section = activeSection, item = {}) {
+  return isScreenListMovieTvAnimeSection(section) && String(item?.status || '') === 'watched';
+}
+
 function shouldHideMyListCardGenre(section = activeSection, item = {}) {
+  /* v10.77: Watched movie/TV/anime cards SHOW genre again (per the standardized
+     Watched metadata order: title → year → genre → status → rating → comment).
+     Was previously hidden via `isScreenListWatchedMediaCard`. The TV/Anime
+     Watching hide stays — that card has its own progress-meta line that
+     replaces genre in the layout. */
   return isScreenListTvAnimeWatchingCard(section, item);
+}
+
+/* v10.77: cap a comma-separated genre string to the first N entries, trimmed
+   and de-blanked. Used to limit Watched movie/TV/anime cards to 2 genres
+   without affecting other contexts that still show the full string. */
+function formatMyListGenreList(value = '', max = 2) {
+  return String(value || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+    .slice(0, Math.max(0, Number(max) || 0))
+    .join(', ');
 }
 
 function shouldHideMyListCommentButton(section = activeSection, item = {}) {
@@ -1399,10 +1466,8 @@ function normalizeWatchlistPriorityValue(value = '') {
 function renderWatchlistPriorityControl(item = {}, section = activeSection) {
   if (!canUseWatchlistPriority(item, section, activeTab)) return '';
   const value = getWatchlistPriorityValue(item);
-  const priorityLabel = section === 'games' && activeTab === 'wishlist' ? 'Wishlist priority' : 'Priority';
-  const priorityAria = section === 'games' && activeTab === 'wishlist'
-    ? `Wishlist priority for ${item.title || 'this title'}`
-    : `Watchlist priority for ${item.title || 'this title'}`;
+  const priorityLabel = 'Priority';
+  const priorityAria = `Watchlist priority for ${item.title || 'this title'}`;
   return `<label class="watchlist-priority-slot" onclick="event.stopPropagation()">
     <span>${escHtml(priorityLabel)}</span>
     <input class="watchlist-priority-input" type="number" inputmode="numeric" pattern="[0-9]*" min="1" step="1" value="${escAttr(value)}" placeholder="-" aria-label="${escAttr(priorityAria)}" data-mylist-action="watch-priority" data-mylist-item-id="${escAttr(item.id)}" oninput="event.stopPropagation()" onchange="event.stopPropagation();setWatchlistPriority('${escAttr(item.id)}', this.value)">
@@ -1569,6 +1634,53 @@ function getScreenListKnownReleaseDate(item = {}) {
   return '';
 }
 
+function isGamesWishlistStatusCard(item = {}, section = activeSection, tab = activeTab) {
+  return section === 'games' && tab === 'wishlist' && String(item?.status || '').trim() === 'wishlist';
+}
+
+function getScreenListGameReleasePlatforms(item = {}) {
+  const candidates = [
+    item?.platforms,
+    item?.releasePlatforms,
+    item?.platformNames
+  ];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      const names = candidate
+        .map(entry => {
+          if (typeof entry === 'string') return entry;
+          if (entry && typeof entry === 'object') {
+            return entry.platform?.name || entry.name || entry.title || '';
+          }
+          return '';
+        })
+        .map(value => String(value || '').trim())
+        .filter(Boolean);
+      if (names.length) return [...new Set(names)].slice(0, 4).join(', ');
+    }
+    const text = String(candidate || '').trim();
+    if (text) return text;
+  }
+  return '';
+}
+
+function renderGamesWishlistMetadataHtml(item = {}, section = activeSection, tab = activeTab) {
+  if (!isGamesWishlistStatusCard(item, section, tab)) return '';
+  const lines = [];
+  const genre = String(item?.genre || '').trim();
+  if (genre) lines.push(`<div class="card-genre games-wishlist-card-genre">${escHtml(genre)}</div>`);
+  const platforms = getScreenListGameReleasePlatforms(item);
+  if (platforms) lines.push(`<div class="card-genre games-wishlist-card-platforms">${escHtml(platforms)}</div>`);
+  const releaseDate = getScreenListKnownReleaseDate(item);
+  if (releaseDate && typeof isScreenListFutureReleaseDate === 'function' && isScreenListFutureReleaseDate(releaseDate)) {
+    const formatted = typeof formatScreenListReleaseDateLabel === 'function'
+      ? formatScreenListReleaseDateLabel(releaseDate)
+      : releaseDate;
+    if (formatted) lines.push(`<div class="card-genre games-wishlist-card-release">${escHtml(formatted)}</div>`);
+  }
+  return lines.join('');
+}
+
 function getMyListUpcomingReleaseLabel(item = {}, section = activeSection) {
   if (!isScreenListMovieTvAnimeSection(section) || String(item?.status || '') !== 'planned') return '';
   const value = getScreenListKnownReleaseDate(item);
@@ -1645,6 +1757,23 @@ function renderMyListWatchListAvailabilityHtml(item = {}, section = activeSectio
   return '';
 }
 
+function renderMyListWatchListMetadataInnerHtml(item = {}, section = activeSection, tab = activeTab) {
+  if (tab !== 'planned') return '';
+  if (!isScreenListMovieTvAnimeSection(section)) return '';
+  const lines = [];
+  if (!shouldHideMyListCardGenre(section, item) && item.genre) {
+    lines.push(`<div class="card-genre">${escHtml(item.genre)}</div>`);
+  }
+  const availabilityHtml = renderMyListWatchListAvailabilityHtml(item, section);
+  if (availabilityHtml) lines.push(availabilityHtml);
+  return lines.join('');
+}
+
+function renderMyListWatchListMetadataHtml(item = {}, section = activeSection, tab = activeTab) {
+  const inner = renderMyListWatchListMetadataInnerHtml(item, section, tab);
+  return inner ? `<div class="watchlist-card-metadata">${inner}</div>` : '';
+}
+
 async function fetchMyListWatchProviders(item = {}, section = activeSection) {
   // Pull TMDB's /watch/providers and pick up to 3 providers, prioritising
   // subscription (flatrate) > free > ads, falling back to rent/buy. Region
@@ -1709,6 +1838,15 @@ function updateMyListUpcomingReleaseDateElement(item = {}, section = activeSecti
   const cardSelector = `#card-${CSS.escape(String(item?.id || ''))}`;
   const actionRowSpan = document.querySelector(`${cardSelector} .card-upcoming-release-label`);
   if (actionRowSpan) actionRowSpan.remove();
+
+  const metadataSlot = document.querySelector(`${cardSelector} .watchlist-card-metadata`);
+  if (metadataSlot) {
+    const inner = renderMyListWatchListMetadataInnerHtml(item, section, 'planned');
+    if (inner) metadataSlot.innerHTML = inner;
+    else metadataSlot.remove();
+    document.querySelectorAll(`${cardSelector} .mylist-upcoming-release-date`).forEach(el => el.remove());
+    return;
+  }
 
   const html = renderMyListWatchListAvailabilityHtml(item, section);
   let node = document.querySelector(`${cardSelector} .card-availability-line`);
@@ -1995,10 +2133,14 @@ function renderCard(item, isDraggable) {
     ? getScreenListDisplayGameCover(item)
     : normalizeMyListPosterUrl(item.cover || '');
   const coverStyle = cardCoverSrc
-    ? `background-image:url('${cardCoverSrc}');background-size:cover;background-position:top center;`
+    ? `background-image:url('${cardCoverSrc}');background-size:cover;background-position:${activeSection === 'music' ? 'center center' : 'top center'};`
     : "";
   const coverPosterAttr = cardCoverSrc ? `data-poster="${escAttr(cardCoverSrc)}"` : '';
-  const coverClass = cardCoverSrc ? "card-cover" : (isGameCard ? "card-cover no-img screenlist-game-cover-pending" : "card-cover no-img");
+  /* v10.236: tag music covers so CSS can lock them to a 1:1 square aspect
+     ratio everywhere — album art is always square, never portrait. */
+  const isMusicCard = activeSection === 'music';
+  const musicClass = isMusicCard ? ' card-cover-music' : '';
+  const coverClass = (cardCoverSrc ? "card-cover" : (isGameCard ? "card-cover no-img screenlist-game-cover-pending" : "card-cover no-img")) + musicClass;
   const emoji = getSectionIcon(activeSection);
   const friendAlreadyAdded = viewingUser && myData ? isDuplicateTitleInList(item.title, activeSection, myData) : false;
   const itemSectionAttr = escAttr(activeSection);
@@ -2012,7 +2154,15 @@ function renderCard(item, isDraggable) {
   }
   if (activeSection === 'shows' || activeSection === 'anime') queueMyListNextEpisodeHydration(item, activeSection);
   const canOpenProfile = canOpenLibraryMediaProfile(activeSection);
+  const isGamesWishlistCard = isGamesWishlistStatusCard(item, activeSection, activeTab);
+  const isWatchedShowProgressCard = type === "show"
+    && String(item?.status || '').trim() === 'watched'
+    && (activeSection === 'shows' || activeSection === 'anime');
+  const isInlineProgressPercentCard = type === "show"
+    && (activeSection === 'shows' || activeSection === 'anime')
+    && ['watching', 'paused'].includes(String(item?.status || '').trim());
   const canOpenTrackerBreakdown = isGameCard
+    && !isGamesWishlistCard
     && typeof hasScreenListTrackerBreakdownForItem === 'function'
     && hasScreenListTrackerBreakdownForItem(item);
   const gameTitleMarkup = isGameCard
@@ -2035,9 +2185,13 @@ function renderCard(item, isDraggable) {
     }
   }
   const bottomExternalBadgeHtml = renderMyListBottomExternalBadge(item, activeSection);
-  const watchlistPriorityHtml = renderWatchlistPriorityControl(item, activeSection);
+  const watchlistPriorityHtml = isGamesWishlistCard ? '' : renderWatchlistPriorityControl(item, activeSection);
+  const gamesWishlistPriorityHtml = isGamesWishlistCard
+    ? `<div class="games-wishlist-card-priority">${renderWatchlistPriorityControl(item, activeSection)}</div>`
+    : '';
   const nextEpisodeActionHtml = renderMyListNextEpisodeActionHtml(item, activeSection, activeTab);
   const showCommentButton = !shouldHideMyListCommentButton(activeSection, item);
+  const gamesWishlistMetadataHtml = renderGamesWishlistMetadataHtml(item, activeSection, activeTab);
 
   let watchedCount = 0, totalEps = 0, progress = 0;
   if (type === "show") {
@@ -2077,22 +2231,19 @@ function renderCard(item, isDraggable) {
         <span class="ep-arrow" id="ep-arrow-${item.id}">&#9662;</span>
       </button>
     `;
+    /* v10.69: lazy-hydrate the episode dropdown.
+       For closed dropdowns (the common case across a long list), the inner
+       content is left EMPTY at render time. Only the lightweight `.ep-list`
+       shell exists. On first `toggleEpisodes(id)` open, the inner is hydrated
+       via `buildEpisodeListInnerHtml(item)` — see toggleEpisodes below.
+       For dropdowns that ARE currently open (`openStates['ep-' + id]` truthy),
+       hydrate immediately so the post-render `setEpisodesExpanded(...)` restore
+       block at L585+ measures a real scrollHeight. Saves hundreds to thousands
+       of hidden episode-row DOM nodes per render on large libraries. */
+    const _isEpOpenAlready = !!openStates['ep-' + item.id];
     episodeSection = `
-      <div class="ep-list" id="ep-list-${item.id}">
-        <div class="ep-list-inner">
-        ${!viewingUser ? `<div class="ep-actions">
-          <div style="display:flex;gap:8px;">
-            <button type="button" class="btn-secondary btn-sm" data-mylist-action="mark-all-eps" data-mylist-item-id="${item.id}" data-mylist-mark-value="true" onclick="markAllEps('${item.id}',true)">Mark All Watched</button>
-            <button type="button" class="btn-secondary btn-sm" data-mylist-action="mark-all-eps" data-mylist-item-id="${item.id}" data-mylist-mark-value="false" onclick="markAllEps('${item.id}',false)">Clear All</button>
-          </div>
-          <div class="edit-ep-row" id="edit-ep-${item.id}">
-            <button type="button" class="edit-ep-link" onclick="showEditEp('${item.id}')">Edit episode count</button>
-          </div>
-        </div>` : ''}
-        <div class="ep-scroll">
-          ${renderEpisodeList(item)}
-        </div>
-        </div>
+      <div class="ep-list" id="ep-list-${item.id}"${_isEpOpenAlready ? '' : ' data-ep-pending="1"'}>
+        <div class="ep-list-inner">${_isEpOpenAlready ? buildEpisodeListInnerHtml(item) : ''}</div>
       </div>
     `;
   }
@@ -2102,10 +2253,10 @@ function renderCard(item, isDraggable) {
   const gameStatHours = _igs ? (_igs.hours ? _igs.hours + 'h' : '—') : '';
   const gameStatPlatform = _igs ? (_igs.platform || '—') : '';
   const gameStatTracker = _igs ? _igs.tracker : '';
-  const competitiveStatsHtml = isGameCard && typeof renderScreenListCompetitiveStatsCardHtml === 'function'
+  const competitiveStatsHtml = isGameCard && !isGamesWishlistCard && typeof renderScreenListCompetitiveStatsCardHtml === 'function'
     ? renderScreenListCompetitiveStatsCardHtml(item)
     : '';
-  const gameStatsHtml = isGameCard ? `<div class="game-card-stats-inline">
+  const gameStatsHtml = isGameCard && !isGamesWishlistCard ? `<div class="game-card-stats-inline">
     <div class="game-card-stat-row"><span class="game-card-stat-label">Hours played:</span><span class="game-card-stat-val">${escHtml(gameStatHours)}</span></div>
     <div class="game-card-stat-row"><span class="game-card-stat-label">Platform:</span><span class="game-card-stat-val">${escHtml(gameStatPlatform)}</span></div>
     <div class="game-card-stat-row"><span class="game-card-stat-label">Tracker/Stats:</span>${gameStatTracker ? `<a class="game-card-tracker-icon-link" href="${escAttr(gameStatTracker)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" aria-label="Open Tracker/Stats">${getScreenListGameTrackerIconSvg()}</a>` : '<span class="game-card-stat-val">—</span>'}</div>
@@ -2128,29 +2279,52 @@ function renderCard(item, isDraggable) {
     ? `draggable="true" ondragstart="onCardDragStart(event,'${item.id}')" ondragover="onCardDragOver(event)" ondragleave="onCardDragLeave(event)" ondrop="onCardDrop(event,'${item.id}')"`
     : '';
   return `
-    <div class="card ${type === "show" ? "show-card" : ""}${isGameCard ? " game-library-card" : ""} ${viewingUser ? "friend-view-card" : ""}${isDraggable ? ' card-draggable' : ''}" id="card-${item.id}" ${isGameCard ? `onclick="handleScreenListGameCardSurfaceClick(event,'${itemIdAttr}')"` : ''} ${dragAttrs}>
+    <div class="card ${type === "show" ? "show-card" : ""}${isGameCard ? " game-library-card" : ""}${isGamesWishlistCard ? " games-wishlist-card" : ""} ${viewingUser ? "friend-view-card" : ""}${isDraggable ? ' card-draggable' : ''}" id="card-${item.id}" data-mylist-review-card data-library-item-id="${itemIdAttr}" data-library-section="${itemSectionAttr}" onclick="handleMyListCardReviewSurfaceClick(event,'${itemIdAttr}','${itemSectionAttr}')" ${dragAttrs}>
       <div class="card-header">
-        <div class="${coverClass}${coverProfileClass}" style="${coverStyle}" ${coverPosterAttr} ${coverProfileAttrs}>
+        <div class="${coverClass}${coverProfileClass}" style="${coverStyle}" ${coverPosterAttr} ${coverProfileAttrs}${activeSection === 'music' ? ` onclick="event.stopPropagation();openMyListMusicCoverClick('${itemIdAttr}')"` : ''}>
           ${!cardCoverSrc ? (isGameCard ? `<span>${SCREENLIST_GAME_COVER_PLACEHOLDER_TEXT}</span>` : emoji) : ''}
         </div>
-        <div class="card-info">
+        <div class="card-info${isGamesWishlistCard ? ' games-wishlist-card-info' : ''}">
           <div class="card-title-row">
             <div class="card-title">${gameTitleMarkup}</div>
             ${!viewingUser ? `<button class="delete-btn" onclick="deleteItem(event,'${item.id}')" title="Delete">×</button>` : (currentUser ? `<button class="friend-card-add-btn${friendAlreadyAdded ? ' added' : ''}" data-friend-item-id="${escHtml(item.id)}" onclick="event.stopPropagation();openFriendAddModal(this.dataset.friendItemId, this)" title="Add to my list">+</button>` : '')}
           </div>
           ${gameStatsHtml}
           ${competitiveStatsHtml}
-          ${(activeTab === 'planned' && isScreenListMovieTvAnimeSection(activeSection) && item.year) ? `<div class="card-year mylist-watchlist-year">${escHtml(String(item.year).slice(0, 4))}</div>` : ''}
-          ${(!shouldHideMyListCardGenre(activeSection, item) && item.genre) ? `<div class="card-genre">${escHtml(item.genre)}</div>` : ''}
-          ${(() => {
-            if (activeTab !== 'planned') return '';
-            if (!isScreenListMovieTvAnimeSection(activeSection)) return '';
-            return renderMyListWatchListAvailabilityHtml(item, activeSection);
-          })()}
+          ${(((activeTab === 'planned' && isScreenListMovieTvAnimeSection(activeSection))
+              /* v10.76: Movies → Watched also shows year between title and genre.
+                 v10.77: extended to ALL watched movie/TV/anime cards so the
+                 metadata order (title → year → genre → status → rating → comment)
+                 is uniform across Movies, TV Shows, and Anime when watched.
+                 Games and Movies Watchlist/Paused are still untouched.
+                 Same .card-year .mylist-watchlist-year class — its CSS is
+                 generic styling (font-size/color/weight), not watchlist-specific.
+                 Applies on viewed-user lists too — same renderer, read-only by
+                 way of the existing viewingUser-gated chrome elsewhere.
+                 v10.231: also show year for music album cards. */
+              || (activeTab === 'watched' && isScreenListMovieTvAnimeSection(activeSection))
+              || activeSection === 'music')
+              && item.year) ? `<div class="card-year mylist-watchlist-year">${escHtml(String(item.year).slice(0, 4))}</div>` : ''}
+          ${(activeSection === 'music' && item.artist) ? `<div class="card-artist">${escHtml(String(item.artist))}</div>` : ''}
+          ${activeTab === 'planned' && isScreenListMovieTvAnimeSection(activeSection) ? '' : (!isGamesWishlistCard && (!shouldHideMyListCardGenre(activeSection, item) && item.genre) ? `<div class="card-genre">${escHtml(isScreenListWatchedMediaCard(activeSection, item) ? formatMyListGenreList(item.genre, 2) : item.genre)}</div>` : '')}
+          ${gamesWishlistMetadataHtml}
+          ${renderMyListWatchListMetadataHtml(item, activeSection, activeTab)}
           ${!viewingUser ? `<div class="status-pills status-pills-selector-wrap" id="status-pills-${item.id}">${statusSelectorHtml}</div>` : ''}
           ${type === "show" ? (item.status === 'planned' ? `
             <div class="progress-area">
               <div class="progress-meta"><span id="progress-count-${item.id}">${totalEps > 0 ? `${totalEps} episodes` : 'Episodes TBD'}</span></div>
+            </div>
+          ` : isWatchedShowProgressCard ? `
+            <div class="progress-area">
+              <div class="progress-meta"><span id="progress-count-${item.id}">${watchedCount}/${totalEps} episodes</span><span id="progress-percent-${item.id}">${Math.round(progress)}%</span></div>
+            </div>
+          ` : isInlineProgressPercentCard ? `
+            <div class="progress-area">
+              <div class="progress-meta"><span id="progress-count-${item.id}">${watchedCount}/${totalEps} episodes</span></div>
+              <div class="progress-bar-row">
+                <div class="progress-bar"><div class="progress-fill" id="progress-fill-${item.id}" style="width:${progress}%"></div></div>
+                <span class="progress-percent-inline" id="progress-percent-${item.id}"${totalEps > 0 ? '' : ' hidden'}>${totalEps > 0 ? `${Math.round(progress)}%` : ''}</span>
+              </div>
             </div>
           ` : `
             <div class="progress-area">
@@ -2158,11 +2332,16 @@ function renderCard(item, isDraggable) {
               <div class="progress-bar"><div class="progress-fill" id="progress-fill-${item.id}" style="width:${progress}%"></div></div>
             </div>
           `) : ''}
-          ${item.status !== 'planned' ? `<div class="rating-area">
+          ${item.status !== 'planned' && !isGamesWishlistCard ? `<div class="rating-area">
             <div class="rating-label">Rating</div>
             ${renderStars(item.rating || 0, item.id, 'overall', 16)}
           </div>` : ''}
-          ${buildCardCommentBodyHtml(item)}
+          <!-- v10.69: stable slot wrapper around the card comment so partial
+               updates from saveCardCommentFromComposer / deleteCardComment can
+               swap just this region's innerHTML instead of triggering a full
+               grid re-render. Empty inner is fine — no comment = no children. -->
+          <div class="card-comment-slot" id="card-comment-slot-${item.id}">${buildCardCommentBodyHtml(item)}</div>
+          ${gamesWishlistPriorityHtml}
         </div>
       </div>
       <div class="card-action-row${bottomExternalBadgeHtml ? ' has-bottom-export' : ''}${watchlistPriorityHtml ? ' has-watch-priority' : ''}${nextEpisodeActionHtml ? ' has-next-episode' : ''}">
@@ -2178,16 +2357,499 @@ function renderCard(item, isDraggable) {
         <div class="card-right-controls">
           ${episodeToggleButton}
           ${renderWatchTogetherCardControl(item, activeSection)}
+          ${activeSection === 'music' ? `<button class="card-tracklist-btn" type="button" onclick="event.stopPropagation();openMyListAlbumPage('${itemIdAttr}')" aria-label="Open album tracklist">Tracklist</button>` : ''}
           ${buildCardCommentAddBtnHtml(item)}
         </div>
       </div>
       ${gameCommentDropHtml}
-      ${isGameCard ? renderGameDetailsPanel(item) : ''}
+      ${isGameCard && !isGamesWishlistCard ? renderGameDetailsPanel(item) : ''}
       ${item.shelfdActivityNote ? `<div class="card-activity-note" data-card-activity-note>${escHtml(item.shelfdActivityNote)}</div>` : ''}
       ${episodeSection}
-      ${isGameCard && !viewingUser && !screenlistGameDetailsEditState[gameDetailsKey] ? `<button class="game-card-edit-btn" type="button" onclick="event.stopPropagation();openGameDetailsEdit('${gameDetailsKey}')" aria-label="Edit game details">${getScreenListGamePencilSvg()}</button>` : ''}
+      ${isGameCard && !isGamesWishlistCard && !viewingUser && !screenlistGameDetailsEditState[gameDetailsKey] ? `<button class="game-card-edit-btn" type="button" onclick="event.stopPropagation();openGameDetailsEdit('${gameDetailsKey}')" aria-label="Edit game details">${getScreenListGamePencilSvg()}</button>` : ''}
     </div>
   `;
+}
+
+function isMyListReviewExcludedTarget(target = null) {
+  if (!target?.closest) return false;
+  return !!target.closest([
+    'button',
+    'a',
+    'input',
+    'select',
+    'textarea',
+    'label',
+    '[contenteditable="true"]',
+    '[role="button"]',
+    '.card-cover',
+    '.card-cover-profile-btn',
+    '.rating-area',
+    '.stars',
+    '.status-pills',
+    '.game-status-selector',
+    '.game-details-panel',
+    '.game-card-comment-drop',
+    '.ep-toggle-bar',
+    '.ep-list',
+    '.comments-btn',
+    '.card-comment-add-btn',
+    '.card-comment-body--owner',
+    '.watch-together-card-control',
+    '.watch-together-card-btn',
+    '.mylist-card-bottom-export',
+    '.watchlist-priority-slot',
+    '.tracker-card-strip',
+    '.game-card-edit-btn'
+  ].join(','));
+}
+
+/* v10.250: tapping the album COVER on a my-list music card opens the rich
+   Deezer-hydrated Album Profile (full-page slide-in with cover, artist, year,
+   release date, genre, runtime, tracklist). Distinct from the card body
+   tap, which still opens the Full Page Review. */
+window.openMyListMusicCoverClick = function(itemId) {
+  try {
+    const list = Array.isArray(data?.music) ? data.music : [];
+    const item = list.find(it => String(it?.id || '') === String(itemId));
+    if (!item) return;
+    if (typeof window.openMusicAlbumProfile !== 'function') return;
+    window.openMusicAlbumProfile({
+      id: item.deezerId || item.mbid || '',
+      mbid: item.mbid || '',
+      deezerId: item.deezerId || '',
+      title: item.title || '',
+      artist: item.artist || '',
+      year: item.year || (item.releaseDate ? String(item.releaseDate).slice(0, 4) : ''),
+      poster: item.cover || ''
+    });
+  } catch (e) { console.warn('openMyListMusicCoverClick failed:', e); }
+};
+
+function handleMyListCardReviewSurfaceClick(event = null, itemId = '', section = activeSection) {
+  if (!event || isMyListReviewExcludedTarget(event.target)) return;
+  event.preventDefault?.();
+  event.stopPropagation?.();
+  openFullPageMediaReview(itemId, section);
+}
+window.handleMyListCardReviewSurfaceClick = handleMyListCardReviewSurfaceClick;
+
+function findMyListReviewItem(itemId = '', section = activeSection) {
+  const cleanId = String(itemId || '').trim();
+  const cleanSection = String(section || activeSection || '').trim();
+  const source = typeof getVisibleListData === 'function' ? getVisibleListData() : data;
+  const list = Array.isArray(source?.[cleanSection]) ? source[cleanSection] : [];
+  const item = list.find(row => String(row?.id || '') === cleanId);
+  return item ? { item, section: cleanSection } : null;
+}
+
+function getMyListReviewFallbackAvatar(name = 'Shelfd User') {
+  return 'https://ui-avatars.com/api/?name=' + encodeURIComponent(name || 'Shelfd User') + '&background=1c1535&color=a78bfa';
+}
+
+function getMyListReviewAuthor() {
+  const profile = viewingUser
+    ? { ...(usersMap?.[viewingUser.uid || ''] || {}), ...viewingUser }
+    : ((typeof getActiveProfile === 'function' ? getActiveProfile() : null) || userProfile || {});
+  const name = profile?.name || profile?.customName || currentUser?.displayName || 'Shelfd User';
+  const photo = profile?.photo || profile?.customPhoto || currentUser?.photoURL || getMyListReviewFallbackAvatar(name);
+  return { name, photo };
+}
+
+function getMyListReviewActionVerb(section = activeSection, item = {}) {
+  if (section === 'games') return 'Played';
+  if (section === 'music') return 'Listened';
+  if (section === 'manga' || section === 'books') return 'Read';
+  return 'Watched';
+}
+
+function formatMyListReviewDate(value = '') {
+  const ms = Date.parse(value || '');
+  if (!Number.isFinite(ms) || ms <= 0) return '';
+  try {
+    return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(ms));
+  } catch (e) {
+    return new Date(ms).toLocaleDateString();
+  }
+}
+
+function getMyListReviewDateLine(item = {}, section = activeSection) {
+  const dateValue = item.dateWatched || item.watchedAt || item.completedAt || item.finishedAt || item.dateModified || item.lastEditedAt || item.dateAdded || item.createdAt || '';
+  const formatted = formatMyListReviewDate(dateValue);
+  if (!formatted) return `${getMyListReviewActionVerb(section, item)} date not set`;
+  return `${getMyListReviewActionVerb(section, item)} ${formatted}`;
+}
+
+function getMyListReviewShareText() {
+  const overlay = document.getElementById('mylist-media-review-page');
+  const title = overlay?.dataset?.reviewTitle || 'Shelfd review';
+  const dateLine = overlay?.dataset?.reviewDate || '';
+  return [title, dateLine].filter(Boolean).join(' - ');
+}
+
+function getMyListReviewText(item = {}) {
+  return String(
+    item?.reviewText ||
+    item?.review ||
+    item?.essay ||
+    item?.notes ||
+    item?.cardComment?.text ||
+    ''
+  ).trim();
+}
+
+/* v10.247: tracklist dropdown for music album reviews. Lives directly under
+   the star rating on the FPReview hero. Shows `#` · title · per-track rating
+   (when the user rated that track in the my-list album shelf page). Closed
+   by default — tap the row to expand. */
+function renderMyListReviewTracklistToggle(item = {}) {
+  const tracks = Array.isArray(item.tracks) ? item.tracks : [];
+  if (tracks.length === 0) return '';
+  const favs = Array.isArray(item.trackFavorites) ? item.trackFavorites : [];
+  /* v10.253: backward compat — legacy trackRatings > 0 still counts as a
+     favorite so users don't lose pre-existing data. */
+  const legacyRatings = Array.isArray(item.trackRatings) ? item.trackRatings : [];
+  const isFav = (idx) => {
+    if (favs[idx] === true) return true;
+    if (favs[idx] === false) return false;
+    return Number(legacyRatings[idx] || 0) > 0;
+  };
+  const rows = tracks.map((t, idx) => {
+    const num = String(t.number || idx + 1);
+    const titleStr = String(t.title || 'Untitled');
+    return `
+      <li class="mylist-review-tracklist-row">
+        <span class="mylist-review-tracklist-num">${escHtml(num)}</span>
+        <span class="mylist-review-tracklist-title">${escHtml(titleStr)}</span>
+        ${isFav(idx) ? `<span class="mylist-review-tracklist-fav" aria-label="Favorite track">&#9733;</span>` : ''}
+      </li>
+    `;
+  }).join('');
+  return `
+    <div class="mylist-review-tracklist">
+      <button type="button" class="mylist-review-tracklist-toggle" data-tracklist-toggle aria-expanded="false">
+        <span>Track list</span>
+        <svg class="mylist-review-tracklist-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <ol class="mylist-review-tracklist-list" data-tracklist-list aria-hidden="true">${rows}</ol>
+    </div>
+  `;
+}
+
+function renderMyListReviewRating(item = {}, section = activeSection) {
+  const rating = Number(item?.rating || 0);
+  if (!rating) return '<div class="mylist-review-rating-empty">No rating yet</div>';
+  const label = typeof formatRatingValueForSection === 'function'
+    ? formatRatingValueForSection(rating, section)
+    : String(rating);
+  const stepCount = typeof getRatingStepCountForSection === 'function' ? getRatingStepCountForSection(section) : 10;
+  const visualRating = stepCount === 5 ? rating / 2 : rating;
+  const filledCount = Math.max(1, Math.min(stepCount, Math.floor(visualRating)));
+  const stars = Array.from({ length: filledCount }, () => '<span class="mylist-review-filled-star" aria-hidden="true">&#9733;</span>').join('');
+  return `<div class="mylist-review-rating" aria-label="Rated ${escAttr(label)}"><span class="mylist-review-filled-stars">${stars}</span><span class="mylist-review-rating-label">${escHtml(label)}</span></div>`;
+}
+
+function openMyListMediaReviewActions(event = null) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const overlay = document.getElementById('mylist-media-review-page');
+  if (!overlay) return;
+  overlay.classList.add('actions-open');
+}
+window.openMyListMediaReviewActions = openMyListMediaReviewActions;
+
+function closeMyListMediaReviewActions(event = null) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const overlay = document.getElementById('mylist-media-review-page');
+  if (overlay) overlay.classList.remove('actions-open');
+}
+window.closeMyListMediaReviewActions = closeMyListMediaReviewActions;
+
+async function handleMyListMediaReviewAction(action = '', event = null) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const cleanAction = String(action || '').trim().toLowerCase();
+  if (cleanAction === 'done') {
+    closeMyListMediaReviewActions(event);
+    return;
+  }
+  if (cleanAction === 'share') {
+    const text = getMyListReviewShareText();
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: text || 'Shelfd review', text, url: window.location.href });
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(`${text}${text ? '\n' : ''}${window.location.href}`);
+        if (typeof showToast === 'function') showToast('Review link copied');
+      }
+    } catch (e) {}
+    closeMyListMediaReviewActions(event);
+    return;
+  }
+  /* v10.220 / v10.242: Edit → re-open the log composer for the same item so
+     the owner can update rating / review / tags / etc. Passes the original
+     section to openShelfLogComposer so it works even when the user wandered
+     into the FPReview from somewhere outside that section. */
+  if (cleanAction === 'edit') {
+    closeMyListMediaReviewActions(event);
+    const overlay = document.getElementById('mylist-media-review-page');
+    const itemId = overlay?.dataset?.reviewItemId || '';
+    const section = overlay?.dataset?.reviewSection || '';
+    closeFullPageMediaReview();
+    setTimeout(() => {
+      try {
+        if (typeof openShelfLogComposer === 'function' && itemId) {
+          openShelfLogComposer(itemId, section);
+        }
+      } catch (_) {}
+    }, 320);
+    return;
+  }
+  closeMyListMediaReviewActions(event);
+  if (typeof showToast === 'function') showToast(cleanAction === 'delete' ? 'Delete review coming soon' : 'Action coming soon');
+}
+window.handleMyListMediaReviewAction = handleMyListMediaReviewAction;
+
+function openMyListMediaReviewReply(event = null) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  // v10.220: route the FPReview reply button to the activity post's reply
+  // page so the reply count stays in sync with the activity card.
+  const overlay = document.getElementById('mylist-media-review-page');
+  const activityId = overlay?.dataset?.reviewActivityId || '';
+  if (activityId && typeof openActivityReplyPage === 'function') {
+    try { openActivityReplyPage(activityId); return; } catch (_) {}
+  }
+  if (typeof showToast === 'function') showToast('Reply coming soon');
+}
+window.openMyListMediaReviewReply = openMyListMediaReviewReply;
+
+/* v10.225: build a stand-in record from any activity in
+   window.friendActivityClickTargets (the activity-feed click lookup). Used as
+   the 3rd-tier fallback for completion / watched / played cards so the FPReview
+   can render even when there's no media-review feed post and no local item. */
+function synthesizeMediaReviewRecordFromActivity(needle = '', section = '') {
+  const wanted = String(needle || '').trim();
+  if (!wanted) return null;
+  /* v10.239: resolve the click-targets map live. The bare module reference
+     in 10-activity-feed.js was being reassigned on every render, leaving
+     window.friendActivityClickTargets stale. Try the live bare ref first. */
+  let targets = null;
+  try {
+    // eslint-disable-next-line no-new-func
+    targets = new Function('try { return typeof friendActivityClickTargets !== "undefined" ? friendActivityClickTargets : null; } catch (_) { return null; }')();
+  } catch (_) {}
+  if (!targets || typeof targets !== 'object') {
+    targets = (typeof window !== 'undefined' && window.friendActivityClickTargets) || {};
+  }
+  let activity = targets[wanted] || null;
+  if (!activity) {
+    // Allow lookup by item.id when caller passed an item id rather than the
+    // activity id (covers the owner-with-no-local-record edge case).
+    for (const key of Object.keys(targets)) {
+      const a = targets[key];
+      if (a && a.item && a.item.id === wanted) { activity = a; break; }
+    }
+  }
+  if (!activity) return null;
+  const item = activity.item || {};
+  const itemSection = item.librarySection || item.mediaCategory || section || '';
+  const synthItem = {
+    id: item.id || '',
+    title: item.title || '',
+    cover: item.cover || '',
+    year: item.year || '',
+    rating: Number(item.rating || activity.rating || activity.activityRating || 0),
+    librarySection: itemSection,
+    mediaCategory: itemSection,
+    reviewText: '',
+    reviewActivityId: activity.postId || activity.activityId || ''
+  };
+  const profile = (typeof window !== 'undefined' && window.usersMap && window.usersMap[activity.uid]) || {};
+  const fallbackName = profile?.name || profile?.customName || activity.name || 'Shelfd User';
+  const author = {
+    name: fallbackName,
+    photo: profile?.photo || profile?.customPhoto || activity.photo || getMyListReviewFallbackAvatar(fallbackName)
+  };
+  return {
+    item: synthItem,
+    section: itemSection,
+    author,
+    posterOverride: synthItem.cover || '',
+    reviewTextOverride: '',
+    reviewActivityId: synthItem.reviewActivityId || ''
+  };
+}
+
+/* v10.220: build a stand-in record from a media-review feed post when the
+   live item isn't in the viewer's local data (e.g., the viewer clicked the
+   review activity card from the feed and hasn't loaded that friend's list). */
+function synthesizeMediaReviewRecordFromFeed(needle = '', section = '') {
+  const wanted = String(needle || '').trim();
+  if (!wanted) return null;
+  const posts = Array.isArray(window.feedPosts) ? window.feedPosts : [];
+  // Match by postId first (activity-card click path), then by mediaItemId,
+  // then by sourceItemId.
+  let post = posts.find(p => p?.postId === wanted && (p?.type === 'media-review' || p?.eventType === 'review'));
+  if (!post) post = posts.find(p => p?.type === 'media-review' && (p?.item?.id === wanted || p?.reviewSourceItemId === wanted));
+  if (!post) return null;
+  const postItem = post.item || {};
+  const item = {
+    id: postItem.id || post.reviewSourceItemId || '',
+    title: postItem.title || '',
+    cover: postItem.cover || '',
+    year: postItem.year || '',
+    rating: postItem.rating || 0,
+    librarySection: postItem.librarySection || section || '',
+    mediaCategory: postItem.mediaCategory || section || '',
+    reviewText: post.reviewText || post.content?.text || '',
+    reviewActivityId: post.postId || ''
+  };
+  const author = (() => {
+    const profile = (window.usersMap && window.usersMap[post.uid]) || {};
+    const name = profile?.name || profile?.customName || 'Shelfd User';
+    const photo = profile?.photo || profile?.customPhoto || getMyListReviewFallbackAvatar(name);
+    return { name, photo };
+  })();
+  return {
+    item,
+    section: item.librarySection || section || '',
+    author,
+    posterOverride: item.cover || '',
+    reviewTextOverride: item.reviewText || '',
+    reviewActivityId: post.postId || ''
+  };
+}
+
+function openFullPageMediaReview(itemId = '', section = activeSection) {
+  let record = findMyListReviewItem(itemId, section);
+  // v10.220: fallback for viewers / activity-feed callers — synthesize a record
+  // from a matching media-review feed post when the item isn't in local data.
+  if (!record) {
+    record = synthesizeMediaReviewRecordFromFeed(itemId, section);
+  }
+  // v10.225: 3rd fallback for completion cards (watched / played / finished
+  // watching) that don't have an associated media-review post — synthesize
+  // from the activity in friendActivityClickTargets so non-owners can still
+  // jump to the FPReview from the feed.
+  if (!record) {
+    record = synthesizeMediaReviewRecordFromActivity(itemId, section);
+  }
+  if (!record) return;
+  closeFullPageMediaReview(true);
+  const { item } = record;
+  const author = record.author || getMyListReviewAuthor();
+  const title = (typeof getDisplayTitleForItem === 'function' ? getDisplayTitleForItem(item, record.section) : '') || item.title || 'Untitled';
+  const poster = record.posterOverride || (typeof getMyListPosterUrlForItem === 'function' ? getMyListPosterUrlForItem(item, record.section) : (item.cover || ''));
+  const fallbackAvatar = getMyListReviewFallbackAvatar(author.name);
+  const reviewText = record.reviewTextOverride || getMyListReviewText(item);
+  const dateLine = getMyListReviewDateLine(item, record.section);
+  const reviewActivityId = record.reviewActivityId || item.reviewActivityId || '';
+  const overlay = document.createElement('div');
+  overlay.id = 'mylist-media-review-page';
+  overlay.className = 'mylist-media-review-page' + (record.section === 'music' ? ' is-music-review' : '');
+  overlay.dataset.reviewTitle = title;
+  overlay.dataset.reviewDate = dateLine;
+  overlay.dataset.reviewItemId = item.id || '';
+  overlay.dataset.reviewSection = record.section || '';
+  if (reviewActivityId) overlay.dataset.reviewActivityId = reviewActivityId;
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', `${title} review`);
+  overlay.innerHTML = `
+    <div class="mylist-media-review-shell">
+      <header class="mylist-media-review-topbar">
+        <button class="mylist-media-review-back" type="button" onclick="closeFullPageMediaReview()" aria-label="Back">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+        <span>Review</span>
+        <button class="mylist-media-review-menu" type="button" onclick="openMyListMediaReviewActions(event)" aria-label="Review options">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+        </button>
+      </header>
+      <main class="mylist-media-review-content">
+        <section class="mylist-media-review-hero">
+          <div class="mylist-media-review-main">
+            <div class="mylist-media-review-author">
+              <img class="mylist-media-review-avatar" src="${escAttr(author.photo)}" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${escAttr(fallbackAvatar)}'">
+              <div>
+                <strong>${escHtml(author.name)}</strong>
+                <span>${escHtml(dateLine)}</span>
+              </div>
+            </div>
+            <h1>${escHtml(title)}</h1>
+            ${(record.section === 'music' && item.artist) ? `<div class="mylist-media-review-artist">${escHtml(String(item.artist))}</div>` : ''}
+            ${item.year ? `<div class="mylist-media-review-year">${escHtml(String(item.year).slice(0, 4))}</div>` : ''}
+            ${renderMyListReviewRating(item, record.section)}
+            ${record.section === 'music' ? renderMyListReviewTracklistToggle(item) : ''}
+          </div>
+          <div class="mylist-media-review-poster${poster ? '' : ' no-img'}" ${poster ? `style="background-image:url('${escAttr(poster)}')"` : ''}>${poster ? '' : escHtml(getSectionIcon(record.section))}</div>
+        </section>
+        <section class="mylist-media-review-body">
+          ${reviewText ? `<p>${escHtml(reviewText)}</p>` : ''}
+          <button class="mylist-media-review-reply" type="button" onclick="openMyListMediaReviewReply(event)">Reply</button>
+        </section>
+      </main>
+    </div>
+    <button class="mylist-media-review-action-backdrop" type="button" onclick="closeMyListMediaReviewActions(event)" aria-label="Close review options"></button>
+    <section class="mylist-media-review-action-sheet" role="dialog" aria-modal="true" aria-label="Review options">
+      <div class="mylist-media-review-action-meta">
+        <strong>${escHtml(title)}</strong>
+        <span>${escHtml(dateLine)}</span>
+      </div>
+      <div class="mylist-media-review-action-list">
+        <button class="mylist-media-review-action danger" type="button" onclick="handleMyListMediaReviewAction('delete',event)">Delete</button>
+        <button class="mylist-media-review-action" type="button" onclick="handleMyListMediaReviewAction('edit',event)">Edit</button>
+        <button class="mylist-media-review-action" type="button" onclick="handleMyListMediaReviewAction('share',event)">Share</button>
+        <button class="mylist-media-review-action done" type="button" onclick="handleMyListMediaReviewAction('done',event)">Done</button>
+      </div>
+    </section>
+  `;
+  document.body.appendChild(overlay);
+  document.body.classList.add('mylist-media-review-open');
+  document.addEventListener('keydown', handleFullPageMediaReviewKeydown);
+  requestAnimationFrame(() => overlay.classList.add('is-open'));
+
+  /* v10.247: wire the tracklist dropdown for music albums. */
+  try {
+    const toggleBtn = overlay.querySelector('[data-tracklist-toggle]');
+    const listEl = overlay.querySelector('[data-tracklist-list]');
+    if (toggleBtn && listEl) {
+      toggleBtn.addEventListener('click', () => {
+        const expanded = toggleBtn.getAttribute('aria-expanded') === 'true';
+        const next = !expanded;
+        toggleBtn.setAttribute('aria-expanded', next ? 'true' : 'false');
+        listEl.setAttribute('aria-hidden', next ? 'false' : 'true');
+        toggleBtn.classList.toggle('is-open', next);
+        listEl.classList.toggle('is-open', next);
+      });
+    }
+  } catch (_) {}
+}
+window.openFullPageMediaReview = openFullPageMediaReview;
+
+function closeFullPageMediaReview(immediate = false) {
+  const overlay = document.getElementById('mylist-media-review-page');
+  if (!overlay) return;
+  document.removeEventListener('keydown', handleFullPageMediaReviewKeydown);
+  document.body.classList.remove('mylist-media-review-open');
+  if (immediate === true) {
+    overlay.remove();
+    return;
+  }
+  overlay.classList.remove('is-open');
+  setTimeout(() => overlay.remove(), 320);
+}
+window.closeFullPageMediaReview = closeFullPageMediaReview;
+
+function handleFullPageMediaReviewKeydown(event) {
+  if (event?.key !== 'Escape') return;
+  const overlay = document.getElementById('mylist-media-review-page');
+  if (overlay?.classList.contains('actions-open')) {
+    closeMyListMediaReviewActions(event);
+    return;
+  }
+  closeFullPageMediaReview();
 }
 
 function cleanSeasonDisplayName(rawName = '', seasonNum = '') {
@@ -2495,6 +3157,29 @@ async function hydrateAnimeEpisodeTitlesFromJikan(item, options = {}) {
   } finally {
     screenListJikanEpisodeHydrationInflight.delete(malId + ':' + item.id);
   }
+}
+
+/* v10.69: builds the inner contents of `.ep-list-inner` — the Mark All / Clear
+   All / Edit episode count action row plus the actual episode/season tree.
+   Extracted out of renderCard so the same string can be (a) inlined at render
+   time for cards whose dropdown is already open, and (b) injected lazily by
+   `toggleEpisodes()` on first open for cards that started closed. The shape
+   exactly matches the previous inline template — no behavior change. */
+function buildEpisodeListInnerHtml(item) {
+  if (!item) return '';
+  const escapedId = String(item.id);
+  const actionsHtml = !viewingUser
+    ? `<div class="ep-actions">
+        <div style="display:flex;gap:8px;">
+          <button type="button" class="btn-secondary btn-sm" data-mylist-action="mark-all-eps" data-mylist-item-id="${escapedId}" data-mylist-mark-value="true" onclick="markAllEps('${escapedId}',true)">Mark All Watched</button>
+          <button type="button" class="btn-secondary btn-sm" data-mylist-action="mark-all-eps" data-mylist-item-id="${escapedId}" data-mylist-mark-value="false" onclick="markAllEps('${escapedId}',false)">Clear All</button>
+        </div>
+        <div class="edit-ep-row" id="edit-ep-${escapedId}">
+          <button type="button" class="edit-ep-link" onclick="showEditEp('${escapedId}')">Edit episode count</button>
+        </div>
+      </div>`
+    : '';
+  return `${actionsHtml}<div class="ep-scroll">${renderEpisodeList(item)}</div>`;
 }
 
 function renderEpisodeList(item) {
@@ -2955,11 +3640,16 @@ const gameMediaProfileSeeds = new Map();
 
 function setGameMediaProfileSeed(rawgId, seed) {
   if (!rawgId || !seed) return;
-  gameMediaProfileSeeds.set(String(rawgId), { ...seed, rawgId: String(rawgId) });
+  const key = String(rawgId);
+  const next = { ...seed, gameIdentityKey: seed.gameIdentityKey || key };
+  if (/^\d+$/.test(key) && !next.rawgId) next.rawgId = key;
+  gameMediaProfileSeeds.set(key, next);
 }
 
 function getGameMediaProfileSeed(rawgId, fallback = null) {
-  return fallback || gameMediaProfileSeeds.get(String(rawgId || '')) || {};
+  const stored = gameMediaProfileSeeds.get(String(rawgId || ''));
+  if (fallback && typeof fallback === 'object' && Object.keys(fallback).length) return fallback;
+  return stored || fallback || {};
 }
 
 const MEDIA_PROFILE_HERO_DURATION_MS = 400;
@@ -3365,7 +4055,9 @@ function renderGameMediaProfileAddButton(rawgId, details) {
   const poster = getGameMediaImage(details);
   const added = isDuplicateTitle(title, 'games');
   const label = added ? getDiscoverLibraryButtonText(title, 'games') : '+ Add to Library';
-  return `<button class="discover-media-add-floating${added ? ' added' : ''}" type="button" data-discover-type="game" data-discover-id="${escAttr(String(rawgId || getGameRawgIdValue(details) || ''))}" data-discover-section="games" data-discover-title="${escAttr(title)}" data-discover-poster="${escAttr(poster)}" ${added ? `title="Manage this game in your library"` : ''}>${escHtml(label)}</button>`;
+  const identityKey = details?.gameIdentityKey || details?.shelfdGameIdentityLock?.key || '';
+  const discoverId = String(rawgId || getGameRawgIdValue(details) || identityKey || (details?.igdbId ? `igdb:${details.igdbId}` : '') || '');
+  return `<button class="discover-media-add-floating${added ? ' added' : ''}" type="button" data-discover-type="game" data-discover-id="${escAttr(discoverId)}" data-discover-section="games" data-discover-title="${escAttr(title)}" data-discover-poster="${escAttr(poster)}" data-game-identity-key="${escAttr(identityKey || discoverId)}" ${added ? `title="Manage this game in your library"` : ''}>${escHtml(label)}</button>`;
 }
 
 function renderGameMediaProfileShell(seed, rawgId = '') {
@@ -3375,13 +4067,13 @@ function renderGameMediaProfileShell(seed, rawgId = '') {
   const overview = seed?.description_raw || seed?.description || 'Loading this game profile...';
   const genres = (seed?.genres || []).map(g => g?.name).filter(Boolean).slice(0, 4);
   return `<section class="discover-media-page game-media-page discover-desktop-title-page" role="dialog" aria-modal="true" aria-label="${escAttr(title)} details">
-    <button class="discover-media-back" type="button" onclick="closeGameMediaProfile('back')">Back</button>
+    <button class="discover-media-back" type="button" onclick="return handleDiscoverMediaProfileBack(event)">Back</button>
     ${renderMediaProfileTopActions(renderMediaProfileShareButton('game', rawgId || getGameRawgIdValue(seed), title, poster), `${rawgId ? renderGameMediaProfileAddButton(rawgId, seed) : ''}${currentUser && !viewingUser ? `<button class="discover-media-add-floating screenlist-game-profile-cover-btn" type="button" onclick="event.preventDefault();event.stopPropagation();openScreenListGameCoverPickerForSeed('${escAttr(String(rawgId || getGameRawgIdValue(seed) || ''))}','${escAttr(title)}')">Change Cover</button>` : ''}`)}
     <div class="discover-media-hero game-media-hero" style="${poster ? `background-image:url('${escAttr(poster)}')` : ''}">
       <div class="discover-media-hero-shade"></div>
       <div class="discover-media-hero-content">
         <div class="discover-media-hero-top">
-          <div class="discover-media-poster game-media-poster${poster ? '' : ' screenlist-game-cover-pending'}">${poster ? `<img src="${escAttr(poster)}" alt="">` : `<span>${SCREENLIST_GAME_COVER_PLACEHOLDER_TEXT}</span>`}</div>
+          <div class="discover-media-poster game-media-poster${poster ? '' : ' screenlist-game-cover-pending'}">${poster ? `<img src="${escAttr(poster)}" alt="" decoding="async">` : `<span>${SCREENLIST_GAME_COVER_PLACEHOLDER_TEXT}</span>`}</div>
           <div class="discover-media-hero-main">
             <div class="discover-media-kicker">Game Profile${year ? ` · ${escHtml(year)}` : ''}</div>
             <h2>${escHtml(title)}</h2>
@@ -3837,12 +4529,12 @@ function renderGameMediaProfileDetails(details, rawgId = '') {
   const trailer = getGameMediaTrailer(details);
   const screenshots = (details.screenshots?.results || details.short_screenshots || []).filter(img => img?.image).slice(0, 8);
   return `<section class="discover-media-page game-media-page" role="dialog" aria-modal="true" aria-label="${escAttr(title)} details">
-    <button class="discover-media-back" type="button" onclick="closeGameMediaProfile('back')">Back</button>
+    <button class="discover-media-back" type="button" onclick="return handleDiscoverMediaProfileBack(event)">Back</button>
     ${renderMediaProfileTopActions(renderMediaProfileShareButton('game', rawgId || getGameRawgIdValue(details), title, poster), `${renderGameMediaProfileAddButton(rawgId || getGameRawgIdValue(details), details)}${currentUser && !viewingUser ? `<button class="discover-media-add-floating screenlist-game-profile-cover-btn" type="button" onclick="event.preventDefault();event.stopPropagation();openScreenListGameCoverPickerForSeed('${escAttr(String(rawgId || getGameRawgIdValue(details) || ''))}','${escAttr(title)}')">Change Cover</button>` : ''}`)}
     <div class="discover-media-hero game-media-hero" style="${poster ? `background-image:url('${escAttr(poster)}')` : ''}">
       <div class="discover-media-hero-shade"></div>
       <div class="discover-media-hero-content">
-        <div class="discover-media-poster game-media-poster${poster ? '' : ' screenlist-game-cover-pending'}">${poster ? `<img src="${escAttr(poster)}" alt="">` : `<span>${SCREENLIST_GAME_COVER_PLACEHOLDER_TEXT}</span>`}</div>
+        <div class="discover-media-poster game-media-poster${poster ? '' : ' screenlist-game-cover-pending'}">${poster ? `<img src="${escAttr(poster)}" alt="" decoding="async">` : `<span>${SCREENLIST_GAME_COVER_PLACEHOLDER_TEXT}</span>`}</div>
         <div class="discover-media-kicker">Game Profile${year ? ` · ${escHtml(year)}` : ''}</div>
         <h2>${escHtml(title)}</h2>
         <p>${escHtml(overview)}</p>
@@ -3880,13 +4572,13 @@ function renderGameMediaProfileShellModern(seed, rawgId = '') {
   const overview = seed?.description_raw || seed?.description || 'Loading this game profile...';
   const genres = (seed?.genres || []).map(g => g?.name).filter(Boolean).slice(0, 4);
   return `<section class="discover-media-page game-media-page discover-desktop-title-page" role="dialog" aria-modal="true" aria-label="${escAttr(title)} details">
-    <button class="discover-media-back" type="button" onclick="closeGameMediaProfile('back')">Back</button>
+    <button class="discover-media-back" type="button" onclick="return handleDiscoverMediaProfileBack(event)">Back</button>
     ${renderMediaProfileTopActions(renderMediaProfileShareButton('game', rawgId || getGameRawgIdValue(seed), title, poster), `${rawgId ? renderGameMediaProfileAddButton(rawgId, seed) : ''}${currentUser && !viewingUser ? `<button class="discover-media-add-floating screenlist-game-profile-cover-btn" type="button" onclick="event.preventDefault();event.stopPropagation();openScreenListGameCoverPickerForSeed('${escAttr(String(rawgId || getGameRawgIdValue(seed) || ''))}','${escAttr(title)}')">Change Cover</button>` : ''}`)}
     <div class="discover-media-hero game-media-hero" style="${poster ? `background-image:url('${escAttr(poster)}')` : ''}">
       <div class="discover-media-hero-shade"></div>
       <div class="discover-media-hero-content">
         <div class="discover-media-hero-top">
-          <div class="discover-media-poster game-media-poster${poster ? '' : ' screenlist-game-cover-pending'}">${poster ? `<img src="${escAttr(poster)}" alt="">` : `<span>${SCREENLIST_GAME_COVER_PLACEHOLDER_TEXT}</span>`}</div>
+          <div class="discover-media-poster game-media-poster${poster ? '' : ' screenlist-game-cover-pending'}">${poster ? `<img src="${escAttr(poster)}" alt="" decoding="async">` : `<span>${SCREENLIST_GAME_COVER_PLACEHOLDER_TEXT}</span>`}</div>
           <div class="discover-media-hero-main">
             <div class="discover-media-kicker">Game Profile${year ? ` · ${escHtml(year)}` : ''}</div>
             <h2>${escHtml(title)}</h2>
@@ -3916,13 +4608,13 @@ function renderGameMediaProfileDetailsModern(details, rawgId = '') {
   const trailer = getGameMediaTrailer(details);
   const screenshots = (details.screenshots?.results || details.short_screenshots || []).filter(img => img?.image).slice(0, 8);
   return `<section class="discover-media-page game-media-page discover-desktop-title-page" role="dialog" aria-modal="true" aria-label="${escAttr(title)} details">
-    <button class="discover-media-back" type="button" onclick="closeGameMediaProfile('back')">Back</button>
+    <button class="discover-media-back" type="button" onclick="return handleDiscoverMediaProfileBack(event)">Back</button>
     ${renderMediaProfileTopActions(renderMediaProfileShareButton('game', rawgId || getGameRawgIdValue(details), title, poster), `${renderGameMediaProfileAddButton(rawgId || getGameRawgIdValue(details), details)}${currentUser && !viewingUser ? `<button class="discover-media-add-floating screenlist-game-profile-cover-btn" type="button" onclick="event.preventDefault();event.stopPropagation();openScreenListGameCoverPickerForSeed('${escAttr(String(rawgId || getGameRawgIdValue(details) || ''))}','${escAttr(title)}')">Change Cover</button>` : ''}`)}
     <div class="discover-media-hero game-media-hero" style="${poster ? `background-image:url('${escAttr(poster)}')` : ''}">
       <div class="discover-media-hero-shade"></div>
       <div class="discover-media-hero-content">
         <div class="discover-media-hero-top">
-          <div class="discover-media-poster game-media-poster${poster ? '' : ' screenlist-game-cover-pending'}">${poster ? `<img src="${escAttr(poster)}" alt="">` : `<span>${SCREENLIST_GAME_COVER_PLACEHOLDER_TEXT}</span>`}</div>
+          <div class="discover-media-poster game-media-poster${poster ? '' : ' screenlist-game-cover-pending'}">${poster ? `<img src="${escAttr(poster)}" alt="" decoding="async">` : `<span>${SCREENLIST_GAME_COVER_PLACEHOLDER_TEXT}</span>`}</div>
           <div class="discover-media-hero-main">
             <div class="discover-media-kicker">Game Profile${year ? ` · ${escHtml(year)}` : ''}</div>
             <h2>${escHtml(title)}</h2>
@@ -3973,6 +4665,9 @@ function bindGameMediaProfileActions(overlay) {
 async function resolveRawgIdForGameSeed(seed = {}) {
   const directId = getGameRawgIdValue(seed);
   if (directId) return directId;
+  if (seed?.shelfdGameIdentityLock || String(seed?.source || '').toLowerCase() === 'igdb' || seed?.igdbId) {
+    return '';
+  }
   const title = getGameTitleValue(seed);
   if (!title) return '';
   const res = await fetchRawgProxy('games', { search: title, search_precise: 'true', page_size: 5 });
@@ -3988,7 +4683,10 @@ async function resolveRawgIdForGameSeed(seed = {}) {
 async function openGameMediaProfile(event, rawgId = '', seedOverride = null, transitionOrigin = null) {
   event?.preventDefault?.();
   event?.stopPropagation?.();
-  const initialSeed = getGameMediaProfileSeed(rawgId, seedOverride);
+  let initialSeed = getGameMediaProfileSeed(rawgId, seedOverride);
+  if (typeof window !== 'undefined' && typeof window.traceShelfdGameIdentity === 'function') {
+    window.traceShelfdGameIdentity('3 selected/current game media', initialSeed, { routeId: rawgId });
+  }
   closeGameMediaProfile();
   const overlay = document.createElement('div');
   overlay.id = 'discover-media-profile';
@@ -4005,9 +4703,12 @@ async function openGameMediaProfile(event, rawgId = '', seedOverride = null, tra
 
   try {
     const resolvedId = rawgId || await resolveRawgIdForGameSeed(initialSeed);
-    if (!resolvedId) {
+    if (!resolvedId || !/^\d+$/.test(String(resolvedId))) {
       if (!document.getElementById('discover-media-profile')) return;
       const mergedGameDetails = await ensureScreenListIgdbCoverOnGameDetails({ ...initialSeed, rawgId: '' });
+      if (typeof window !== 'undefined' && typeof window.traceShelfdGameIdentity === 'function') {
+        window.traceShelfdGameIdentity('4 full media profile game object', mergedGameDetails, { routeId: rawgId });
+      }
       overlay.innerHTML = renderGameMediaProfileDetailsModern(mergedGameDetails, '');
       bindGameMediaProfileActions(overlay);
       hydrateDeepSeekMoreLikeThis('game', mergedGameDetails);
@@ -4028,7 +4729,14 @@ async function openGameMediaProfile(event, rawgId = '', seedOverride = null, tra
       gameMediaProfileCache.set(String(resolvedId), details);
     }
     if (!document.getElementById('discover-media-profile')) return;
-    const mergedGameDetails = await ensureScreenListIgdbCoverOnGameDetails({ ...initialSeed, ...details, rawgId: String(resolvedId) });
+    let detailsInput = { ...initialSeed, ...details, rawgId: String(resolvedId) };
+    if (typeof window !== 'undefined' && typeof window.mergeShelfdGameIdentityLockedItem === 'function') {
+      detailsInput = window.mergeShelfdGameIdentityLockedItem(initialSeed, { ...details, rawgId: String(resolvedId) }, 'game-media-profile-rawg-details');
+    }
+    const mergedGameDetails = await ensureScreenListIgdbCoverOnGameDetails(detailsInput);
+    if (typeof window !== 'undefined' && typeof window.traceShelfdGameIdentity === 'function') {
+      window.traceShelfdGameIdentity('4 full media profile game object', mergedGameDetails, { routeId: rawgId, resolvedId });
+    }
     overlay.innerHTML = renderGameMediaProfileDetailsModern(mergedGameDetails, String(resolvedId));
     bindGameMediaProfileActions(overlay);
     hydrateDeepSeekMoreLikeThis('game', mergedGameDetails);
@@ -4372,6 +5080,13 @@ function playLibraryAddPopSound() {
 }
 
 function clearListSearch() {
+  // v10.61: cancel any pending debounced onSearch commit so we don't race
+  // a stale value back into searchQuery after a programmatic clear.
+  if (_onSearchDebounceTimer) {
+    clearTimeout(_onSearchDebounceTimer);
+    _onSearchDebounceTimer = null;
+  }
+  _onSearchPendingValue = "";
   searchQuery = "";
   const input = document.querySelector(".search-input");
   if (input) input.value = "";
@@ -4610,6 +5325,13 @@ function switchSection(s) {
     activeSection = s;
     activeTab = getDefaultTabForSection(s);
     if (s === 'games') activeGamePlayingFilter = 'live';
+    /* v10.241: tag <body> with the active section so CSS can hide the status
+       toolbar and other per-section chrome (e.g. music has no statuses). */
+    try {
+      ['movies','shows','anime','games','manga','books','music'].forEach(sec => {
+        document.body.classList.toggle('mylist-section-' + sec, sec === s);
+      });
+    } catch (_) {}
     render();
     persistUiState();
     updateSlidingPills();
@@ -4979,10 +5701,17 @@ async function forceHydrateScreenListGamePosterElement(posterEl, gameLike = {}) 
   if (!cover?.coverUrl || !isScreenListIgdbCoverUrl(cover.coverUrl)) return null;
   applyScreenListIgdbCoverToGameItem(payload, cover);
   updateScreenListGamePosterElement(posterEl, cover.coverUrl);
-  const rawgId = String(payload.rawgId || payload.id || '').trim();
-  if (rawgId && typeof setGameMediaProfileSeed === 'function') {
-    const existing = getGameMediaProfileSeed(rawgId, {}) || {};
-    setGameMediaProfileSeed(rawgId, { ...existing, ...payload, igdbCoverUrl: cover.coverUrl, cover: cover.coverUrl, poster: cover.coverUrl, image: cover.coverUrl, background_image: cover.coverUrl });
+  const rawgId = String(payload.rawgId || (/^\d+$/.test(String(payload.id || '')) ? payload.id : '') || '').trim();
+  const profileKey = String(payload.gameIdentityKey || payload.id || rawgId || '').trim();
+  if ((profileKey || rawgId) && typeof setGameMediaProfileSeed === 'function') {
+    const seedKey = profileKey || rawgId;
+    const existing = getGameMediaProfileSeed(seedKey, {}) || {};
+    let updated = { ...existing, ...payload, rawgId, igdbCoverUrl: cover.coverUrl, cover: cover.coverUrl, poster: cover.coverUrl, image: cover.coverUrl, background_image: cover.coverUrl };
+    if (typeof window !== 'undefined' && typeof window.mergeShelfdGameIdentityLockedItem === 'function') {
+      updated = window.mergeShelfdGameIdentityLockedItem(existing, updated, 'force-hydrate-game-poster');
+    }
+    setGameMediaProfileSeed(seedKey, updated);
+    if (rawgId && rawgId !== seedKey) setGameMediaProfileSeed(rawgId, updated);
   }
   return cover;
 }
@@ -4990,10 +5719,17 @@ async function ensureScreenListIgdbCoverOnGameDetails(details = {}) {
   const cover = await fetchScreenListIgdbCoverForGame(details);
   if (cover?.coverUrl && isScreenListIgdbCoverUrl(cover.coverUrl)) {
     applyScreenListIgdbCoverToGameItem(details, cover);
-    const rawgId = String(details.rawgId || details.id || '').trim();
-    if (rawgId) {
-      const existing = getGameMediaProfileSeed(rawgId, {}) || {};
-      setGameMediaProfileSeed(rawgId, { ...existing, ...details });
+    const rawgId = String(details.rawgId || (/^\d+$/.test(String(details.id || '')) ? details.id : '') || '').trim();
+    const profileKey = String(details.gameIdentityKey || details.id || rawgId || '').trim();
+    if (profileKey || rawgId) {
+      const seedKey = profileKey || rawgId;
+      const existing = getGameMediaProfileSeed(seedKey, {}) || {};
+      let updated = { ...existing, ...details, rawgId };
+      if (typeof window !== 'undefined' && typeof window.mergeShelfdGameIdentityLockedItem === 'function') {
+        updated = window.mergeShelfdGameIdentityLockedItem(existing, updated, 'ensure-igdb-cover-on-game-details');
+      }
+      setGameMediaProfileSeed(seedKey, updated);
+      if (rawgId && rawgId !== seedKey) setGameMediaProfileSeed(rawgId, updated);
     }
   }
   return details;
@@ -5348,10 +6084,54 @@ async function goToDefaultMyListsPage() {
   if (myListView && typeof myListView.scrollTo === 'function') myListView.scrollTo({ top: 0, behavior: 'auto' });
   window.scrollTo({ top: 0, behavior: 'auto' });
 }
-function onSearch(q) {
+/* v10.61: search input was firing a full My Lists grid re-render on every
+   keystroke (`oninput="onSearch(this.value)"` in index.html). On a large
+   library this is a 100KB+ HTML rebuild + reflow per character, which is
+   the dominant cause of caret lag while typing in the library search box.
+
+   Fix:
+   - During typing, debounce by 160ms — only the LAST keystroke in a burst
+     triggers `render()`. The pending query string is still tracked, so the
+     UI never goes out of sync.
+   - On blur, on clear (X button or empty value), and from `clearListSearch`,
+     flush immediately so closing the search bar feels instant.
+   - Calling `onSearch('')` (empty value) also flushes immediately so the
+     "clear search" path is not delayed.
+*/
+const ONSEARCH_DEBOUNCE_MS = 160;
+let _onSearchDebounceTimer = null;
+let _onSearchPendingValue = '';
+
+function _commitOnSearchValue() {
+  if (_onSearchDebounceTimer) {
+    clearTimeout(_onSearchDebounceTimer);
+    _onSearchDebounceTimer = null;
+  }
   if (typeof clearLastEditedResortHold === 'function') clearLastEditedResortHold();
-  searchQuery = q;
+  searchQuery = _onSearchPendingValue;
   render();
+}
+
+function onSearch(q) {
+  _onSearchPendingValue = q;
+  // Empty/clear → flush immediately. Closing or clearing the search bar
+  // should not feel delayed.
+  if (!q) {
+    _commitOnSearchValue();
+    return;
+  }
+  if (_onSearchDebounceTimer) clearTimeout(_onSearchDebounceTimer);
+  _onSearchDebounceTimer = setTimeout(_commitOnSearchValue, ONSEARCH_DEBOUNCE_MS);
+}
+
+function onSearchFlush() {
+  // Called from `onblur` on the search input — commit immediately on blur.
+  if (_onSearchDebounceTimer) _commitOnSearchValue();
+}
+
+if (typeof window !== 'undefined') {
+  window.onSearch = onSearch;
+  window.onSearchFlush = onSearchFlush;
 }
 
 function findOwnLibraryItemRecord(id = '', sectionHint = '') {
@@ -5588,6 +6368,25 @@ function deleteItem(eventOrId, maybeId) {
   }
 }
 
+/* v10.69: partial DOM update for the overall (title-level) rating stars.
+   Mirrors the pattern of updateSeasonRatingUI below — re-builds JUST the
+   `<div class="stars">` block for prefix="overall" and replaces it in place.
+   Lets `rate()` skip a full grid render when only the card's own rating
+   changed. */
+function updateOverallRatingUI(item = {}, section = activeSection) {
+  if (!item || !item.id) return;
+  if (typeof buildRatingStarsMarkup !== 'function') return;
+  const tmp = document.createElement('div');
+  tmp.innerHTML = buildRatingStarsMarkup(Number(item.rating || 0), item.id, 'overall', 16, section, !viewingUser);
+  const replacement = tmp.firstElementChild;
+  if (!replacement) return;
+  document.querySelectorAll('.stars[data-item-id][data-prefix="overall"]').forEach(node => {
+    if (node.dataset.itemId === String(item.id)) {
+      node.replaceWith(replacement.cloneNode(true));
+    }
+  });
+}
+
 function updateSeasonRatingUI(item = {}, seasonNum = '', section = activeSection) {
   if (!item?.id || !seasonNum) return;
   const prefix = `season:${seasonNum}`;
@@ -5794,8 +6593,25 @@ function rate(itemId, prefix, score) {
   }
 
   save();
-  if (inlineSeasonRatingNum) updateSeasonRatingUI(item, inlineSeasonRatingNum, section);
-  else render();
+  /* v10.69: partial DOM update for overall + season + episode rating instead
+     of a full grid render. Season already had `updateSeasonRatingUI`; we now
+     do the same for the title's overall stars. Episode rating (prefix `ep:`)
+     only changes a star in the episode list itself, which is unrendered when
+     the dropdown is closed — so we just update the row's data and skip the
+     full render. `lastEditedAt` is still updated (see above), so on the next
+     real render() the card resorts correctly under Last-Edited sort. */
+  if (inlineSeasonRatingNum) {
+    updateSeasonRatingUI(item, inlineSeasonRatingNum, section);
+  } else if (prefix === 'overall') {
+    updateOverallRatingUI(item, section);
+  } else if (prefix.startsWith('ep:')) {
+    // The episode rating is rendered inside the (possibly-closed) episode list.
+    // If the list is currently open and hydrated, the star row will repaint on
+    // its next interaction; for a closed list, the star value lives only in
+    // data and renders fresh next time the user opens the dropdown.
+  } else {
+    render();
+  }
   if (score > 0) playRatingAnimation(itemId, prefix);
 
   // v442: defer the "Rating updated privately" toast until AFTER the star animation
@@ -6181,6 +6997,19 @@ function toggleEpisodes(id) {
   const label = document.getElementById('ep-label-' + id);
   if (!list) return;
   const open = list.classList.contains('open');
+  /* v10.69: lazy hydration. If this is the FIRST open of a dropdown that
+     started empty (placeholder rendered with `data-ep-pending="1"`), build
+     the actual inner content NOW — before setEpisodesExpanded reads
+     scrollHeight for its open animation. Once hydrated we clear the flag so
+     subsequent toggles skip rebuilding. */
+  if (!open && list.dataset.epPending === '1') {
+    const inner = list.querySelector('.ep-list-inner');
+    const item = (data[activeSection] || []).find(i => i && i.id === id);
+    if (item && inner) {
+      inner.innerHTML = buildEpisodeListInnerHtml(item);
+      delete list.dataset.epPending;
+    }
+  }
   setEpisodesExpanded(list, !open, false);
   arrow.classList.toggle('open', !open);
   label.textContent = 'Episodes';
@@ -6250,6 +7079,13 @@ function preserveViewport(action) {
 }
 
 function itemMatchesCurrentView(item) {
+  /* v10.261: music search spans both Listened + Planned tabs and matches
+     title OR artist. Empty query stays bound to the active tab. */
+  if (activeSection === 'music' && searchQuery) {
+    const q = String(searchQuery).toLowerCase();
+    return String(item?.title || '').toLowerCase().includes(q)
+        || String(item?.artist || '').toLowerCase().includes(q);
+  }
   return itemMatchesActiveListStatus(item) &&
     (!searchQuery || (item.title || '').toLowerCase().includes(searchQuery.toLowerCase()));
 }
@@ -6274,7 +7110,11 @@ function updateCardProgressUI(item) {
   const percentEl = document.getElementById('progress-percent-' + item.id);
   const fillEl = document.getElementById('progress-fill-' + item.id);
   if (countEl) countEl.textContent = `${progress.watched}/${progress.total} episodes`;
-  if (percentEl) percentEl.textContent = `${progress.percent}%`;
+  if (percentEl) {
+    const showPercent = Number(progress.total || 0) > 0;
+    percentEl.textContent = showPercent ? `${progress.percent}%` : '';
+    percentEl.hidden = !showPercent;
+  }
   if (fillEl) fillEl.style.width = `${progress.percent}%`;
 }
 
@@ -6579,23 +7419,43 @@ function getCardCommentText(item) {
 // v803: split into two render helpers.
 //   buildCardCommentAddBtnHtml — + button in card-right-controls (far right of action row)
 //   buildCardCommentBodyHtml   — flat text floated on the card body above the action row
+// v10.220: once a real review exists (item.reviewText), the title card stays
+// clean — owners see nothing extra (no + button, no body comment line); other
+// people viewing the list see a layers icon (bottom-right) that opens the
+// Full Page Review for that item.
 function buildCardCommentAddBtnHtml(item) {
   if (!item) return '';
   if (!shouldShowCardCommentFeatureFor(item)) return '';
+  const itemIdAttr = escAttr(item.id);
+  const sectionAttr = escAttr(activeSection);
+  const hasReview = !!String(item.reviewText || '').trim();
+  // v10.221: once a review exists, owner and viewer BOTH see the layers icon —
+  // clicking it opens the Full Page Review for that title. Owners can edit
+  // their review from there via the 3-dot menu.
+  if (hasReview) {
+    return '<button class="card-review-layers-btn" type="button" onclick="event.stopPropagation();openFullPageMediaReview(\'' + itemIdAttr + '\',\'' + sectionAttr + '\')" aria-label="Open full page review" title="Open full page review"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/></svg></button>';
+  }
+  // No review yet: viewers see nothing; owners see the legacy + (which now
+  // opens the I-Watched composer for watched/played sections).
   if (viewingUser) return '';
   const text = getCardCommentText(item);
-  if (text) return ''; // comment posted — body text shown instead, no + button
-  const itemIdAttr = escAttr(item.id);
+  if (text) return ''; // legacy short-comment posted — no + button
   return '<button class="card-comment-add-btn" type="button" onclick="event.stopPropagation();openCardCommentComposer(\'' + itemIdAttr + '\')" aria-label="Add a comment about this title" title="Add a comment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>';
 }
 
 function buildCardCommentBodyHtml(item) {
   if (!item) return '';
   if (!shouldShowCardCommentFeatureFor(item)) return '';
+  // v10.220: never render the flat comment line when a real review is posted —
+  // the layers icon route on viewer cards covers discovery instead.
+  if (String(item.reviewText || '').trim()) return '';
   const text = getCardCommentText(item);
   if (!text) return '';
   const itemIdAttr = escAttr(item.id);
   const isOwner = !viewingUser;
+  const isWatchedMediaCard = (activeSection === 'movies' || activeSection === 'shows' || activeSection === 'anime')
+    && String(item?.status || '').trim() === 'watched';
+  const commentClass = `card-comment-body${isOwner ? ' card-comment-body--owner' : ''}${isWatchedMediaCard ? ' card-comment-body--watched-media' : ''}`;
   if (isOwner) {
     /* v817: the owner-edit affordance is now a real <button type="button">
        instead of a div + role=button + tabindex=0. The old div pattern
@@ -6614,7 +7474,7 @@ function buildCardCommentBodyHtml(item) {
        behavior kicks in). pointer-events on .card-comment-body-text is
        set to none in CSS so clicks always target the button itself. */
     return (
-      '<button type="button" class="card-comment-body card-comment-body--owner" ' +
+      '<button type="button" class="' + commentClass + '" ' +
         'onclick="event.preventDefault();event.stopPropagation();openCardCommentComposer(\'' + itemIdAttr + '\')" ' +
         'aria-label="Edit your comment" ' +
         'data-card-comment-id="' + itemIdAttr + '">' +
@@ -6622,16 +7482,520 @@ function buildCardCommentBodyHtml(item) {
       '</button>'
     );
   }
-  return '<div class="card-comment-body" data-card-comment-id="' + itemIdAttr + '"><span class="card-comment-body-text">' + escHtml(text) + '</span></div>';
+  return '<div class="' + commentClass + '" data-card-comment-id="' + itemIdAttr + '"><span class="card-comment-body-text">' + escHtml(text) + '</span></div>';
 }
 
-// Legacy stub — no longer called from template but kept to avoid any stale references
-function buildCardCommentSlotHtml(item) { return ''; }
+/* v10.69: partial DOM update for the title-card comment body. Replaces the
+   inner contents of the per-card slot wrapper (id="card-comment-slot-{id}").
+   Used by saveCardCommentFromComposer / confirmDeleteCardComment so a comment
+   post/edit/delete doesn't trigger a full grid render. If the slot doesn't
+   exist (card not currently rendered), the call is a safe no-op. */
+function updateCardCommentUI(item = {}) {
+  if (!item || !item.id) return;
+  const slot = document.getElementById('card-comment-slot-' + item.id);
+  if (!slot) return;
+  slot.innerHTML = buildCardCommentBodyHtml(item);
+}
+
+/* =========================================================================
+   v10.217: "I Watched..." / "I Played..." intermediate log composer.
+   ------------------------------------------------------------------------
+   Replaces the old single-line card-comment modal when the user taps the +
+   on a Watched (movies/shows/anime) or Played (games) title card.
+
+   Flow: + tap → this composer slides in from the right → user sets rating,
+   liked, date, review text, tags, and the three publish toggles → tap Save
+   → data persists to the item → composer slides out and the existing
+   Full Page Review opens (#mylist-media-review-page) with the freshly
+   written review visible.
+
+   Design language follows the Shelfline pattern (dark slate background,
+   thin row dividers, lavender accents, green save action, orange heart
+   liked state, green half-step stars). Animation is compositor-only
+   (transform/opacity), two rAFs to schedule on a 120Hz cadence.
+
+   New per-item fields written here:
+     - item.rating           (number, existing field)
+     - item.liked            (bool)
+     - item.reviewText       (string, longer than cardComment max — feeds
+                              into the FPReview text region via the existing
+                              getMyListReviewText() fallback chain)
+     - item.reviewTags       (string[])
+     - item.firstTimeWatch   (bool)
+     - item.reviewSpoilerFree(bool)
+     - item.reviewRepliesPublic (bool)
+     - item.dateWatched      (ISO string)
+   ========================================================================= */
+const SHELF_LOG_REVIEW_MAX = 4000;
+const SHELF_LOG_TAG_MAX_COUNT = 12;
+const SHELF_LOG_TAG_MAX_LEN = 28;
+
+function getShelfLogActionVerb(section, item) {
+  if (section === 'games') return 'Played';
+  if (section === 'music') return 'Listened';
+  return 'Watched';
+}
+
+function getShelfLogRatingStepCount(section) {
+  return typeof getRatingStepCountForSection === 'function'
+    ? getRatingStepCountForSection(section)
+    : 10;
+}
+
+function shouldRouteToShelfLogComposer(section, item) {
+  if (!item) return false;
+  if (viewingUser) return false;
+  // Same gate as the legacy + button (only on the "watched" tab).
+  if (!isScreenListCompletedTabForCardComment()) return false;
+  return true;
+}
+
+function formatShelfLogDateLong(value) {
+  const ms = Date.parse(value || '');
+  if (!Number.isFinite(ms) || ms <= 0) return '';
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+    }).format(new Date(ms));
+  } catch (e) {
+    return new Date(ms).toLocaleDateString();
+  }
+}
+
+function formatShelfLogDateForInput(value) {
+  const ms = Date.parse(value || '');
+  const date = Number.isFinite(ms) && ms > 0 ? new Date(ms) : new Date();
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+let shelfLogComposerState = null;
+
+function openShelfLogComposer(itemId, sectionHint = '') {
+  /* v10.242: accept an optional section hint so the FPReview Edit action
+     can re-open the composer for an item that isn't in the currently
+     active section (e.g. user tapped Edit while looking at a music album
+     review while their active My Lists section was Movies). Falls back to
+     activeSection if no hint provided. */
+  let section = sectionHint || activeSection;
+  let item = (data[section] || []).find(i => i?.id === itemId);
+  if (!item) {
+    /* Walk every known section as a last resort so Edit works regardless
+       of where the user was navigated from. */
+    for (const sec of ["movies", "shows", "anime", "games", "manga", "books", "music"]) {
+      const found = (data[sec] || []).find(i => i?.id === itemId);
+      if (found) { item = found; section = sec; break; }
+    }
+  }
+  if (!item) return;
+  if (viewingUser) return;
+
+  closeShelfLogComposer({ instant: true });
+
+  const verb = getShelfLogActionVerb(section, item);
+  const title = (typeof getDisplayTitleForItem === 'function' ? getDisplayTitleForItem(item, section) : '') || item.title || 'Untitled';
+  const poster = typeof getMyListPosterUrlForItem === 'function' ? getMyListPosterUrlForItem(item, section) : (item.cover || '');
+  const year = String(item.year || '').slice(0, 4);
+  const stepCount = getShelfLogRatingStepCount(section);
+  const initialDateRaw = item.dateWatched || item.watchedAt || item.completedAt || item.finishedAt || item.dateModified || item.dateAdded || new Date().toISOString();
+  const initialDate = formatShelfLogDateForInput(initialDateRaw);
+  const initialRating = Number(item.rating || 0);
+  const initialReview = String(item.reviewText || item.cardComment?.text || '');
+  const initialTags = Array.isArray(item.reviewTags) ? item.reviewTags.slice(0) : [];
+  const initialFirstTime = item.firstTimeWatch !== false;
+  const initialRepliesOpen = item.reviewRepliesPublic !== false;
+
+  shelfLogComposerState = {
+    itemId, section,
+    rating: initialRating,
+    date: initialDate,
+    review: initialReview,
+    tags: initialTags,
+    firstTime: initialFirstTime,
+    repliesOpen: initialRepliesOpen,
+    stepCount
+  };
+
+  const overlay = document.createElement('section');
+  overlay.id = 'shelf-log-composer';
+  overlay.className = 'shelf-log-composer' + (section === 'music' ? ' is-music-composer' : '');
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', `${verb} ${title}`);
+  // v10.219: use Shelfd's existing 10-star rating pattern verbatim — same
+  // ★ character buttons, same `.stars .star-btn .lit` classes, same hover/
+  // pop animation. No half-step variants.
+  const starsHtml = (() => {
+    const buttons = [];
+    for (let s = 1; s <= 10; s++) {
+      const lit = s <= initialRating ? ' lit' : '';
+      buttons.push(`<button type="button" class="star-btn${lit}" data-shelf-log-star="${s}" aria-label="Set rating ${s}">&#9733;</button>`);
+    }
+    return buttons.join('');
+  })();
+  const tagsHtml = initialTags.map(t => (
+    `<span class="shelf-log-composer-tag">${escHtml(t)}` +
+      `<button type="button" class="shelf-log-composer-tag-remove" data-shelf-log-tag-remove="${escAttr(t)}" aria-label="Remove tag">&times;</button>` +
+    `</span>`
+  )).join('');
+  overlay.innerHTML = `
+    <div class="shelf-log-composer-shell">
+      <header class="shelf-log-composer-topbar">
+        <button type="button" class="shelf-log-composer-cancel" data-shelf-log-cancel>Cancel</button>
+        <span class="shelf-log-composer-title">I ${escHtml(verb)}...</span>
+        <button type="button" class="shelf-log-composer-save" data-shelf-log-save>Save</button>
+      </header>
+      <div class="shelf-log-composer-meta">
+        <div class="shelf-log-composer-poster${poster ? '' : ' no-img'}" ${poster ? `style="background-image:url('${escAttr(poster)}')"` : ''}></div>
+        <div class="shelf-log-composer-meta-text">
+          <strong class="shelf-log-composer-meta-title">${escHtml(title)}</strong>
+          ${year ? `<span class="shelf-log-composer-meta-year">${escHtml(year)}</span>` : ''}
+        </div>
+      </div>
+      <main class="shelf-log-composer-body">
+        <button type="button" class="shelf-log-composer-row shelf-log-composer-date-row" data-shelf-log-date-trigger>
+          <span class="shelf-log-composer-row-label">Date</span>
+          <span class="shelf-log-composer-row-value" data-shelf-log-date-label>${escHtml(formatShelfLogDateLong(initialDateRaw))}</span>
+          <input type="date" class="shelf-log-composer-date-input" data-shelf-log-date-input value="${escAttr(initialDate)}" aria-label="Watched date">
+        </button>
+        <div class="shelf-log-composer-row shelf-log-composer-rate-row">
+          <span class="shelf-log-composer-row-label">Rated</span>
+          <div class="stars shelf-log-composer-stars" data-shelf-log-stars role="slider" aria-valuemin="0" aria-valuemax="10" aria-valuenow="${initialRating}" style="--star-size:24px;">${starsHtml}</div>
+        </div>
+        <div class="shelf-log-composer-row shelf-log-composer-review-row">
+          <textarea class="shelf-log-composer-review" data-shelf-log-review rows="6" maxlength="${SHELF_LOG_REVIEW_MAX}" placeholder="Add review...">${escHtml(initialReview)}</textarea>
+        </div>
+        <div class="shelf-log-composer-row shelf-log-composer-tags-row">
+          <div class="shelf-log-composer-tags" data-shelf-log-tags>${tagsHtml}</div>
+          <input type="text" class="shelf-log-composer-tag-input" data-shelf-log-tag-input maxlength="${SHELF_LOG_TAG_MAX_LEN}" placeholder="Add tags...">
+        </div>
+      </main>
+      <footer class="shelf-log-composer-foot">
+        <button type="button" class="shelf-log-composer-toggle${initialFirstTime ? ' is-on' : ''}" data-shelf-log-toggle="firstTime" aria-pressed="${initialFirstTime ? 'true' : 'false'}">
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="2.5"/></svg>
+          <span>First-time watch</span>
+        </button>
+        <button type="button" class="shelf-log-composer-toggle${initialRepliesOpen ? ' is-on' : ''}" data-shelf-log-toggle="replies" aria-pressed="${initialRepliesOpen ? 'true' : 'false'}">
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M8 10c1-1.2 2.4-2 4-2s3 .8 4 2"/><path d="M10 14c.6.6 1.3 1 2 1s1.4-.4 2-1"/></svg>
+          <span>Anyone can reply</span>
+        </button>
+      </footer>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.body.classList.add('shelf-log-composer-open');
+  // Two rAFs: first commits paint, second triggers the CSS transition so the
+  // browser can schedule it on a 120Hz cadence (matches the FPReview pattern).
+  requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('is-open')));
+
+  attachShelfLogComposerEvents(overlay, item, section);
+  refreshShelfLogStarUI(overlay);
+}
+
+function refreshShelfLogStarUI(overlay) {
+  const state = shelfLogComposerState;
+  if (!state || !overlay) return;
+  // v10.219: Shelfd's 10-star scale, no half steps. Simple lit-class toggle.
+  overlay.querySelectorAll('[data-shelf-log-star]').forEach(btn => {
+    const v = Number(btn.getAttribute('data-shelf-log-star')) || 0;
+    btn.classList.toggle('lit', v <= state.rating);
+  });
+  const slider = overlay.querySelector('[data-shelf-log-stars]');
+  if (slider) slider.setAttribute('aria-valuenow', String(state.rating));
+}
+
+function attachShelfLogComposerEvents(overlay, item, section) {
+  const state = shelfLogComposerState;
+  if (!state) return;
+
+  // --- Date row: tap anywhere on the row opens the native date picker. ---
+  const dateBtn = overlay.querySelector('[data-shelf-log-date-trigger]');
+  const dateInput = overlay.querySelector('[data-shelf-log-date-input]');
+  const dateLabel = overlay.querySelector('[data-shelf-log-date-label]');
+  if (dateBtn && dateInput) {
+    dateBtn.addEventListener('click', e => {
+      if (e.target && e.target.closest && e.target.closest('[data-shelf-log-date-input]')) return;
+      try { dateInput.showPicker?.(); } catch (_) {}
+      try { dateInput.focus(); } catch (_) {}
+    });
+    dateInput.addEventListener('change', () => {
+      state.date = dateInput.value || state.date;
+      if (dateLabel) dateLabel.textContent = formatShelfLogDateLong(state.date + 'T12:00:00');
+    });
+  }
+
+  // --- Star rating (Shelfd 10-star, no half steps). Hover preview matches
+  // the existing .star-btn:hover scale, and the picked star plays the same
+  // star-pop animation used elsewhere in the app. Tapping the currently-
+  // selected value clears it back to 0. ---
+  const starButtons = overlay.querySelectorAll('[data-shelf-log-star]');
+  function previewStars(value) {
+    starButtons.forEach(b => {
+      const v = Number(b.getAttribute('data-shelf-log-star')) || 0;
+      b.classList.toggle('lit', v <= value);
+    });
+  }
+  starButtons.forEach(btn => {
+    const value = Number(btn.getAttribute('data-shelf-log-star')) || 0;
+    btn.addEventListener('mouseenter', () => previewStars(value));
+    btn.addEventListener('mouseleave', () => previewStars(state.rating));
+    btn.addEventListener('click', () => {
+      state.rating = state.rating === value ? 0 : value;
+      refreshShelfLogStarUI(overlay);
+      // Replay the Shelfd star-pop animation on the picked star.
+      btn.classList.remove('star-pop');
+      // Force reflow so the animation restarts even on rapid taps.
+      void btn.offsetWidth;
+      btn.classList.add('star-pop');
+      setTimeout(() => btn.classList.remove('star-pop'), 460);
+    });
+  });
+
+  // --- Review textarea ---
+  const reviewTa = overlay.querySelector('[data-shelf-log-review]');
+  if (reviewTa) reviewTa.addEventListener('input', () => { state.review = reviewTa.value; });
+
+  // --- Tag chip input. Enter / comma commits. Backspace on empty pops last. ---
+  const tagInput = overlay.querySelector('[data-shelf-log-tag-input]');
+  const tagsHost = overlay.querySelector('[data-shelf-log-tags]');
+  function rerenderTags() {
+    if (!tagsHost) return;
+    tagsHost.innerHTML = state.tags.map(t => (
+      `<span class="shelf-log-composer-tag">${escHtml(t)}` +
+        `<button type="button" class="shelf-log-composer-tag-remove" data-shelf-log-tag-remove="${escAttr(t)}" aria-label="Remove tag">&times;</button>` +
+      `</span>`
+    )).join('');
+    tagsHost.querySelectorAll('[data-shelf-log-tag-remove]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const t = btn.getAttribute('data-shelf-log-tag-remove') || '';
+        state.tags = state.tags.filter(x => x !== t);
+        rerenderTags();
+      });
+    });
+  }
+  rerenderTags();
+  if (tagInput) {
+    const commit = () => {
+      const v = String(tagInput.value || '').trim().slice(0, SHELF_LOG_TAG_MAX_LEN);
+      if (!v) return;
+      if (state.tags.includes(v)) { tagInput.value = ''; return; }
+      if (state.tags.length >= SHELF_LOG_TAG_MAX_COUNT) { tagInput.value = ''; return; }
+      state.tags.push(v);
+      tagInput.value = '';
+      rerenderTags();
+    };
+    tagInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        commit();
+      } else if (e.key === 'Backspace' && !tagInput.value && state.tags.length) {
+        state.tags.pop();
+        rerenderTags();
+      }
+    });
+    tagInput.addEventListener('blur', commit);
+  }
+
+  // --- Publish toggles (First-time watch / Anyone can reply) ---
+  overlay.querySelectorAll('[data-shelf-log-toggle]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.getAttribute('data-shelf-log-toggle');
+      const newOn = !btn.classList.contains('is-on');
+      btn.classList.toggle('is-on', newOn);
+      btn.setAttribute('aria-pressed', newOn ? 'true' : 'false');
+      if (key === 'firstTime') state.firstTime = newOn;
+      else if (key === 'replies') state.repliesOpen = newOn;
+    });
+  });
+
+  // --- Cancel / Save ---
+  const cancelBtn = overlay.querySelector('[data-shelf-log-cancel]');
+  const saveBtn = overlay.querySelector('[data-shelf-log-save]');
+  if (cancelBtn) cancelBtn.addEventListener('click', () => closeShelfLogComposer());
+  if (saveBtn) saveBtn.addEventListener('click', () => saveShelfLogComposer());
+}
+
+function closeShelfLogComposer(opts = {}) {
+  const overlay = document.getElementById('shelf-log-composer');
+  if (!overlay) {
+    shelfLogComposerState = null;
+    document.body.classList.remove('shelf-log-composer-open');
+    return;
+  }
+  if (opts.instant) {
+    try { overlay.remove(); } catch (_) {}
+    shelfLogComposerState = null;
+    document.body.classList.remove('shelf-log-composer-open');
+    return;
+  }
+  overlay.classList.remove('is-open');
+  setTimeout(() => {
+    try { overlay.remove(); } catch (_) {}
+    shelfLogComposerState = null;
+    document.body.classList.remove('shelf-log-composer-open');
+  }, 320);
+}
+
+async function saveShelfLogComposer() {
+  const state = shelfLogComposerState;
+  if (!state) return;
+  const item = (data[state.section] || []).find(i => i?.id === state.itemId);
+  if (!item) { closeShelfLogComposer(); return; }
+
+  const reviewText = String(state.review || '').trim().slice(0, SHELF_LOG_REVIEW_MAX);
+  const tags = state.tags.slice(0, SHELF_LOG_TAG_MAX_COUNT);
+
+  item.rating = Number(state.rating || 0);
+  item.reviewText = reviewText;
+  item.reviewTags = tags;
+  item.firstTimeWatch = !!state.firstTime;
+  item.reviewRepliesPublic = !!state.repliesOpen;
+  if (state.date) {
+    try { item.dateWatched = new Date(state.date + 'T12:00:00').toISOString(); }
+    catch (_) {}
+  }
+  // v10.220: do NOT mirror into cardComment.text any more — once a real review
+  // is posted, the title card surface stays clean (no flat comment line) and
+  // owners see no + button, viewers see a layers icon that opens the FPReview.
+
+  if (typeof markOwnItemLastEdited === 'function') markOwnItemLastEdited(item, state.section);
+  else if (typeof touchItem === 'function') touchItem(item);
+
+  const targetItemId = state.itemId;
+  const targetSection = state.section;
+
+  closeShelfLogComposer();
+
+  try { save(); }
+  catch (e) {
+    console.warn('[v10.217] save() threw inside saveShelfLogComposer:', e);
+    if (typeof showToast === 'function') showToast('Saved locally — cloud sync will retry.');
+  }
+  try { updateCardCommentUI(item); } catch (_) {}
+
+  // v10.220: create/update the linked Activity Feed post for this review.
+  // Fire and forget — the FPReview opens regardless. The post has its own
+  // replies array; the FPReview's Reply button routes there so reply counts
+  // stay in sync between the activity card and the review page.
+  try {
+    if (reviewText && item.reviewActivityId) {
+      updateLinkedMediaReviewFeedPost(item, state.section).catch(() => {});
+    } else if (reviewText) {
+      createLinkedMediaReviewFeedPost(item, state.section).then(postId => {
+        if (postId) {
+          item.reviewActivityId = postId;
+          try { save(); } catch (_) {}
+        }
+      }).catch(() => {});
+    }
+  } catch (_) {}
+
+  if (typeof showToast === 'function') showToast('Review posted');
+
+  // After the slide-out finishes, hand off to the existing Full Page Review.
+  setTimeout(() => {
+    try { openFullPageMediaReview(targetItemId, targetSection); } catch (_) {}
+  }, 340);
+}
+
+/* v10.220: media-review feed post helpers. The post is the source of truth
+   for replies/likes; FPReview's Reply button delegates to it via the existing
+   openActivityReplyPage handler, so the reply count shown on the activity
+   card and inside the FPReview stay in sync automatically. */
+async function createLinkedMediaReviewFeedPost(item, section) {
+  if (!currentUser || typeof db === 'undefined') return '';
+  const postId = (crypto && typeof crypto.randomUUID === 'function')
+    ? crypto.randomUUID()
+    : ('post-' + Date.now() + '-' + Math.random().toString(36).slice(2));
+  const timestamp = Date.now();
+  const itemSection = section || item.librarySection || item.mediaCategory || activeSection;
+  const reviewText = String(item.reviewText || '').slice(0, SHELF_LOG_REVIEW_MAX);
+  const feedPost = {
+    postId,
+    uid: currentUser.uid,
+    timestamp,
+    type: 'media-review',
+    eventType: 'review',
+    visibility: 'friends',
+    likes: [],
+    replies: [],
+    content: { text: reviewText, headline: 'Wrote a review' },
+    item: {
+      id: item.id,
+      title: item.title || '',
+      cover: item.cover || '',
+      year: item.year || '',
+      librarySection: itemSection,
+      mediaCategory: itemSection,
+      tmdbId: item.tmdbId || '',
+      malId: item.malId || '',
+      rawgId: item.rawgId || '',
+      rating: item.rating || 0
+    },
+    mediaKey: typeof getMediaKey === 'function' ? getMediaKey(item) : '',
+    reviewText,
+    reviewSourceItemId: item.id
+  };
+  try {
+    await db.collection('feed').doc(postId).set(feedPost);
+    if (Array.isArray(window.feedPosts)) window.feedPosts.unshift(feedPost);
+    return postId;
+  } catch (error) {
+    console.warn('[v10.220] createLinkedMediaReviewFeedPost failed:', error);
+    return '';
+  }
+}
+
+async function updateLinkedMediaReviewFeedPost(item, section) {
+  if (!currentUser || typeof db === 'undefined') return false;
+  const postId = item.reviewActivityId;
+  if (!postId) return false;
+  const reviewText = String(item.reviewText || '').slice(0, SHELF_LOG_REVIEW_MAX);
+  try {
+    const merge = {
+      reviewText,
+      content: { text: reviewText, headline: 'Wrote a review' },
+      'item.rating': Number(item.rating || 0),
+      timestamp: Date.now(),
+      editedAt: Date.now()
+    };
+    await db.collection('feed').doc(postId).set(merge, { merge: true });
+    if (Array.isArray(window.feedPosts)) {
+      const idx = window.feedPosts.findIndex(p => p?.postId === postId);
+      if (idx >= 0) {
+        const prev = window.feedPosts[idx];
+        const prevItem = prev.item || {};
+        window.feedPosts[idx] = {
+          ...prev,
+          reviewText,
+          content: { ...(prev.content || {}), text: reviewText, headline: 'Wrote a review' },
+          item: { ...prevItem, rating: Number(item.rating || 0) },
+          editedAt: Date.now()
+        };
+      }
+    }
+    return true;
+  } catch (error) {
+    console.warn('[v10.220] updateLinkedMediaReviewFeedPost failed:', error);
+    return false;
+  }
+}
+
+window.openShelfLogComposer = openShelfLogComposer;
+window.closeShelfLogComposer = closeShelfLogComposer;
 
 function openCardCommentComposer(itemId) {
   const item = (data[activeSection] || []).find(i => i?.id === itemId);
   if (!item) return;
   if (viewingUser) return;
+  // v10.217: route watched/played "+" taps through the new log composer page.
+  // Falls through to the legacy single-line modal elsewhere.
+  if (shouldRouteToShelfLogComposer(activeSection, item)) {
+    openShelfLogComposer(itemId);
+    return;
+  }
   const existingText = getCardCommentText(item);
   closeCardCommentComposer();
   const overlay = document.createElement('div');
@@ -6779,7 +8143,10 @@ async function saveCardCommentFromComposer(itemId) {
       await deleteCardCommentInternal(item, { skipConfirm: true });
     }
     closeCardCommentComposer();
-    render();
+    /* v10.69: partial update — the only visible card change after a delete is
+       the comment slot. Skip full grid render. lastEditedAt still got updated
+       (see deleteCardCommentInternal) so a future render() resorts correctly. */
+    updateCardCommentUI(item);
     return;
   }
   const now = new Date().toISOString();
@@ -6808,7 +8175,10 @@ async function saveCardCommentFromComposer(itemId) {
     console.error('[v843] save() threw inside saveCardCommentFromComposer:', saveErr);
     if (typeof showToast === 'function') showToast('Saved locally — cloud sync will retry.');
   }
-  try { render(); } catch (renderErr) { console.warn('[v843] render() threw:', renderErr); }
+  /* v10.69: partial update — comment save changes only the per-card slot.
+     Was a full grid render(). updateCardCommentUI is a no-op if the slot
+     isn't currently mounted, so still safe. */
+  try { updateCardCommentUI(item); } catch (uiErr) { console.warn('[v10.69] updateCardCommentUI threw:', uiErr); }
   try {
     if (isEdit && item.cardComment.linkedActivityId) {
       await updateLinkedCardCommentFeedPost(item);
@@ -6817,7 +8187,8 @@ async function saveCardCommentFromComposer(itemId) {
       if (postId) {
         item.cardComment.linkedActivityId = postId;
         try { save(); } catch (saveErr2) { console.warn('[v843] second save() threw:', saveErr2); }
-        try { render(); } catch (renderErr2) { console.warn('[v843] second render() threw:', renderErr2); }
+        /* v10.69: linkedActivityId is metadata, not visible on the card —
+           no UI update needed here. (Previously this was a 2nd full render.) */
       }
     }
   } catch (error) {
@@ -6832,7 +8203,8 @@ function confirmDeleteCardComment(itemId) {
   if (viewingUser) return;
   const ok = window.confirm('Delete this comment? This will also remove the linked Activity Feed post.');
   if (!ok) return;
-  deleteCardCommentInternal(item).then(() => render());
+  /* v10.69: partial update — comment delete touches only the per-card slot. */
+  deleteCardCommentInternal(item).then(() => updateCardCommentUI(item));
 }
 
 async function deleteCardCommentInternal(item, options = {}) {

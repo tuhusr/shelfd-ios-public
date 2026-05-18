@@ -354,19 +354,31 @@ body.light-mode .login-screen .google-btn {
 
 
 /* v146 media-profile share menu/action row + profile swipe-back */
+/* v10.127: top-right action row reworked into a VERTICAL stack — order
+   from top to bottom is "+" → Share → Trailer → Mute. Source order is
+   set by renderMediaProfileTopActions (add first, share second, extra
+   trailer-stack last). flex-direction: column flows them top→bottom,
+   align-items: flex-end aligns the pill (Trailer) and circles to the
+   same right edge. The Trailer CTA and sound toggle used to live as
+   absolutely-positioned children inside .discover-media-hero — moved
+   into the action row, their position:absolute is neutralized below
+   to make them flex items. */
 .discover-media-action-row {
   position: fixed;
   top: max(14px, env(safe-area-inset-top, 0px));
   right: max(14px, calc(50% - 366px));
   z-index: 45;
   display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-start;
   gap: 8px;
   max-width: min(78vw, 520px);
 }
 .discover-media-action-row .discover-media-share-floating,
-.discover-media-action-row .discover-media-add-floating {
+.discover-media-action-row .discover-media-add-floating,
+.discover-media-action-row .discover-media-hero-preview-cta,
+.discover-media-action-row .discover-media-hero-preview-sound {
   position: static !important;
   top: auto !important;
   right: auto !important;
@@ -376,6 +388,26 @@ body.light-mode .login-screen .google-btn {
 .discover-media-action-row .discover-media-share-floating { width: 38px; height: 38px; }
 .discover-media-action-row .discover-media-add-floating { max-width: calc(78vw - 48px); white-space: nowrap; }
 .discover-media-share-floating + .discover-media-add-floating { right: auto !important; }
+/* v10.128: First row of the action column pairs [Trailer][+]
+   horizontally so the Trailer pill sits to the LEFT of the "+" circle.
+   Wrapping in a sub-flex row keeps the parent column-flow intact for
+   the Share (row 2) and Mute (row 3) entries below. */
+.discover-media-action-top-row {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.discover-media-action-top-row .discover-media-hero-preview-cta,
+.discover-media-action-top-row .discover-media-add-floating {
+  position: static !important;
+  top: auto !important;
+  right: auto !important;
+  left: auto !important;
+  flex: 0 0 auto;
+}
 .media-share-overlay { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: flex-end; justify-content: center; padding: 18px; background: rgba(5,4,16,0.44); opacity: 0; pointer-events: none; transition: opacity 0.18s ease; }
 .media-share-overlay.open { opacity: 1; pointer-events: auto; }
 .media-share-sheet { width: min(440px, 100%); max-height: min(82vh, 680px); overflow-y: auto; border-radius: 24px 24px 18px 18px; border: 1px solid rgba(167,139,250,0.28); background: linear-gradient(180deg, rgba(19,16,43,0.98), rgba(8,7,18,0.98)); box-shadow: 0 24px 72px rgba(0,0,0,0.52), inset 0 0 0 1px rgba(255,255,255,0.04); padding: 10px 14px 16px; color: #f8f4ff; transform: translate3d(0, 18px, 0); transition: transform 0.22s cubic-bezier(0.22,1,0.36,1); }
@@ -405,9 +437,13 @@ body.light-mode .login-screen .google-btn {
 body.profile-swipe-back-active #app-container { display: block !important; }
 body.profile-swipe-back-active .profile-page { z-index: 1600; }
 @media (max-width: 700px) {
-  .discover-media-action-row { right: 12px; gap: 7px; max-width: calc(100vw - 94px); }
-  .discover-media-action-row .discover-media-share-floating { width: 36px; height: 36px; }
-  .discover-media-action-row .discover-media-add-floating { padding: 8px 11px; font-size: 11px; max-width: calc(100vw - 142px); overflow: hidden; text-overflow: ellipsis; }
+  /* v10.127: dropped the horizontal-row tweaks (max-width clamps, padding,
+     font-size 11px) — they were sized for the old side-by-side layout
+     where the add pill held "+ Add to Library" text. The vertical
+     stack uses icon-only 38×38 circles for "+" and Share so we let the
+     base rules from 05-messages-early-polish.css set the dimensions.
+     Only mobile-specific right-edge offset stays. */
+  .discover-media-action-row { right: 12px; gap: 7px; }
   .media-share-overlay { padding: 12px; }
   .media-share-sheet { border-radius: 22px 22px 16px 16px; }
 }

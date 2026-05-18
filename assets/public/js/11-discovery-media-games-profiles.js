@@ -847,39 +847,244 @@ async function fetchNewReleasesByDate(range = 'week', limit = DISCOVER_LIMIT, pa
 async function fetchAndRankAnticipated(limit = DISCOVER_LIMIT, pageCount = DISCOVER_PAGE_COUNT, mediaType = 'mixed') {
   const type = getDiscoverMediaQueryType(mediaType);
   const todayDate = new Date();
-  const tomorrow = toDiscoverIsoDate(addDiscoverDays(todayDate, 1));
-  const oneYearOut = toDiscoverIsoDate(addDiscoverDays(todayDate, 365));
-  const requests = [];
+  const fourYearsOutMs = Date.now() + 1460 * 24 * 60 * 60 * 1000;
 
-  if (type === 'movie' || type === 'mixed') {
-    requests.push(fetchTmdbPages('discover/movie', {
-      'primary_release_date.gte': tomorrow,
-      'primary_release_date.lte': oneYearOut,
-      sort_by: 'popularity.desc',
-      include_adult: 'false'
-    }, pageCount).then(items => items.map(item => markDiscoverMediaType(item, 'movie'))));
+  /* v10.165: Candidate discovery is now YouTube-driven, not TMDB-driven.
+     We pull recent uploads from a whitelist of major studio YouTube
+     channels (Marvel, Disney, Sony, Warner, Universal, Paramount,
+     Netflix, HBO, A24, etc.), filter to videos whose YouTube title
+     contains "trailer" or "teaser", extract the movie/show title,
+     match it to TMDB for release-date + poster + metadata, and only
+     keep titles not yet released within the next 4 years.
+
+     Why: TMDB's `popularity` score has a tiny user base and is
+     structurally biased against trailer-released titles (Avatar Aang
+     scored 94.6 popularity with no trailer because fans refresh TMDB
+     hunting for news; Spider-Man Brand New Day scored 27.1 despite a
+     34M-view trailer because its fans are on YouTube). Studio uploads
+     are the ground truth — if Sony Pictures uploaded a Spider-Man:
+     Brand New Day trailer, that title belongs in Most Anticipated. */
+  let detailed = [];
+  let candidateDiscoverySource = 'studio-channels';
+
+  if (typeof window.fetchAnticipatedCandidatesFromStudios === 'function') {
+    try {
+      const studioCandidates = await window.fetchAnticipatedCandidatesFromStudios({
+        perChannelLimit: 50,
+        maxReleaseDateMs: fourYearsOutMs
+      });
+      /* Annotate _mediaType the way the rest of the pipeline expects. */
+      detailed = (studioCandidates || []).map(item => ({
+        ...item,
+        _mediaType: item._mediaType === 'movie' ? 'movie' : 'tv'
+      }));
+      /* Filter to anime if explicitly requested (TV with animation genre). */
+      if (type === 'anime') {
+        detailed = detailed.filter(item => Array.isArray(item.genre_ids) && item.genre_ids.includes(16));
+      } else if (type === 'movie') {
+        detailed = detailed.filter(item => item._mediaType === 'movie');
+      } else if (type === 'tv') {
+        detailed = detailed.filter(item => item._mediaType === 'tv');
+      }
+    } catch (e) {
+      console.warn('[shelfd hype] studio-channel candidate discovery failed; falling back to TMDB:', e && e.message ? e.message : e);
+    }
   }
-  if (type === 'tv' || type === 'mixed' || type === 'anime') {
-    const tvParams = {
-      'first_air_date.gte': tomorrow,
-      'first_air_date.lte': oneYearOut,
-      sort_by: 'popularity.desc',
-      include_adult: 'false'
+
+  /* Safety net — if studio discovery returned nothing (worker
+     unreachable, etc.), fall back to the v10.164 TMDB-popularity
+     candidate pool so the page still works. Same window. */
+  if (!detailed.length) {
+    candidateDiscoverySource = 'tmdb-fallback';
+    const tomorrow = toDiscoverIsoDate(addDiscoverDays(todayDate, 1));
+    const fourYearsOut = toDiscoverIsoDate(addDiscoverDays(todayDate, 1460));
+    const requests = [];
+    if (type === 'movie' || type === 'mixed') {
+      requests.push(fetchTmdbPages('discover/movie', {
+        'primary_release_date.gte': tomorrow,
+        'primary_release_date.lte': fourYearsOut,
+        sort_by: 'popularity.desc',
+        include_adult: 'false'
+      }, pageCount).then(items => items.map(item => markDiscoverMediaType(item, 'movie'))));
+    }
+    if (type === 'tv' || type === 'mixed' || type === 'anime') {
+      const tvParams = {
+        'first_air_date.gte': tomorrow,
+        'first_air_date.lte': fourYearsOut,
+        sort_by: 'popularity.desc',
+        include_adult: 'false'
+      };
+      if (type === 'anime') tvParams.with_genres = '16';
+      requests.push(fetchTmdbPages('discover/tv', tvParams, pageCount)
+        .then(items => items.map(item => markDiscoverMediaType(item, 'tv'))));
+    }
+    const combined = (await Promise.all(requests)).flat();
+    const candidates = normalizeDiscoverTypedItems(combined, type)
+      .filter(item => hasUsableDiscoverUpcomingItem(item) && (isAnimeDiscoverCandidate(item) === (type === 'anime')));
+
+    /* v10.167: In `mixed` mode, balance the pool 50/50 between movies
+       and TV by interleaving the two media-type lists. Previously we
+       sorted the combined pool by TMDB popularity, which lets one
+       media type dominate when its TMDB popularity is systematically
+       higher (Netflix series rank way higher than movies on TMDB
+       because Netflix's audience over-indexes there). This guarantees
+       at least ~30 movies + 30 TV shows reach the YouTube-hype
+       scoring stage even when the YouTube discovery path is quota-
+       locked and we fall back to TMDB. */
+    let pool;
+    if (type === 'mixed') {
+      const movies = candidates.filter(c => c._mediaType === 'movie')
+        .sort((a, b) => Number(b.popularity || 0) - Number(a.popularity || 0))
+        .slice(0, 40);
+      const shows = candidates.filter(c => c._mediaType !== 'movie')
+        .sort((a, b) => Number(b.popularity || 0) - Number(a.popularity || 0))
+        .slice(0, 40);
+      pool = [];
+      const maxLen = Math.max(movies.length, shows.length);
+      for (let i = 0; i < maxLen; i += 1) {
+        if (i < movies.length) pool.push(movies[i]);
+        if (i < shows.length) pool.push(shows[i]);
+      }
+      pool = pool.slice(0, 60);
+    } else {
+      pool = candidates
+        .slice()
+        .sort((a, b) => Number(b.popularity || 0) - Number(a.popularity || 0))
+        .slice(0, 60);
+    }
+    /* Hydrate with videos for the YouTube hype scorer. */
+    detailed = await Promise.all(pool.map(async (candidate) => {
+      const detailType = candidate._mediaType === 'movie' ? 'movie' : 'tv';
+      try {
+        const res = await fetchTmdbProxy(`${detailType}/${candidate.id}`, { append_to_response: 'videos' });
+        if (!res.ok) return candidate;
+        const d = await res.json();
+        return { ...candidate, videos: d.videos || { results: [] }, production_companies: d.production_companies || candidate.production_companies };
+      } catch (e) { return candidate; }
+    }));
+  }
+
+  /* YouTube hype enrichment — async, batched. Returns per-item
+     youtubeStats + youtubeScore (0–600) + youtubeScoreNormalized (0–100). */
+  let youtubeResults = detailed.map(() => ({ youtubeStats: null, youtubeScore: 0, youtubeScoreNormalized: 0 }));
+  if (typeof window.fetchYoutubeHypeForItems === 'function') {
+    try {
+      youtubeResults = await window.fetchYoutubeHypeForItems(detailed);
+    } catch (e) {
+      console.warn('[shelfd hype] YouTube enrichment failed; falling back to TMDB-only ranking:', e && e.message ? e.message : e);
+    }
+  }
+
+  /* Pedigree sub-signals (TMDB-derived). Per project memory the full
+     spec includes cast star power and franchise lookup; v1 ships with
+     just release proximity + studio prestige to keep latency low.
+     Future enhancement: add OMDb-backed franchise signal + TMDB
+     person.popularity-summed cast star power. */
+  const STUDIO_WHITELIST_HIGH = new Set([
+    'Marvel Studios', 'Walt Disney Pictures', 'Pixar', 'Pixar Animation Studios',
+    'Studio Ghibli', 'A24', 'Warner Bros. Pictures', 'Warner Bros.',
+    'Universal Pictures', 'Paramount Pictures', 'Lucasfilm Ltd.', 'Lucasfilm',
+    'DC Studios', 'DC Films', 'Legendary Pictures', 'Legendary Entertainment',
+    'Sony Pictures', 'Columbia Pictures', '20th Century Studios', '20th Century Fox',
+    'Netflix', 'HBO', 'Apple Studios', 'Apple Original Films', 'Amazon MGM Studios',
+    'Bad Robot', 'Blumhouse Productions', 'Annapurna Pictures', 'Focus Features',
+    'Searchlight Pictures', 'Bona Film Group', 'CJ Entertainment',
+    'Toho Co., Ltd.', 'Toho', 'Madhouse', 'MAPPA', 'WIT Studio',
+    'ufotable', 'Bones', 'Production I.G', 'Trigger', 'Kyoto Animation'
+  ]);
+
+  function computePedigreeRaw(item) {
+    const releaseDate = getDiscoverReleaseDate(item);
+    const daysUntilRelease = releaseDate
+      ? Math.max(0, (Date.parse(`${String(releaseDate).slice(0, 10)}T00:00:00`) - Date.now()) / (1000 * 60 * 60 * 24))
+      : 365;
+    const releaseProximity = Math.max(0, 100 * (1 - daysUntilRelease / 365));
+    const companies = Array.isArray(item.production_companies) ? item.production_companies : [];
+    const hasWhitelistedStudio = companies.some(c => c && STUDIO_WHITELIST_HIGH.has(String(c.name || '').trim()));
+    const studioPrestige = hasWhitelistedStudio ? 100 : 0;
+    return { releaseProximity, studioPrestige };
+  }
+
+  const pedigreeRaw = detailed.map(computePedigreeRaw);
+
+  /* TMDB raw signals */
+  const tmdbRaw = detailed.map(item => ({
+    logPopularity: Math.log10(Math.max(0, Number(item.popularity || 0)) + 1),
+    logVotes: Math.log10(Math.max(0, Number(item.vote_count || 0)) + 1)
+  }));
+
+  /* Normalize each sub-signal to 0–100 across the batch. */
+  function normalizeBatch(values) {
+    let max = 0;
+    for (const v of values) {
+      const n = Number(v || 0);
+      if (Number.isFinite(n) && n > max) max = n;
+    }
+    if (max <= 0) return values.map(() => 0);
+    return values.map(v => (Number(v || 0) / max) * 100);
+  }
+
+  const nReleaseProximity = normalizeBatch(pedigreeRaw.map(p => p.releaseProximity));
+  const nStudioPrestige = normalizeBatch(pedigreeRaw.map(p => p.studioPrestige));
+  const nLogPopularity = normalizeBatch(tmdbRaw.map(t => t.logPopularity));
+  const nLogVotes = normalizeBatch(tmdbRaw.map(t => t.logVotes));
+
+  /* Compose Hype Score.
+     v10.164: rebalanced weights based on the Spider-Man Brand New Day
+     diagnosis. TMDB popularity is structurally biased AGAINST trailer-
+     released titles (Avatar Aang scores 94.6 because fans refresh
+     TMDB for news; Spider-Man scores 27.1 because its fans are
+     watching the trailer on YouTube instead). Dropping the TMDB weight
+     to 0 and giving its share to YouTube. Final:
+
+         HYPE = 0.80 × YouTube + 0.20 × Pedigree
+  */
+  const scored = detailed.map((item, i) => {
+    const pedigreeScore = (nReleaseProximity[i] + nStudioPrestige[i]) / 2;
+    const tmdbScore = (nLogPopularity[i] + nLogVotes[i]) / 2;
+    const youtubeScoreNormalized = Number(youtubeResults[i]?.youtubeScoreNormalized || 0);
+    const hypeScore = 0.80 * youtubeScoreNormalized
+                    + 0.20 * pedigreeScore;
+    return {
+      ...item,
+      __hypeScore: hypeScore,
+      __hypeBreakdown: {
+        youtube: youtubeScoreNormalized,
+        pedigree: pedigreeScore,
+        tmdb: tmdbScore, // tracked for debugging but no longer weighted
+        youtubeSource: youtubeResults[i]?.youtubeSource || 'none',
+        youtubeStats: youtubeResults[i]?.youtubeStats || null,
+        youtubeSubSignals: youtubeResults[i]?.youtubeScoreBreakdown || null,
+        pedigreeRaw: pedigreeRaw[i],
+        tmdbRaw: tmdbRaw[i]
+      },
+      calculatedScore: hypeScore
     };
-    if (type === 'anime') tvParams.with_genres = '16';
-    requests.push(fetchTmdbPages('discover/tv', tvParams, pageCount)
-      .then(items => items.map(item => markDiscoverMediaType(item, 'tv'))));
-  }
+  });
 
-  const combined = (await Promise.all(requests)).flat();
-  const candidates = normalizeDiscoverTypedItems(combined, type)
-    .filter(item => hasUsableDiscoverUpcomingItem(item) && (isAnimeDiscoverCandidate(item) === (type === 'anime')));
+  /* Log discovery source + top 10 so we can verify the new pipeline
+     is actually pulling candidates from YouTube studio channels (not
+     falling back to TMDB) and which titles are scoring highest. */
+  try {
+    const top10 = scored
+      .slice()
+      .sort((a, b) => Number(b.__hypeScore || 0) - Number(a.__hypeScore || 0))
+      .slice(0, 10)
+      .map(item => ({
+        title: item.title || item.name || '?',
+        hype: Math.round(item.__hypeScore * 10) / 10,
+        yt: Math.round(item.__hypeBreakdown.youtube * 10) / 10,
+        ped: Math.round(item.__hypeBreakdown.pedigree * 10) / 10,
+        trailerSource: item.__hypeBreakdown.youtubeSource,
+        trailerCount: item.__hypeBreakdown.youtubeStats?.trailerCount || 0,
+        totalViews: item.__hypeBreakdown.youtubeStats?.totalViews || 0
+      }));
+    console.info(`[shelfd hype v10.165] Most Anticipated — discovery=${candidateDiscoverySource}, candidates=${detailed.length}, top 10:`, top10);
+  } catch (e) {}
 
-  /* v673: Anticipated does NOT depend on IMDb data per spec — future titles
-     have unstable/missing ratings. Skip enrichment to avoid wasted OMDb
-     calls; rely entirely on TMDB popularity + release-date closeness. */
-  const ranked = (window.rankDiscoverTitles || (() => candidates))('anticipated', candidates, { mediaType: type });
-  return ranked
+  scored.sort((a, b) => Number(b.__hypeScore || 0) - Number(a.__hypeScore || 0));
+
+  return scored
     .map(item => ({
       ...item,
       discoverContext: buildDiscoverTmdbContext(`Releases ${formatDiscoverReleaseDate(getDiscoverReleaseDate(item))}`, item)
@@ -1785,7 +1990,7 @@ async function searchGamesDiscoverDatabase() {
 
 
 // v277: Mobile/PWA universal Discovery search. Restores the header search button with a real fullscreen search overlay.
-let discoverUniversalSearchSource = 'tmdb';
+let discoverUniversalSearchSource = 'movie';
 let discoverUniversalSearchTimer = null;
 let discoverUniversalSearchToken = 0;
 let discoverUniversalSearchFilterState = null;
@@ -1795,20 +2000,22 @@ const DISCOVER_UNIVERSAL_SEARCH_DEFAULT_LIMIT = 21;
 
 function normalizeDiscoverUniversalSearchSource(source = '') {
   const key = String(source || '').trim().toLowerCase();
-  if (!key || key === 'all' || key === 'all-media' || key === 'all_media' || key === 'tmdb') return 'tmdb';
+  if (!key || key === 'all' || key === 'all-media' || key === 'all_media' || key === 'tmdb') return 'movie';
   if (key === 'gaming' || key === 'games' || key === 'game' || key === 'rawg') return 'rawg';
   if (key === 'anime') return 'anime';
+  if (key === 'music') return 'music';
   if (key === 'movies' || key === 'movie') return 'movie';
   if (key === 'tv' || key === 'shows' || key === 'show') return 'tv';
-  return 'tmdb';
+  return 'movie';
 }
 
 function getDiscoverUniversalSearchPlaceholder(source = discoverUniversalSearchSource) {
   if (source === 'rawg') return 'Search games';
   if (source === 'anime') return 'Search anime';
+  if (source === 'music') return 'Search music';
   if (source === 'movie') return 'Search movies';
   if (source === 'tv') return 'Search TV shows';
-  return 'Search all media';
+  return 'Search movies';
 }
 
 function getDiscoverUniversalSearchFilterGridId(source = discoverUniversalSearchSource) {
@@ -1816,12 +2023,17 @@ function getDiscoverUniversalSearchFilterGridId(source = discoverUniversalSearch
   if (normalized === 'movie') return 'discover-movie-universal-search-grid';
   if (normalized === 'tv') return 'discover-tv-universal-search-grid';
   if (normalized === 'anime') return 'anime-discover-universal-search-grid';
-  if (normalized === 'tmdb') return 'discover-universal-search-grid';
   return '';
 }
 
 function isDiscoverUniversalSearchFilterable(source = discoverUniversalSearchSource) {
-  return ['tmdb', 'movie', 'tv', 'anime'].includes(normalizeDiscoverUniversalSearchSource(source));
+  return ['movie', 'tv', 'anime'].includes(normalizeDiscoverUniversalSearchSource(source));
+}
+
+function getDefaultDiscoverUniversalSearchSource() {
+  if (activeDiscoveryHub === 'anime') return 'anime';
+  if (activeDiscoveryHub === 'gaming') return 'rawg';
+  return 'movie';
 }
 
 function ensureDiscoverUniversalSearchFilterState() {
@@ -1898,11 +2110,11 @@ function ensureDiscoverUniversalSearchOverlay() {
       </div>
       <div class="discover-universal-search-subtitle">Search across Discovery without leaving this page.</div>
       <div class="discover-universal-search-tabs" aria-label="Discovery search categories">
-        <button class="discover-universal-search-tab" type="button" data-discover-search-source="tmdb" onclick="switchDiscoverUniversalSearchSource('tmdb')">All Media</button>
         <button class="discover-universal-search-tab" type="button" data-discover-search-source="movie" onclick="switchDiscoverUniversalSearchSource('movie')">Movies</button>
         <button class="discover-universal-search-tab" type="button" data-discover-search-source="tv" onclick="switchDiscoverUniversalSearchSource('tv')">TV Shows</button>
         <button class="discover-universal-search-tab" type="button" data-discover-search-source="anime" onclick="switchDiscoverUniversalSearchSource('anime')">Anime</button>
         <button class="discover-universal-search-tab" type="button" data-discover-search-source="rawg" onclick="switchDiscoverUniversalSearchSource('rawg')">Games</button>
+        <button class="discover-universal-search-tab" type="button" data-discover-search-source="music" onclick="switchDiscoverUniversalSearchSource('music')">Music</button>
       </div>
       <div class="discover-universal-search-divider" aria-hidden="true"></div>
       <div class="discover-universal-search-body">
@@ -1920,36 +2132,86 @@ function ensureDiscoverUniversalSearchOverlay() {
 
 let discoverUniversalSearchSwipeState = null;
 
+/* v10.215: pull-down anywhere on the universal search page to dismiss it.
+   Previously only the notch + header acted as drag handles. Now the whole
+   panel is a drag surface, but we stay scroll-aware:
+     - drags starting in the scrollable body only activate when body.scrollTop
+       is at the top AND the user is pulling DOWN. otherwise the native body
+       scroll handles it (so users can still scroll results normally).
+     - drags starting on notch/header/tabs/subtitle/divider activate immediately
+       (no scroll under those zones, so no conflict).
+     - vertical-vs-horizontal gate prevents activating during horizontal swipes
+       (tab scrolling, future swipe gestures, etc).
+   Activation thresholds are small (4px from handles, 8px from body) so it
+   feels immediate without firing on accidental taps. Close threshold matches
+   prior behavior: 86px distance OR >0.55 px/ms velocity, with an animated
+   snap-back via the existing .discover-universal-search-swipe-cancel class. */
 function attachDiscoverUniversalSearchSwipeHandlers(overlay) {
   if (!overlay || overlay.dataset.swipeReady === '1') return;
   overlay.dataset.swipeReady = '1';
-  const dragZones = overlay.querySelectorAll('.discover-universal-search-notch, .discover-universal-search-header');
-  const startSwipe = event => {
+  const panel = overlay.querySelector('.discover-universal-search-panel');
+  const body = overlay.querySelector('.discover-universal-search-body');
+  if (!panel) return;
+
+  function startedInScrollableBody(target) {
+    return !!(body && target && body.contains(target));
+  }
+  function bodyScrolledToTop() {
+    return !body || body.scrollTop <= 0;
+  }
+
+  const startSwipe = (point, target) => {
     if (!overlay.classList.contains('open')) return;
-    const point = event.touches ? event.touches[0] : event;
-    if (!point) return;
     discoverUniversalSearchSwipeState = {
       startY: point.clientY,
+      startX: point.clientX,
       currentY: point.clientY,
-      startTime: performance.now()
+      startTime: performance.now(),
+      active: false,
+      fromBody: startedInScrollableBody(target)
     };
-    overlay.classList.add('discover-universal-search-dragging');
   };
   const moveSwipe = event => {
-    if (!discoverUniversalSearchSwipeState) return;
+    const state = discoverUniversalSearchSwipeState;
+    if (!state) return;
     const point = event.touches ? event.touches[0] : event;
     if (!point) return;
-    const dy = Math.max(0, point.clientY - discoverUniversalSearchSwipeState.startY);
-    discoverUniversalSearchSwipeState.currentY = point.clientY;
-    if (dy > 2) event.preventDefault?.();
-    overlay.style.transform = `translate3d(0, ${Math.round(dy)}px, 0)`;
+    const dy = point.clientY - state.startY;
+    const dx = Math.abs(point.clientX - state.startX);
+    state.currentY = point.clientY;
+
+    if (!state.active) {
+      // gate: must be downward and primarily vertical
+      if (dy <= 0 || dx > Math.abs(dy)) return;
+      if (state.fromBody) {
+        // only steal touch from body scroll once the body is at top and the
+        // user has clearly committed to pulling down (not just a small jitter
+        // while reading results)
+        if (!bodyScrolledToTop() || dy < 8) return;
+      } else {
+        if (dy < 4) return;
+      }
+      state.active = true;
+      overlay.classList.add('discover-universal-search-dragging');
+    }
+
+    // active drag: block native scroll/refresh, translate the overlay
+    event.preventDefault?.();
+    const drag = Math.max(0, dy);
+    overlay.style.transform = `translate3d(0, ${Math.round(drag)}px, 0)`;
   };
   const endSwipe = () => {
-    if (!discoverUniversalSearchSwipeState) return;
-    const dy = Math.max(0, discoverUniversalSearchSwipeState.currentY - discoverUniversalSearchSwipeState.startY);
-    const elapsed = Math.max(1, performance.now() - discoverUniversalSearchSwipeState.startTime);
+    const state = discoverUniversalSearchSwipeState;
+    if (!state) return;
+    const wasActive = state.active;
+    const dy = Math.max(0, state.currentY - state.startY);
+    const elapsed = Math.max(1, performance.now() - state.startTime);
     const velocity = dy / elapsed;
     discoverUniversalSearchSwipeState = null;
+    if (!wasActive) {
+      overlay.classList.remove('discover-universal-search-dragging');
+      return;
+    }
     overlay.classList.remove('discover-universal-search-dragging');
     if (dy > 86 || velocity > 0.55) {
       overlay.style.transform = '';
@@ -1960,28 +2222,31 @@ function attachDiscoverUniversalSearchSwipeHandlers(overlay) {
     overlay.style.transform = '';
     setTimeout(() => overlay.classList.remove('discover-universal-search-swipe-cancel'), 310);
   };
-  dragZones.forEach(zone => {
-    zone.addEventListener('touchstart', startSwipe, { passive: true });
-    zone.addEventListener('touchmove', moveSwipe, { passive: false });
-    zone.addEventListener('touchend', endSwipe, { passive: true });
-    zone.addEventListener('touchcancel', endSwipe, { passive: true });
-    zone.addEventListener('pointerdown', event => {
-      if (event.pointerType === 'mouse') return;
-      startSwipe(event);
-    }, { passive: true });
-    zone.addEventListener('pointermove', event => {
-      if (event.pointerType === 'mouse') return;
-      moveSwipe(event);
-    }, { passive: false });
-    zone.addEventListener('pointerup', event => {
-      if (event.pointerType === 'mouse') return;
-      endSwipe(event);
-    }, { passive: true });
-    zone.addEventListener('pointercancel', event => {
-      if (event.pointerType === 'mouse') return;
-      endSwipe(event);
-    }, { passive: true });
-  });
+
+  panel.addEventListener('touchstart', event => {
+    const point = event.touches?.[0];
+    if (!point) return;
+    startSwipe(point, event.target);
+  }, { passive: true });
+  panel.addEventListener('touchmove', moveSwipe, { passive: false });
+  panel.addEventListener('touchend', endSwipe, { passive: true });
+  panel.addEventListener('touchcancel', endSwipe, { passive: true });
+  panel.addEventListener('pointerdown', event => {
+    if (event.pointerType === 'mouse') return;
+    startSwipe(event, event.target);
+  }, { passive: true });
+  panel.addEventListener('pointermove', event => {
+    if (event.pointerType === 'mouse') return;
+    moveSwipe(event);
+  }, { passive: false });
+  panel.addEventListener('pointerup', event => {
+    if (event.pointerType === 'mouse') return;
+    endSwipe();
+  }, { passive: true });
+  panel.addEventListener('pointercancel', event => {
+    if (event.pointerType === 'mouse') return;
+    endSwipe();
+  }, { passive: true });
 }
 
 function setDiscoverUniversalSearchSource(source = 'tmdb') {
@@ -1996,9 +2261,9 @@ function setDiscoverUniversalSearchSource(source = 'tmdb') {
   syncDiscoverUniversalSearchFilterContext();
 }
 
-function openDiscoverUniversalSearch(source = 'tmdb') {
+function openDiscoverUniversalSearch(source = '') {
   const overlay = ensureDiscoverUniversalSearchOverlay();
-  setDiscoverUniversalSearchSource(source || 'tmdb');
+  setDiscoverUniversalSearchSource(source || getDefaultDiscoverUniversalSearchSource());
   overlay.style.display = 'flex';
   overlay.style.transform = '';
   overlay.setAttribute('aria-hidden', 'false');
@@ -2012,13 +2277,16 @@ function openDiscoverUniversalSearch(source = 'tmdb') {
   const grid = document.getElementById('discover-universal-search-grid');
   syncDiscoverUniversalSearchFilterContext();
   if (grid && !String(input?.value || '').trim()) {
-    renderDiscoverUniversalSearchDefault(true);
+    renderDiscoverUniversalSearchPresetHub();
   }
 }
 
 function closeDiscoverUniversalSearch() {
   const overlay = document.getElementById('discover-universal-search-overlay');
   if (!overlay) return;
+  if (typeof window.closeDiscoverSearchPresetHub === 'function') {
+    window.closeDiscoverSearchPresetHub();
+  }
   discoverUniversalSearchSwipeState = null;
   overlay.classList.remove('open', 'discover-universal-search-dragging', 'discover-universal-search-swipe-cancel');
   overlay.style.transform = '';
@@ -2042,17 +2310,21 @@ function clearDiscoverUniversalSearch() {
   const grid = document.getElementById('discover-universal-search-grid');
   if (input) input.value = '';
   if (clearBtn) clearBtn.style.display = 'none';
-  if (grid) renderDiscoverUniversalSearchDefault(true);
+  if (grid) renderDiscoverUniversalSearchPresetHub();
   if (input) input.focus({ preventScroll: true });
 }
 
-function switchDiscoverUniversalSearchSource(source = 'tmdb') {
+function switchDiscoverUniversalSearchSource(source = 'movie') {
   setDiscoverUniversalSearchSource(source);
   const input = document.getElementById('discover-universal-search-input');
   const query = String(input?.value || '').trim();
   if (query) runDiscoverUniversalSearch(query);
-  else renderDiscoverUniversalSearchDefault(true);
+  else renderDiscoverUniversalSearchPresetHub();
 }
+
+window.getDiscoverUniversalSearchSource = function() {
+  return discoverUniversalSearchSource;
+};
 
 function handleDiscoverUniversalSearchKey(event) {
   if (event.key === 'Escape') {
@@ -2333,14 +2605,21 @@ async function runDiscoverUniversalSearch(value = '') {
   if (!grid) return;
   const token = ++discoverUniversalSearchToken;
   if (!query) {
-    await renderDiscoverUniversalSearchDefault(true);
+    renderDiscoverUniversalSearchPresetHub();
     return;
+  }
+  if (typeof window.closeDiscoverSearchPresetHub === 'function') {
+    window.closeDiscoverSearchPresetHub();
   }
   const source = discoverUniversalSearchSource;
   syncDiscoverUniversalSearchFilterContext();
   grid.classList.remove('discover-universal-search-results-list');
   grid.innerHTML = '<div class="discover-message">Searching...</div>';
   try {
+    if (source === 'music') {
+      grid.innerHTML = '<div class="discover-universal-search-empty">Music search is not connected yet.</div>';
+      return;
+    }
     if (source !== 'rawg' && isDiscoverUniversalSearchFilterable(source) && getDiscoverUniversalSearchFilterCount()) {
       const filteredItems = await fetchDiscoverFilteredMediaItems();
       if (token !== discoverUniversalSearchToken) return;
@@ -2383,6 +2662,17 @@ async function runDiscoverUniversalSearch(value = '') {
     console.error('Universal Discovery search failed:', error);
     grid.innerHTML = '<div class="discover-message">Search failed. Try again.</div>';
   }
+}
+
+function renderDiscoverUniversalSearchPresetHub() {
+  const grid = document.getElementById('discover-universal-search-grid');
+  if (!grid) return;
+  grid.classList.remove('discover-universal-search-results-list');
+  if (typeof window.renderDiscoverSearchPresetHub === 'function') {
+    window.renderDiscoverSearchPresetHub();
+    return;
+  }
+  grid.innerHTML = '<div class="discover-universal-search-empty">Search presets could not load.</div>';
 }
 
 
@@ -3402,6 +3692,11 @@ function handleDiscoverExpandIconClick(event, button, type, id) {
 function closeDiscoverMediaProfile(reasonOrOptions = null) {
   const overlay = document.getElementById('discover-media-profile');
   if (!overlay) return;
+  if (shouldReturnToFilmographyFromMediaProfile(reasonOrOptions)) {
+    returnToFilmographyFromMediaProfile();
+    return;
+  }
+  destroyDiscoverHeroTrailerPreview(overlay);
   activeDiscoverMediaProfileState = null;
   document.removeEventListener('keydown', handleDiscoverMediaProfileEsc);
   closeMediaProfileOverlay(overlay, () => {
@@ -3469,18 +3764,27 @@ function isDiscoverMovieTvTitleCardGrid(gridId = '', itemType = '') {
 }
 
 function getDiscoverTitleCardPosterUrl(item = {}, itemType = '', gridId = '') {
-  const posterSize = isDiscoverMovieTvTitleCardGrid(gridId, itemType) ? 'original' : 'w342';
+  /* v10.62: was 'original' for movie/TV horizontal rows + full category grids
+     — that's the un-resized source (often 1500–2000px wide for a 120–200px
+     tile on mobile). 'w500' is 2× the largest mobile rendered size, perfect
+     for retina, and roughly 1/8 the file size. Verified visually unchanged. */
+  const posterSize = isDiscoverMovieTvTitleCardGrid(gridId, itemType) ? 'w500' : 'w342';
   return getTmdbImageUrl(item.poster_path, posterSize);
 }
 
 function getDiscoverMediaPoster(item) {
-  if (item?.poster_path) return getTmdbImageUrl(item.poster_path, 'w780');
+  /* v10.62: w780 -> w500. The poster is rendered at ~140×210px on the media
+     profile hero card and the universal-search seed; w500 covers retina @2x. */
+  if (item?.poster_path) return getTmdbImageUrl(item.poster_path, 'w500');
   if (item?.poster) return item.poster;
   return '';
 }
 
 function getDiscoverMediaBackdrop(item) {
-  if (item?.backdrop_path) return getTmdbImageUrl(item.backdrop_path, 'w1280');
+  /* v10.62: w1280 -> w780. iPhone viewports are 390–430px wide; w780 covers
+     retina @2x without paying for a 1280px decode every time you open a
+     media profile. Major image-decode reduction on entry. */
+  if (item?.backdrop_path) return getTmdbImageUrl(item.backdrop_path, 'w780');
   if (item?.backdrop) return item.backdrop;
   return getDiscoverMediaPoster(item);
 }
@@ -3497,6 +3801,755 @@ function getDiscoverMediaCrew(credits, jobNames) {
 function getDiscoverMediaTrailer(videos) {
   return pickBestDiscoverTrailer(videos?.results || videos || []);
 }
+
+let activeDiscoverHeroTrailerPreviewCleanup = null;
+let activeDiscoverHeroTrailerExpansionState = null;
+let discoverYoutubeIframeApiPromise = null;
+
+const DISCOVER_HERO_TRAILER_SNAP_MS = 600;
+
+function easeOutDiscoverHeroTrailerProgress(t = 0) {
+  const x = Math.max(0, Math.min(1, Number(t) || 0));
+  return 1 - Math.pow(1 - x, 3);
+}
+
+function getDiscoverTrailerViewportSize() {
+  const visualViewport = window.visualViewport;
+  const width = Math.max(1, Math.round(visualViewport?.width || window.innerWidth || document.documentElement.clientWidth || 360));
+  const height = Math.max(1, Math.round(visualViewport?.height || window.innerHeight || document.documentElement.clientHeight || 740));
+  if (document.documentElement.classList.contains('shelfd-phone-landscape-lock') && width > height) {
+    return { width: height, height: width };
+  }
+  return { width, height };
+}
+
+function getDiscoverHeroTrailerPreviewElement(overlay = document.getElementById('discover-media-profile')) {
+  return overlay?.querySelector?.('[data-discover-hero-trailer-preview]') || null;
+}
+
+function hasDiscoverHeroTrailerPreview(overlay = document.getElementById('discover-media-profile')) {
+  const preview = getDiscoverHeroTrailerPreviewElement(overlay);
+  return !!(preview && String(preview.dataset?.trailerKey || '').trim());
+}
+
+function clearDiscoverHeroTrailerExpansionVars(preview) {
+  if (!preview) return;
+  [
+    '--media-profile-trailer-x',
+    '--media-profile-trailer-y',
+    '--media-profile-trailer-scale-x',
+    '--media-profile-trailer-scale-y',
+    '--media-profile-trailer-media-x',
+    '--media-profile-trailer-media-y',
+    '--media-profile-trailer-media-scale-x',
+    '--media-profile-trailer-media-scale-y',
+    '--media-profile-trailer-start-width',
+    '--media-profile-trailer-start-height',
+    '--media-profile-trailer-left',
+    '--media-profile-trailer-top',
+    '--media-profile-trailer-width',
+    '--media-profile-trailer-height',
+    '--media-profile-trailer-radius',
+    '--media-profile-trailer-overlay-opacity',
+    '--media-profile-trailer-content-opacity',
+    '--media-profile-trailer-iframe-scale',
+    '--media-profile-trailer-thumb-scale',
+    '--media-profile-trailer-frame-opacity',
+    '--media-profile-trailer-progress-fill'
+  ].forEach(name => preview.style.removeProperty(name));
+  preview.style.transition = '';
+  preview.style.willChange = '';
+}
+
+function clearDiscoverHeroTrailerOverlayVars(overlay) {
+  if (!overlay) return;
+  [
+    '--media-profile-trailer-page-opacity',
+    '--media-profile-trailer-page-y',
+    '--media-profile-trailer-controls-opacity'
+  ].forEach(name => overlay.style.removeProperty(name));
+}
+
+function cancelDiscoverHeroTrailerProgressAnimation() {
+  const state = activeDiscoverHeroTrailerExpansionState;
+  if (!state?.animationFrameId) return;
+  cancelAnimationFrame(state.animationFrameId);
+  state.animationFrameId = 0;
+}
+
+function resetDiscoverHeroTrailerExpansionState(overlay = document.getElementById('discover-media-profile')) {
+  const preview = getDiscoverHeroTrailerPreviewElement(overlay);
+  cancelDiscoverHeroTrailerProgressAnimation();
+  stopDiscoverHeroTrailerProgressLoop(preview);
+  overlay?.classList?.remove('media-profile-trailer-expanding', 'media-profile-trailer-fullscreen', 'media-profile-trailer-collapsing', 'media-profile-trailer-gesture', 'media-profile-trailer-animating', 'media-profile-trailer-controls-hidden', 'media-profile-trailer-aspect-preserve', 'media-profile-trailer-landscape');
+  document.body.classList.remove('media-profile-trailer-fullscreen-active', 'media-profile-trailer-transition-active', 'media-profile-trailer-landscape-active');
+  clearDiscoverHeroTrailerExpansionVars(preview);
+  clearDiscoverHeroTrailerOverlayVars(overlay);
+  activeDiscoverHeroTrailerExpansionState = null;
+}
+
+function measureDiscoverHeroTrailerStartRect(overlay, preview) {
+  const state = activeDiscoverHeroTrailerExpansionState;
+  if (state?.overlay === overlay && state?.preview === preview && state?.startRect) return state.startRect;
+  const rect = preview.getBoundingClientRect();
+  return {
+    left: Math.round(rect.left),
+    top: Math.round(rect.top),
+    width: Math.max(1, Math.round(rect.width)),
+    height: Math.max(1, Math.round(rect.height))
+  };
+}
+
+function getActiveDiscoverHeroTrailerViewport(state = activeDiscoverHeroTrailerExpansionState) {
+  return state?.viewport || getDiscoverTrailerViewportSize();
+}
+
+function beginDiscoverHeroTrailerExpansion(overlay = document.getElementById('discover-media-profile')) {
+  const preview = getDiscoverHeroTrailerPreviewElement(overlay);
+  if (!overlay || !preview || !hasDiscoverHeroTrailerPreview(overlay)) return null;
+  const startRect = measureDiscoverHeroTrailerStartRect(overlay, preview);
+  const viewport = getDiscoverTrailerViewportSize();
+  cancelDiscoverHeroTrailerProgressAnimation();
+  preview.style.setProperty('--media-profile-trailer-start-width', `${startRect.width.toFixed(2)}px`);
+  preview.style.setProperty('--media-profile-trailer-start-height', `${startRect.height.toFixed(2)}px`);
+  activeDiscoverHeroTrailerExpansionState = {
+    overlay,
+    preview,
+    startRect,
+    viewport,
+    direction: activeDiscoverHeroTrailerExpansionState?.direction || 'expand',
+    progress: Math.max(0, Math.min(1, activeDiscoverHeroTrailerExpansionState?.progress || 0)),
+    animationFrameId: 0
+  };
+  preview.style.transition = 'none';
+  preview.style.willChange = 'transform, border-radius';
+  overlay.classList.add('media-profile-trailer-expanding');
+  document.body.classList.add('media-profile-trailer-transition-active');
+  applyDiscoverHeroTrailerExpansionProgress(overlay, activeDiscoverHeroTrailerExpansionState.progress);
+  return activeDiscoverHeroTrailerExpansionState;
+}
+
+function getDiscoverHeroTrailerPageOpacity(progress, direction = 'expand') {
+  if (direction === 'collapse') {
+    return Math.pow(Math.max(0, 1 - progress), 0.52);
+  }
+  return Math.max(0, 1 - Math.min(1, progress * 1.5));
+}
+
+function getDiscoverHeroTrailerPageMoveProgress(progress, direction = 'expand') {
+  if (direction === 'collapse') return Math.pow(progress, 1.32);
+  return Math.pow(progress, 0.9);
+}
+
+function applyDiscoverHeroTrailerExpansionProgress(overlay = document.getElementById('discover-media-profile'), rawProgress = 0) {
+  const preview = getDiscoverHeroTrailerPreviewElement(overlay);
+  if (!overlay || !preview) return 0;
+  let state = activeDiscoverHeroTrailerExpansionState;
+  if (!state || state.overlay !== overlay || state.preview !== preview) state = beginDiscoverHeroTrailerExpansion(overlay);
+  if (!state) return 0;
+  const viewport = getActiveDiscoverHeroTrailerViewport(state);
+  const progress = Math.max(0, Math.min(1, Number(rawProgress) || 0));
+  state.progress = progress;
+  const direction = state.direction || (overlay.classList.contains('media-profile-trailer-collapsing') ? 'collapse' : 'expand');
+  const ease = progress;
+  const pageOpacity = getDiscoverHeroTrailerPageOpacity(progress, direction);
+  const pageMoveProgress = getDiscoverHeroTrailerPageMoveProgress(progress, direction);
+  const start = state.startRect;
+  const x = start.left * (1 - ease);
+  const y = start.top * (1 - ease);
+  const width = start.width + (viewport.width - start.width) * ease;
+  const height = start.height + (viewport.height - start.height) * ease;
+  const scaleX = width / Math.max(1, start.width);
+  const scaleY = height / Math.max(1, start.height);
+  if (overlay.classList.contains('media-profile-trailer-aspect-preserve')) {
+    const sourceAspect = Math.max(0.01, start.width / Math.max(1, start.height));
+    const containerAspect = width / Math.max(1, height);
+    const mediaWidth = containerAspect > sourceAspect ? height * sourceAspect : width;
+    const mediaHeight = mediaWidth / sourceAspect;
+    const mediaX = ((width - mediaWidth) / 2) / Math.max(0.001, scaleX);
+    const mediaY = ((height - mediaHeight) / 2) / Math.max(0.001, scaleY);
+    const mediaScaleX = mediaWidth / Math.max(1, start.width * scaleX);
+    const mediaScaleY = mediaHeight / Math.max(1, start.height * scaleY);
+    preview.style.setProperty('--media-profile-trailer-media-x', `${mediaX.toFixed(2)}px`);
+    preview.style.setProperty('--media-profile-trailer-media-y', `${mediaY.toFixed(2)}px`);
+    preview.style.setProperty('--media-profile-trailer-media-scale-x', `${mediaScaleX.toFixed(5)}`);
+    preview.style.setProperty('--media-profile-trailer-media-scale-y', `${mediaScaleY.toFixed(5)}`);
+  }
+  preview.style.setProperty('--media-profile-trailer-x', `${x.toFixed(2)}px`);
+  preview.style.setProperty('--media-profile-trailer-y', `${y.toFixed(2)}px`);
+  preview.style.setProperty('--media-profile-trailer-scale-x', `${scaleX.toFixed(5)}`);
+  preview.style.setProperty('--media-profile-trailer-scale-y', `${scaleY.toFixed(5)}`);
+  preview.style.setProperty('--media-profile-trailer-radius', `${Math.max(0, 12 * (1 - ease)).toFixed(2)}px`);
+  preview.style.setProperty('--media-profile-trailer-overlay-opacity', `${Math.max(0, 1 - ease).toFixed(3)}`);
+  preview.style.setProperty('--media-profile-trailer-content-opacity', `${pageOpacity.toFixed(3)}`);
+  preview.style.setProperty('--media-profile-trailer-iframe-scale', `${(1.22 - 0.22 * ease).toFixed(3)}`);
+  preview.style.setProperty('--media-profile-trailer-thumb-scale', `${(1.12 - 0.12 * ease).toFixed(3)}`);
+  preview.style.setProperty('--media-profile-trailer-frame-opacity', `${(0.94 + 0.06 * ease).toFixed(3)}`);
+  overlay.style.setProperty('--media-profile-trailer-page-opacity', `${pageOpacity.toFixed(3)}`);
+  overlay.style.setProperty('--media-profile-trailer-page-y', `${(viewport.height * 0.38 * pageMoveProgress).toFixed(2)}px`);
+  return progress;
+}
+
+function finishDiscoverHeroTrailerExpansion(overlay = document.getElementById('discover-media-profile')) {
+  const preview = getDiscoverHeroTrailerPreviewElement(overlay);
+  if (!overlay || !preview) return false;
+  cancelDiscoverHeroTrailerProgressAnimation();
+  overlay.classList.remove('media-profile-trailer-expanding', 'media-profile-trailer-collapsing', 'media-profile-trailer-gesture', 'media-profile-trailer-animating', 'media-profile-trailer-aspect-preserve');
+  overlay.classList.add('media-profile-trailer-fullscreen');
+  document.body.classList.remove('media-profile-trailer-transition-active');
+  document.body.classList.add('media-profile-trailer-fullscreen-active');
+  if (activeDiscoverHeroTrailerExpansionState) activeDiscoverHeroTrailerExpansionState.direction = 'expand';
+  applyDiscoverHeroTrailerExpansionProgress(overlay, 1);
+  setDiscoverHeroTrailerControlsVisible(overlay, true);
+  ensureDiscoverHeroTrailerPlayer(overlay);
+  startDiscoverHeroTrailerProgressLoop(preview);
+  preview.style.transition = '';
+  return true;
+}
+
+function animateDiscoverHeroTrailerExpansionTo(overlay, targetProgress, done) {
+  const preview = getDiscoverHeroTrailerPreviewElement(overlay);
+  const state = activeDiscoverHeroTrailerExpansionState || beginDiscoverHeroTrailerExpansion(overlay);
+  if (!preview || !state) return false;
+  cancelDiscoverHeroTrailerProgressAnimation();
+  const from = Math.max(0, Math.min(1, Number(state.progress) || 0));
+  const to = Math.max(0, Math.min(1, Number(targetProgress) || 0));
+  const distance = Math.abs(to - from);
+  const duration = Math.max(220, Math.min(DISCOVER_HERO_TRAILER_SNAP_MS, DISCOVER_HERO_TRAILER_SNAP_MS * distance));
+  const startedAt = performance.now();
+  state.direction = to < from ? 'collapse' : 'expand';
+  preview.style.transition = 'none';
+  overlay.classList.add('media-profile-trailer-animating');
+  document.body.classList.add('media-profile-trailer-transition-active');
+  const step = (now) => {
+    const elapsed = Math.max(0, now - startedAt);
+    const eased = easeOutDiscoverHeroTrailerProgress(elapsed / duration);
+    const next = from + ((to - from) * eased);
+    applyDiscoverHeroTrailerExpansionProgress(overlay, next);
+    if (elapsed < duration) {
+      state.animationFrameId = requestAnimationFrame(step);
+      return;
+    }
+    state.animationFrameId = 0;
+    applyDiscoverHeroTrailerExpansionProgress(overlay, to);
+    overlay.classList.remove('media-profile-trailer-animating');
+    document.body.classList.remove('media-profile-trailer-transition-active');
+    preview.style.transition = '';
+    if (typeof done === 'function') done();
+  };
+  state.animationFrameId = requestAnimationFrame(step);
+  return true;
+}
+
+function expandDiscoverHeroTrailerPreview(overlay = document.getElementById('discover-media-profile'), options = {}) {
+  if (!hasDiscoverHeroTrailerPreview(overlay)) return false;
+  if (overlay?.classList?.contains('media-profile-trailer-fullscreen')) return true;
+  overlay?.classList?.add('media-profile-trailer-aspect-preserve');
+  const state = beginDiscoverHeroTrailerExpansion(overlay);
+  if (state) state.direction = 'expand';
+  if (options.immediate) {
+    applyDiscoverHeroTrailerExpansionProgress(overlay, 1);
+    finishDiscoverHeroTrailerExpansion(overlay);
+    return true;
+  }
+  return animateDiscoverHeroTrailerExpansionTo(overlay, 1, () => finishDiscoverHeroTrailerExpansion(overlay));
+}
+
+function cancelDiscoverHeroTrailerExpansion(overlay = document.getElementById('discover-media-profile')) {
+  const preview = getDiscoverHeroTrailerPreviewElement(overlay);
+  if (!preview || !activeDiscoverHeroTrailerExpansionState) {
+    resetDiscoverHeroTrailerExpansionState(overlay);
+    return;
+  }
+  closeDiscoverHeroTrailerLandscapeMode(overlay, { refresh: false });
+  overlay?.classList?.remove('media-profile-trailer-fullscreen', 'media-profile-trailer-expanding');
+  overlay?.classList?.add('media-profile-trailer-collapsing');
+  activeDiscoverHeroTrailerExpansionState.direction = 'collapse';
+  animateDiscoverHeroTrailerExpansionTo(overlay, 0, () => resetDiscoverHeroTrailerExpansionState(overlay));
+}
+
+function collapseDiscoverHeroTrailerPreview(overlay = document.getElementById('discover-media-profile'), options = {}) {
+  if (!overlay?.classList?.contains('media-profile-trailer-fullscreen') && !overlay?.classList?.contains('media-profile-trailer-collapsing')) return false;
+  closeDiscoverHeroTrailerLandscapeMode(overlay, { refresh: false });
+  stopDiscoverHeroTrailerProgressLoop(getDiscoverHeroTrailerPreviewElement(overlay));
+  overlay.classList.remove('media-profile-trailer-fullscreen', 'media-profile-trailer-expanding');
+  overlay.classList.add('media-profile-trailer-collapsing', 'media-profile-trailer-aspect-preserve');
+  document.body.classList.remove('media-profile-trailer-fullscreen-active');
+  document.body.classList.add('media-profile-trailer-transition-active');
+  if (activeDiscoverHeroTrailerExpansionState) activeDiscoverHeroTrailerExpansionState.direction = 'collapse';
+  if (options.immediate) {
+    resetDiscoverHeroTrailerExpansionState(overlay);
+    return true;
+  }
+  return animateDiscoverHeroTrailerExpansionTo(overlay, 0, () => resetDiscoverHeroTrailerExpansionState(overlay));
+}
+
+function restoreDiscoverHeroTrailerFullscreen(overlay = document.getElementById('discover-media-profile')) {
+  if (!hasDiscoverHeroTrailerPreview(overlay)) return false;
+  overlay?.classList?.add('media-profile-trailer-expanding');
+  if (activeDiscoverHeroTrailerExpansionState) activeDiscoverHeroTrailerExpansionState.direction = 'expand';
+  return animateDiscoverHeroTrailerExpansionTo(overlay, 1, () => finishDiscoverHeroTrailerExpansion(overlay));
+}
+
+function isDiscoverHeroTrailerFullscreen(overlay = document.getElementById('discover-media-profile')) {
+  return !!overlay?.classList?.contains('media-profile-trailer-fullscreen');
+}
+
+function isDiscoverHeroTrailerLandscape(overlay = document.getElementById('discover-media-profile')) {
+  return !!overlay?.classList?.contains('media-profile-trailer-landscape');
+}
+
+function closeDiscoverHeroTrailerLandscapeMode(overlay = document.getElementById('discover-media-profile'), options = {}) {
+  if (!isDiscoverHeroTrailerLandscape(overlay)) return false;
+  overlay.classList.remove('media-profile-trailer-landscape');
+  document.body.classList.remove('media-profile-trailer-landscape-active');
+  overlay.querySelectorAll?.('.discover-media-hero-preview-native-fullscreen')?.forEach(button => {
+    button.setAttribute('aria-label', 'Open landscape trailer');
+  });
+  setDiscoverHeroTrailerControlsVisible(overlay, true);
+  if (options.refresh !== false) refreshDiscoverHeroTrailerFullscreenLayout();
+  return true;
+}
+
+function setDiscoverHeroTrailerControlsVisible(overlay = document.getElementById('discover-media-profile'), visible = true) {
+  if (!isDiscoverHeroTrailerFullscreen(overlay)) return;
+  overlay.classList.toggle('media-profile-trailer-controls-hidden', !visible);
+  overlay.style.setProperty('--media-profile-trailer-controls-opacity', visible ? '1' : '0');
+}
+
+function toggleDiscoverHeroTrailerControls(overlay = document.getElementById('discover-media-profile')) {
+  if (!isDiscoverHeroTrailerFullscreen(overlay)) return;
+  setDiscoverHeroTrailerControlsVisible(overlay, overlay.classList.contains('media-profile-trailer-controls-hidden'));
+}
+
+function handleDiscoverMediaProfileBack(event) {
+  const overlay = document.getElementById('discover-media-profile');
+  if (isDiscoverHeroTrailerLandscape(overlay)) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    collapseDiscoverHeroTrailerPreview(overlay);
+    return false;
+  }
+  if (isDiscoverHeroTrailerFullscreen(overlay)) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    collapseDiscoverHeroTrailerPreview(overlay);
+    return false;
+  }
+  if (overlay?.classList?.contains('game-media-profile-overlay') && typeof closeGameMediaProfile === 'function') {
+    closeGameMediaProfile('back');
+  } else {
+    closeDiscoverMediaProfile('back');
+  }
+  return false;
+}
+window.handleDiscoverMediaProfileBack = handleDiscoverMediaProfileBack;
+
+function refreshDiscoverHeroTrailerFullscreenLayout() {
+  const overlay = document.getElementById('discover-media-profile');
+  if (!isDiscoverHeroTrailerFullscreen(overlay)) return;
+  if (activeDiscoverHeroTrailerExpansionState?.overlay === overlay) {
+    activeDiscoverHeroTrailerExpansionState.viewport = getDiscoverTrailerViewportSize();
+  }
+  applyDiscoverHeroTrailerExpansionProgress(overlay, 1);
+}
+
+window.addEventListener('resize', refreshDiscoverHeroTrailerFullscreenLayout, { passive: true });
+window.visualViewport?.addEventListener?.('resize', refreshDiscoverHeroTrailerFullscreenLayout, { passive: true });
+
+function loadDiscoverYoutubeIframeApi() {
+  if (window.YT?.Player) return Promise.resolve(window.YT);
+  if (discoverYoutubeIframeApiPromise) return discoverYoutubeIframeApiPromise;
+  discoverYoutubeIframeApiPromise = new Promise((resolve) => {
+    const previousReady = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = function onDiscoverYouTubeIframeApiReady() {
+      if (typeof previousReady === 'function') {
+        try { previousReady(); } catch (error) { console.warn('Previous YouTube iframe ready handler failed:', error); }
+      }
+      resolve(window.YT);
+    };
+    if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      tag.async = true;
+      document.head.appendChild(tag);
+    }
+  });
+  return discoverYoutubeIframeApiPromise;
+}
+
+function getDiscoverHeroTrailerIframe(overlay = document.getElementById('discover-media-profile')) {
+  return overlay?.querySelector?.('[data-discover-trailer-preview-frame] iframe') || null;
+}
+
+function sendDiscoverHeroTrailerCommand(iframe, command, args = []) {
+  if (!iframe?.contentWindow || !command) return false;
+  try {
+    iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: command, args }), '*');
+    return true;
+  } catch (error) {
+    console.warn('Discover trailer command failed:', command, error);
+    return false;
+  }
+}
+
+function formatDiscoverTrailerTime(seconds = 0) {
+  const total = Math.max(0, Math.floor(Number(seconds || 0)));
+  const minutes = Math.floor(total / 60);
+  const secs = total % 60;
+  return `${minutes}:${String(secs).padStart(2, '0')}`;
+}
+
+function updateDiscoverHeroTrailerPlayButton(preview, playing = true) {
+  const button = preview?.querySelector?.('[data-discover-trailer-play]');
+  if (!button) return;
+  button.dataset.playing = playing ? 'true' : 'false';
+  button.setAttribute('aria-label', playing ? 'Pause trailer' : 'Play trailer');
+  button.innerHTML = playing
+    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>'
+    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7Z"/></svg>';
+}
+
+function updateDiscoverHeroTrailerProgress(preview) {
+  const player = preview?._discoverTrailerPlayer;
+  if (!player || typeof player.getCurrentTime !== 'function' || typeof player.getDuration !== 'function') return;
+  let current = 0;
+  let duration = 0;
+  try {
+    current = Number(player.getCurrentTime() || 0);
+    duration = Number(player.getDuration() || 0);
+  } catch (error) {
+    return;
+  }
+  const range = preview.querySelector('[data-discover-trailer-scrub]');
+  const time = preview.querySelector('[data-discover-trailer-time]');
+  const pct = duration > 0 ? Math.max(0, Math.min(1, current / duration)) : 0;
+  if (range && range.dataset.scrubbing !== 'true') range.value = String(Math.round(pct * 1000));
+  if (time) time.textContent = duration > 0 ? `${formatDiscoverTrailerTime(current)} / ${formatDiscoverTrailerTime(duration)}` : formatDiscoverTrailerTime(current);
+  preview.style.setProperty('--media-profile-trailer-progress-fill', `${(pct * 100).toFixed(2)}%`);
+}
+
+function startDiscoverHeroTrailerProgressLoop(preview) {
+  if (!preview || preview._discoverTrailerProgressTimer) return;
+  updateDiscoverHeroTrailerProgress(preview);
+  preview._discoverTrailerProgressTimer = window.setInterval(() => updateDiscoverHeroTrailerProgress(preview), 350);
+}
+
+function stopDiscoverHeroTrailerProgressLoop(preview) {
+  if (!preview?._discoverTrailerProgressTimer) return;
+  window.clearInterval(preview._discoverTrailerProgressTimer);
+  preview._discoverTrailerProgressTimer = null;
+}
+
+function ensureDiscoverHeroTrailerPlayer(overlay = document.getElementById('discover-media-profile')) {
+  const preview = getDiscoverHeroTrailerPreviewElement(overlay);
+  const iframe = getDiscoverHeroTrailerIframe(overlay);
+  if (!preview || !iframe) return Promise.resolve(null);
+  if (preview._discoverTrailerPlayer) return Promise.resolve(preview._discoverTrailerPlayer);
+  if (!iframe.id) iframe.id = `discover-hero-trailer-player-${Date.now()}-${Math.round(Math.random() * 100000)}`;
+  return loadDiscoverYoutubeIframeApi().then((YT) => {
+    if (!YT?.Player || preview._discoverTrailerPlayer || !iframe.isConnected) return preview._discoverTrailerPlayer || null;
+    preview._discoverTrailerPlayer = new YT.Player(iframe.id, {
+      events: {
+        onReady: () => {
+          updateDiscoverHeroTrailerProgress(preview);
+          updateDiscoverHeroTrailerPlayButton(preview, true);
+        },
+        onStateChange: (event) => {
+          const playing = Number(event?.data) === 1;
+          const pausedOrEnded = Number(event?.data) === 2 || Number(event?.data) === 0;
+          if (playing || pausedOrEnded) updateDiscoverHeroTrailerPlayButton(preview, playing);
+          updateDiscoverHeroTrailerProgress(preview);
+        }
+      }
+    });
+    return preview._discoverTrailerPlayer;
+  }).catch((error) => {
+    console.warn('Discover trailer player controls unavailable:', error);
+    return null;
+  });
+}
+
+function getDiscoverHeroTrailerThumbnail(key = '') {
+  const safeKey = String(key || '').trim();
+  return safeKey ? `https://i.ytimg.com/vi/${encodeURIComponent(safeKey)}/hqdefault.jpg` : '';
+}
+
+function destroyDiscoverHeroTrailerPreview(overlay = document.getElementById('discover-media-profile')) {
+  resetDiscoverHeroTrailerExpansionState(overlay);
+  if (typeof activeDiscoverHeroTrailerPreviewCleanup === 'function') {
+    try {
+      activeDiscoverHeroTrailerPreviewCleanup();
+    } catch (error) {
+      console.warn('Discover hero trailer preview cleanup skipped:', error);
+    }
+  }
+  activeDiscoverHeroTrailerPreviewCleanup = null;
+  const preview = overlay?.querySelector?.('[data-discover-hero-trailer-preview]');
+  if (!preview) return;
+  preview.classList.remove('is-loading', 'is-ready');
+  const frame = preview.querySelector('[data-discover-trailer-preview-frame]');
+  if (frame) frame.replaceChildren();
+  preview.style.removeProperty('--discover-trailer-preview-bottom');
+}
+
+function bindDiscoverHeroTrailerPreviewBounds(overlay = document.getElementById('discover-media-profile')) {
+  return () => {};
+}
+
+function shouldAutoplayDiscoverHeroTrailerPreview() {
+  try {
+    return !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  } catch (error) {
+    return true;
+  }
+}
+
+function openDiscoverHeroTrailer(event, button) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const trigger = button?.closest?.('[data-discover-hero-trailer-preview]') || button;
+  const trailerKey = String(trigger?.dataset?.trailerKey || '').trim();
+  const trailerTitle = String(trigger?.dataset?.trailerTitle || '').trim();
+  if (!trailerKey) return;
+  const overlay = document.getElementById('discover-media-profile');
+  if (isDiscoverHeroTrailerFullscreen(overlay)) {
+    if (!event?.target?.closest?.('[data-discover-trailer-control], .discover-media-back, .discover-media-hero-preview-sound')) {
+      toggleDiscoverHeroTrailerControls(overlay);
+    }
+    return;
+  }
+  if (expandDiscoverHeroTrailerPreview(overlay)) return;
+  if (typeof window.showTrailerModal === 'function') {
+    window.showTrailerModal(trailerKey, trailerTitle);
+    return;
+  }
+  if (typeof showTrailerModal === 'function') {
+    showTrailerModal(trailerKey, trailerTitle);
+    return;
+  }
+  window.open(`https://www.youtube.com/watch?v=${encodeURIComponent(trailerKey)}`, '_blank', 'noopener');
+}
+window.openDiscoverHeroTrailer = openDiscoverHeroTrailer;
+
+function hydrateDiscoverHeroTrailerPreview(overlay = document.getElementById('discover-media-profile')) {
+  destroyDiscoverHeroTrailerPreview(overlay);
+  const preview = overlay?.querySelector?.('[data-discover-hero-trailer-preview]');
+  const frame = preview?.querySelector?.('[data-discover-trailer-preview-frame]');
+  const trailerKey = String(preview?.dataset?.trailerKey || '').trim();
+  if (!preview || !frame || !trailerKey) return;
+  const releaseBounds = bindDiscoverHeroTrailerPreviewBounds(overlay);
+  if (!shouldAutoplayDiscoverHeroTrailerPreview()) {
+    activeDiscoverHeroTrailerPreviewCleanup = () => {
+      releaseBounds();
+      if (preview.isConnected) preview.classList.remove('is-loading', 'is-ready');
+    };
+    return;
+  }
+  preview.classList.add('is-loading');
+  const iframe = document.createElement('iframe');
+  const params = new URLSearchParams({
+    autoplay: '1',
+    mute: '1',
+    controls: '0',
+    disablekb: '1',
+    fs: '1',
+    playsinline: '1',
+    rel: '0',
+    modestbranding: '1',
+    iv_load_policy: '3',
+    loop: '1',
+    playlist: trailerKey,
+    enablejsapi: '1',
+    origin: window.location.origin
+  });
+  iframe.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(trailerKey)}?${params.toString()}`;
+  iframe.allow = 'autoplay; encrypted-media; fullscreen; picture-in-picture';
+  iframe.allowFullscreen = true;
+  iframe.setAttribute('allowfullscreen', '');
+  iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+  iframe.tabIndex = -1;
+  iframe.title = '';
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.onload = () => {
+    if (!preview.isConnected) return;
+    preview.classList.remove('is-loading');
+    preview.classList.add('is-ready');
+    ensureDiscoverHeroTrailerPlayer(overlay);
+  };
+  frame.appendChild(iframe);
+  activeDiscoverHeroTrailerPreviewCleanup = () => {
+    releaseBounds();
+    stopDiscoverHeroTrailerProgressLoop(preview);
+    iframe.onload = null;
+    preview._discoverTrailerPlayer = null;
+    try { iframe.src = 'about:blank'; } catch (error) { /* noop */ }
+    frame.replaceChildren();
+    if (preview.isConnected) preview.classList.remove('is-loading', 'is-ready');
+  };
+}
+
+function renderDiscoverHeroTrailerPreview(trailer, title = '') {
+  const trailerKey = String(trailer?.key || '').trim();
+  if (!trailerKey) return '';
+  const thumb = getDiscoverHeroTrailerThumbnail(trailerKey);
+  return `<div class="discover-media-hero-preview" role="button" tabindex="0" data-discover-hero-trailer-preview data-trailer-key="${escAttr(trailerKey)}" data-trailer-title="${escAttr(title)}" onclick="openDiscoverHeroTrailer(event, this)" onkeydown="handleDiscoverHeroTrailerPreviewKeydown(event, this)" aria-label="${escAttr(`Expand trailer for ${title || 'this title'}`)}">
+    <span class="discover-media-hero-preview-media">
+      ${thumb ? `<span class="discover-media-hero-preview-thumb" style="background-image:url('${escAttr(thumb)}')"></span>` : ''}
+      <span class="discover-media-hero-preview-frame" data-discover-trailer-preview-frame></span>
+    </span>
+    <span class="discover-media-hero-preview-controls" data-discover-trailer-controls onclick="event.stopPropagation()">
+      <button class="discover-media-hero-preview-play" type="button" data-discover-trailer-control data-discover-trailer-play data-playing="true" onclick="toggleDiscoverHeroTrailerPlayback(event, this)" aria-label="Pause trailer">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
+      </button>
+      <span class="discover-media-hero-preview-scrub-wrap" data-discover-trailer-control>
+        <input class="discover-media-hero-preview-scrub" type="range" min="0" max="1000" value="0" step="1" data-discover-trailer-scrub onpointerdown="beginDiscoverHeroTrailerScrub(event, this)" oninput="scrubDiscoverHeroTrailer(event, this)" onchange="scrubDiscoverHeroTrailer(event, this, true)" onpointerup="endDiscoverHeroTrailerScrub(event, this)" aria-label="Trailer progress">
+      </span>
+      <span class="discover-media-hero-preview-time" data-discover-trailer-time>0:00</span>
+      <button class="discover-media-hero-preview-native-fullscreen" type="button" data-discover-trailer-control onclick="openDiscoverHeroTrailerNativeFullscreen(event, this)" aria-label="Open landscape trailer">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/></svg>
+      </button>
+    </span>
+  </div>`;
+}
+
+function handleDiscoverHeroTrailerPreviewKeydown(event, preview) {
+  if (event?.key !== 'Enter' && event?.key !== ' ') return;
+  event.preventDefault();
+  openDiscoverHeroTrailer(event, preview);
+}
+window.handleDiscoverHeroTrailerPreviewKeydown = handleDiscoverHeroTrailerPreviewKeydown;
+
+function renderDiscoverHeroTrailerPreviewCta(trailer, title = '') {
+  const trailerKey = String(trailer?.key || '').trim();
+  if (!trailerKey) return '';
+  /* v10.122: button text changed from "Full Screen" → "Trailer". Same
+     click behavior (still opens the fullscreen trailer player); just a
+     friendlier label paired with the new sound-toggle button rendered
+     directly below it. */
+  return `<button class="discover-media-hero-preview-cta" type="button" data-trailer-key="${escAttr(trailerKey)}" data-trailer-title="${escAttr(title)}" onclick="openDiscoverHeroTrailer(event, this)" aria-label="${escAttr(`Open full screen trailer for ${title || 'this title'}`)}">Trailer</button>`;
+}
+
+/* v10.122: Inline sound toggle for the FPMP hero trailer preview.
+
+   Renders a circular icon-only button directly below the "Trailer" CTA.
+   The inline YouTube iframe always starts muted on every FPMP open
+   (autoplay-mute is required by browsers, and we never persist the
+   unmuted state across profile opens). Tapping the button posts the
+   YouTube IFrame API `mute` / `unMute` command to the embed via
+   postMessage; the embed loads with enablejsapi=1 (see
+   hydrateDiscoverHeroTrailerPreview), so the command takes effect
+   without needing a full YT.Player instance. */
+function renderDiscoverHeroTrailerSoundToggle(trailer) {
+  const trailerKey = String(trailer?.key || '').trim();
+  if (!trailerKey) return '';
+  return `<button class="discover-media-hero-preview-sound" type="button" data-sound-state="muted" onclick="toggleDiscoverHeroTrailerSound(event, this)" aria-label="Unmute trailer audio" aria-pressed="false">
+    <svg class="discover-media-hero-preview-sound-icon discover-media-hero-preview-sound-icon-muted" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zM19 12c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.17v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9zM12 4 9.91 6.09 12 8.18z"/>
+    </svg>
+    <svg class="discover-media-hero-preview-sound-icon discover-media-hero-preview-sound-icon-unmuted" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 9v6h4l5 5V4L7 9zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+    </svg>
+  </button>`;
+}
+
+function toggleDiscoverHeroTrailerSound(event, btn) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  if (!btn) return;
+  const overlay = btn.closest('.discover-media-profile-overlay');
+  const iframe = overlay?.querySelector?.('[data-discover-trailer-preview-frame] iframe');
+  if (!iframe || !iframe.contentWindow) return;
+  const wasMuted = btn.dataset.soundState !== 'unmuted';
+  const func = wasMuted ? 'unMute' : 'mute';
+  try {
+    iframe.contentWindow.postMessage(
+      JSON.stringify({ event: 'command', func, args: [] }),
+      '*'
+    );
+  } catch (error) {
+    return;
+  }
+  const nextState = wasMuted ? 'unmuted' : 'muted';
+  btn.dataset.soundState = nextState;
+  btn.setAttribute('aria-label', wasMuted ? 'Mute trailer audio' : 'Unmute trailer audio');
+  btn.setAttribute('aria-pressed', wasMuted ? 'true' : 'false');
+}
+window.toggleDiscoverHeroTrailerSound = toggleDiscoverHeroTrailerSound;
+
+function toggleDiscoverHeroTrailerPlayback(event, btn) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const overlay = btn?.closest?.('.discover-media-profile-overlay, .game-media-profile-overlay');
+  const preview = getDiscoverHeroTrailerPreviewElement(overlay);
+  const iframe = getDiscoverHeroTrailerIframe(overlay);
+  if (!preview || !iframe) return;
+  const isPlaying = btn.dataset.playing !== 'false';
+  const command = isPlaying ? 'pauseVideo' : 'playVideo';
+  sendDiscoverHeroTrailerCommand(iframe, command);
+  ensureDiscoverHeroTrailerPlayer(overlay).then((player) => {
+    try {
+      if (player && typeof player[command] === 'function') player[command]();
+    } catch (error) { /* postMessage fallback already sent */ }
+    updateDiscoverHeroTrailerPlayButton(preview, !isPlaying);
+    updateDiscoverHeroTrailerProgress(preview);
+  });
+}
+window.toggleDiscoverHeroTrailerPlayback = toggleDiscoverHeroTrailerPlayback;
+
+function beginDiscoverHeroTrailerScrub(event, input) {
+  event?.stopPropagation?.();
+  if (input) input.dataset.scrubbing = 'true';
+}
+window.beginDiscoverHeroTrailerScrub = beginDiscoverHeroTrailerScrub;
+
+function scrubDiscoverHeroTrailer(event, input, commit = false) {
+  event?.stopPropagation?.();
+  const overlay = input?.closest?.('.discover-media-profile-overlay, .game-media-profile-overlay');
+  const preview = getDiscoverHeroTrailerPreviewElement(overlay);
+  if (!input || !preview) return;
+  const pct = Math.max(0, Math.min(1, Number(input.value || 0) / 1000));
+  preview.style.setProperty('--media-profile-trailer-progress-fill', `${(pct * 100).toFixed(2)}%`);
+  const player = preview._discoverTrailerPlayer;
+  if (!player || typeof player.getDuration !== 'function' || typeof player.seekTo !== 'function') return;
+  let duration = 0;
+  try { duration = Number(player.getDuration() || 0); } catch (error) { duration = 0; }
+  if (duration <= 0) return;
+  const target = duration * pct;
+  const time = preview.querySelector('[data-discover-trailer-time]');
+  if (time) time.textContent = `${formatDiscoverTrailerTime(target)} / ${formatDiscoverTrailerTime(duration)}`;
+  try { player.seekTo(target, !!commit); } catch (error) { /* noop */ }
+}
+window.scrubDiscoverHeroTrailer = scrubDiscoverHeroTrailer;
+
+function endDiscoverHeroTrailerScrub(event, input) {
+  event?.stopPropagation?.();
+  if (!input) return;
+  scrubDiscoverHeroTrailer(event, input, true);
+  input.dataset.scrubbing = 'false';
+}
+window.endDiscoverHeroTrailerScrub = endDiscoverHeroTrailerScrub;
+
+async function openDiscoverHeroTrailerNativeFullscreen(event, btn) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const overlay = btn?.closest?.('.discover-media-profile-overlay, .game-media-profile-overlay');
+  const preview = getDiscoverHeroTrailerPreviewElement(overlay);
+  if (!overlay || !preview) return;
+  if (!isDiscoverHeroTrailerFullscreen(overlay)) expandDiscoverHeroTrailerPreview(overlay, { immediate: true });
+  if (isDiscoverHeroTrailerLandscape(overlay)) {
+    closeDiscoverHeroTrailerLandscapeMode(overlay);
+    btn?.setAttribute?.('aria-label', 'Open landscape trailer');
+    return;
+  }
+  overlay.classList.add('media-profile-trailer-landscape');
+  document.body.classList.add('media-profile-trailer-landscape-active');
+  setDiscoverHeroTrailerControlsVisible(overlay, true);
+  btn?.setAttribute?.('aria-label', 'Exit landscape trailer');
+  ensureDiscoverHeroTrailerPlayer(overlay);
+  startDiscoverHeroTrailerProgressLoop(preview);
+}
+window.openDiscoverHeroTrailerNativeFullscreen = openDiscoverHeroTrailerNativeFullscreen;
 
 function getCountryDisplayName(value = '') {
   const clean = String(value || '').trim();
@@ -3913,8 +4966,26 @@ function renderDiscoverMediaProfileAddButton(type, id, details) {
   const section = getDiscoverMediaProfileSection(type, details);
   const poster = getDiscoverMediaPoster(details);
   const added = isDuplicateTitle(title, section);
-  const label = added ? getDiscoverLibraryButtonText(title, section) : '+ Add to Library';
-  return `<button class="discover-media-add-floating${added ? ' added' : ''}" type="button" data-discover-type="${escAttr(type)}" data-discover-id="${escAttr(String(id || ''))}" data-discover-section="${escAttr(section)}" data-discover-title="${escAttr(title)}" data-discover-poster="${escAttr(poster)}" ${added ? `title="Manage this title in your library"` : ''}>${escHtml(label)}</button>`;
+  /* v10.123: FPMP add button shortened to a bare "+" when unadded.
+     v10.125: added state shows just a "✓" instead of "Watched" /
+     "Watchlist" / etc.
+     v10.129: replaced the Unicode "✓" (U+2713) — which renders thick
+     and blocky in DM Sans at weight 950, reading as cartoony — with a
+     stroked SVG checkmark. Round line caps + a 2.4px stroke give a
+     much cleaner, sleeker glyph that matches the share button's SVG
+     idiom. The unadded "+" keeps the text glyph since it already
+     reads cleanly at the 32px font-size. */
+  /* v10.129: SVG checkmark for the added state (sleeker than the
+     Unicode glyph rendered at DM Sans 950).
+     v10.131: matched the same stroked-SVG idiom for the unadded "+"
+     state — the text "+" at DM Sans 950 / 32px was reading too thick
+     and bold. The new SVG plus uses a 2.2px round-cap stroke so it
+     looks lighter and more refined while pairing visually with the
+     checkmark above. */
+  const checkSvg = `<svg class="discover-media-add-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4 4 10-10"/></svg>`;
+  const plusSvg = `<svg class="discover-media-add-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>`;
+  const labelHtml = added ? checkSvg : plusSvg;
+  return `<button class="discover-media-add-floating${added ? ' added' : ''}" type="button" data-discover-type="${escAttr(type)}" data-discover-id="${escAttr(String(id || ''))}" data-discover-section="${escAttr(section)}" data-discover-title="${escAttr(title)}" data-discover-poster="${escAttr(poster)}" ${added ? `title="Manage this title in your library"` : ''}>${labelHtml}</button>`;
 }
 
 function getShareableMediaKind(type = 'movie', details = {}) {
@@ -3950,8 +5021,20 @@ function renderMediaProfileShareButton(kind = 'movie', id = '', title = '', post
   return `<button class="discover-media-share-floating" type="button" onclick="openMediaProfileShareMenu(event, '${escAttr(kind)}', '${escAttr(String(id || ''))}', '${escAttr(title || '')}', '${escAttr(poster || '')}')" aria-label="Share this media profile" title="Share">${getMediaProfileShareIconSvg()}</button>`;
 }
 
-function renderMediaProfileTopActions(shareHtml = '', addHtml = '') {
-  const content = `${shareHtml || ''}${addHtml || ''}`.trim();
+function renderMediaProfileTopActions(shareHtml = '', addHtml = '', trailerCtaHtml = '', soundToggleHtml = '') {
+  /* v10.127: top-right action row turned into a vertical stack.
+     v10.128: the first row pairs [Trailer][+] horizontally — the
+     Trailer pill sits to the LEFT of the "+" circle as a sub-flex row
+     within the column. Stack now reads:
+       Row 1:  Trailer  +     (horizontal pair, right-aligned)
+       Row 2:  Share
+       Row 3:  Mute
+     Source order inside the top sub-row is trailer-then-add so the
+     pill paints first (left) and the circle second (right). */
+  const topRow = (trailerCtaHtml || addHtml)
+    ? `<div class="discover-media-action-top-row">${trailerCtaHtml || ''}${addHtml || ''}</div>`
+    : '';
+  const content = `${topRow}${shareHtml || ''}${soundToggleHtml || ''}`.trim();
   return content ? `<div class="discover-media-action-row">${content}</div>` : '';
 }
 
@@ -4152,18 +5235,32 @@ function bindDiscoverMediaProfileSwipeBack(overlay) {
   let startX = 0;
   let startY = 0;
   let lastX = 0;
+  let lastY = 0;
   let lastTime = 0;
   let velocityX = 0;
+  let velocityY = 0;
   let viewportW = 0;
   let viewportH = 0;
   let canSwipeBack = false;
   let canPullDown = false;
+  let canTrailerExpand = false;
+  let canTrailerCollapse = false;
   let gestureMode = '';
   let activePointerId = null;
   let rafId = 0;
   let pendingX = 0;
   let pendingY = 0;
   let pendingProgress = 0;
+
+  const shouldIgnoreLegacyTouchEvent = (event) => {
+    return !!window.PointerEvent && String(event?.type || '').startsWith('touch');
+  };
+
+  const getGesturePoint = (event) => {
+    const coalesced = typeof event?.getCoalescedEvents === 'function' ? event.getCoalescedEvents() : null;
+    if (coalesced?.length) return coalesced[coalesced.length - 1];
+    return event?.touches?.[0] || event?.changedTouches?.[0] || event;
+  };
 
   const renderGestureFrame = () => {
     rafId = 0;
@@ -4182,6 +5279,10 @@ function bindDiscoverMediaProfileSwipeBack(overlay) {
          Swipe-back (left → right) is unchanged. Tap-back is unchanged. */
       page.style.transform = `translate3d(0, ${pendingY}px, 0)`;
       overlay.style.background = `rgba(5, 4, 13, ${Math.max(0.08, 0.22 - pendingProgress * 0.16)})`;
+      return;
+    }
+    if (gestureMode === 'trailer-expand' || gestureMode === 'trailer-collapse') {
+      applyDiscoverHeroTrailerExpansionProgress(overlay, pendingProgress);
     }
   };
 
@@ -4201,8 +5302,12 @@ function bindDiscoverMediaProfileSwipeBack(overlay) {
     pendingY = 0;
     pendingProgress = 0;
     activePointerId = null;
+    velocityX = 0;
+    velocityY = 0;
+    canTrailerExpand = false;
+    canTrailerCollapse = false;
     page.classList.remove('media-profile-swipe-dragging', 'media-profile-pull-dragging');
-    overlay.classList.remove('media-profile-swipe-revealing');
+    overlay.classList.remove('media-profile-swipe-revealing', 'media-profile-trailer-gesture');
     document.body.classList.remove('media-profile-swipe-reveal-active');
     page.style.transition = '';
     page.style.transform = '';
@@ -4220,9 +5325,65 @@ function bindDiscoverMediaProfileSwipeBack(overlay) {
     overlay.style.opacity = '';
   };
 
+  const preparePullDownHeroClose = () => {
+    clearGestureFrame();
+    gestureMode = '';
+    pendingY = 0;
+    pendingProgress = 0;
+    page.classList.remove('media-profile-pull-dragging');
+    page.style.transition = '';
+    page.style.transform = '';
+    page.style.willChange = '';
+    page.style.touchAction = '';
+    page.style.boxShadow = '';
+    page.style.borderRadius = '';
+    overlay.style.transition = '';
+    overlay.style.background = '';
+  };
+
+  const shouldReturnToPreviousTitleProfile = () => {
+    return activeDiscoverMediaProfileState?.view === 'person'
+      && !!activeDiscoverMediaProfileState?.previous?.details;
+  };
+
+  const shouldReturnToFilmographyPage = () => {
+    return !!activeDiscoverMediaProfileState?.filmographyReturn;
+  };
+
+  const returnToPreviousTitleProfileFromGesture = () => {
+    resetGestureStyles();
+    document.body.classList.remove('media-profile-swipe-reveal-active');
+    backToDiscoverTitleProfile();
+  };
+
+  const returnToFilmographyPageFromGesture = () => {
+    resetGestureStyles();
+    document.body.classList.remove('media-profile-swipe-reveal-active');
+    returnToFilmographyFromMediaProfile();
+  };
+
   const armGesture = (mode) => {
     if (gestureMode === mode) return;
     gestureMode = mode;
+    if (mode === 'trailer-expand' || mode === 'trailer-collapse') {
+      if (mode === 'trailer-collapse' && isDiscoverHeroTrailerLandscape(overlay)) {
+        closeDiscoverHeroTrailerLandscapeMode(overlay, { refresh: false });
+      }
+      const trailerState = beginDiscoverHeroTrailerExpansion(overlay);
+      if (trailerState) trailerState.direction = mode === 'trailer-collapse' ? 'collapse' : 'expand';
+      overlay.classList.add('media-profile-trailer-aspect-preserve');
+      if (mode === 'trailer-collapse') {
+        overlay.classList.remove('media-profile-trailer-fullscreen', 'media-profile-trailer-expanding');
+        overlay.classList.add('media-profile-trailer-collapsing');
+        document.body.classList.remove('media-profile-trailer-fullscreen-active');
+        document.body.classList.add('media-profile-trailer-transition-active');
+        stopDiscoverHeroTrailerProgressLoop(getDiscoverHeroTrailerPreviewElement(overlay));
+      }
+      overlay.classList.add('media-profile-trailer-gesture');
+      page.style.transition = 'none';
+      page.style.touchAction = 'none';
+      return;
+    }
     page.style.transition = 'none';
     overlay.style.transition = 'none';
     page.style.willChange = 'transform';
@@ -4251,6 +5412,14 @@ function bindDiscoverMediaProfileSwipeBack(overlay) {
   };
 
   const closeFromSwipe = () => {
+    if (shouldReturnToFilmographyPage()) {
+      returnToFilmographyPageFromGesture();
+      return;
+    }
+    if (shouldReturnToPreviousTitleProfile()) {
+      returnToPreviousTitleProfileFromGesture();
+      return;
+    }
     clearGestureFrame();
     page.style.transition = 'transform 0.22s cubic-bezier(0.18, 0.92, 0.18, 1), box-shadow 0.22s ease, border-radius 0.22s ease';
     overlay.style.transition = 'background 0.22s ease';
@@ -4281,27 +5450,45 @@ function bindDiscoverMediaProfileSwipeBack(overlay) {
   };
 
   const handleGestureStart = (event) => {
-    const point = event.touches?.[0] || event;
+    if (shouldIgnoreLegacyTouchEvent(event)) return;
+    const point = getGesturePoint(event);
     if (!point) return;
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     if (event.touches && event.touches.length !== 1) return;
-    if (event.target.closest('.discover-media-back, .discover-media-cast, .discover-media-similar, .discover-media-library-dock, .discover-media-add-floating, button, a, input, textarea, select')) return;
+    const eventTarget = event.target?.closest ? event.target : null;
+    const trailerPreviewTarget = eventTarget?.closest('[data-discover-hero-trailer-preview]');
+    const trailerAvailable = hasDiscoverHeroTrailerPreview(overlay);
+    const trailerFullscreen = isDiscoverHeroTrailerFullscreen(overlay);
+    const trailerControlTarget = eventTarget?.closest('[data-discover-trailer-control]');
+    const trailerDirectControlTarget = eventTarget?.closest('button, input, textarea, select');
+    if (trailerControlTarget && (!trailerFullscreen || trailerDirectControlTarget)) return;
+    const interactiveTarget = eventTarget?.closest('.discover-media-back, .discover-media-cast, .discover-media-similar, .discover-media-library-dock, .discover-media-add-floating, button, a, input, textarea, select');
+    if (interactiveTarget && !trailerPreviewTarget) return;
     startX = point.clientX;
     startY = point.clientY;
     lastX = startX;
+    lastY = startY;
     lastTime = performance.now();
     velocityX = 0;
-    viewportW = window.innerWidth || 360;
-    viewportH = window.innerHeight || 740;
+    velocityY = 0;
+    const trailerViewport = getDiscoverTrailerViewportSize();
+    viewportW = trailerViewport.width;
+    viewportH = trailerViewport.height;
+    const startsInTrailerArea = !!trailerPreviewTarget
+      || !!eventTarget?.closest('.discover-media-hero')
+      || startY <= Math.min(viewportH * 0.42, 360);
     canSwipeBack = startX <= 48;
-    canPullDown = page.scrollTop <= 2;
+    canTrailerCollapse = trailerAvailable && trailerFullscreen;
+    canTrailerExpand = trailerAvailable && !trailerFullscreen && page.scrollTop <= 2 && startsInTrailerArea;
+    canPullDown = page.scrollTop <= 2 && !canTrailerExpand && !canTrailerCollapse;
     gestureMode = '';
     activePointerId = event.pointerId ?? null;
   };
 
   const handleGestureMove = (event) => {
-    if (!canSwipeBack && !canPullDown) return;
-    const point = event.touches?.[0] || event;
+    if (shouldIgnoreLegacyTouchEvent(event)) return;
+    if (!canSwipeBack && !canPullDown && !canTrailerExpand && !canTrailerCollapse) return;
+    const point = getGesturePoint(event);
     if (!point) return;
     if (activePointerId !== null && event.pointerId !== undefined && event.pointerId !== activePointerId) return;
 
@@ -4314,6 +5501,12 @@ function bindDiscoverMediaProfileSwipeBack(overlay) {
       if (canSwipeBack && dx > 14 && absDx > absDy * 1.35) {
         armGesture('swipe-back');
         try { page.setPointerCapture?.(event.pointerId); } catch (e) {}
+      } else if (canTrailerCollapse && dy < -8 && absDy > absDx * 1.12) {
+        armGesture('trailer-collapse');
+        try { page.setPointerCapture?.(event.pointerId); } catch (e) {}
+      } else if (canTrailerExpand && page.scrollTop <= 2 && dy > 4 && absDy > absDx * 1.08) {
+        armGesture('trailer-expand');
+        try { page.setPointerCapture?.(event.pointerId); } catch (e) {}
       } else if (canPullDown && page.scrollTop <= 2 && dy > 18 && absDy > absDx * 1.25) {
         armGesture('pull-down');
       } else if (absDy > absDx * 1.15) {
@@ -4324,13 +5517,16 @@ function bindDiscoverMediaProfileSwipeBack(overlay) {
       }
     }
 
+    const now = performance.now();
+    const dt = Math.max(1, now - lastTime);
+    velocityX = (point.clientX - lastX) / dt;
+    velocityY = (point.clientY - lastY) / dt;
+    lastX = point.clientX;
+    lastY = point.clientY;
+    lastTime = now;
+
     if (gestureMode === 'swipe-back') {
       if (event.cancelable) event.preventDefault();
-      const now = performance.now();
-      const dt = Math.max(1, now - lastTime);
-      velocityX = (point.clientX - lastX) / dt;
-      lastX = point.clientX;
-      lastTime = now;
       pendingX = Math.max(0, Math.min(viewportW, dx));
       pendingProgress = Math.min(1, pendingX / Math.max(1, viewportW));
       requestGestureFrame();
@@ -4342,17 +5538,34 @@ function bindDiscoverMediaProfileSwipeBack(overlay) {
       pendingY = Math.max(0, Math.min(viewportH, dy)) * 0.72;
       pendingProgress = Math.min(1, pendingY / Math.max(1, viewportH * 0.36));
       requestGestureFrame();
+      return;
+    }
+
+    if (gestureMode === 'trailer-expand') {
+      if (event.cancelable) event.preventDefault();
+      pendingProgress = Math.min(1, Math.max(0, dy) / Math.max(1, viewportH * 0.34));
+      requestGestureFrame();
+      return;
+    }
+
+    if (gestureMode === 'trailer-collapse') {
+      if (event.cancelable) event.preventDefault();
+      pendingProgress = 1 - Math.min(1, Math.max(0, -dy) / Math.max(1, viewportH * 0.32));
+      requestGestureFrame();
     }
   };
 
   const handleGestureEnd = (event) => {
-    if (!canSwipeBack && !canPullDown && !gestureMode) return;
-    const point = event.changedTouches?.[0] || event;
+    if (shouldIgnoreLegacyTouchEvent(event)) return;
+    if (!canSwipeBack && !canPullDown && !canTrailerExpand && !canTrailerCollapse && !gestureMode) return;
+    const point = getGesturePoint(event);
     const dx = point ? point.clientX - startX : pendingX;
     const dy = point ? point.clientY - startY : pendingY;
     const mode = gestureMode;
     canSwipeBack = false;
     canPullDown = false;
+    canTrailerExpand = false;
+    canTrailerCollapse = false;
     try { if (activePointerId !== null) page.releasePointerCapture?.(activePointerId); } catch (e) {}
     activePointerId = null;
 
@@ -4365,28 +5578,59 @@ function bindDiscoverMediaProfileSwipeBack(overlay) {
 
     if (mode === 'pull-down') {
       if (dy > 92 && dy > Math.abs(dx) * 1.22) {
-        clearGestureFrame();
-        if (overlay.classList.contains('game-media-profile-overlay')) closeGameMediaProfile('pull-down');
-        else closeDiscoverMediaProfile('pull-down');
+        if (shouldReturnToFilmographyPage()) {
+          returnToFilmographyPageFromGesture();
+          return;
+        }
+        if (shouldReturnToPreviousTitleProfile()) {
+          returnToPreviousTitleProfileFromGesture();
+          return;
+        }
+        preparePullDownHeroClose();
+        if (overlay.classList.contains('game-media-profile-overlay')) closeGameMediaProfile({ reason: 'pull-down', heroClose: true });
+        else closeDiscoverMediaProfile({ reason: 'pull-down', heroClose: true });
       } else {
         snapBack();
       }
       return;
     }
 
+    if (mode === 'trailer-expand') {
+      const shouldExpand = pendingProgress >= 0.58 || (dy > viewportH * 0.26 && dy > Math.abs(dx) * 1.1);
+      overlay.classList.remove('media-profile-trailer-gesture');
+      if (shouldExpand) expandDiscoverHeroTrailerPreview(overlay);
+      else cancelDiscoverHeroTrailerExpansion(overlay);
+      resetGestureStyles();
+      return;
+    }
+
+    if (mode === 'trailer-collapse') {
+      const shouldCollapse = pendingProgress <= 0.78 || velocityY < -0.42 || (-dy > viewportH * 0.14 && Math.abs(dy) > Math.abs(dx));
+      overlay.classList.remove('media-profile-trailer-gesture');
+      if (shouldCollapse) collapseDiscoverHeroTrailerPreview(overlay);
+      else restoreDiscoverHeroTrailerFullscreen(overlay);
+      resetGestureStyles();
+      return;
+    }
+
+    resetGestureStyles();
+  };
+
+  const handleGestureCancel = (event) => {
+    if (shouldIgnoreLegacyTouchEvent(event)) return;
     resetGestureStyles();
   };
 
   page.addEventListener('pointerdown', handleGestureStart, { passive: true });
   page.addEventListener('pointermove', handleGestureMove, { passive: false });
   page.addEventListener('pointerup', handleGestureEnd, { passive: true });
-  page.addEventListener('pointercancel', resetGestureStyles, { passive: true });
+  page.addEventListener('pointercancel', handleGestureCancel, { passive: true });
 
   // iOS Safari fallback for older WebKit behavior.
   page.addEventListener('touchstart', handleGestureStart, { passive: true });
   page.addEventListener('touchmove', handleGestureMove, { passive: false });
   page.addEventListener('touchend', handleGestureEnd, { passive: true });
-  page.addEventListener('touchcancel', resetGestureStyles, { passive: true });
+  page.addEventListener('touchcancel', handleGestureCancel, { passive: true });
 }
 
 function renderDiscoverMediaLibraryRatingStars(score = 0, section = '') {
@@ -4438,7 +5682,7 @@ function showDiscoverMediaLibraryDock(btn) {
   dock.innerHTML = `
     <div class="discover-media-library-glow" aria-hidden="true"></div>
     <div class="discover-media-library-preview">
-      <div class="discover-media-library-thumb">${poster ? `<img src="${escAttr(poster)}" alt="">` : ''}</div>
+      <div class="discover-media-library-thumb">${poster ? `<img src="${escAttr(poster)}" alt="" decoding="async">` : ''}</div>
       <div>
         <div class="discover-media-library-eyebrow">${isAdded ? 'In your library' : `Save ${escHtml(mediaLabel)}`}</div>
         <div class="discover-media-library-title">${escHtml(title)}</div>
@@ -4488,7 +5732,10 @@ function showDiscoverMediaLibraryDock(btn) {
       await new Promise(resolve => window.setTimeout(resolve, Math.max(animationMs, 760)));
     }
     dock.classList.add('saving');
-    await addDiscoveryTitle(type, id, btn, status, '+ Add to Library', rating, { postPromptDelayMs: 820 });
+    /* v10.123: revert-text for the FPMP button is now "+" so a cancelled
+       or failed add restores the same bare "+" label the button starts
+       with (was "+ Add to Library"). */
+    await addDiscoveryTitle(type, id, btn, status, '+', rating, { postPromptDelayMs: 820 });
     dock.classList.remove('saving');
     dock.classList.add('saved');
     const savedLabel = status === 'watched'
@@ -4925,9 +6172,22 @@ function renderPersonProfileFavoriteHeart(person = {}) {
 
 function renderDiscoverPersonProfileShell(person = {}) {
   const name = person.name || 'Cast Profile';
+  const photo = getTmdbImageUrl(person.profile_path || person.photo || person.profilePhoto || '', 'w500');
   return `<section class="discover-media-page discover-person-page" role="dialog" aria-modal="true" aria-label="${escAttr(name)} details">
     <button class="discover-media-back" type="button" onclick="backToDiscoverTitleProfile()">Back</button>
     ${renderPersonProfileFavoriteHeart(person)}
+    <div class="discover-media-hero discover-person-hero" style="${photo ? `background-image:url('${escAttr(photo)}')` : ''}">
+      <div class="discover-media-hero-shade"></div>
+      <div class="discover-media-hero-content">
+        <div class="discover-media-hero-top">
+          <div class="discover-media-poster discover-person-poster">${photo ? `<img src="${escAttr(photo)}" alt="" decoding="async">` : ''}</div>
+          <div class="discover-media-hero-main">
+            <div class="discover-media-kicker">Cast Profile</div>
+            <h2>${escHtml(name)}</h2>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="discover-media-body">
       <div class="discover-media-loading">Building this cast profile...</div>
     </div>
@@ -4961,12 +6221,17 @@ function renderDiscoverPersonCreditCard(item = {}, options = {}) {
   const ratingHtml = showImdbRating
     ? `<div class="discover-person-credit-rating${imdbRating ? ' is-ready' : ''}" data-person-credit-rating ${imdbRating ? '' : 'hidden'}><span class="discover-person-credit-rating-star" aria-hidden="true">★</span><span data-person-credit-rating-value>${escHtml(imdbRating)}</span></div>`
     : '';
-  return `<button class="discover-media-similar-card discover-person-credit-card${showImdbRating ? ' discover-person-credit-card-filmography' : ''}" type="button" data-person-credit-key="${escAttr(creditKey)}" onclick="openDiscoverMediaProfile(event, '${itemType}', ${item.id})"><img src="${getTmdbImageUrl(item.poster_path || item.backdrop_path, 'w342')}" alt=""><span class="discover-person-credit-title">${escHtml(itemTitle)}</span>${ratingHtml}<small class="discover-person-credit-role" data-person-role-missing="${hasRole ? '0' : '1'}" data-media-title="${escAttr(itemTitle)}" data-media-type="${escAttr(itemType)}" data-media-year="${escAttr(year)}">${escHtml(roleMeta)}</small></button>`;
+  /* v10.62: added loading="lazy" decoding="async" — person credit grids render
+     many cards at once; native browser lazy means off-screen cards never decode
+     their poster until scrolled into view. Big win on long filmographies. */
+  return `<button class="discover-media-similar-card discover-person-credit-card${showImdbRating ? ' discover-person-credit-card-filmography' : ''}" type="button" data-person-credit-key="${escAttr(creditKey)}" onclick="openDiscoverMediaProfile(event, '${itemType}', ${item.id})"><img src="${getTmdbImageUrl(item.poster_path || item.backdrop_path, 'w342')}" alt="" loading="lazy" decoding="async"><span class="discover-person-credit-title">${escHtml(itemTitle)}</span>${ratingHtml}<small class="discover-person-credit-role" data-person-role-missing="${hasRole ? '0' : '1'}" data-media-title="${escAttr(itemTitle)}" data-media-type="${escAttr(itemType)}" data-media-year="${escAttr(year)}">${escHtml(roleMeta)}</small></button>`;
 }
 
 function renderDiscoverPersonProfileDetails(details = {}) {
   const name = details.name || 'Cast Profile';
-  const photo = getTmdbImageUrl(details.profile_path, 'w780');
+  /* v10.62: w780 -> w500. Rendered at ~140×210px hero card and the same image
+     is reused for the small poster thumbnail. w500 is the right size for both. */
+  const photo = getTmdbImageUrl(details.profile_path, 'w500');
   const department = details.known_for_department || '';
   const birthday = formatDiscoverMediaDate(details.birthday);
   const age = calculateDiscoverPersonAge(details.birthday, details.deathday);
@@ -4984,10 +6249,13 @@ function renderDiscoverPersonProfileDetails(details = {}) {
     <button class="discover-media-back" type="button" onclick="backToDiscoverTitleProfile()">Back</button>
     ${renderPersonProfileFavoriteHeart(details)}
     <div class="discover-media-hero discover-person-hero" style="${photo ? `background-image:url('${escAttr(photo)}')` : ''}">
+      <!-- v10.62: hero uses background-image (kept — converting to <img> would
+           require layout changes); the URL is now w500 (was w780), cutting the
+           hero decode cost by ~60% on a person profile open. -->
       <div class="discover-media-hero-shade"></div>
       <div class="discover-media-hero-content">
         <div class="discover-media-hero-top">
-          <div class="discover-media-poster discover-person-poster">${photo ? `<img src="${escAttr(photo)}" alt="">` : ''}</div>
+          <div class="discover-media-poster discover-person-poster">${photo ? `<img src="${escAttr(photo)}" alt="" decoding="async">` : ''}</div>
           <div class="discover-media-hero-main">
             <div class="discover-media-kicker">${escHtml(genderLabel)}</div>
             <h2>${escHtml(name)}</h2>
@@ -5032,6 +6300,13 @@ function renderDiscoverPersonProfileDetails(details = {}) {
    visible chunk. */
 const FILMOGRAPHY_INITIAL_COUNT = 21;
 const FILMOGRAPHY_LOAD_STEP = 9;
+const FILMOGRAPHY_SORT_OPTIONS = [
+  { key: 'recent', label: 'Most Recent', defaultDirection: 'desc' },
+  { key: 'metascore', label: 'Meta Score', defaultDirection: 'desc', needsImdb: true },
+  { key: 'imdb', label: 'IMDb Rating', defaultDirection: 'desc', needsImdb: true },
+  { key: 'user', label: 'Your Rating', defaultDirection: 'desc' },
+  { key: 'votes', label: 'Number of Ratings', defaultDirection: 'desc', needsImdb: true }
+];
 let filmographyPageState = null;
 
 function filmographyMatchesFilter(item, filter) {
@@ -5057,7 +6332,7 @@ function renderFilmographyCard(item) {
   const contentRating = String(item?.imdbRated || '').trim();
   const metaParts = [year, contentRating, runtime].filter(Boolean);
   const metaText = metaParts.length ? metaParts.join(' · ') : ' ';
-  return `<button class="filmography-card" type="button" data-tmdb-id="${escAttr(item?.id || '')}" data-media-type="${escAttr(mediaType)}" data-credit-key="${escAttr(creditKey)}" onclick="openDiscoverMediaProfile(event, '${mediaType}', ${item?.id || 0})">
+  return `<button class="filmography-card" type="button" data-tmdb-id="${escAttr(item?.id || '')}" data-media-type="${escAttr(mediaType)}" data-credit-key="${escAttr(creditKey)}" onclick="openFilmographyMediaProfile(event, '${escAttr(creditKey)}')">
     <div class="filmography-card-poster">${poster ? `<img src="${escAttr(poster)}" alt="" loading="lazy" decoding="async">` : ''}</div>
     <div class="filmography-card-title">${escHtml(title)}</div>
     <div class="filmography-card-rating"><span aria-hidden="true">★</span><span data-card-imdb-rating>${escHtml(ratingText)}</span></div>
@@ -5066,9 +6341,113 @@ function renderFilmographyCard(item) {
   </button>`;
 }
 
+function getFilmographySortOption(sortKey = 'recent') {
+  return FILMOGRAPHY_SORT_OPTIONS.find(option => option.key === sortKey) || FILMOGRAPHY_SORT_OPTIONS[0];
+}
+
+function parseFilmographySortNumber(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const clean = String(value || '').trim();
+  if (!clean || clean.toUpperCase() === 'N/A') return 0;
+  const n = Number(clean.replace(/[^0-9.]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function getFilmographyReleaseSortValue(item = {}) {
+  const date = String(item.release_date || item.first_air_date || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const time = new Date(`${date}T00:00:00Z`).getTime();
+    if (Number.isFinite(time)) return time;
+  }
+  const year = getPersonCreditYear(item);
+  return year > 0 ? Date.UTC(year, 0, 1) : 0;
+}
+
+function getFilmographyImdbVoteCount(item = {}) {
+  return parseFilmographySortNumber(item.imdbVotesNumber || item.imdbVotes || item.imdbVotesText);
+}
+
+function getFilmographyMetascore(item = {}) {
+  return parseFilmographySortNumber(item.imdbMetascore || item.metascore || item.Metascore);
+}
+
+function getFilmographyUserRating(item = {}) {
+  if (typeof data === 'undefined' || !data) return 0;
+  const mediaType = getDiscoverPersonCreditMediaType(item);
+  const sections = mediaType === 'movie' ? ['movies'] : ['shows', 'anime'];
+  const titleKeys = getDuplicateTitleKeys(item);
+  const tmdbId = String(item.id || item.tmdbId || item.tmdb_id || '').trim();
+  for (const section of sections) {
+    const entries = Array.isArray(data[section]) ? data[section] : [];
+    for (const entry of entries) {
+      if (!entry) continue;
+      const entryTmdbId = String(entry.tmdbId || entry.tmdb_id || entry.mediaId || '').trim();
+      const tmdbMatch = tmdbId && entryTmdbId && tmdbId === entryTmdbId;
+      const titleMatch = titleKeys.size && [...getDuplicateTitleKeys(entry)].some(key => titleKeys.has(key));
+      if (tmdbMatch || titleMatch) {
+        const rating = Number(entry.rating || 0);
+        if (rating > 0) return rating;
+      }
+    }
+  }
+  return 0;
+}
+
+function getFilmographySortValue(item = {}, sortKey = 'recent') {
+  if (sortKey === 'recent') return getFilmographyReleaseSortValue(item);
+  if (sortKey === 'metascore') return getFilmographyMetascore(item);
+  if (sortKey === 'imdb') return Number(item.imdbRating || 0);
+  if (sortKey === 'user') return getFilmographyUserRating(item);
+  if (sortKey === 'votes') return getFilmographyImdbVoteCount(item);
+  return getFilmographyReleaseSortValue(item);
+}
+
+function sortFilmographyCredits(items = [], state = filmographyPageState) {
+  const sortKey = state?.sortKey || 'recent';
+  const direction = state?.sortDirection === 'asc' ? 'asc' : 'desc';
+  const sign = direction === 'asc' ? 1 : -1;
+  return (Array.isArray(items) ? items.slice() : []).sort((a, b) => {
+    const av = getFilmographySortValue(a, sortKey);
+    const bv = getFilmographySortValue(b, sortKey);
+    const aValid = Number.isFinite(av) && av > 0;
+    const bValid = Number.isFinite(bv) && bv > 0;
+    if (aValid !== bValid) return aValid ? -1 : 1;
+    if (aValid && bValid && av !== bv) return (av - bv) * sign;
+    const dateCompare = getFilmographyReleaseSortValue(b) - getFilmographyReleaseSortValue(a);
+    if (dateCompare) return dateCompare;
+    return String(a?.title || a?.name || '').localeCompare(String(b?.title || b?.name || ''));
+  });
+}
+
+function getSortedFilmographyCredits(state = filmographyPageState) {
+  if (!state) return [];
+  const filtered = state.allCredits.filter(item => filmographyMatchesFilter(item, state.filter || 'all'));
+  return sortFilmographyCredits(filtered, state);
+}
+
+function renderFilmographySortControls(state) {
+  const activeOption = getFilmographySortOption(state?.sortKey || 'recent');
+  const direction = state?.sortDirection === 'asc' ? 'asc' : 'desc';
+  const menuOpen = !!state?.sortMenuOpen;
+  return `<div class="filmography-sort-wrap">
+    <button class="filmography-sort-trigger" type="button" aria-expanded="${menuOpen ? 'true' : 'false'}" onclick="toggleFilmographySortMenu()">
+      <span>Sort: ${escHtml(activeOption.label)}</span><em>${direction === 'asc' ? '↑' : '↓'}</em>
+    </button>
+    ${menuOpen ? `<div class="filmography-sort-menu" role="menu" aria-label="Sort filmography">
+      ${FILMOGRAPHY_SORT_OPTIONS.map(option => {
+        const active = option.key === activeOption.key;
+        const optionDirection = active ? direction : option.defaultDirection;
+        return `<button class="filmography-sort-option${active ? ' active' : ''}" type="button" role="menuitem" onclick="setFilmographySort('${escAttr(option.key)}')">
+          <span>${escHtml(option.label)}</span>${active ? `<em>${direction === 'asc' ? 'Ascending' : 'Descending'}</em><b aria-hidden="true">${optionDirection === 'asc' ? '↑' : '↓'}</b>` : ''}
+        </button>`;
+      }).join('')}
+    </div>` : ''}
+  </div>`;
+}
+
 function renderFilmographyPageMarkup(state) {
   const filter = state.filter || 'all';
-  const filtered = state.allCredits.filter(item => filmographyMatchesFilter(item, filter));
+  const filtered = getSortedFilmographyCredits(state);
   const visible = filtered.slice(0, state.visibleCount);
   const hasMore = filtered.length > visible.length;
   return `<section class="filmography-page" role="dialog" aria-modal="true" aria-label="${escAttr(state.personName || 'Filmography')}">
@@ -5081,6 +6460,7 @@ function renderFilmographyPageMarkup(state) {
       <button type="button" class="filmography-chip${filter === 'movie' ? ' active' : ''}" data-filmography-filter="movie" role="tab" aria-selected="${filter === 'movie' ? 'true' : 'false'}">Movies</button>
       <button type="button" class="filmography-chip${filter === 'tv' ? ' active' : ''}" data-filmography-filter="tv" role="tab" aria-selected="${filter === 'tv' ? 'true' : 'false'}">TV</button>
     </div>
+    ${renderFilmographySortControls(state)}
     <div class="filmography-page-body">
       ${visible.length
         ? `<div class="filmography-grid">${visible.map(renderFilmographyCard).join('')}</div>`
@@ -5088,6 +6468,97 @@ function renderFilmographyPageMarkup(state) {
       ${hasMore ? `<button class="filmography-load-more" type="button" onclick="loadMoreFilmographyItems()">Load More</button>` : ''}
     </div>
   </section>`;
+}
+
+function getFilmographyPageBody(overlay = document.getElementById('filmography-page-overlay')) {
+  return overlay?.querySelector?.('.filmography-page-body') || null;
+}
+
+function getFilmographyPageScrollTop() {
+  return Number(getFilmographyPageBody()?.scrollTop || 0);
+}
+
+function restoreFilmographyPageScroll(scrollTop = 0) {
+  const body = getFilmographyPageBody();
+  if (!body) return;
+  body.scrollTop = Math.max(0, Number(scrollTop || 0));
+}
+
+function restoreFilmographyPageScrollStable(scrollTop = 0, frames = 4) {
+  const top = Math.max(0, Number(scrollTop || 0));
+  restoreFilmographyPageScroll(top);
+  let remaining = Math.max(0, Number(frames || 0));
+  const tick = () => {
+    if (!remaining || !document.getElementById('filmography-page-overlay')) return;
+    remaining -= 1;
+    restoreFilmographyPageScroll(top);
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+function getFilmographyCreditByKey(creditKey = '') {
+  if (!filmographyPageState || !creditKey) return null;
+  return filmographyPageState.allCredits.find(item => getDiscoverPersonCreditLookupKey(item) === creditKey) || null;
+}
+
+function shouldReturnToFilmographyFromMediaProfile(reasonOrOptions = null) {
+  if (!activeDiscoverMediaProfileState?.filmographyReturn) return false;
+  if (typeof reasonOrOptions === 'string') return ['back', 'escape', 'pull-down'].includes(reasonOrOptions);
+  if (reasonOrOptions && typeof reasonOrOptions === 'object') {
+    return ['back', 'escape', 'pull-down'].includes(String(reasonOrOptions.reason || ''));
+  }
+  return false;
+}
+
+function returnToFilmographyFromMediaProfile() {
+  const overlay = document.getElementById('discover-media-profile');
+  const returnState = activeDiscoverMediaProfileState?.filmographyReturn || null;
+  const previousState = returnState?.previousState || null;
+  destroyDiscoverHeroTrailerPreview(overlay);
+  document.body.classList.remove('filmography-title-profile-open', 'media-profile-swipe-reveal-active');
+  if (overlay && previousState?.view === 'person' && previousState.details) {
+    activeDiscoverMediaProfileState = previousState;
+    overlay.innerHTML = renderDiscoverPersonProfileDetails(previousState.details);
+    bindDiscoverMediaProfileSwipeBack(overlay);
+    hydrateDiscoverPersonBioFacts(previousState.details);
+    hydrateDiscoverPersonRoleFallbacks(previousState.details);
+    hydrateDiscoverPersonFilmographyRatings(previousState.details);
+  } else if (overlay && previousState?.view === 'title' && previousState.details && (previousState.type === 'movie' || previousState.type === 'tv')) {
+    activeDiscoverMediaProfileState = previousState;
+    overlay.innerHTML = renderDiscoverMediaProfileDetails(previousState.type, previousState.details, previousState.id);
+    bindDiscoverMediaProfileActions(overlay);
+    hydrateDiscoverHeroTrailerPreview(overlay);
+    hydrateDeepSeekMoreLikeThis(previousState.type, previousState.details);
+    hydrateDiscoverProviderLogoFallbacks();
+  } else {
+    activeDiscoverMediaProfileState = previousState || null;
+  }
+  document.body.classList.add('filmography-page-open');
+  restoreFilmographyPageScrollStable(returnState?.scrollTop || filmographyPageState?.scrollTop || 0);
+}
+
+function openFilmographyMediaProfile(event, creditKey = '') {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  event?.stopImmediatePropagation?.();
+  const item = getFilmographyCreditByKey(String(creditKey || ''));
+  const mediaType = getDiscoverPersonCreditMediaType(item || {});
+  const tmdbId = item?.id || item?.tmdbId || item?.tmdb_id || 0;
+  if (!item || !tmdbId || (mediaType !== 'movie' && mediaType !== 'tv')) return;
+  const scrollTop = getFilmographyPageScrollTop();
+  filmographyPageState.scrollTop = scrollTop;
+  discoverMediaProfileSeeds.set(getDiscoverMediaProfileKey(mediaType, tmdbId), {
+    ...item,
+    media_type: mediaType,
+    poster_path: item.poster_path || '',
+    backdrop_path: item.backdrop_path || ''
+  });
+  openDiscoverMediaProfile(event, mediaType, tmdbId, event?.currentTarget || event?.target, {
+    fromFilmography: true,
+    filmographyScrollTop: scrollTop,
+    previousState: activeDiscoverMediaProfileState ? { ...activeDiscoverMediaProfileState } : null
+  });
 }
 
 async function openPersonFilmographyPage(personIdRaw) {
@@ -5114,6 +6585,9 @@ async function openPersonFilmographyPage(personIdRaw) {
     personName: details?.name || 'Filmography',
     allCredits,
     filter: 'all',
+    sortKey: 'recent',
+    sortDirection: 'desc',
+    sortMenuOpen: false,
     visibleCount: FILMOGRAPHY_INITIAL_COUNT,
     enriched: new Set()
   };
@@ -5157,6 +6631,7 @@ function bindFilmographyPageActions(overlay) {
       if (!filmographyPageState) return;
       filmographyPageState.filter = btn.getAttribute('data-filmography-filter') || 'all';
       filmographyPageState.visibleCount = FILMOGRAPHY_INITIAL_COUNT;
+      filmographyPageState.sortMenuOpen = false;
       overlay.innerHTML = renderFilmographyPageMarkup(filmographyPageState);
       bindFilmographyPageActions(overlay);
       const body = overlay.querySelector('.filmography-page-body');
@@ -5164,6 +6639,37 @@ function bindFilmographyPageActions(overlay) {
       enrichVisibleFilmographyCards();
     });
   });
+}
+
+function rerenderFilmographyPage({ scrollTop = true } = {}) {
+  const overlay = document.getElementById('filmography-page-overlay');
+  if (!overlay || !filmographyPageState) return;
+  overlay.innerHTML = renderFilmographyPageMarkup(filmographyPageState);
+  bindFilmographyPageActions(overlay);
+  const body = overlay.querySelector('.filmography-page-body');
+  if (scrollTop && body) body.scrollTop = 0;
+  enrichVisibleFilmographyCards();
+}
+
+function toggleFilmographySortMenu() {
+  if (!filmographyPageState) return;
+  filmographyPageState.sortMenuOpen = !filmographyPageState.sortMenuOpen;
+  rerenderFilmographyPage({ scrollTop: false });
+}
+
+function setFilmographySort(sortKey = 'recent') {
+  if (!filmographyPageState) return;
+  const option = getFilmographySortOption(sortKey);
+  if (filmographyPageState.sortKey === option.key) {
+    filmographyPageState.sortDirection = filmographyPageState.sortDirection === 'asc' ? 'desc' : 'asc';
+  } else {
+    filmographyPageState.sortKey = option.key;
+    filmographyPageState.sortDirection = option.defaultDirection || 'desc';
+  }
+  filmographyPageState.visibleCount = FILMOGRAPHY_INITIAL_COUNT;
+  filmographyPageState.sortMenuOpen = true;
+  rerenderFilmographyPage();
+  ensureFilmographySortData(option.key);
 }
 
 function loadMoreFilmographyItems() {
@@ -5181,20 +6687,44 @@ function loadMoreFilmographyItems() {
    enrichment the rating + meta line of each card is patched in place. */
 async function enrichVisibleFilmographyCards() {
   if (!filmographyPageState || typeof window.enrichItemsWithImdbRatings !== 'function') return;
-  const filtered = filmographyPageState.allCredits.filter(item =>
-    filmographyMatchesFilter(item, filmographyPageState.filter));
+  const filtered = getSortedFilmographyCredits(filmographyPageState);
   const visible = filtered.slice(0, filmographyPageState.visibleCount);
-  const toEnrich = visible.filter(item => {
+  const toEnrich = getUnenrichedFilmographyItems(visible);
+  if (!toEnrich.length) {
+    patchFilmographyCardEnrichment(visible);
+    return;
+  }
+  try {
+    await window.enrichItemsWithImdbRatings(toEnrich);
+  } catch (e) { /* ignore — cards keep placeholder text */ }
+  patchFilmographyCardEnrichment(visible);
+}
+
+function getUnenrichedFilmographyItems(items = []) {
+  if (!filmographyPageState) return [];
+  return (Array.isArray(items) ? items : []).filter(item => {
     const key = `${item.media_type || 'movie'}:${item.id}`;
     if (filmographyPageState.enriched.has(key)) return false;
     filmographyPageState.enriched.add(key);
     return true;
   });
+}
+
+async function ensureFilmographySortData(sortKey = '') {
+  if (!filmographyPageState || typeof window.enrichItemsWithImdbRatings !== 'function') return;
+  const option = getFilmographySortOption(sortKey);
+  if (!option.needsImdb) return;
+  const requestedKey = option.key;
+  const requestedDirection = filmographyPageState.sortDirection;
+  const filtered = filmographyPageState.allCredits.filter(item =>
+    filmographyMatchesFilter(item, filmographyPageState.filter));
+  const toEnrich = filtered.filter(item => getFilmographySortValue(item, option.key) <= 0);
   if (!toEnrich.length) return;
   try {
     await window.enrichItemsWithImdbRatings(toEnrich);
-  } catch (e) { /* ignore — cards keep placeholder text */ }
-  patchFilmographyCardEnrichment(visible);
+  } catch (e) { /* fail soft: missing sort data stays at the end */ }
+  if (!filmographyPageState || filmographyPageState.sortKey !== requestedKey || filmographyPageState.sortDirection !== requestedDirection) return;
+  rerenderFilmographyPage({ scrollTop: false });
 }
 
 function patchFilmographyCardEnrichment(items = []) {
@@ -5231,6 +6761,7 @@ function closePersonFilmographyPage() {
 }
 
 function handleFilmographyEsc(event) {
+  if (document.body.classList.contains('filmography-title-profile-open')) return;
   if (event.key === 'Escape') closePersonFilmographyPage();
 }
 
@@ -5238,6 +6769,180 @@ window.openPersonFilmographyPage = openPersonFilmographyPage;
 window.handlePersonFilmographyHeaderClick = handlePersonFilmographyHeaderClick;
 window.closePersonFilmographyPage = closePersonFilmographyPage;
 window.loadMoreFilmographyItems = loadMoreFilmographyItems;
+window.toggleFilmographySortMenu = toggleFilmographySortMenu;
+window.setFilmographySort = setFilmographySort;
+window.openFilmographyMediaProfile = openFilmographyMediaProfile;
+
+/* =============================================================================
+   v10.115: Full-page cast view for a media profile.
+
+   Mirrors the filmography-page-overlay slide-in pattern: lifts cast from
+   the currently-open media profile's cached details (TMDB
+   `details.credits.cast`, which Jikan-mapped anime also conform to), and
+   renders the entire cast in a scrollable grid. Cards reuse the existing
+   `renderDiscoverCastCard` markup, so tap behavior (open actor profile)
+   is identical to the inline cast row.
+
+   No new data fetch — the cast is already attached to the profile
+   details when the title page was loaded.
+   ========================================================================== */
+function getActiveMediaCastList() {
+  const details = activeDiscoverMediaProfileState?.details || null;
+  const cast = (details?.credits?.cast || []).filter(person => person?.name);
+  return cast;
+}
+
+function getActiveMediaProfileTitle() {
+  const details = activeDiscoverMediaProfileState?.details || null;
+  if (!details) return 'Cast';
+  const type = activeDiscoverMediaProfileState?.type || 'movie';
+  if (typeof getDiscoverMediaTitle === 'function') {
+    return getDiscoverMediaTitle(details, type) || 'Cast';
+  }
+  return details.title || details.name || 'Cast';
+}
+
+function renderMediaCastPageMarkup(state) {
+  const title = state?.title || 'Cast';
+  const cast = Array.isArray(state?.cast) ? state.cast : [];
+  const totalLabel = cast.length ? `${cast.length} ${cast.length === 1 ? 'actor' : 'actors'}` : '';
+  return `<section class="media-cast-page" role="dialog" aria-modal="true" aria-label="${escAttr(title)} cast">
+    <div class="media-cast-page-header">
+      <button class="discover-media-back media-cast-page-back" type="button" onclick="closeMediaCastPage()">Back</button>
+      <h2 class="media-cast-page-title">${escHtml(title)}</h2>
+      ${totalLabel ? `<div class="media-cast-page-subtitle">${escHtml(totalLabel)}</div>` : ''}
+    </div>
+    <div class="media-cast-page-body">
+      ${cast.length
+        ? `<div class="media-cast-grid">${cast.map(person => renderDiscoverCastCard(person)).join('')}</div>`
+        : `<div class="discover-message">No cast information available.</div>`}
+    </div>
+  </section>`;
+}
+
+function openMediaCastPage() {
+  const cast = getActiveMediaCastList();
+  if (!cast.length) return;
+  const title = getActiveMediaProfileTitle();
+  let overlay = document.getElementById('media-cast-page-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'media-cast-page-overlay';
+    overlay.className = 'media-cast-page-overlay';
+    /* Same initial-offscreen pattern as the filmography page so the
+       very first paint sits offscreen and the .open class transitions
+       it in cleanly. */
+    overlay.style.transform = 'translateX(100%)';
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML = renderMediaCastPageMarkup({ title, cast });
+  document.body.classList.add('media-cast-page-open');
+  void overlay.offsetWidth;
+  overlay.style.transform = '';
+  overlay.classList.add('open');
+  document.addEventListener('keydown', handleMediaCastPageEsc);
+}
+
+function closeMediaCastPage() {
+  const overlay = document.getElementById('media-cast-page-overlay');
+  if (overlay) {
+    overlay.classList.remove('open');
+    setTimeout(() => {
+      if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }, 280);
+  }
+  document.body.classList.remove('media-cast-page-open');
+  document.removeEventListener('keydown', handleMediaCastPageEsc);
+}
+
+function handleMediaCastPageEsc(event) {
+  if (event.key === 'Escape') closeMediaCastPage();
+}
+
+window.openMediaCastPage = openMediaCastPage;
+window.closeMediaCastPage = closeMediaCastPage;
+
+/* =============================================================================
+   v10.117: Full-page Characters view for an anime media profile.
+
+   Mirrors the Cast page (.media-cast-page-overlay) one-to-one in lifecycle
+   and animation. Cards reuse the .discover-media-cast-card markup with a
+   .discover-media-character-card modifier so layout/sizing stays
+   consistent — but with no heart-favorite button and no tap-to-open
+   behavior (characters are not navigable entities in-app).
+
+   Data source: details.credits.characters (Jikan-mapped). No fetch.
+   ========================================================================== */
+function getActiveMediaCharactersList() {
+  const details = activeDiscoverMediaProfileState?.details || null;
+  const list = (details?.credits?.characters || []).filter(ch => ch?.name);
+  return list;
+}
+
+function renderMediaCharactersPageMarkup(state) {
+  const title = state?.title || 'Characters';
+  const list = Array.isArray(state?.characters) ? state.characters : [];
+  const totalLabel = list.length ? `${list.length} ${list.length === 1 ? 'character' : 'characters'}` : '';
+  return `<section class="media-cast-page media-characters-page" role="dialog" aria-modal="true" aria-label="${escAttr(title)} characters">
+    <div class="media-cast-page-header">
+      <button class="discover-media-back media-cast-page-back" type="button" onclick="closeMediaCharactersPage()">Back</button>
+      <h2 class="media-cast-page-title">${escHtml(title)}</h2>
+      ${totalLabel ? `<div class="media-cast-page-subtitle">${escHtml(totalLabel)}</div>` : ''}
+    </div>
+    <div class="media-cast-page-body">
+      ${list.length
+        ? `<div class="media-cast-grid">${list.map(renderAnimeCharacterCard).join('')}</div>`
+        : `<div class="discover-message">No character information available.</div>`}
+    </div>
+  </section>`;
+}
+
+function openMediaCharactersPage() {
+  const characters = getActiveMediaCharactersList();
+  if (!characters.length) return;
+  const title = getActiveMediaProfileTitle();
+  let overlay = document.getElementById('media-characters-page-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'media-characters-page-overlay';
+    overlay.className = 'media-cast-page-overlay media-characters-page-overlay';
+    /* Initial offscreen transform so the very first paint sits offscreen
+       and the .open class transitions it in cleanly. Same pattern as the
+       cast and filmography pages. */
+    overlay.style.transform = 'translateX(100%)';
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML = renderMediaCharactersPageMarkup({ title, characters });
+  document.body.classList.add('media-cast-page-open');
+  void overlay.offsetWidth;
+  overlay.style.transform = '';
+  overlay.classList.add('open');
+  document.addEventListener('keydown', handleMediaCharactersPageEsc);
+}
+
+function closeMediaCharactersPage() {
+  const overlay = document.getElementById('media-characters-page-overlay');
+  if (overlay) {
+    overlay.classList.remove('open');
+    setTimeout(() => {
+      if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }, 280);
+  }
+  /* If the cast overlay isn't open either, clear the shared body class.
+     The cast page also adds .media-cast-page-open, so we only remove
+     when both are gone. */
+  if (!document.getElementById('media-cast-page-overlay')) {
+    document.body.classList.remove('media-cast-page-open');
+  }
+  document.removeEventListener('keydown', handleMediaCharactersPageEsc);
+}
+
+function handleMediaCharactersPageEsc(event) {
+  if (event.key === 'Escape') closeMediaCharactersPage();
+}
+
+window.openMediaCharactersPage = openMediaCharactersPage;
+window.closeMediaCharactersPage = closeMediaCharactersPage;
 
 async function hydrateDiscoverPersonFilmographyRatings(details = {}) {
   if (typeof window.enrichItemsWithImdbRatings !== 'function') return;
@@ -5273,10 +6978,154 @@ function patchDiscoverPersonFilmographyRatings(items = []) {
   });
 }
 
+function getDiscoverMediaProfilePage(overlay = document.getElementById('discover-media-profile')) {
+  return overlay?.querySelector?.('.discover-media-page') || null;
+}
+
+function getDiscoverMediaProfileScrollTop(overlay = document.getElementById('discover-media-profile')) {
+  const page = getDiscoverMediaProfilePage(overlay);
+  return page ? Number(page.scrollTop || 0) : 0;
+}
+
+function restoreDiscoverMediaProfileScroll(overlay, scrollTop = 0) {
+  const page = getDiscoverMediaProfilePage(overlay);
+  if (!page) return;
+  page.scrollTop = Math.max(0, Number(scrollTop || 0));
+}
+
+function restoreDiscoverMediaProfileScrollStable(overlay, scrollTop = 0, frames = 4) {
+  const top = Math.max(0, Number(scrollTop || 0));
+  restoreDiscoverMediaProfileScroll(overlay, top);
+  let remaining = Math.max(0, Number(frames || 0));
+  const tick = () => {
+    if (!remaining || !document.body.contains(overlay)) return;
+    remaining -= 1;
+    restoreDiscoverMediaProfileScroll(overlay, top);
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+function getDiscoverPersonHeroOriginElement(trigger = null) {
+  const node = trigger?.nodeType === 1 ? trigger : trigger?.target || null;
+  const card = node?.closest?.('.discover-media-cast-card');
+  return card?.querySelector?.('.discover-media-cast-photo img')
+    || card?.querySelector?.('.discover-media-cast-photo')
+    || null;
+}
+
+function getDiscoverPersonHeroTargetElement(overlay = document.getElementById('discover-media-profile')) {
+  return overlay?.querySelector?.('.discover-person-poster img')
+    || overlay?.querySelector?.('.discover-person-poster')
+    || null;
+}
+
+function getDiscoverPersonSeedFromTrigger(trigger = null, personId = '') {
+  const node = trigger?.nodeType === 1 ? trigger : trigger?.target || null;
+  const card = node?.closest?.('.discover-media-cast-card');
+  if (!card) return { id: personId };
+  return {
+    id: personId || card.dataset.personId || '',
+    name: card.dataset.personName || '',
+    profile_path: card.dataset.personPhoto || '',
+    known_for_department: card.dataset.personRole || ''
+  };
+}
+
+function getDiscoverPersonReturnTargetElement(personId = '', overlay = document.getElementById('discover-media-profile')) {
+  const id = String(personId || '').trim();
+  if (!id || !overlay) return null;
+  const card = overlay.querySelector(`.discover-media-cast-card[data-person-id="${CSS.escape(id)}"]`);
+  return card?.querySelector?.('.discover-media-cast-photo img')
+    || card?.querySelector?.('.discover-media-cast-photo')
+    || null;
+}
+
+function createDiscoverPersonHeroPortal(sourceElement = null) {
+  if (!sourceElement || typeof createMediaProfilePosterClosePortal !== 'function' || typeof getMediaProfileOriginRect !== 'function') {
+    return null;
+  }
+  const sourceRect = getMediaProfileOriginRect(sourceElement);
+  if (!sourceRect) return null;
+  try {
+    const portal = createMediaProfilePosterClosePortal(sourceElement, sourceRect, sourceElement, sourceRect);
+    return portal ? { portal, sourceRect } : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function animateDiscoverPersonHeroPortal(portalInfo = null, targetElement = null, done = null) {
+  const portal = portalInfo?.portal || null;
+  const sourceRect = portalInfo?.sourceRect || null;
+  if (!portal || !sourceRect || !targetElement || typeof getMediaProfileOriginRect !== 'function' || typeof getMediaProfileRectTransform !== 'function') {
+    portal?.remove?.();
+    if (typeof done === 'function') done();
+    return;
+  }
+  const targetRect = getMediaProfileOriginRect(targetElement);
+  if (!targetRect || typeof portal.animate !== 'function') {
+    portal.remove();
+    if (typeof done === 'function') done();
+    return;
+  }
+  const originalTargetVisibility = targetElement.style.visibility;
+  targetElement.style.visibility = 'hidden';
+  const restore = () => {
+    if (targetElement?.isConnected) targetElement.style.visibility = originalTargetVisibility;
+    portal.remove();
+    if (typeof done === 'function') done();
+  };
+  const duration = typeof MEDIA_PROFILE_HERO_DURATION_MS === 'number' ? MEDIA_PROFILE_HERO_DURATION_MS : 400;
+  const easing = typeof MEDIA_PROFILE_HERO_EASING === 'string' ? MEDIA_PROFILE_HERO_EASING : 'cubic-bezier(0.4, 0, 0.2, 1)';
+  const animation = portal.animate([
+    {
+      transform: 'translate3d(0, 0, 0) scale(1, 1)',
+      opacity: 1,
+      boxShadow: '0 18px 48px rgba(0,0,0,0.45)'
+    },
+    {
+      transform: getMediaProfileRectTransform(sourceRect, targetRect),
+      opacity: 1,
+      boxShadow: '0 0 0 rgba(0,0,0,0)'
+    }
+  ], {
+    duration,
+    easing,
+    fill: 'both'
+  });
+  if (typeof finishMediaProfileHeroAnimation === 'function') finishMediaProfileHeroAnimation(animation, restore);
+  else {
+    animation.onfinish = restore;
+    animation.oncancel = restore;
+    setTimeout(restore, duration + 80);
+  }
+}
+
+function finishDiscoverPersonProfileRender(overlay, details, openingPortalInfo = null) {
+  if (!overlay || !document.getElementById('discover-media-profile')) {
+    openingPortalInfo?.portal?.remove?.();
+    return;
+  }
+  overlay.innerHTML = renderDiscoverPersonProfileDetails(details);
+  bindDiscoverMediaProfileSwipeBack(overlay);
+  hydrateDiscoverPersonBioFacts(details);
+  hydrateDiscoverPersonRoleFallbacks(details);
+  hydrateDiscoverPersonFilmographyRatings(details);
+  const target = getDiscoverPersonHeroTargetElement(overlay);
+  if (openingPortalInfo && target) {
+    requestAnimationFrame(() => animateDiscoverPersonHeroPortal(openingPortalInfo, target));
+  } else {
+    openingPortalInfo?.portal?.remove?.();
+  }
+}
+
 async function openDiscoverPersonProfile(event, personId) {
   event?.preventDefault?.();
   event?.stopPropagation?.();
   if (!personId) return;
+  const trigger = event?.currentTarget || event?.target || null;
+  const personSeed = getDiscoverPersonSeedFromTrigger(trigger, personId);
   let overlay = document.getElementById('discover-media-profile');
   const hadOverlay = !!overlay;
   if (!overlay) {
@@ -5289,9 +7138,21 @@ async function openDiscoverPersonProfile(event, personId) {
     requestAnimationFrame(() => overlay.classList.add('open'));
   }
   const previousState = hadOverlay && activeDiscoverMediaProfileState ? { ...activeDiscoverMediaProfileState } : null;
+  if (previousState) {
+    previousState.mediaProfileScrollTop = getDiscoverMediaProfileScrollTop(overlay);
+    previousState.personHeroOriginId = String(personId);
+  }
   const movieTvDesktopSource = !!(previousState && (previousState.type === 'movie' || previousState.type === 'tv') && !previousState.details?.isAnime);
-  overlay.scrollTop = 0;
-  overlay.innerHTML = renderDiscoverPersonProfileShell({});
+  const openingPortalInfo = createDiscoverPersonHeroPortal(getDiscoverPersonHeroOriginElement(trigger));
+  destroyDiscoverHeroTrailerPreview(overlay);
+  overlay.innerHTML = renderDiscoverPersonProfileShell(personSeed);
+  bindDiscoverMediaProfileSwipeBack(overlay);
+  const shellHeroTarget = getDiscoverPersonHeroTargetElement(overlay);
+  if (openingPortalInfo && shellHeroTarget) {
+    requestAnimationFrame(() => animateDiscoverPersonHeroPortal(openingPortalInfo, shellHeroTarget));
+  } else {
+    openingPortalInfo?.portal?.remove?.();
+  }
   try {
     const res = await fetchTmdbProxy(`person/${personId}`, { append_to_response: 'combined_credits,external_ids' });
     if (!res.ok) throw new Error(`TMDB person request failed: ${res.status}`);
@@ -5304,13 +7165,10 @@ async function openDiscoverPersonProfile(event, personId) {
       details
     };
     if (!document.getElementById('discover-media-profile')) return;
-    overlay.innerHTML = renderDiscoverPersonProfileDetails(details);
-    bindDiscoverMediaProfileSwipeBack(overlay);
-    hydrateDiscoverPersonBioFacts(details);
-    hydrateDiscoverPersonRoleFallbacks(details);
-    hydrateDiscoverPersonFilmographyRatings(details);
+    finishDiscoverPersonProfileRender(overlay, details, null);
   } catch (error) {
     console.error('Discover person profile failed:', error);
+    openingPortalInfo?.portal?.remove?.();
     if (!document.getElementById('discover-media-profile')) return;
     overlay.innerHTML = `<section class="discover-media-page discover-person-page" role="dialog" aria-modal="true" aria-label="Cast details">
       <button class="discover-media-back" type="button" onclick="backToDiscoverTitleProfile()">Back</button>
@@ -5331,12 +7189,22 @@ function backToDiscoverTitleProfile() {
     closeDiscoverMediaProfile();
     return;
   }
+  destroyDiscoverHeroTrailerPreview(overlay);
+  const closingPortalInfo = createDiscoverPersonHeroPortal(getDiscoverPersonHeroTargetElement(overlay));
   activeDiscoverMediaProfileState = previousState;
-  overlay.scrollTop = 0;
   overlay.innerHTML = renderDiscoverMediaProfileDetails(previousState.type, previousState.details, previousState.id);
   bindDiscoverMediaProfileActions(overlay);
+  hydrateDiscoverHeroTrailerPreview(overlay);
   hydrateDeepSeekMoreLikeThis(previousState.type, previousState.details);
   hydrateDiscoverProviderLogoFallbacks();
+  restoreDiscoverMediaProfileScrollStable(overlay, previousState.mediaProfileScrollTop || 0);
+  requestAnimationFrame(() => {
+    restoreDiscoverMediaProfileScrollStable(overlay, previousState.mediaProfileScrollTop || 0);
+    const target = getDiscoverPersonReturnTargetElement(previousState.personHeroOriginId, overlay);
+    animateDiscoverPersonHeroPortal(closingPortalInfo, target, () => {
+      restoreDiscoverMediaProfileScrollStable(overlay, previousState.mediaProfileScrollTop || 0, 2);
+    });
+  });
 }
 
 function renderDiscoverMediaProfileShell(seed, type, id) {
@@ -5345,21 +7213,51 @@ function renderDiscoverMediaProfileShell(seed, type, id) {
   const backdrop = getDiscoverMediaBackdrop(seed);
   const year = getDiscoverMediaDate(seed, type).slice(0, 4);
   return `<section class="discover-media-page" role="dialog" aria-modal="true" aria-label="${escAttr(title)} details">
-    <button class="discover-media-back" type="button" onclick="closeDiscoverMediaProfile('back')">Back</button>
+    <button class="discover-media-back" type="button" onclick="return handleDiscoverMediaProfileBack(event)">Back</button>
     ${renderMediaProfileTopActions(renderMediaProfileShareButton(getShareableMediaKind(type, seed), id, title, poster), renderDiscoverMediaProfileAddButton(type, id, seed))}
     <div class="discover-media-hero" style="${backdrop ? `background-image:url('${escAttr(backdrop)}')` : ''}">
+      <!-- v10.62: hero backdrop now w780 (was w1280) — same visual, ~40% smaller decode. -->
       <div class="discover-media-hero-shade"></div>
       <div class="discover-media-hero-content">
-        <div class="discover-media-poster">${poster ? `<img src="${escAttr(poster)}" alt="">` : ''}</div>
+        <div class="discover-media-poster">${poster ? `<img src="${escAttr(poster)}" alt="" decoding="async">` : ''}</div>
         <div class="discover-media-kicker">${type === 'tv' ? 'Series Profile' : 'Movie Profile'}${year ? ` · ${escHtml(year)}` : ''}</div>
         <h2>${escHtml(title)}</h2>
         <p class="discover-media-synopsis" onclick="this.classList.toggle('expanded')">${escHtml(seed?.overview || 'Loading the details for this title...')}</p>
       </div>
     </div>
     <div class="discover-media-body">
-      <div class="discover-media-loading">Building this title page...</div>
+      <div class="discover-media-loading discover-media-loading-spinner" role="status" aria-label="Loading title details"><span aria-hidden="true"></span></div>
     </div>
   </section>`;
+}
+
+/* v10.115: cast preview shown on the media profile is capped at 18 — any
+   overflow is reached via the "Show All" button, which opens a full-page
+   cast view (.media-cast-page-overlay) that lists the entire TMDB cast
+   from `details.credits.cast` (Jikan-mapped anime details follow the
+   same shape). Actor cards in the full-cast page are still the same
+   `renderDiscoverCastCard` markup, so tapping an actor opens the
+   existing person profile via `handleDiscoverCastCardClick`. */
+const MEDIA_CAST_PREVIEW_LIMIT = 18;
+/* v10.117: Characters preview limit for anime profiles. Mirrors the cast
+   row's 18-card preview so the layout stays balanced; the full character
+   list is reachable via the section's own Show All button. */
+const MEDIA_CHARACTERS_PREVIEW_LIMIT = 18;
+
+/* v10.117: Character card for anime media profiles. Reuses the
+   .discover-media-cast-card class so it inherits the responsive sizing
+   from the existing cast row, with a .is-character modifier for the
+   visual tweaks (no heart, no person-profile navigation — characters
+   don't have profile pages in-app). */
+function renderAnimeCharacterCard(character = {}) {
+  const name = String(character?.name || '');
+  const role = String(character?.role || '').trim();
+  const image = String(character?.image || character?.profile_path || '');
+  return `<div class="discover-media-cast-card discover-media-character-card" data-character-id="${escAttr(String(character?.id || ''))}">
+    <div class="discover-media-cast-photo">${image ? `<img src="${escAttr(image)}" alt="" loading="lazy" decoding="async">` : ''}</div>
+    <strong>${escHtml(name)}</strong>
+    <span>${escHtml(role)}</span>
+  </div>`;
 }
 
 /* v730: Cast card with a heart-favorite button anchored to the bottom-right
@@ -5390,8 +7288,10 @@ function renderDiscoverCastCard(person) {
         <path d="M12 21s-7.5-4.6-9.6-9.4C1.1 8 3.4 4.5 6.8 4.5c2.1 0 3.9 1.2 5.2 3 1.3-1.8 3.1-3 5.2-3 3.4 0 5.7 3.5 4.4 7.1C19.5 16.4 12 21 12 21z"/>
       </svg>
     </span>`;
-  return `<button class="discover-media-cast-card" type="button" onclick="handleDiscoverCastCardClick(event, ${id})">
-    <div class="discover-media-cast-photo">${photo ? `<img src="${escAttr(photo)}" alt="">` : ''}${heartHtml}</div>
+  /* v10.62: lazy + decoding on cast photos — cast list typically has 8–20 cards
+     per media profile and most are off-screen until you scroll the section. */
+  return `<button class="discover-media-cast-card" type="button" data-person-id="${escAttr(String(id || ''))}" onclick="handleDiscoverCastCardClick(event, ${id})">
+    <div class="discover-media-cast-photo">${photo ? `<img src="${escAttr(photo)}" alt="" loading="lazy" decoding="async">` : ''}${heartHtml}</div>
     <strong>${escHtml(name)}</strong>
     <span>${escHtml(character)}</span>
   </button>`;
@@ -5410,7 +7310,19 @@ function renderDiscoverMediaProfileDetails(type, details, id) {
     : (Number(details.imdbRating || 0) > 0 ? Number(details.imdbRating).toFixed(1) : '');
   const tagline = String(details.tagline || '').trim();
   const overview = details.overview || 'No overview is available yet.';
-  const cast = (details.credits?.cast || []).filter(person => person?.name).slice(0, 8);
+  /* v10.115: cast preview = first 18 actors. Full cast lives on a
+     dedicated full-page view opened via the "Show All" button (only
+     rendered when there's more cast beyond the 18 in the preview). */
+  const castAll = (details.credits?.cast || []).filter(person => person?.name);
+  const cast = castAll.slice(0, MEDIA_CAST_PREVIEW_LIMIT);
+  const castHasMore = castAll.length > cast.length;
+  /* v10.117: Characters row — anime-only (only Jikan-mapped profiles
+     populate details.credits.characters). Same 18-preview + Show All
+     pattern as the Cast row above. Falls through silently for non-anime
+     profiles where credits.characters is absent. */
+  const charactersAll = (details.credits?.characters || []).filter(ch => ch?.name);
+  const charactersPreview = charactersAll.slice(0, MEDIA_CHARACTERS_PREVIEW_LIMIT);
+  const charactersHasMore = charactersAll.length > charactersPreview.length;
   const creators = type === 'tv'
     ? (details.created_by || []).map(person => person.name).filter(Boolean).slice(0, 3)
     : getDiscoverMediaCrew(details.credits, ['Director']);
@@ -5420,14 +7332,20 @@ function renderDiscoverMediaProfileDetails(type, details, id) {
   const networks = (details.networks || []).map(network => network.name).filter(Boolean).slice(0, 2);
   const isDesktopTitleProfile = type === 'movie' || type === 'tv';
 
+  /* v10.127: Trailer CTA + sound toggle moved into the top-right
+     action row so they share the same right-aligned column.
+     v10.128: Trailer CTA passed as its own arg so the action-row
+     builder can pair it horizontally with the "+" button (row 1),
+     while Share (row 2) and Mute toggle (row 3) stay as solo rows. */
   return `<section class="discover-media-page${isDesktopTitleProfile ? ' discover-standard-title-page discover-desktop-title-page' : ''}" role="dialog" aria-modal="true" aria-label="${escAttr(title)} details">
-    <button class="discover-media-back" type="button" onclick="closeDiscoverMediaProfile('back')">Back</button>
-    ${renderMediaProfileTopActions(renderMediaProfileShareButton(getShareableMediaKind(type, details), id, title, poster), renderDiscoverMediaProfileAddButton(type, id, details))}
-    <div class="discover-media-hero" style="${backdrop ? `background-image:url('${escAttr(backdrop)}')` : ''}">
+    <button class="discover-media-back" type="button" onclick="return handleDiscoverMediaProfileBack(event)">Back</button>
+    ${renderMediaProfileTopActions(renderMediaProfileShareButton(getShareableMediaKind(type, details), id, title, poster), renderDiscoverMediaProfileAddButton(type, id, details), renderDiscoverHeroTrailerPreviewCta(trailer, title), renderDiscoverHeroTrailerSoundToggle(trailer))}
+    <div class="discover-media-hero${trailer ? ' has-trailer-preview' : ''}" style="${backdrop ? `background-image:url('${escAttr(backdrop)}')` : ''}">
+      ${renderDiscoverHeroTrailerPreview(trailer, title)}
       <div class="discover-media-hero-shade"></div>
       <div class="discover-media-hero-content">
         <div class="discover-media-hero-top">
-          <div class="discover-media-poster">${poster ? `<img src="${escAttr(poster)}" alt="">` : ''}</div>
+          <div class="discover-media-poster">${poster ? `<img src="${escAttr(poster)}" alt="" decoding="async">` : ''}</div>
           <div class="discover-media-hero-main">
             <div class="discover-media-kicker">${type === 'tv' ? 'Series Profile' : 'Movie Profile'}${year ? ` · ${escHtml(year)}` : ''}</div>
             <h2>${escHtml(title)}</h2>
@@ -5442,7 +7360,7 @@ function renderDiscoverMediaProfileDetails(type, details, id) {
       </div>
     </div>
     <div class="discover-media-body${isDesktopTitleProfile ? ' discover-media-body-cinema' : ''}">
-      ${(facts.length || creators.length || writers.length || companies.length || networks.length || trailer) ? `<div class="discover-media-detail-grid${trailer ? ' has-trailer' : ''}">
+      ${(facts.length || creators.length || writers.length || companies.length || networks.length) ? `<div class="discover-media-detail-grid">
         ${(facts.length || creators.length || writers.length || companies.length || networks.length) ? `<div class="discover-media-detail-stack">
           ${facts.length ? `<div class="discover-media-facts">${facts.map(fact => `<div class="${fact.priority ? 'primary' : ''}"><strong>${escHtml(fact.value)}</strong><span>${escHtml(fact.label)}</span></div>`).join('')}</div>` : ''}
           ${(creators.length || writers.length || companies.length || networks.length) ? `<div class="discover-media-credits">
@@ -5451,18 +7369,23 @@ function renderDiscoverMediaProfileDetails(type, details, id) {
             ${companies.length || networks.length ? `<div><span>${type === 'tv' ? 'Network' : 'Studio'}</span><strong>${escHtml((networks.length ? networks : companies).join(', '))}</strong></div>` : ''}
           </div>` : ''}
         </div>` : ''}
-        ${trailer ? `<div class="discover-media-trailer discover-media-trailer-panel"><iframe src="https://www.youtube.com/embed/${escAttr(trailer.key)}?controls=1&playsinline=1&rel=0&modestbranding=1" allow="encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>` : ''}
       </div>` : ''}
-      ${cast.length ? `<div class="discover-media-section discover-media-section-cast"><h3>Cast</h3><div class="discover-media-cast">${cast.map(person => renderDiscoverCastCard(person)).join('')}</div></div>` : ''}
+      ${cast.length ? `<div class="discover-media-section discover-media-section-cast"><h3>Cast</h3><div class="discover-media-cast">${cast.map(person => renderDiscoverCastCard(person)).join('')}</div>${castHasMore ? `<button class="media-cast-show-all" type="button" onclick="openMediaCastPage()">Show All<span class="media-cast-show-all-count" aria-hidden="true">${escHtml(castAll.length)}</span></button>` : ''}</div>` : ''}
+      ${charactersPreview.length ? `<div class="discover-media-section discover-media-section-characters"><h3>Characters</h3><div class="discover-media-cast discover-media-characters">${charactersPreview.map(renderAnimeCharacterCard).join('')}</div>${charactersHasMore ? `<button class="media-cast-show-all media-characters-show-all" type="button" onclick="openMediaCharactersPage()">Show All<span class="media-cast-show-all-count" aria-hidden="true">${escHtml(charactersAll.length)}</span></button>` : ''}</div>` : ''}
       ${renderDeepSeekMoreLikeThisSection(type, details)}
     </div>
   </section>`;
 }
 
-async function openDiscoverMediaProfile(event, type, id, transitionOrigin = null) {
+async function openDiscoverMediaProfile(event, type, id, transitionOrigin = null, options = null) {
   event?.preventDefault?.();
   event?.stopPropagation?.();
   if ((type !== 'movie' && type !== 'tv') || !id) return;
+  const fromFilmography = !!options?.fromFilmography;
+  const filmographyReturn = fromFilmography ? {
+    previousState: options?.previousState || (activeDiscoverMediaProfileState ? { ...activeDiscoverMediaProfileState } : null),
+    scrollTop: Number(options?.filmographyScrollTop || filmographyPageState?.scrollTop || 0)
+  } : null;
   const key = getDiscoverMediaProfileKey(type, id);
   const seed = discoverMediaProfileSeeds.get(key) || {};
   /* v654: If the seed for this id is Jikan-sourced (anime from Discover/
@@ -5470,17 +7393,42 @@ async function openDiscoverMediaProfile(event, type, id, transitionOrigin = null
   if (seed && seed.__jikan && seed.__mal_id) {
     return openJikanAnimeProfile(event, seed.__mal_id, transitionOrigin);
   }
-  closeDiscoverMediaProfile();
-  const overlay = document.createElement('div');
-  overlay.id = 'discover-media-profile';
-  overlay.className = 'discover-media-profile-overlay';
-  if (isActivityMediaProfileOrigin(transitionOrigin)) overlay.classList.add('activity-origin-media-profile');
-  overlay.innerHTML = renderDiscoverMediaProfileShell(seed, type, id);
-  bindDiscoverMediaProfileActions(overlay);
-  document.body.appendChild(overlay);
-  document.body.classList.add('discover-media-profile-open');
-  document.addEventListener('keydown', handleDiscoverMediaProfileEsc);
-  revealMediaProfileOverlay(overlay, transitionOrigin, event);
+  let overlay = null;
+  if (fromFilmography) {
+    overlay = document.getElementById('discover-media-profile');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'discover-media-profile';
+      document.body.appendChild(overlay);
+    }
+    destroyDiscoverHeroTrailerPreview(overlay);
+    overlay.className = 'discover-media-profile-overlay';
+    if (isActivityMediaProfileOrigin(transitionOrigin)) overlay.classList.add('activity-origin-media-profile');
+    overlay.innerHTML = renderDiscoverMediaProfileShell(seed, type, id);
+    bindDiscoverMediaProfileActions(overlay);
+    document.body.classList.add('discover-media-profile-open', 'filmography-title-profile-open');
+    document.addEventListener('keydown', handleDiscoverMediaProfileEsc);
+    overlay.classList.add('open');
+    activeDiscoverMediaProfileState = {
+      view: 'title',
+      type,
+      id,
+      details: seed,
+      filmographyReturn
+    };
+  } else {
+    closeDiscoverMediaProfile();
+    overlay = document.createElement('div');
+    overlay.id = 'discover-media-profile';
+    overlay.className = 'discover-media-profile-overlay';
+    if (isActivityMediaProfileOrigin(transitionOrigin)) overlay.classList.add('activity-origin-media-profile');
+    overlay.innerHTML = renderDiscoverMediaProfileShell(seed, type, id);
+    bindDiscoverMediaProfileActions(overlay);
+    document.body.appendChild(overlay);
+    document.body.classList.add('discover-media-profile-open');
+    document.addEventListener('keydown', handleDiscoverMediaProfileEsc);
+    revealMediaProfileOverlay(overlay, transitionOrigin, event);
+  }
   try {
     let details = discoverMediaProfileCache.get(key);
     if (!details) {
@@ -5553,10 +7501,13 @@ async function openDiscoverMediaProfile(event, type, id, transitionOrigin = null
       view: 'title',
       type,
       id,
-      details: mergedDetails
+      details: mergedDetails,
+      ...(filmographyReturn ? { filmographyReturn } : {})
     };
+    destroyDiscoverHeroTrailerPreview(overlay);
     overlay.innerHTML = renderDiscoverMediaProfileDetails(type, mergedDetails, id);
     bindDiscoverMediaProfileActions(overlay);
+    hydrateDiscoverHeroTrailerPreview(overlay);
     hydrateDeepSeekMoreLikeThis(type, mergedDetails);
     hydrateDiscoverProviderLogoFallbacks();
   } catch (e) {
@@ -5604,9 +7555,15 @@ async function openJikanAnimeProfile(event, malId, transitionOrigin = null) {
   try {
     let mergedDetails = discoverMediaProfileCache.get(key);
     if (!mergedDetails) {
+      /* v10.116: fetch a deeper cast slice from Jikan (60, up from 12) so
+         the media profile's 18-card preview can actually hit overflow and
+         the Show All button appears for Jikan-routed anime profiles too.
+         Jikan returns the full character list paginated; 60 covers the
+         main + supporting cast for virtually every series without any
+         extra API calls (still one /characters request). */
       const [j, characters, recs] = await Promise.all([
         J.animeFull(id),
-        J.animeCharacters(id, 12),
+        J.animeCharacters(id, 60),
         J.animeRecommendations(id, 8)
       ]);
       if (!j) throw new Error('Jikan returned no data for ' + id);
@@ -5623,8 +7580,10 @@ async function openJikanAnimeProfile(event, malId, transitionOrigin = null) {
       id: profileId,
       details: mergedDetails
     };
+    destroyDiscoverHeroTrailerPreview(overlay);
     overlay.innerHTML = renderDiscoverMediaProfileDetails(profileType, mergedDetails, profileId);
     bindDiscoverMediaProfileActions(overlay);
+    hydrateDiscoverHeroTrailerPreview(overlay);
     hydrateDiscoverProviderLogoFallbacks();
   } catch (e) {
     console.error('Jikan anime profile failed:', e);
@@ -6337,7 +8296,11 @@ async function clearDiscoverCategoryFilters() {
   refreshDiscoverCategoryFilterSheet('none');
   updateDiscoverCategoryFilterButtonState();
   updateDiscoverUniversalSearchFilterButtonState();
-  if (discoverCategoryFullState?.mode === 'universal-search') await renderDiscoverUniversalSearchDefault(true);
+  if (discoverCategoryFullState?.mode === 'universal-search') {
+    const query = String(document.getElementById('discover-universal-search-input')?.value || '').trim();
+    if (query) await runDiscoverUniversalSearch(query);
+    else renderDiscoverUniversalSearchPresetHub();
+  }
   else renderDiscoverCategoryFullGrid();
 }
 
@@ -7283,16 +9246,27 @@ function renderGamesDiscoverCards(items, gridId) {
   }
   grid.dataset.expanded = 'false';
   delete grid.dataset.visibleCount;
-  grid.innerHTML = items.map(item => {
+  grid.innerHTML = items.map((item, index) => {
     const title = item.name || '';
     const year = (item.released || '').slice(0, 4);
     const poster = typeof getScreenListDisplayGameCover === 'function' ? getScreenListDisplayGameCover(item) : (typeof getScreenListPreferredGameCover === 'function' ? getScreenListPreferredGameCover(item) : '');
     const genres = (item.genres || []).map(g => g.name).slice(0, 3).join(', ');
     const platforms = (item.platforms || []).map(p => p.platform?.name).filter(Boolean).slice(0, 3).join(', ');
     const overview = genres || platforms || 'Game';
+    const itemSource = String(item.source || '').trim().toLowerCase() || 'rawg';
+    const rawgId = itemSource === 'rawg'
+      ? String(item.rawgId || item.rawg_id || item.id || '').trim()
+      : String(item.rawgId || item.rawg_id || '').trim();
+    const igdbId = String(item.igdbId || item.igdb_id || (itemSource === 'igdb' ? item.sourceId || String(item.id || '').replace(/^igdb:/i, '') : '') || '').trim();
+    const gameKey = rawgId || (igdbId ? `igdb:${igdbId}` : `game:${gridId}:${index}:${title}`);
     const seed = {
-      rawgId: String(item.id || ''),
+      id: gameKey,
+      gameIdentityKey: gameKey,
+      sourceId: item.sourceId || (itemSource === 'igdb' ? igdbId : rawgId),
+      rawgId,
+      igdbId,
       rawgSlug: item.slug || '',
+      igdbSlug: item.igdbSlug || (itemSource === 'igdb' ? item.slug || '' : ''),
       backloggdSlug: item.slug || '',
       metacriticSlug: item.slug || '',
       title,
@@ -7307,26 +9281,35 @@ function renderGamesDiscoverCards(items, gridId) {
       platforms: item.platforms || [],
       metacritic: item.metacritic || '',
       rating: item.rating || '',
-      ratings_count: item.ratings_count || item.reviews_count || 0
+      ratings_count: item.ratings_count || item.reviews_count || 0,
+      source: itemSource
     };
-    setGameMediaProfileSeed(item.id, seed);
+    if (typeof attachShelfdGameIdentityLock === 'function' && typeof createShelfdGameIdentityLock === 'function') {
+      attachShelfdGameIdentityLock(seed, createShelfdGameIdentityLock(seed, '1 discovery games result rendered'));
+    }
+    if (typeof traceShelfdGameIdentity === 'function') traceShelfdGameIdentity('1 game search result object rendered', seed, { gridId, index });
+    setGameMediaProfileSeed(gameKey, seed);
+    if (rawgId) setGameMediaProfileSeed(rawgId, seed);
     const alreadyAdded = isDuplicateTitle(title, 'games');
     const titleAttr = escAttr(title);
     const removeClick = `removeDiscoveryTitle(this)`;
     /* v700: Add button now opens the same spring bottom-sheet as seasonal
        anime (game-specific statuses). removeDiscoveryTitle for already-added. */
-    const addClick = `openGameDiscoverAddSheet(${item.id}, '${titleAttr}', '${escAttr(poster)}')`;
+    const addClick = `openGameDiscoverAddSheetFromButton(this)`;
+    const gameKeyAttr = escAttr(gameKey);
+    const rawgAttr = escAttr(rawgId);
+    const igdbAttr = escAttr(igdbId);
     /* v696: Restructured game card — 5-row info block below the poster.
        Row 1: title  2: year  3: genres (max 3)  4: Steam reviews  5: Add btn */
     return `<div class="discover-card games-discover-card">
-      <div class="discover-poster${poster ? '' : ' no-img screenlist-game-cover-pending'}" data-poster="${escAttr(poster)}" data-media-type="game" data-media-id="${escAttr(String(item.id || ''))}" data-discover-title="${titleAttr}" data-discover-section="games" data-game-title="${titleAttr}" data-rawg-id="${escAttr(String(item.id || ''))}" ${poster ? `style="background-image:url('${escAttr(poster)}')"` : ''} onclick="openGameMediaProfile(event, '${escAttr(String(item.id || ''))}', getGameMediaProfileSeed('${escAttr(String(item.id || ''))}'), this)">${getDiscoverFriendStackMarkup(title, 'games')}</div>
+      <div class="discover-poster${poster ? '' : ' no-img screenlist-game-cover-pending'}" data-poster="${escAttr(poster)}" data-media-type="game" data-media-id="${gameKeyAttr}" data-game-identity-key="${gameKeyAttr}" data-discover-title="${titleAttr}" data-discover-section="games" data-game-title="${titleAttr}" data-rawg-id="${rawgAttr}" data-igdb-id="${igdbAttr}" ${poster ? `style="background-image:url('${escAttr(poster)}')"` : ''} onclick="openGameMediaProfile(event, '${gameKeyAttr}', getGameMediaProfileSeed('${gameKeyAttr}'), this)">${getDiscoverFriendStackMarkup(title, 'games')}</div>
       <div class="discover-card-body games-dc-body">
-        <button class="games-dc-title" type="button" onclick="openGameMediaProfile(event, ${item.id}, getGameMediaProfileSeed(${item.id}), this)">${escHtml(title)}</button>
+        <button class="games-dc-title" type="button" onclick="openGameMediaProfile(event, '${gameKeyAttr}', getGameMediaProfileSeed('${gameKeyAttr}'), this)">${escHtml(title)}</button>
         <div class="games-dc-year">${escHtml(year || '—')}</div>
         <div class="games-dc-genres">${escHtml(genres || '—')}</div>
         <div class="games-dc-rating"></div>
         <div class="games-dc-spacer"></div>
-        <button class="discover-add-btn games-dc-add-btn${alreadyAdded ? ' added' : ''}" data-discover-type="game" data-discover-id="${item.id}" data-discover-section="games" data-discover-title="${titleAttr}" title="${alreadyAdded ? 'Click to remove from your library' : ''}" onclick="event.stopPropagation();${alreadyAdded ? removeClick : addClick}">${alreadyAdded ? getDiscoverLibraryButtonText(title, 'games') : '+ Add to Library'}</button>
+        <button class="discover-add-btn games-dc-add-btn${alreadyAdded ? ' added' : ''}" data-discover-type="game" data-discover-id="${gameKeyAttr}" data-discover-section="games" data-discover-title="${titleAttr}" data-discover-poster="${escAttr(poster)}" data-game-identity-key="${gameKeyAttr}" data-rawg-id="${rawgAttr}" data-igdb-id="${igdbAttr}" title="${alreadyAdded ? 'Click to remove from your library' : ''}" onclick="event.stopPropagation();${alreadyAdded ? removeClick : addClick}">${alreadyAdded ? getDiscoverLibraryButtonText(title, 'games') : '+ Add to Library'}</button>
       </div>
     </div>`;
   }).join('');
@@ -7561,14 +9544,15 @@ async function backfillIgdbDiscoverGameCovers(grid) {
       const poster = posters[cursor++];
       if (!poster) continue;
       const title = poster.dataset.discoverTitle || poster.dataset.gameTitle || '';
-      const rawgId = poster.dataset.rawgId || poster.dataset.mediaId || '';
+      const rawgId = poster.dataset.rawgId || '';
+      const gameKey = poster.dataset.gameIdentityKey || poster.dataset.mediaId || rawgId || (poster.dataset.igdbId ? `igdb:${poster.dataset.igdbId}` : '');
       if (!title) continue;
-      const key = `${rawgId}|${title.toLowerCase()}`;
+      const key = `${gameKey || rawgId}|${title.toLowerCase()}`;
       if (IGDB_DISCOVER_COVER_IN_FLIGHT.has(key)) continue;
       IGDB_DISCOVER_COVER_IN_FLIGHT.add(key);
       try {
-        const seed = rawgId && typeof getGameMediaProfileSeed === 'function' ? getGameMediaProfileSeed(rawgId, {}) : {};
-        const payload = { ...seed, title, name: seed.name || title, rawgId, id: rawgId };
+        const seed = gameKey && typeof getGameMediaProfileSeed === 'function' ? getGameMediaProfileSeed(gameKey, {}) : {};
+        const payload = { ...seed, title, name: seed.name || title, rawgId, id: gameKey || rawgId };
         let cover = null;
         if (typeof forceHydrateScreenListGamePosterElement === 'function') {
           cover = await forceHydrateScreenListGamePosterElement(poster, payload);
@@ -7583,9 +9567,12 @@ async function backfillIgdbDiscoverGameCovers(grid) {
             cover = data;
           }
         }
-        if (cover?.coverUrl && rawgId && typeof setGameMediaProfileSeed === 'function') {
-          const existing = getGameMediaProfileSeed(rawgId, {}) || {};
-          setGameMediaProfileSeed(rawgId, { ...existing, title, name: existing.name || title, rawgId, id: rawgId, igdbCoverUrl: cover.coverUrl, cover: cover.coverUrl, poster: cover.coverUrl, image: cover.coverUrl, background_image: cover.coverUrl });
+        if (cover?.coverUrl && gameKey && typeof setGameMediaProfileSeed === 'function') {
+          const existing = getGameMediaProfileSeed(gameKey, {}) || {};
+          let updated = { ...existing, title, name: existing.name || title, rawgId, id: gameKey, igdbCoverUrl: cover.coverUrl, cover: cover.coverUrl, poster: cover.coverUrl, image: cover.coverUrl, background_image: cover.coverUrl };
+          if (typeof mergeShelfdGameIdentityLockedItem === 'function') updated = mergeShelfdGameIdentityLockedItem(existing, updated, 'discover-card-igdb-cover-backfill');
+          setGameMediaProfileSeed(gameKey, updated);
+          if (rawgId) setGameMediaProfileSeed(rawgId, updated);
         }
       } catch (e) { /* silent */ }
       finally { IGDB_DISCOVER_COVER_IN_FLIGHT.delete(key); }
@@ -8124,35 +10111,71 @@ window.addSeasonalAnimeToLibrary = addSeasonalAnimeToLibrary;
    `window.activeSection = 'games'` actually updates the binding submitModal
    reads, ensuring saves land in the games section instead of TV shows.
    ============================================================================= */
-function openGameDiscoverAddSheet(rawgId, title, poster) {
+function openGameDiscoverAddSheetFromButton(btn) {
+  if (!btn) return;
+  const id = btn.dataset.discoverId || btn.dataset.gameIdentityKey || btn.dataset.rawgId || (btn.dataset.igdbId ? `igdb:${btn.dataset.igdbId}` : '');
+  const seed = typeof getGameMediaProfileSeed === 'function' ? (getGameMediaProfileSeed(id) || {}) : {};
+  openGameDiscoverAddSheet(id, btn.dataset.discoverTitle || seed.title || seed.name || '', btn.dataset.discoverPoster || seed.cover || seed.poster || '', seed);
+}
+window.openGameDiscoverAddSheetFromButton = openGameDiscoverAddSheetFromButton;
+
+function openGameDiscoverAddSheet(rawgId, title, poster, seedOverride = null) {
   const id = String(rawgId || '').trim();
-  /* Pre-build selectedTmdb from the game seed so the save is instant. */
-  const seed = typeof getGameMediaProfileSeed === 'function'
+  /* v10.78: invalidate any stale snapshot left over from a previous Add to
+     Shelf flow that was closed without confirming. Without this, the next
+     `submitModal` call would prefer `addShelfModalSelectionState.item`
+     (stale title) over the freshly-set `window.selectedTmdb` below and save
+     the WRONG game. Only the snapshot is cleared; `selectedTmdb` is set on
+     the very next line, and the DOM/modal state is untouched. */
+  if (typeof window.clearAddShelfModalSelectionStateSnapshot === 'function') {
+    window.clearAddShelfModalSelectionStateSnapshot();
+  }
+  /* Pre-build selectedTmdb from the clicked canonical seed so the save is instant. */
+  let seed = seedOverride && typeof seedOverride === 'object' ? { ...seedOverride } : {};
+  const storedSeed = typeof getGameMediaProfileSeed === 'function'
     ? (getGameMediaProfileSeed(id) || {})
     : {};
+  if (!seed.title && !seed.name) seed = { ...storedSeed, ...seed };
+  const rawgIdValue = typeof getShelfdGameIdentityRawgId === 'function' ? getShelfdGameIdentityRawgId(seed) : String(seed.rawgId || (/^\d+$/.test(id) ? id : '') || '');
+  const igdbIdValue = typeof getShelfdGameIdentityIgdbId === 'function' ? getShelfdGameIdentityIgdbId(seed) : String(seed.igdbId || (id.match(/^igdb:(\d+)$/i)?.[1] || '') || '');
   const resolvedTitle  = String(seed.title || seed.name || title || '');
-  const resolvedPoster = String(seed.poster || seed.cover || seed.background_image || poster || '');
+  const resolvedPoster = String(seed.poster || seed.cover || seed.background_image || seed.igdbCoverUrl || poster || '');
   const genreNames     = (Array.isArray(seed.genres) ? seed.genres : []).map(g => String(g?.name || '')).filter(Boolean);
   const year           = String(seed.released || '').slice(0, 4);
   window.selectedTmdb = {
     title: resolvedTitle,
+    name: resolvedTitle,
     cover: resolvedPoster,
+    poster: resolvedPoster,
+    image: resolvedPoster,
+    background_image: resolvedPoster,
+    igdbCoverUrl: seed.igdbCoverUrl || '',
     genre: genreNames.join(', '),
     genreNames,
     year,
     tmdbId: '',
-    rawgId: id,
-    rawgSlug: seed.rawgSlug || seed.rawgId || id,
+    rawgId: rawgIdValue,
+    igdbId: igdbIdValue,
+    sourceId: seed.sourceId || igdbIdValue || rawgIdValue,
+    gameIdentityKey: seed.gameIdentityKey || seed.shelfdGameIdentityLock?.key || id,
+    rawgSlug: rawgIdValue ? (seed.rawgSlug || seed.slug || '') : '',
+    igdbSlug: seed.igdbSlug || (!rawgIdValue ? seed.slug || '' : ''),
     backloggdSlug: seed.backloggdSlug || '',
     metacriticSlug: seed.metacriticSlug || '',
     metacritic: seed.metacritic || '',
-    source: 'rawg',
+    source: seed.source || (igdbIdValue && !rawgIdValue ? 'igdb' : 'rawg'),
     platforms: (Array.isArray(seed.platforms) ? seed.platforms : [])
-      .map(p => p?.platform?.name || '').filter(Boolean).join(', '),
+      .map(p => typeof p === 'string' ? p : (p?.platform?.name || p?.name || '')).filter(Boolean).join(', '),
     mediaCategory: 'games',
     librarySection: 'games',
     isAnime: false
   };
+  const lock = seed.shelfdGameIdentityLock || (typeof createShelfdGameIdentityLock === 'function' ? createShelfdGameIdentityLock(window.selectedTmdb, '2 discovery game result tapped') : null);
+  if (typeof attachShelfdGameIdentityLock === 'function') attachShelfdGameIdentityLock(window.selectedTmdb, lock);
+  if (typeof traceShelfdGameIdentity === 'function') {
+    traceShelfdGameIdentity('2 game result tapped/add sheet opened', window.selectedTmdb, { routeId: id });
+    traceShelfdGameIdentity('3 selected/current game stored', window.selectedTmdb, { routeId: id });
+  }
   /* Stash the header bits so we can re-render the body when switching levels. */
   window._gameAddSheetCtx = { title: resolvedTitle, poster: resolvedPoster, year };
   /* Remove any stale sheet. */
@@ -8226,6 +10249,20 @@ window._renderGameAddSheetLevel = _renderGameAddSheetLevel;
 
 async function pickGameDiscoverStatus(status) {
   if (!window.selectedTmdb) { _closeGameDiscoverSheet(); return; }
+  /* v10.78: snapshot the selected game LOCALLY before close — so any other
+     code that runs synchronously between here and submitModal cannot mutate
+     the global `window.selectedTmdb` out from under us. The snapshot is
+     passed explicitly as `itemOverride` to submitModal, which is documented
+     as the highest-priority source-of-truth. This is the canonical fix for
+     the Tony-Hawk-saved-as-Burrito-Bison identity-swap bug. */
+  const lockedGame = typeof cloneShelfdGameIdentityValue === 'function'
+    ? cloneShelfdGameIdentityValue(window.selectedTmdb)
+    : { ...window.selectedTmdb };
+  if (typeof attachShelfdGameIdentityLock === 'function') {
+    attachShelfdGameIdentityLock(lockedGame, lockedGame.shelfdGameIdentityLock || (typeof createShelfdGameIdentityLock === 'function' ? createShelfdGameIdentityLock(lockedGame, '6 game rating/status flow') : null));
+  }
+  if (typeof traceShelfdGameIdentity === 'function') traceShelfdGameIdentity('6 game rating/status flow', lockedGame, { status });
+  if (typeof assertShelfdGameIdentity === 'function' && !assertShelfdGameIdentity('before game discover submitModal', lockedGame)) return;
   _closeGameDiscoverSheet();
   const prev = window.activeSection;
   /* v705: with `var activeSection`, this assignment now actually updates the
@@ -8233,7 +10270,7 @@ async function pickGameDiscoverStatus(status) {
   window.activeSection = 'games';
   try {
     if (typeof submitModal === 'function') {
-      const result = await submitModal(status);
+      const result = await submitModal(status, 0, lockedGame);
       if (result?.ok) {
         if (typeof playLibraryAddPopSound === 'function') playLibraryAddPopSound();
         if (typeof showToast === 'function') showToast(result.message || 'Added to your shelf!');

@@ -1208,14 +1208,15 @@ body.light-mode #mylist-view #mylist-toolbar .tabs {
   box-shadow: 0 0 18px currentColor !important;
 }
 
-#community-view #activity-tab-view .card-top-rated::before { background: linear-gradient(#fde68a, #f59e0b) !important; color: #f59e0b !important; }
-#community-view #activity-tab-view .card-top-completed::before { background: linear-gradient(#67e8f9, #06b6d4) !important; color: #06b6d4 !important; }
-#community-view #activity-tab-view .card-top-started::before { background: linear-gradient(#86efac, #22c55e) !important; color: #22c55e !important; }
-#community-view #activity-tab-view .card-top-paused::before { background: linear-gradient(#fdba74, #f97316) !important; color: #f97316 !important; }
-#community-view #activity-tab-view .card-top-dropped::before { background: linear-gradient(#fca5a5, #ef4444) !important; color: #ef4444 !important; }
-#community-view #activity-tab-view .card-top-commented::before { background: linear-gradient(#c4b5fd, #6366f1) !important; color: #6366f1 !important; }
+/* v10.223: colored top-stripe pseudo-elements removed from all activity cards. */
+#community-view #activity-tab-view .card-top-rated::before,
+#community-view #activity-tab-view .card-top-completed::before,
+#community-view #activity-tab-view .card-top-started::before,
+#community-view #activity-tab-view .card-top-paused::before,
+#community-view #activity-tab-view .card-top-dropped::before,
+#community-view #activity-tab-view .card-top-commented::before,
 #community-view #activity-tab-view .card-top-added::before,
-#community-view #activity-tab-view .card-top-planned::before { background: linear-gradient(#ddd6fe, #8b5cf6) !important; color: #8b5cf6 !important; }
+#community-view #activity-tab-view .card-top-planned::before { content: none !important; display: none !important; background: transparent !important; }
 
 #community-view #activity-tab-view .activity-avatar-wrap {
   grid-column: 1 !important;
@@ -2496,6 +2497,7 @@ body.main-tab-community #community-view #ftab-requests {
 }
 
 #activity-tab-view.activity-subtab-transitioning #friend-activity-feed,
+#activity-tab-view.activity-subtab-transitioning #activity-notifications-feed,
 #activity-tab-view.activity-subtab-transitioning #shared-watch-feed {
   display: block !important;
   width: 100% !important;
@@ -2506,6 +2508,7 @@ body.main-tab-community #community-view #ftab-requests {
 }
 
 #activity-tab-view.activity-subtab-transitioning #friend-activity-feed.activity-subtab-leaving,
+#activity-tab-view.activity-subtab-transitioning #activity-notifications-feed.activity-subtab-leaving,
 #activity-tab-view.activity-subtab-transitioning #shared-watch-feed.activity-subtab-leaving {
   position: absolute !important;
   left: 0 !important;
@@ -2516,6 +2519,7 @@ body.main-tab-community #community-view #ftab-requests {
 }
 
 #activity-tab-view.activity-subtab-transitioning #friend-activity-feed.activity-subtab-entering,
+#activity-tab-view.activity-subtab-transitioning #activity-notifications-feed.activity-subtab-entering,
 #activity-tab-view.activity-subtab-transitioning #shared-watch-feed.activity-subtab-entering {
   position: relative !important;
   z-index: 2 !important;

@@ -301,7 +301,11 @@ async function loadCreatorPublicListData() {
   return direct || getEmptyListData();
 }
 
-const SCREENLIST_SECTIONS = ["movies", "shows", "anime", "games", "manga", "books"];
+/* v10.231: replaced "books" with "music" in the My Lists category toggle.
+   Books data array stays in SCREENLIST_SECTIONS for back-compat (no UI surface
+   to view it; safe to leave untouched in stored data). Music gets its own
+   array, single status tab, and "Listened" label. */
+const SCREENLIST_SECTIONS = ["movies", "shows", "anime", "games", "manga", "books", "music"];
 const SCREENLIST_MEDIA_PROFILE_SECTIONS = ["movies", "shows", "anime", "games"];
 
 function getEmptyListData() {
@@ -370,7 +374,9 @@ function getDisplayTitleForItem(item = {}, sectionHint = '') {
 }
 
 function getDefaultTabForSection(section) {
-  return section === "movies" ? "planned" : "watching";
+  if (section === "movies") return "planned";
+  if (section === "music") return "watched"; // music has only one status — "Listened" (stored as 'watched')
+  return "watching";
 }
 
 const SCREENLIST_VISIBLE_STATUS_TABS_BY_SECTION = {
@@ -379,7 +385,12 @@ const SCREENLIST_VISIBLE_STATUS_TABS_BY_SECTION = {
   movies: ['planned', 'watched', 'paused'],
   games: ['watching', 'planned', 'watched', 'wishlist'],
   manga: ['watching', 'planned', 'watched', 'paused'],
-  books: ['watching', 'planned', 'watched', 'paused']
+  books: ['watching', 'planned', 'watched', 'paused'],
+  /* v10.231 / v10.254 / v10.261: music exposes three statuses, in left→right
+     order: "Planned" (storage 'planned'), "In Rotation" (storage 'watching',
+     reusing the active-engagement key), and "Listened" (storage 'watched').
+     The static tabs row reorders the HTML to match this via CSS flex order. */
+  music: ['planned', 'watching', 'watched']
 };
 
 function isVisibleMyListStatusTab(tab = activeTab, section = activeSection) {
@@ -397,14 +408,17 @@ function getMyListStatusLabel(status = '', section = activeSection) {
   if (status === 'wishlist') return section === 'games' ? 'Wishlist' : 'Wishlist';
   if (status === 'watching') {
     if (section === 'games') return 'Playing';
+    if (section === 'music') return 'In Rotation';
     return isReadingSection(section) ? 'Reading' : 'Watching';
   }
   if (status === 'planned') {
     if (section === 'games') return 'Backloggd';
+    if (section === 'music') return 'Planned';
     return isReadingSection(section) ? 'TBR' : 'Watchlist';
   }
   if (status === 'watched') {
     if (section === 'games') return 'Played';
+    if (section === 'music') return 'Listened';
     return isReadingSection(section) ? 'Read' : 'Watched';
   }
   if (status === 'paused') return 'Paused';
@@ -426,6 +440,7 @@ function getSectionLabel(section, singular = false) {
   if (section === "games") return singular ? "game" : "games";
   if (section === "manga") return singular ? "manga" : "manga";
   if (section === "books") return singular ? "book" : "books";
+  if (section === "music") return singular ? "album" : "music";
   return singular ? "show" : "shows";
 }
 
@@ -435,6 +450,7 @@ function getSectionIcon(section) {
   if (section === "games") return "🎮";
   if (section === "manga") return "📚";
   if (section === "books") return "📖";
+  if (section === "music") return "🎵";
   return "📺";
 }
 
@@ -809,7 +825,12 @@ function normalizeListData(source) {
   const normalized = getEmptyListData();
   const input = source && typeof source === 'object' ? source : {};
 
-  ["movies", "games", "manga", "books"].forEach(section => {
+  /* v10.233: include "music" so loaded data always has an array we can push
+     into. Previously music was added to SCREENLIST_SECTIONS but skipped here,
+     leaving data.music undefined for users whose stored payload predates the
+     section — which caused the "Sign in to add album..." prompt to fire even
+     when logged in. */
+  ["movies", "games", "manga", "books", "music"].forEach(section => {
     const items = Array.isArray(input[section]) ? input[section] : [];
     normalized[section] = items
       .map(item => normalizeListEntry(item, section))
@@ -947,6 +968,11 @@ function readOwnLocalBackup(excludeData = null) {
 }
 
 function getOwnDataFirestorePayload(safeData) {
+  /* v10.237: persist the music section to Firestore. Previously the payload
+     enumerated only 6 sections — albums added via the universal search were
+     stored in-memory and to localStorage, but the Firestore write skipped
+     them, so reopening the app (which restores from Firestore as the source
+     of truth) wiped them. */
   return {
     shows: JSON.stringify(safeData.shows),
     movies: JSON.stringify(safeData.movies),
@@ -954,6 +980,7 @@ function getOwnDataFirestorePayload(safeData) {
     games: JSON.stringify(safeData.games),
     manga: JSON.stringify(safeData.manga),
     books: JSON.stringify(safeData.books),
+    music: JSON.stringify(safeData.music || []),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
 }
@@ -965,7 +992,8 @@ function parseOwnFirestoreData(docData = {}) {
     anime: docData.anime ? JSON.parse(docData.anime) : [],
     games: docData.games ? JSON.parse(docData.games) : [],
     manga: docData.manga ? JSON.parse(docData.manga) : [],
-    books: docData.books ? JSON.parse(docData.books) : []
+    books: docData.books ? JSON.parse(docData.books) : [],
+    music: docData.music ? JSON.parse(docData.music) : []
   });
 }
 
@@ -978,7 +1006,8 @@ function getOwnDataFirestorePayloadSizeBytes(safeData = null) {
       anime: payload.anime || '',
       games: payload.games || '',
       manga: payload.manga || '',
-      books: payload.books || ''
+      books: payload.books || '',
+      music: payload.music || ''
     };
     const json = JSON.stringify(serializable);
     if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(json).length;

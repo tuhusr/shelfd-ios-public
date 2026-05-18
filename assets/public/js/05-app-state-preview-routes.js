@@ -31,6 +31,19 @@ const SORT_OPTIONS = [
   { key: 'custom',            label: 'Custom Order' },
 ];
 
+/* v10.259: music-only sort options — three keys with revolving tap-toggle
+   direction. Tap once: ascending. Tap again: descending. Tap again: asc.
+   No explicit asc/desc row needed; the option itself carries an arrow that
+   flips on re-tap. */
+const MUSIC_SORT_OPTIONS = [
+  { key: 'release-year',   label: 'Year' },
+  { key: 'title-az',       label: 'Title' },
+  { key: 'artist-az',      label: 'Artist' },
+  /* v10.261: two more music sort keys. Defaults wired per-tab below. */
+  { key: 'recently-added', label: 'Date Added' },
+  { key: 'last-edited',    label: 'Recently Edited' },
+];
+
 // v435: Games-only sort options. Removed Popularity, Trending, Avg Play Time,
 // Avg Finish Time. Added Total Hours (sorts by user's logged playtime). Renamed
 // "When Added" → "Date Added" (key stays `recently-added` for compat).
@@ -50,6 +63,8 @@ const LAST_EDITED_SORT_SECTIONS = new Set(['games', 'shows', 'anime']);
 
 function normalizeSortDirection(value = '') { return value === 'asc' ? 'asc' : 'desc'; }
 function getSortOptionsForSection(section = activeSection) {
+  /* v10.259: music section uses its own three-option list. */
+  if (section === 'music') return [...MUSIC_SORT_OPTIONS];
   const base = section === 'games' ? GAME_SORT_OPTIONS : SORT_OPTIONS;
   let next = [...base];
   if (WATCHLIST_PRIORITY_SECTIONS.has(section) && activeTab === 'planned' && !next.some(option => option.key === 'watchlist-priority')) {
@@ -72,6 +87,9 @@ function getDefaultSortDirectionFor(sortKey = getActiveSortKey()) {
     case 'release-oldest':
     case 'avg-play-time':
     case 'avg-finish-time':
+    /* v10.259: music sort defaults all open ascending per spec. */
+    case 'release-year':
+    case 'artist-az':
       return 'asc';
     default:
       return 'desc';
@@ -146,6 +164,17 @@ function getDefaultSortKeyFor(section = activeSection, tab = activeTab) {
   if (WISHLIST_PRIORITY_SECTIONS.has(normalizedSection) && normalizedTab === 'wishlist') {
     return 'watchlist-priority';
   }
+  /* v10.259 / v10.261: music per-tab defaults.
+     - Planned     → "Date Added"      (recently-added, desc → newest first)
+     - In Rotation → "Recently Edited" (last-edited, desc → most recent first)
+     - Listened    → "Recently Edited" (last-edited, desc → most recent first)
+     - Fallback    → "Year". */
+  if (normalizedSection === 'music') {
+    if (normalizedTab === 'planned') return 'recently-added';
+    if (normalizedTab === 'watching') return 'last-edited';
+    if (normalizedTab === 'watched') return 'last-edited';
+    return 'release-year';
+  }
   /* v690: Watched (shows/movies/anime) and Played (games) default to
      last-edited — most-recently-touched first. "Last edited" falls back
      to dateAdded when no lastEditedAt is set, so it covers "last added"
@@ -168,8 +197,26 @@ function getActiveSortKey() {
 function setSortOrder(key) {
   const stateKey = getSortStateKey();
   const previousKey = sessionSortState[stateKey] || getDefaultSortKeyFor();
+  /* v10.259: music section uses a revolving tap-toggle. Tapping the same
+     option again flips the direction (asc ↔ desc) and re-opens the dropdown
+     so the user can keep tapping. Switching to a different option resets
+     direction to ascending. */
+  const isMusic = activeSection === 'music';
+  if (isMusic && previousKey === key) {
+    const currentDir = getActiveSortDirection(stateKey, key);
+    sessionSortDirectionState[stateKey] = currentDir === 'asc' ? 'desc' : 'asc';
+    clearLastEditedResortHold(stateKey);
+    render();
+    /* Re-render the dropdown so the arrow next to the active option flips. */
+    closeSortDropdown();
+    toggleSortDropdown(null);
+    return;
+  }
   sessionSortState[stateKey] = key;
-  if (previousKey !== key) sessionSortDirectionState[stateKey] = getDefaultSortDirectionFor(key);
+  if (previousKey !== key) {
+    /* On music, force asc on new selection so first tap always reads "asc". */
+    sessionSortDirectionState[stateKey] = isMusic ? 'asc' : getDefaultSortDirectionFor(key);
+  }
   clearLastEditedResortHold(stateKey);
   if (key === 'custom' && !sessionCustomOrder[stateKey]) {
     const visibleData = getVisibleListData();
@@ -178,6 +225,14 @@ function setSortOrder(key) {
       return i.status === activeTab;
     });
     sessionCustomOrder[stateKey] = applySortOrder(items, getDefaultSortKeyFor(), stateKey).map(getSortItemKey);
+  }
+  if (isMusic) {
+    render();
+    /* Keep the dropdown open + re-render to show the arrow next to the
+       new selection. */
+    closeSortDropdown();
+    toggleSortDropdown(null);
+    return;
   }
   closeSortDropdown();
   render();
@@ -243,6 +298,20 @@ function applySortOrder(items, sortKey, stateKey) {
       break;
     case 'release-oldest':
       arr.sort((a, b) => (parseInt(a.year) || 0) - (parseInt(b.year) || 0));
+      break;
+    /* v10.259: music year sort. Ascending (default) = oldest first; the
+       direction-flip pass below reverses for descending. Pulls year from
+       item.year first, then releaseDate as fallback. */
+    case 'release-year':
+      arr.sort((a, b) => {
+        const ay = parseInt(a.year || (a.releaseDate ? String(a.releaseDate).slice(0,4) : 0), 10) || 0;
+        const by = parseInt(b.year || (b.releaseDate ? String(b.releaseDate).slice(0,4) : 0), 10) || 0;
+        return ay - by;
+      });
+      break;
+    /* v10.259: artist A–Z sort (music only). */
+    case 'artist-az':
+      arr.sort((a, b) => String(a.artist || '').localeCompare(String(b.artist || ''), undefined, { sensitivity: 'base' }));
       break;
     case 'last-played':
       // v430: also read lastPlayedAt (Steam import sets this from rtime_last_played).
@@ -324,27 +393,37 @@ function closeSortDropdown() {
 }
 
 function toggleSortDropdown(e) {
-  if (e) e.stopPropagation();
+  if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
   const existing = document.getElementById('sort-dropdown-menu');
   if (existing) { existing.remove(); return; }
   const btn = document.getElementById('sort-dropdown-btn');
   if (!btn) return;
   const activeSortKey = getActiveSortKey();
   const activeDirection = getActiveSortDirection(getSortStateKey(), activeSortKey);
+  const isMusic = activeSection === 'music';
   const menu = document.createElement('div');
   menu.id = 'sort-dropdown-menu';
-  menu.className = 'sort-dropdown-menu';
-  const directionBtn = document.createElement('button');
-  directionBtn.className = 'sort-direction-toggle';
-  directionBtn.type = 'button';
-  directionBtn.innerHTML = `<span>${activeDirection === 'asc' ? 'Ascending' : 'Descending'}</span><strong>${activeDirection === 'asc' ? '↑' : '↓'}</strong>`;
-  directionBtn.onclick = toggleSortDirection;
-  menu.appendChild(directionBtn);
+  menu.className = 'sort-dropdown-menu' + (isMusic ? ' sort-dropdown-menu--music' : '');
+  /* v10.259: music section has no separate Asc/Desc toggle — each option
+     carries the current direction arrow when active, and tapping the same
+     option flips it. */
+  if (!isMusic) {
+    const directionBtn = document.createElement('button');
+    directionBtn.className = 'sort-direction-toggle';
+    directionBtn.type = 'button';
+    directionBtn.innerHTML = `<span>${activeDirection === 'asc' ? 'Ascending' : 'Descending'}</span><strong>${activeDirection === 'asc' ? '↑' : '↓'}</strong>`;
+    directionBtn.onclick = toggleSortDirection;
+    menu.appendChild(directionBtn);
+  }
   const sortOptions = getSortOptionsForSection(activeSection);
   sortOptions.forEach(opt => {
     const el = document.createElement('button');
     el.className = 'sort-dropdown-item' + (opt.key === activeSortKey ? ' active' : '');
-    el.textContent = opt.label;
+    if (isMusic && opt.key === activeSortKey) {
+      el.innerHTML = `<span>${opt.label}</span><span class="sort-dropdown-arrow" aria-hidden="true">${activeDirection === 'asc' ? '↑' : '↓'}</span>`;
+    } else {
+      el.textContent = opt.label;
+    }
     el.onclick = () => setSortOrder(opt.key);
     menu.appendChild(el);
   });
@@ -353,6 +432,8 @@ function toggleSortDropdown(e) {
   menu.style.top = (rect.bottom + window.scrollY + 4) + 'px';
   const rightOffset = window.innerWidth - rect.right;
   menu.style.right = rightOffset + 'px';
+  /* v10.259: on music, dropdown stays open across taps (revolving toggle).
+     The outside-click handler still closes it when the user taps elsewhere. */
   setTimeout(() => document.addEventListener('click', closeSortDropdown, { once: true }), 0);
 }
 

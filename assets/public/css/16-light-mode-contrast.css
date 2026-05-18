@@ -1082,6 +1082,272 @@ body.true-dark-mode #mylist-view .mylist-own-profile-shortcut {
   color: transparent !important;
 }
 
+/* v10.135: Activity Notifications tab + true-dark notification rows. */
+#activity-tab-view #friend-activity-feed,
+#activity-tab-view #activity-notifications-feed,
+#activity-tab-view #shared-watch-feed {
+  touch-action: pan-y pinch-zoom !important;
+}
+
+#activity-tab-view .activity-feed-actions .activity-shared-watch-pill {
+  pointer-events: auto !important;
+}
+
+#community-view.activity-subtab-notifications #feed-composer {
+  display: none !important;
+}
+
+#activity-notifications-feed {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.activity-notifications-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 2px 0 18px;
+  max-height: calc(100dvh - 230px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.activity-notifications-shell::-webkit-scrollbar { display: none; }
+
+.activity-notification-row {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 48px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(196, 181, 253, 0.11);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(18, 20, 24, 0.96), rgba(9, 10, 13, 0.98));
+  color: #f4f1ff;
+  text-align: left;
+  font-family: 'Söhne', 'Sohne', 'DM Sans', sans-serif;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+}
+
+.activity-notification-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 0 999px 999px 0;
+  background: rgba(167, 139, 250, 0.5);
+  opacity: 0.42;
+}
+
+.activity-notification-row.unread {
+  border-color: rgba(167, 139, 250, 0.24);
+  background: linear-gradient(135deg, rgba(25, 26, 33, 0.98), rgba(11, 12, 16, 0.98));
+}
+
+.activity-notification-row.unread::before {
+  opacity: 1;
+}
+
+.activity-notification-row.accent-like::before { background: #c4b5fd; }
+.activity-notification-row.accent-comment::before { background: #7fdde9; }
+
+.activity-notification-row:active {
+  transform: scale(0.985);
+}
+
+.activity-notification-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(167, 139, 250, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #c4b5fd;
+  font-size: 15px;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px rgba(196, 181, 253, 0.14);
+}
+
+.activity-notification-avatar img,
+.activity-notification-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.activity-notification-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.activity-notification-text {
+  color: #f7f3ff;
+  font-size: 13.5px;
+  line-height: 1.28;
+  font-weight: 520;
+  letter-spacing: -0.01em;
+}
+
+.activity-notification-row.read .activity-notification-text {
+  color: rgba(247, 243, 255, 0.74);
+  font-weight: 460;
+}
+
+.activity-notification-snippet {
+  max-width: 100%;
+  color: rgba(225, 219, 243, 0.62);
+  font-size: 12px;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-notification-time {
+  color: rgba(196, 181, 253, 0.62);
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 520;
+}
+
+.activity-notification-thumb {
+  width: 48px;
+  height: 60px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(196, 181, 253, 0.72);
+  font-size: 16px;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.activity-notifications-empty,
+.activity-notifications-loading {
+  margin: 10px 0 0;
+  padding: 28px 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(196, 181, 253, 0.12);
+  background: rgba(12, 13, 16, 0.92);
+  color: rgba(225, 219, 243, 0.64);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  align-items: center;
+  text-align: center;
+  font-family: 'Söhne', 'Sohne', 'DM Sans', sans-serif;
+}
+
+.activity-notifications-empty strong {
+  color: #f7f3ff;
+  font-size: 16px;
+  line-height: 1.15;
+  font-weight: 650;
+}
+
+.activity-notifications-empty span,
+.activity-notifications-loading {
+  font-size: 13px;
+  line-height: 1.42;
+}
+
+@media (max-width: 430px) {
+  #activity-tab-view .activity-feed-actions {
+    gap: 6px !important;
+  }
+
+  #activity-tab-view .activity-shared-watch-pill {
+    padding-left: 5px !important;
+    padding-right: 5px !important;
+    font-size: 12px !important;
+  }
+
+  .activity-notification-row {
+    grid-template-columns: 40px minmax(0, 1fr) 44px;
+    gap: 10px;
+    padding: 11px;
+  }
+
+  .activity-notification-avatar {
+    width: 40px;
+    height: 40px;
+  }
+
+  .activity-notification-thumb {
+    width: 44px;
+    height: 56px;
+  }
+}
+
+body.main-tab-mylist .mylist-rating-duel-header-btn {
+  display: none !important;
+}
+
+.mylist-profile-action-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+  margin-top: 8px !important;
+  flex-wrap: wrap !important;
+}
+
+.mylist-profile-action-btn {
+  min-width: 112px !important;
+  min-height: 34px !important;
+  padding: 0 14px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  background: rgba(255,255,255,0.045) !important;
+  color: rgba(248,246,252,0.92) !important;
+  box-shadow: none !important;
+  font-family: 'Sohne', 'Söhne', 'DM Sans', sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+  cursor: pointer !important;
+  -webkit-tap-highlight-color: transparent !important;
+  touch-action: manipulation !important;
+}
+
+.mylist-profile-action-btn:active {
+  transform: translate3d(0, 1px, 0) !important;
+}
+
+.mylist-profile-action-btn--game {
+  border-color: rgba(74, 222, 128, 0.26) !important;
+  background: linear-gradient(135deg, rgba(28, 127, 67, 0.88) 0%, rgba(18, 97, 51, 0.92) 100%) !important;
+  color: #ffffff !important;
+}
+
+.mylist-profile-action-btn--tier {
+  border-color: rgba(183,164,255,0.28) !important;
+  background: rgba(183,164,255,0.14) !important;
+  color: #efe9ff !important;
+}
+
 /* -- 5. Cards ? no border, let the tone shift carry it -- */
 body.true-dark-mode #mylist-view .card {
   box-shadow: none !important;
@@ -1691,11 +1957,28 @@ body.true-dark-mode #modal.modal-overlay {
 
 body.true-dark-mode #modal .add-title-modal {
   position: fixed !important;
+  /* v10.63: explicit top/right/bottom/left in addition to `inset: 0` so iOS
+     versions that don't parse the `inset` shorthand still anchor full-viewport. */
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
   inset: 0 !important;
   width: 100% !important;
   max-width: 100% !important;
+  /* v10.63: `100dvh` was added in iOS Safari 15.4. On older iOS (PWA on iOS
+     14.x or 15.0–15.3), those three declarations were rejected by the CSS
+     parser, leaving the modal with no defined height. The inner flex chain
+     (`.add-shelf-step-shell` → `.add-shelf-step-scroll`, which uses
+     `flex: 1 1 auto; overflow-y: auto`) needs a constrained parent height
+     to scroll — without it the Confirm panel rendered below the viewport
+     with no way to reach it. The `100vh` lines below are the fallback that
+     older iOS keeps; the `100dvh` lines override on modern iOS. */
+  height: 100vh !important;
   height: 100dvh !important;
+  max-height: 100vh !important;
   max-height: 100dvh !important;
+  min-height: 100vh !important;
   min-height: 100dvh !important;
   border-radius: 0 !important;
   background: #0E0E0E !important;
@@ -2244,6 +2527,901 @@ body.true-dark-mode #modal .tmdb-result-meta {
   display: none !important;
 }
 
+/* v10.52: Shelfd Add to Shelf full-screen mobile flow redesign. */
+body.true-dark-mode #modal.modal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 3900 !important;
+  background: #050506 !important;
+  align-items: stretch !important;
+  justify-content: stretch !important;
+  overflow: hidden !important;
+  touch-action: none !important;
+}
+body.true-dark-mode #modal .add-title-modal {
+  --shelf-surface: #101013;
+  --shelf-surface-2: #17171b;
+  --shelf-line: rgba(255,255,255,0.08);
+  --shelf-muted: rgba(235,232,244,0.56);
+  --shelf-text: #f6f4fb;
+  --shelf-accent: #b7a4ff;
+  position: fixed !important;
+  /* v10.63: explicit top/right/bottom/left so older iOS that doesn't parse
+     the `inset` shorthand still anchors the modal to the full viewport. */
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  max-width: none !important;
+  max-height: none !important;
+  /* v10.63: `100dvh` is iOS 15.4+. On older iOS the modal had no defined
+     height and the inner Confirm panel rendered below the viewport with no
+     scroll path (parent has overflow: hidden). The `100vh` lines below are
+     the fallback the older parser keeps; modern iOS uses the `100dvh` ones. */
+  height: 100vh !important;
+  height: 100dvh !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.035), transparent 145px),
+    #050506 !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+  touch-action: none !important;
+  animation: addShelfSlideUp 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both !important;
+}
+body.true-dark-mode #modal .add-shelf-close-btn {
+  position: absolute !important;
+  top: calc(env(safe-area-inset-top, 0px) + 12px) !important;
+  right: 14px !important;
+  z-index: 3 !important;
+  min-width: 54px !important;
+  height: 34px !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,0.05) !important;
+  color: rgba(246,244,251,0.84) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
+  line-height: 1 !important;
+}
+body.true-dark-mode #modal .add-title-modal h3 {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  margin: calc(env(safe-area-inset-top, 0px) + 16px) 72px 14px 16px !important;
+  padding: 0 !important;
+  color: var(--shelf-text) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 30px !important;
+  font-weight: 760 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.04 !important;
+  text-align: left !important;
+}
+body.true-dark-mode #modal #api-key-section {
+  flex: 0 0 auto !important;
+  padding: 0 16px !important;
+}
+body.true-dark-mode #modal .api-key-row {
+  margin: 0 0 10px !important;
+  gap: 8px !important;
+}
+body.true-dark-mode #modal #tmdb-search-area {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  padding: 0 16px 0 !important;
+  overflow: hidden !important;
+  touch-action: pan-y !important;
+}
+body.true-dark-mode #modal .cover-search-row {
+  order: 0 !important;
+  flex: 0 0 auto !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 8px !important;
+  align-items: center !important;
+  margin: 0 0 12px !important;
+}
+body.true-dark-mode #modal #inp-tmdb-search {
+  height: 52px !important;
+  min-height: 52px !important;
+  padding: 0 16px !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  border-radius: 16px !important;
+  background: #111114 !important;
+  color: var(--shelf-text) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 520 !important;
+  letter-spacing: 0 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03) !important;
+}
+body.true-dark-mode #modal #inp-tmdb-search:focus {
+  border-color: rgba(183,164,255,0.64) !important;
+  box-shadow: 0 0 0 3px rgba(183,164,255,0.12), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+}
+body.true-dark-mode #modal #inp-tmdb-search::placeholder {
+  color: rgba(235,232,244,0.38) !important;
+}
+body.true-dark-mode #modal .cover-search-row .btn-primary {
+  width: 52px !important;
+  min-width: 52px !important;
+  height: 52px !important;
+  min-height: 52px !important;
+  padding: 0 !important;
+  border: 1px solid rgba(183,164,255,0.34) !important;
+  border-radius: 16px !important;
+  background: rgba(183,164,255,0.16) !important;
+  color: #f7f2ff !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 0 !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .cover-search-row .btn-primary::before {
+  content: 'Go';
+  font-size: 13px !important;
+  font-weight: 720 !important;
+  line-height: 1 !important;
+}
+body.true-dark-mode #modal .shelf-filter-pills {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  gap: 7px !important;
+  margin: 0 -16px !important;
+  padding: 0 16px 12px !important;
+  overflow-x: auto !important;
+  scrollbar-width: none !important;
+  touch-action: pan-x !important;
+}
+body.true-dark-mode #modal .shelf-filter-pill {
+  min-height: 32px !important;
+  padding: 0 13px !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,0.035) !important;
+  color: rgba(235,232,244,0.62) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 620 !important;
+  letter-spacing: 0 !important;
+}
+body.true-dark-mode #modal .shelf-filter-pill.active {
+  border-color: rgba(183,164,255,0.42) !important;
+  background: rgba(183,164,255,0.16) !important;
+  color: #efeaff !important;
+}
+body.true-dark-mode #modal #tmdb-results {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  margin: 0 -16px !important;
+  padding: 4px 16px calc(env(safe-area-inset-bottom, 0px) + 24px) !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+  scroll-padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px) !important;
+  touch-action: pan-y !important;
+}
+body.true-dark-mode #modal .tmdb-results {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 9px !important;
+  padding: 0 !important;
+}
+body.true-dark-mode #modal .tmdb-result {
+  min-height: 86px !important;
+  display: grid !important;
+  grid-template-columns: 52px minmax(0, 1fr) !important;
+  gap: 12px !important;
+  align-items: center !important;
+  padding: 8px !important;
+  border: 1px solid rgba(255,255,255,0.07) !important;
+  border-radius: 16px !important;
+  background: rgba(255,255,255,0.035) !important;
+  overflow: hidden !important;
+  transition: transform 140ms ease, opacity 140ms ease, background 140ms ease !important;
+}
+body.true-dark-mode #modal .tmdb-result:active {
+  opacity: 0.86 !important;
+  transform: scale(0.985) !important;
+  background: rgba(183,164,255,0.08) !important;
+}
+body.true-dark-mode #modal .tmdb-result img {
+  width: 52px !important;
+  height: 76px !important;
+  aspect-ratio: auto !important;
+  object-fit: cover !important;
+  border-radius: 9px !important;
+  background: #19191d !important;
+}
+body.true-dark-mode #modal .tmdb-result-info {
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  padding: 0 !important;
+}
+body.true-dark-mode #modal .tmdb-result-title {
+  color: var(--shelf-text) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 15px !important;
+  font-weight: 650 !important;
+  line-height: 1.22 !important;
+  letter-spacing: 0 !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+body.true-dark-mode #modal .shelf-result-badge {
+  width: fit-content !important;
+  min-height: 21px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 0 8px !important;
+  border: 1px solid rgba(183,164,255,0.20) !important;
+  border-radius: 999px !important;
+  background: rgba(183,164,255,0.10) !important;
+  color: rgba(225,216,255,0.86) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 10px !important;
+  font-weight: 680 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+body.true-dark-mode #modal .tmdb-result-meta,
+body.true-dark-mode #modal .cover-search-msg {
+  color: var(--shelf-muted) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  line-height: 1.35 !important;
+}
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection h3,
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection #tmdb-selected-area,
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection #modal-status-picker,
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection .modal-actions {
+  width: 100% !important;
+  max-width: none !important;
+  align-self: stretch !important;
+}
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection h3 {
+  margin: calc(env(safe-area-inset-top, 0px) + 16px) 72px 0 16px !important;
+  text-align: left !important;
+}
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection #tmdb-selected-area {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  align-self: stretch !important;
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+}
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection #modal-status-picker {
+  flex: 1 1 auto !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  align-self: stretch !important;
+}
+body.true-dark-mode #modal #tmdb-selected-area,
+body.true-dark-mode #modal #modal-status-picker {
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  touch-action: pan-y !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-card,
+body.true-dark-mode #modal .modal-status-confirm,
+body.true-dark-mode #modal .add-shelf-rating-prompt,
+body.true-dark-mode #modal .add-shelf-success-panel {
+  border: 1px solid rgba(255,255,255,0.075) !important;
+  border-radius: 18px !important;
+  background: var(--shelf-surface) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.035), 0 18px 36px rgba(0,0,0,0.20) !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-card {
+  display: grid !important;
+  grid-template-columns: 82px minmax(0, 1fr) !important;
+  gap: 14px !important;
+  padding: 12px !important;
+  margin: 0 0 12px !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-poster-wrap {
+  width: 82px !important;
+  border-radius: 12px !important;
+  background: #19191d !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-info {
+  justify-content: center !important;
+  gap: 8px !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-kicker,
+body.true-dark-mode #modal .modal-status-label {
+  color: rgba(183,164,255,0.78) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 680 !important;
+  letter-spacing: 0 !important;
+  line-height: 1 !important;
+  text-transform: none !important;
+}
+body.true-dark-mode #modal .tmdb-selected-title {
+  color: var(--shelf-text) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 21px !important;
+  font-weight: 720 !important;
+  line-height: 1.12 !important;
+  letter-spacing: 0 !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-chip,
+body.true-dark-mode #modal .add-shelf-confirm-chip {
+  min-height: 25px !important;
+  padding: 0 9px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  background: rgba(255,255,255,0.045) !important;
+  color: rgba(246,244,251,0.82) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 620 !important;
+  letter-spacing: 0 !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-line,
+body.true-dark-mode #modal .add-shelf-confirm-readout,
+body.true-dark-mode #modal .modal-status-confirm-copy,
+body.true-dark-mode #modal .discover-rating-prompt .discover-add-desc,
+body.true-dark-mode #modal .modal-status-subtitle {
+  color: var(--shelf-muted) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 1.36 !important;
+  letter-spacing: 0 !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-clear {
+  width: fit-content !important;
+  margin-top: 0 !important;
+  color: var(--shelf-accent) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
+}
+body.true-dark-mode #modal .modal-status-picker {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  margin: 0 auto !important;
+}
+body.true-dark-mode #modal .modal-status-head {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 5px !important;
+}
+body.true-dark-mode #modal .modal-status-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 9px !important;
+}
+body.true-dark-mode #modal .modal-status-btn {
+  min-height: 52px !important;
+  padding: 0 12px !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 14px !important;
+  background: var(--shelf-surface-2) !important;
+  color: var(--shelf-text) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
+  box-shadow: none !important;
+  transition: transform 140ms ease, background 140ms ease, border-color 140ms ease !important;
+}
+body.true-dark-mode #modal .modal-status-btn:active {
+  transform: scale(0.985) !important;
+  border-color: rgba(183,164,255,0.36) !important;
+  background: rgba(183,164,255,0.11) !important;
+}
+body.true-dark-mode #modal .modal-status-confirm,
+body.true-dark-mode #modal .add-shelf-rating-prompt,
+body.true-dark-mode #modal .add-shelf-success-panel {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 13px !important;
+  padding: 18px !important;
+  text-align: left !important;
+}
+body.true-dark-mode #modal .modal-status-confirm-title {
+  color: var(--shelf-text) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 21px !important;
+  font-weight: 720 !important;
+  line-height: 1.12 !important;
+  letter-spacing: 0 !important;
+}
+body.true-dark-mode #modal .add-shelf-confirm-summary {
+  justify-content: flex-start !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-prompt .discover-rating-stars {
+  justify-content: center !important;
+  margin: 12px 0 8px !important;
+  gap: 5px !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-prompt .star-btn {
+  font-size: 30px !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-prompt .star-label {
+  color: #fbbf24 !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
+}
+body.true-dark-mode #modal .modal-status-confirm-actions {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 9px !important;
+}
+body.true-dark-mode #modal .add-shelf-step-panel--rating .modal-status-confirm-actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+body.true-dark-mode #modal .modal-status-confirm-actions .btn-secondary,
+body.true-dark-mode #modal .modal-status-confirm-actions .btn-primary,
+body.true-dark-mode #modal .modal-actions .btn-secondary {
+  min-height: 46px !important;
+  border-radius: 14px !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
+  line-height: 1 !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .modal-status-confirm-actions .btn-primary {
+  border: 1px solid rgba(183,164,255,0.38) !important;
+  background: rgba(183,164,255,0.18) !important;
+  color: #f7f2ff !important;
+}
+body.true-dark-mode #modal .modal-status-confirm-actions .btn-secondary,
+body.true-dark-mode #modal .modal-actions .btn-secondary {
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  background: rgba(255,255,255,0.04) !important;
+  color: rgba(246,244,251,0.74) !important;
+}
+body.true-dark-mode #modal .add-shelf-success-panel {
+  align-items: center !important;
+  text-align: center !important;
+  margin-top: 10px !important;
+  animation: addShelfStepIn 220ms ease both !important;
+}
+body.true-dark-mode #modal .add-shelf-success-mark {
+  width: 44px !important;
+  height: 44px !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 50% !important;
+  background: rgba(34,211,238,0.12) !important;
+  border: 1px solid rgba(34,211,238,0.24) !important;
+  color: #7deeff !important;
+  font-size: 23px !important;
+  line-height: 1 !important;
+}
+body.true-dark-mode #modal .add-shelf-search-flash {
+  margin: 0 0 10px !important;
+  padding: 11px 13px !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(34,211,238,0.20) !important;
+  background: rgba(34,211,238,0.08) !important;
+  color: #d9fbff !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 620 !important;
+  letter-spacing: 0 !important;
+}
+body.true-dark-mode #modal .modal-actions {
+  display: none !important;
+}
+body.true-dark-mode #modal #modal-status-picker {
+  display: none !important;
+}
+body.true-dark-mode #modal .add-title-modal:not([data-add-shelf-step="search"]) h3 {
+  display: none !important;
+}
+body.add-shelf-modal-open #mobile-bottom-nav,
+body.add-shelf-modal-open .mobile-bottom-nav {
+  display: none !important;
+}
+body.add-shelf-modal-open,
+body.add-shelf-modal-open #app-container,
+body.add-shelf-modal-open #mobile-bottom-nav,
+body.add-shelf-modal-open .mobile-bottom-nav {
+  background: #050506 !important;
+}
+body.add-shelf-modal-open #mobile-bottom-nav,
+body.add-shelf-modal-open .mobile-bottom-nav {
+  border-color: #050506 !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  justify-content: flex-start !important;
+  align-items: stretch !important;
+}
+body.true-dark-mode #modal .add-shelf-step-topbar {
+  display: grid !important;
+  grid-template-columns: 56px minmax(0, 1fr) 56px !important;
+  align-items: start !important;
+  gap: 10px !important;
+  padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px 10px !important;
+}
+body.true-dark-mode #modal .add-shelf-step-back,
+body.true-dark-mode #modal .add-shelf-step-back-spacer,
+body.true-dark-mode #modal .add-shelf-step-topbar-spacer {
+  width: 56px !important;
+  min-width: 56px !important;
+}
+body.true-dark-mode #modal .add-shelf-step-back {
+  min-height: 34px !important;
+  padding: 0 !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,0.04) !important;
+  color: rgba(246,244,251,0.78) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  line-height: 1 !important;
+}
+body.true-dark-mode #modal .add-shelf-step-heading {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 5px !important;
+  min-width: 0 !important;
+  text-align: center !important;
+}
+body.true-dark-mode #modal .add-shelf-step-kicker {
+  color: rgba(183,164,255,0.8) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.12em !important;
+  line-height: 1 !important;
+  text-transform: uppercase !important;
+}
+body.true-dark-mode #modal .add-shelf-step-title {
+  color: #f6f4fb !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 25px !important;
+  font-weight: 760 !important;
+  letter-spacing: -0.03em !important;
+  line-height: 1.04 !important;
+}
+body.true-dark-mode #modal .add-shelf-step-subtitle {
+  color: rgba(235,232,244,0.58) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 1.38 !important;
+}
+body.true-dark-mode #modal .add-shelf-step-scroll {
+  flex: 1 1 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  align-items: stretch !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  padding: 0 16px calc(env(safe-area-inset-bottom, 0px) + 20px) !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-hero {
+  display: grid !important;
+  grid-template-columns: 108px minmax(0, 1fr) !important;
+  gap: 14px !important;
+  padding: 16px !important;
+  border: 1px solid rgba(255,255,255,0.075) !important;
+  border-radius: 22px !important;
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.028)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.035), 0 18px 36px rgba(0,0,0,0.20) !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-hero .add-shelf-selected-poster-wrap {
+  width: 108px !important;
+  aspect-ratio: 2 / 3 !important;
+  border-radius: 16px !important;
+  background: #19191d !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-hero .add-shelf-selected-info {
+  justify-content: center !important;
+  gap: 9px !important;
+}
+body.true-dark-mode #modal .add-shelf-step-panel {
+  margin-top: 14px !important;
+  padding: 18px !important;
+  border: 1px solid rgba(255,255,255,0.075) !important;
+  border-radius: 22px !important;
+  background: #101013 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.035), 0 18px 36px rgba(0,0,0,0.18) !important;
+}
+body.true-dark-mode #modal .add-shelf-choice-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+}
+body.true-dark-mode #modal .add-shelf-choice-btn {
+  min-height: 58px !important;
+  border-radius: 16px !important;
+  background: rgba(255,255,255,0.04) !important;
+}
+body.true-dark-mode #modal .add-shelf-step-panel--success {
+  padding: 20px !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .add-shelf-step-scroll {
+  gap: 12px !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .add-shelf-selected-hero {
+  gap: 12px !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .add-shelf-selected-hero .add-shelf-selected-poster-wrap {
+  width: 92px !important;
+  border-radius: 14px !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .add-shelf-selected-hero .add-shelf-selected-info {
+  gap: 7px !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .add-shelf-selected-kicker {
+  color: rgba(183,164,255,0.72) !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .tmdb-selected-title {
+  font-size: 19px !important;
+  line-height: 1.08 !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .add-shelf-selected-line {
+  font-size: 12px !important;
+  line-height: 1.3 !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .add-shelf-step-panel,
+body.true-dark-mode #modal .add-shelf-step-shell--rating .add-shelf-rating-prompt {
+  margin-top: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-flow {
+  gap: 14px !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-copy {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 5px !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-kicker {
+  color: rgba(183,164,255,0.8) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 680 !important;
+  letter-spacing: 0.08em !important;
+  line-height: 1 !important;
+  text-transform: uppercase !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-readout {
+  color: rgba(246,244,251,0.92) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 650 !important;
+  line-height: 1.18 !important;
+  letter-spacing: 0 !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-desc {
+  color: rgba(235,232,244,0.5) !important;
+  font-size: 12px !important;
+}
+/* v10.68: Success step — strip the same chrome as the Review step so the
+   "Added to library" view reads clean. The check-mark circle is boosted in
+   size (44px -> 64px) and given a slightly stronger ring + glow, since
+   without the outer card frame it becomes the visual anchor of the page. */
+body.true-dark-mode #modal .add-shelf-step-shell--success .add-shelf-selected-hero {
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--success .add-shelf-step-panel,
+body.true-dark-mode #modal .add-shelf-step-shell--success .add-shelf-step-panel--success {
+  margin-top: 28px !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--success .add-shelf-selected-chip,
+body.true-dark-mode #modal .add-shelf-step-shell--success .add-shelf-confirm-chip {
+  border: none !important;
+  background: rgba(255,255,255,0.05) !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--success .add-shelf-success-panel {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+  gap: 14px !important;
+  padding: 0 !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--success .add-shelf-success-mark {
+  width: 64px !important;
+  height: 64px !important;
+  border-radius: 50% !important;
+  background: rgba(34,211,238,0.14) !important;
+  border: 1px solid rgba(34,211,238,0.34) !important;
+  box-shadow: 0 0 0 6px rgba(34,211,238,0.06), 0 10px 28px rgba(34,211,238,0.16) !important;
+  color: #7deeff !important;
+  font-size: 32px !important;
+  line-height: 1 !important;
+  display: grid !important;
+  place-items: center !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--success .add-shelf-success-panel .modal-status-confirm-title {
+  margin: 4px 0 0 !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--success .add-shelf-success-panel .modal-status-confirm-copy {
+  max-width: 320px !important;
+}
+
+/* v10.67: Review (final confirm) step — strip ALL card chrome (borders,
+   backgrounds, shadows) per user request. Keep ONLY the Back/Confirm
+   buttons styled. Hero, chips, and panel become flat content on the page. */
+body.true-dark-mode #modal .add-shelf-step-shell--confirm .add-shelf-selected-hero {
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--confirm .add-shelf-step-panel,
+body.true-dark-mode #modal .add-shelf-step-shell--confirm .modal-status-confirm,
+body.true-dark-mode #modal .add-shelf-step-shell--confirm .add-shelf-confirm-panel {
+  margin-top: 14px !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--confirm .add-shelf-selected-chip,
+body.true-dark-mode #modal .add-shelf-step-shell--confirm .add-shelf-confirm-chip {
+  border: none !important;
+  background: rgba(255,255,255,0.05) !important;
+}
+
+body.true-dark-mode #modal .add-shelf-step-shell--rating .discover-rating-stars {
+  display: grid !important;
+  grid-template-columns: repeat(10, minmax(0, 1fr)) !important;
+  align-items: center !important;
+  justify-items: center !important;
+  gap: 2px !important;
+  width: 100% !important;
+  margin: 2px 0 0 !important;
+  padding: 0 !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .stars.rating-scale-five {
+  gap: 2px !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .discover-rating-stars .star-btn {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 42px !important;
+  padding: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  font-size: clamp(24px, 7vw, 30px) !important;
+  line-height: 1 !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .stars.rating-scale-five .star-btn.half-step {
+  width: 100% !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .discover-rating-stars .star-label {
+  grid-column: 1 / -1 !important;
+  justify-self: center !important;
+  margin: 2px 0 0 !important;
+  min-width: 0 !important;
+  color: #f2bb53 !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  text-align: center !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-actions {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  margin-top: 2px !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-actions .btn-secondary,
+body.true-dark-mode #modal .add-shelf-rating-actions .btn-primary {
+  min-height: 40px !important;
+  padding: 0 16px !important;
+  border-radius: 12px !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  line-height: 1 !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-actions .btn-secondary {
+  min-width: 82px !important;
+  background: rgba(255,255,255,0.035) !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-actions .btn-primary {
+  min-width: 102px !important;
+  background: rgba(183,164,255,0.2) !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-actions .btn-primary[disabled] {
+  opacity: 0.42 !important;
+}
+body.true-dark-mode #modal .add-title-modal[data-add-shelf-step="status"] #tmdb-selected-area,
+body.true-dark-mode #modal .add-title-modal[data-add-shelf-step="rating"] #tmdb-selected-area,
+body.true-dark-mode #modal .add-title-modal[data-add-shelf-step="confirm"] #tmdb-selected-area,
+body.true-dark-mode #modal .add-title-modal[data-add-shelf-step="success"] #tmdb-selected-area {
+  animation: addShelfStepIn 220ms ease both !important;
+}
+@keyframes addShelfStepIn {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@media (min-width: 720px) {
+  body.true-dark-mode #modal .add-title-modal {
+    padding-left: max(22px, calc((100vw - 560px) / 2)) !important;
+    padding-right: max(22px, calc((100vw - 560px) / 2)) !important;
+  }
+}
+@media (max-width: 430px) {
+  body.true-dark-mode #modal .add-title-modal h3 {
+    font-size: 28px !important;
+  }
+  body.true-dark-mode #modal .modal-status-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
 /* =============================================================
    v529: activity card type-scale tweaks + creator/creative-team
    tag pill removal.
@@ -2777,6 +3955,9 @@ body.true-dark-mode #discover-view .discover-card {
   border-radius: 14px !important;
   overflow: hidden !important;
 }
+body.true-dark-mode #discover-view .discover-card:not(.discover-card-expanded) {
+  border-radius: 3px !important;
+}
 
 /* Hide trailer-popup square (top right of poster) */
 body.true-dark-mode #discover-view .discover-expand-icon,
@@ -2794,10 +3975,17 @@ body.true-dark-mode #discover-view .discover-card .discover-card-body {
   padding-bottom: 8px !important;
 }
 
-/* ========== Activity action row shift +20px right ========== */
+/* ========== Activity action row metadata alignment ========== */
 body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-bottom-safe,
 body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-bottom-safe {
-  padding-left: clamp(69px, calc(8.4vw + 20px), 84px) !important;
+  padding-left: calc(clamp(37px, 6.5vw, 46px) + clamp(8px, 1.3vw, 12px) - 3px) !important;
+}
+
+@media (max-width: 560px) {
+  body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-bottom-safe,
+  body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-bottom-safe {
+    padding-left: 50px !important;
+  }
 }
 
 /* ========== My Lists ========== */
@@ -2823,9 +4011,13 @@ body.true-dark-mode #mylist-view .status-pill:not(.watching-active):not(.planned
   color: rgba(255,255,255,0.55) !important;
 }
 
-/* Hide episode % indicator on far right of progress meta row */
-body.true-dark-mode #mylist-view [id^="progress-percent-"] {
+/* Hide only the legacy episode % indicator inside the old progress meta row.
+   The new inline bar-row percent for TV/Anime Watching/Paused must stay visible. */
+body.true-dark-mode #mylist-view .progress-meta > [id^="progress-percent-"] {
   display: none !important;
+}
+body.true-dark-mode #mylist-view .progress-bar-row > .progress-percent-inline {
+  display: block !important;
 }
 
 /* v549: revert v547 action-row centering (it broke Comments + WT+ layout).
@@ -2871,6 +4063,14 @@ body.true-dark-mode #mylist-view .card-genre,
   font-weight: 400 !important;
   opacity: 0.45 !important;
 }
+body.true-dark-mode #mylist-view .games-wishlist-card .games-wishlist-card-genre,
+#mylist-view .games-wishlist-card .games-wishlist-card-genre,
+body.true-dark-mode #mylist-view .games-wishlist-card .games-wishlist-card-platforms,
+#mylist-view .games-wishlist-card .games-wishlist-card-platforms {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  opacity: 0.58 !important;
+}
 body.true-dark-mode #mylist-view .card-release-date,
 #mylist-view .card-release-date,
 body.true-dark-mode #mylist-view .mylist-availability-release-date,
@@ -2891,7 +4091,9 @@ body.true-dark-mode #mylist-view .mylist-availability-where-text,
 body.true-dark-mode #mylist-view .progress-meta,
 body.true-dark-mode #mylist-view .progress-meta span,
 #mylist-view .progress-meta,
-#mylist-view .progress-meta span {
+#mylist-view .progress-meta span,
+body.true-dark-mode #mylist-view .progress-percent-inline,
+#mylist-view .progress-percent-inline {
   font-size: 11px !important;
   font-weight: 400 !important;
 }
@@ -2900,7 +4102,8 @@ body.true-dark-mode #mylist-view .progress-meta span,
 /* Episode count "3/17 episodes" ? 11px 300 */
 body.true-dark-mode #mylist-view .progress-meta,
 body.true-dark-mode #mylist-view .progress-meta span,
-body.true-dark-mode #mylist-view .progress-meta span:last-child {
+body.true-dark-mode #mylist-view .progress-meta span:last-child,
+body.true-dark-mode #mylist-view .progress-percent-inline {
   font-size: 11px !important;
   font-weight: 300 !important;
 }
@@ -3236,9 +4439,11 @@ body.true-dark-mode .discover-card .discover-card-rating-value {
     padding: 6px 6px !important;
     /* v653: glassy frosted blur ? stands out slightly from the page
        behind it without overpowering the content. */
-    background: rgba(24, 28, 32, 0.62) !important;
-    backdrop-filter: blur(22px) saturate(1.4) !important;
-    -webkit-backdrop-filter: blur(22px) saturate(1.4) !important;
+    /* v950: was `blur(22px) saturate(1.4)` — capped to 10px and dropped saturate (2× GPU op).
+       Bumped rgba alpha from 0.62 -> 0.72 so the bottom nav still reads opaque on iPhone. */
+    background: rgba(24, 28, 32, 0.72) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
     border: 1px solid rgba(196, 181, 253, 0.10) !important;
     box-shadow: 0 8px 28px rgba(0, 0, 0, 0.34) !important;
   }
@@ -3289,6 +4494,92 @@ body .mobile-bottom-nav .nav-search-btn[aria-pressed="true"] {
   color: #ffffff !important;
   background: rgba(139,92,246,0.12) !important;
   box-shadow: inset 0 0 0 1px rgba(196,181,253,0.14) !important;
+}
+.mobile-bottom-nav .bottom-nav-icon-btn,
+#mobile-bottom-nav .bottom-nav-icon-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: rgba(231, 226, 244, 0.72) !important;
+  -webkit-tap-highlight-color: transparent;
+}
+.mobile-bottom-nav .bottom-nav-icon-btn.active,
+#mobile-bottom-nav .bottom-nav-icon-btn.active {
+  color: #ffffff !important;
+}
+.mobile-bottom-nav #mobile-nav-mylist,
+#mobile-bottom-nav #mobile-nav-mylist {
+  color: #f5d27a !important;
+}
+.mobile-bottom-nav #mobile-nav-mylist.active,
+#mobile-bottom-nav #mobile-nav-mylist.active {
+  color: #fde68a !important;
+}
+.bottom-nav-icon {
+  display: block !important;
+  width: 23px !important;
+  height: 23px !important;
+  flex: 0 0 auto !important;
+  background: currentColor !important;
+  opacity: 0.96;
+  pointer-events: none !important;
+  transform: translateZ(0);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+.bottom-nav-icon-discover {
+  -webkit-mask-image: url('/bottom-nav-icons/discover.svg');
+  mask-image: url('/bottom-nav-icons/discover.svg');
+}
+.bottom-nav-icon-activity {
+  -webkit-mask-image: url('/bottom-nav-icons/activity.svg');
+  mask-image: url('/bottom-nav-icons/activity.svg');
+}
+.bottom-nav-icon-search {
+  width: 23px !important;
+  height: 23px !important;
+  -webkit-mask-image: url('/bottom-nav-icons/circle-plus.svg');
+  mask-image: url('/bottom-nav-icons/circle-plus.svg');
+}
+.bottom-nav-icon-friends {
+  -webkit-mask-image: url('/bottom-nav-icons/friends.svg');
+  mask-image: url('/bottom-nav-icons/friends.svg');
+}
+.bottom-nav-icon-mylist {
+  width: 24px !important;
+  height: 24px !important;
+  -webkit-mask-image: url('/bottom-nav-icons/my-lists.svg');
+  mask-image: url('/bottom-nav-icons/my-lists.svg');
+}
+body .mobile-bottom-nav .nav-search-btn,
+body #mobile-bottom-nav .nav-search-btn {
+  color: rgba(216, 207, 243, 0.88) !important;
+}
+body .mobile-bottom-nav .nav-search-btn.active,
+body .mobile-bottom-nav .nav-search-btn[aria-pressed="true"],
+body #mobile-bottom-nav .nav-search-btn.active,
+body #mobile-bottom-nav .nav-search-btn[aria-pressed="true"] {
+  color: #ffffff !important;
+}
+body.light-mode .mobile-bottom-nav .bottom-nav-icon-btn,
+body.light-mode #mobile-bottom-nav .bottom-nav-icon-btn {
+  color: rgba(62, 50, 90, 0.70) !important;
+}
+body.light-mode .mobile-bottom-nav .bottom-nav-icon-btn.active,
+body.light-mode #mobile-bottom-nav .bottom-nav-icon-btn.active {
+  color: #4c1d95 !important;
+}
+body.light-mode .mobile-bottom-nav #mobile-nav-mylist,
+body.light-mode #mobile-bottom-nav #mobile-nav-mylist {
+  color: #a16207 !important;
+}
+body.light-mode .mobile-bottom-nav #mobile-nav-mylist.active,
+body.light-mode #mobile-bottom-nav #mobile-nav-mylist.active {
+  color: #b45309 !important;
 }
 .nav-search-icon {
   width: 22px !important;
@@ -3398,6 +4689,75 @@ body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activ
 body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.activity-feed-pill.secondary,
 body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.shared-watch-tab-pill.secondary {
   color: rgba(255,255,255,0.51) !important;
+}
+
+/* v10.136: keep the three Activity section tabs on one clean mobile row. */
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-feed-header {
+  width: 100% !important;
+  align-items: center !important;
+}
+
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-feed-actions {
+  width: min(100%, 680px) !important;
+  max-width: 100% !important;
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  align-items: end !important;
+  justify-content: stretch !important;
+  gap: clamp(4px, 1.4vw, 10px) !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  white-space: nowrap !important;
+  flex-wrap: nowrap !important;
+}
+
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill,
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.activity-feed-pill,
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.notifications-tab-pill,
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.shared-watch-tab-pill,
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.activity-feed-pill.active,
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.notifications-tab-pill.active,
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.shared-watch-tab-pill.active {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  min-height: 34px !important;
+  padding: 0 2px 7px !important;
+  border-radius: 0 !important;
+  border: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-size: clamp(11px, 3.05vw, 13px) !important;
+  font-weight: 650 !important;
+  line-height: 1 !important;
+  letter-spacing: -0.03em !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.active {
+  border-bottom-color: rgba(167,139,250,0.9) !important;
+}
+
+@media (max-width: 380px) {
+  body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-feed-actions {
+    gap: 3px !important;
+  }
+
+  body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill,
+  body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.activity-feed-pill,
+  body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.notifications-tab-pill,
+  body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.shared-watch-tab-pill {
+    font-size: 10.6px !important;
+    letter-spacing: -0.045em !important;
+  }
 }
 
 body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .shared-watch-dashboard-people strong,
@@ -3675,8 +5035,8 @@ body.light-mode .activity-feed-load-more-btn:hover {
   gap: 8px;
   padding: 10px 12px 8px;
   background: linear-gradient(180deg, #181c20 0%, rgba(24,28,32,0.92) 88%, rgba(24,28,32,0) 100%);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 .shelfd-search-back-btn {
   appearance: none;
@@ -3711,10 +5071,30 @@ body.light-mode .activity-feed-load-more-btn:hover {
   height: 40px;
   transition: border-color 160ms ease, background 160ms ease, box-shadow 200ms ease;
 }
-.shelfd-search-input-wrap:focus-within {
-  background: rgba(255,255,255,0.08);
-  border-color: rgba(196,181,253,0.32);
-  box-shadow: 0 0 0 3px rgba(139,92,246,0.16);
+/* v10.70: focus-within visual feedback removed per user — was adding a
+   lavender `box-shadow: 0 0 0 3px rgba(139,92,246,0.16)` ring (the
+   "rectangular box" the user saw around the search pill on tap), plus a
+   subtle background/border shift. Caret + keyboard already make focus
+   obvious; no extra outline needed.
+
+   v10.71: turns out that wasn't the only ring. The `<input>` itself also
+   inherited a lavender 3px ring from two GLOBAL rules in 05-messages-early-
+   polish.css:
+     - L1780  `input:focus, .comment-textarea:focus { box-shadow: 0 0 0 3px rgba(139,92,246,0.12); ... }`
+     - L2373  `*:focus-visible { box-shadow: 0 0 0 3px rgba(139,92,246,0.22), 0 0 0 1px rgba(196,181,253,0.42); ... }`
+   The shadow is rectangular (the <input> has border-radius: 0), but the
+   surrounding wrap is a pill (border-radius: 999px), so the shadow extends
+   past the pill curves and reads as a "rectangular box around the search
+   field" — exactly what the user reported.
+   Three targeted overrides below kill ALL focus chrome on the search input
+   (selector specificity 0,3,2 > the global 0,1,1 and 0,1,0). */
+body.true-dark-mode .shelfd-search-input:focus,
+body.true-dark-mode .shelfd-search-input:focus-visible,
+body.true-dark-mode .shelfd-search-input:focus-within {
+  outline: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  background: transparent !important;
 }
 .shelfd-search-input-icon {
   position: absolute;
@@ -4063,6 +5443,19 @@ body.light-mode .shelfd-search-browse-icon {
   align-self: center;
   object-position: center 20%;
 }
+/* v10.236: music + artist rows always render the cover/avatar as a 1:1
+   square — album art and artist photos should never be cropped to portrait. */
+.shelfd-search-row[data-row-kind="music"] .shelfd-search-row-poster,
+.shelfd-search-row[data-row-kind="artist"] .shelfd-search-row-poster {
+  width: 72px !important;
+  height: 72px !important;
+  border-radius: 0 !important;
+  align-self: center !important;
+  object-fit: cover !important;
+}
+.shelfd-search-row[data-row-kind="artist"] .shelfd-search-row-poster {
+  border-radius: 50% !important;
+}
 .shelfd-search-row-body {
   display: flex;
   flex-direction: column;
@@ -4171,6 +5564,741 @@ body.light-mode .shelfd-search-browse-icon {
   max-width: 280px;
 }
 
+/* =============================================================
+   v10.145: Full Page Universal Search preset discovery hub.
+   Scoped to the bottom-nav search page; uses transform-only right
+   slide panels and compact 3-card title grids.
+   ============================================================= */
+
+.shelfd-search-page-inner {
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.shelfd-search-body {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* v10.215: stop iOS rubber-band from fighting pull-down-to-dismiss
+     once the user reaches scrollTop = 0 */
+  overscroll-behavior-y: contain;
+}
+
+.shelfd-search-preset-section {
+  margin: 2px 0 24px;
+}
+
+.shelfd-search-preset-hero {
+  margin: 2px 0 12px;
+  padding: 18px 16px 16px;
+  border-radius: 24px;
+  border: 1px solid rgba(196,181,253,0.13);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(196,181,253,0.18), transparent 38%),
+    linear-gradient(145deg, rgba(255,255,255,0.075), rgba(255,255,255,0.026));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+.shelfd-search-preset-kicker,
+.shelfd-search-preset-panel-heading span,
+.shelfd-search-preset-minihead {
+  display: block;
+  color: #c4b5fd;
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.shelfd-search-preset-hero h3 {
+  margin: 8px 0 6px;
+  color: #fff;
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif;
+  font-size: clamp(24px, 8vw, 34px);
+  line-height: 0.96;
+  letter-spacing: -0.045em;
+}
+
+.shelfd-search-preset-hero p {
+  margin: 0;
+  color: rgba(232,227,243,0.68);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.shelfd-search-preset-list,
+.shelfd-search-preset-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shelfd-search-preset-card,
+.shelfd-search-preset-option {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  border: 1px solid rgba(196,181,253,0.11);
+  background: rgba(255,255,255,0.045);
+  color: #fff;
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 150ms cubic-bezier(.22,1,.36,1), border-color 180ms ease, background 180ms ease;
+}
+
+.shelfd-search-preset-card {
+  min-height: 70px;
+  border-radius: 18px;
+  padding: 12px 12px;
+  display: grid;
+  grid-template-columns: 42px minmax(0,1fr) 18px;
+  align-items: center;
+  gap: 11px;
+}
+
+.shelfd-search-preset-card:active,
+.shelfd-search-preset-option:active,
+.shelfd-search-preset-title-card:active {
+  transform: scale(0.985);
+}
+
+.shelfd-search-preset-card:hover,
+.shelfd-search-preset-option:hover {
+  background: rgba(139,92,246,0.10);
+  border-color: rgba(196,181,253,0.28);
+}
+
+.shelfd-search-preset-card.is-locked {
+  background: rgba(255,255,255,0.03);
+}
+
+.shelfd-search-preset-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #d8b4fe;
+  background: rgba(139,92,246,0.13);
+  border: 1px solid rgba(196,181,253,0.16);
+}
+
+.shelfd-search-preset-icon svg,
+.shelfd-search-preset-disabled-note svg,
+.shelfd-search-preset-locked-state svg {
+  width: 20px;
+  height: 20px;
+}
+
+.shelfd-search-preset-copy,
+.shelfd-search-preset-option span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.shelfd-search-preset-title,
+.shelfd-search-preset-option strong {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+}
+
+.shelfd-search-preset-subtitle,
+.shelfd-search-preset-option small {
+  color: rgba(232,227,243,0.58);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.28;
+}
+
+.shelfd-search-preset-arrow,
+.shelfd-search-preset-option-arrow {
+  color: rgba(232,227,243,0.36);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.shelfd-search-preset-stack {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.shelfd-search-preset-stack.is-open {
+  pointer-events: auto;
+}
+
+.shelfd-search-preset-panel {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(139,92,246,0.15), transparent 38%),
+    #05040d;
+  transform: translate3d(104%,0,0);
+  transition: transform 300ms cubic-bezier(.16,1,.3,1);
+  will-change: transform;
+  box-shadow: -20px 0 55px rgba(0,0,0,0.34);
+}
+
+.shelfd-search-preset-panel.is-active {
+  transform: translate3d(0,0,0);
+}
+
+.shelfd-search-preset-panel.is-under {
+  transform: translate3d(-10%,0,0);
+}
+
+.shelfd-search-preset-panel.is-exiting {
+  transform: translate3d(104%,0,0);
+}
+
+.shelfd-search-preset-panel-inner {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: max(8px, env(safe-area-inset-top, 0px)) 14px calc(28px + env(safe-area-inset-bottom, 0px));
+}
+
+.shelfd-search-preset-panel-topbar {
+  z-index: 3;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  align-items: center;
+  gap: 8px;
+  min-height: 56px;
+  padding: 4px 0 8px;
+  background: linear-gradient(180deg, #05040d 72%, rgba(5,4,13,0));
+}
+
+.shelfd-search-preset-back {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  border: 1px solid rgba(196,181,253,0.12);
+  background: rgba(255,255,255,0.055);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shelfd-search-preset-back svg {
+  width: 18px;
+  height: 18px;
+}
+
+.shelfd-search-preset-panel-heading {
+  min-width: 0;
+  text-align: center;
+}
+
+.shelfd-search-preset-panel-heading strong {
+  display: block;
+  margin-top: 2px;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 850;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shelfd-search-preset-panel-subtitle {
+  margin: 0 4px 14px;
+  color: rgba(232,227,243,0.62);
+  font-size: 12.5px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.shelfd-search-preset-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.shelfd-search-preset-minihead {
+  margin: 4px 4px 10px;
+}
+
+.shelfd-search-preset-option {
+  min-height: 58px;
+  border-radius: 16px;
+  padding: 11px 12px;
+  display: grid;
+  grid-template-columns: minmax(0,1fr) 18px;
+  align-items: center;
+  gap: 10px;
+}
+
+.shelfd-search-preset-option.is-disabled,
+.shelfd-search-preset-option:disabled {
+  opacity: 0.52;
+  cursor: default;
+}
+
+.shelfd-search-preset-disabled-note,
+.shelfd-search-preset-locked-state {
+  margin-top: 14px;
+  border: 1px solid rgba(251,191,36,0.18);
+  background: rgba(251,191,36,0.055);
+  border-radius: 18px;
+  color: rgba(255,244,214,0.92);
+}
+
+.shelfd-search-preset-disabled-note {
+  display: grid;
+  grid-template-columns: 30px minmax(0,1fr);
+  gap: 10px;
+  padding: 13px;
+}
+
+.shelfd-search-preset-disabled-note svg,
+.shelfd-search-preset-locked-state svg {
+  color: #facc15;
+}
+
+.shelfd-search-preset-disabled-note span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.shelfd-search-preset-disabled-note strong,
+.shelfd-search-preset-locked-state strong {
+  color: #fde68a;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.shelfd-search-preset-disabled-note small,
+.shelfd-search-preset-locked-state p {
+  color: rgba(255,244,214,0.66);
+  font-size: 12px;
+  line-height: 1.38;
+}
+
+.shelfd-search-preset-locked-state {
+  min-height: 240px;
+  padding: 28px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+}
+
+.shelfd-search-preset-locked-state svg {
+  width: 34px;
+  height: 34px;
+}
+
+.shelfd-search-preset-locked-state p {
+  margin: 0;
+  max-width: 270px;
+}
+
+.shelfd-search-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 9px;
+  padding: 2px 0 10px;
+}
+
+.shelfd-search-preset-title-card {
+  appearance: none;
+  -webkit-appearance: none;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #fff;
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 150ms cubic-bezier(.22,1,.36,1);
+}
+
+.shelfd-search-preset-poster {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 3px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.055);
+  border: 1px solid rgba(196,181,253,0.12);
+}
+
+.shelfd-search-preset-poster img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.shelfd-search-preset-rating {
+  position: absolute;
+  left: 5px;
+  bottom: 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 19px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.72);
+  color: #facc15;
+  font-size: 10px;
+  font-weight: 850;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.shelfd-search-preset-card-title {
+  display: block;
+  min-width: 0;
+  margin-top: 6px;
+  color: rgba(255,255,255,0.92);
+  font-size: 11.5px;
+  font-weight: 750;
+  line-height: 1.18;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shelfd-search-preset-card-meta {
+  display: block;
+  min-width: 0;
+  margin-top: 2px;
+  color: rgba(232,227,243,0.48);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shelfd-search-preset-empty-state {
+  margin: 42px auto;
+  max-width: 280px;
+  color: rgba(232,227,243,0.58);
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.shelfd-search-preset-card-skeleton {
+  min-width: 0;
+}
+
+.shelfd-search-preset-card-skeleton span,
+.shelfd-search-preset-card-skeleton i {
+  display: block;
+  background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.09), rgba(255,255,255,0.05));
+  background-size: 200% 100%;
+  animation: shelfdSearchShimmer 1.4s ease-in-out infinite;
+}
+
+.shelfd-search-preset-card-skeleton span {
+  aspect-ratio: 2 / 3;
+  border-radius: 8px;
+}
+
+.shelfd-search-preset-card-skeleton i {
+  width: 82%;
+  height: 10px;
+  margin-top: 7px;
+  border-radius: 999px;
+}
+
+/* v10.146: Shelfdline visual pass for bottom-nav search presets.
+   Removes the legacy icon-card presentation and matches the flat
+   Discovery Search / Filter UI language: text rows, dividers, small chevrons. */
+.shelfd-search-preset-hero,
+.shelfd-search-preset-icon,
+.shelfd-search-preset-linehead,
+.shelfd-search-preset-summary,
+.shelfd-search-preset-option small {
+  display: none !important;
+}
+
+.shelfd-search-preset-section {
+  margin: 0 0 28px !important;
+}
+
+.shelfd-search-preset-linehead {
+  margin: 2px 0 0 !important;
+  padding: 2px 4px 12px !important;
+  border-bottom: 1px solid rgba(232,227,243,0.14) !important;
+}
+
+.shelfd-search-preset-linehead span {
+  display: block !important;
+  color: rgba(248,244,255,0.42) !important;
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 850 !important;
+  letter-spacing: 0.18em !important;
+  line-height: 1 !important;
+  text-transform: uppercase !important;
+}
+
+.shelfd-search-preset-linehead h3 {
+  margin: 8px 0 0 !important;
+  color: #ffffff !important;
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif !important;
+  font-size: 26px !important;
+  font-weight: 850 !important;
+  letter-spacing: -0.035em !important;
+  line-height: 1 !important;
+}
+
+.shelfd-search-preset-list,
+.shelfd-search-preset-options {
+  gap: 0 !important;
+}
+
+.shelfd-search-preset-card,
+.shelfd-search-preset-option {
+  min-height: 64px !important;
+  padding: 0 4px !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(232,227,243,0.13) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 22px !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.shelfd-search-preset-card:hover,
+.shelfd-search-preset-option:hover {
+  background: transparent !important;
+  border-color: rgba(232,227,243,0.13) !important;
+}
+
+.shelfd-search-preset-card:active,
+.shelfd-search-preset-option:active {
+  transform: translate3d(0,1px,0) !important;
+}
+
+.shelfd-search-preset-copy {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: baseline !important;
+  gap: 12px !important;
+  min-width: 0 !important;
+}
+
+.shelfd-search-preset-title,
+.shelfd-search-preset-option strong {
+  color: #ffffff !important;
+  font-size: 16.1px !important;
+  font-weight: 620 !important;
+  line-height: 1.12 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.shelfd-search-preset-title.is-lock-title {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.shelfd-search-preset-title.is-lock-title svg {
+  width: 14px !important;
+  height: 14px !important;
+  flex: 0 0 auto !important;
+  color: #c4b5fd !important;
+}
+
+.shelfd-search-preset-summary,
+.shelfd-search-preset-option small {
+  justify-self: end !important;
+  max-width: 42vw !important;
+  overflow: hidden !important;
+  color: rgba(248,244,255,0.40) !important;
+  font-size: 12px !important;
+  font-weight: 720 !important;
+  line-height: 1.15 !important;
+  text-align: right !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.shelfd-search-preset-arrow,
+.shelfd-search-preset-option-arrow {
+  color: #c4b5fd !important;
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif !important;
+  font-size: 26px !important;
+  font-style: normal !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  text-align: right !important;
+}
+
+.shelfd-search-preset-card.is-locked {
+  opacity: 0.82 !important;
+}
+
+.shelfd-search-preset-card.is-locked .shelfd-search-preset-summary {
+  color: rgba(196,181,253,0.62) !important;
+}
+
+.shelfd-search-preset-panel {
+  background: #181c20 !important;
+  box-shadow: none !important;
+}
+
+.shelfd-search-preset-panel-inner {
+  padding: max(10px, calc(env(safe-area-inset-top, 0px) + 8px)) 18px calc(28px + env(safe-area-inset-bottom, 0px)) !important;
+  overflow: hidden !important;
+}
+
+.shelfd-search-preset-panel-topbar {
+  min-height: 70px !important;
+  padding: 0 0 14px !important;
+  border-bottom: 1px solid rgba(232,227,243,0.14) !important;
+  background: #181c20 !important;
+}
+
+.shelfd-search-preset-back {
+  width: 44px !important;
+  height: 44px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #c4b5fd !important;
+  box-shadow: none !important;
+}
+
+.shelfd-search-preset-panel-heading {
+  text-align: center !important;
+}
+
+.shelfd-search-preset-panel-heading span {
+  color: rgba(248,244,255,0.42) !important;
+}
+
+.shelfd-search-preset-panel-heading strong {
+  color: #ffffff !important;
+  font-size: 26px !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.035em !important;
+}
+
+.shelfd-search-preset-panel-subtitle {
+  display: none !important;
+}
+
+.shelfd-search-preset-panel-body {
+  padding-top: 14px !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+.shelfd-search-preset-option span {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: baseline !important;
+  gap: 12px !important;
+}
+
+.shelfd-search-preset-flat-note {
+  padding: 22px 4px !important;
+  border-bottom: 1px solid rgba(232,227,243,0.13) !important;
+  color: rgba(248,244,255,0.58) !important;
+}
+
+.shelfd-search-preset-flat-note strong {
+  display: block !important;
+  margin-bottom: 8px !important;
+  color: #ffffff !important;
+  font-size: 18px !important;
+  font-weight: 620 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.shelfd-search-preset-flat-note span {
+  display: block !important;
+  color: rgba(248,244,255,0.52) !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+}
+
+.shelfd-search-premium-notice {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 85 !important;
+  pointer-events: none !important;
+}
+
+.shelfd-search-premium-notice.is-open {
+  pointer-events: auto !important;
+}
+
+.shelfd-search-premium-notice-backdrop {
+  width: 100% !important;
+  height: 100% !important;
+  border: 0 !important;
+  padding: 24px !important;
+  background: rgba(5, 7, 10, 0.54) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  opacity: 0 !important;
+  transition: opacity 180ms ease !important;
+}
+
+.shelfd-search-premium-notice.is-open .shelfd-search-premium-notice-backdrop {
+  opacity: 1 !important;
+}
+
+.shelfd-search-premium-notice-card {
+  width: min(320px, calc(100vw - 42px)) !important;
+  padding: 18px 20px !important;
+  border: 1px solid rgba(196,181,253,0.18) !important;
+  border-radius: 22px !important;
+  background: #181c20 !important;
+  box-shadow: 0 22px 60px rgba(0,0,0,0.34) !important;
+  color: #ffffff !important;
+  transform: translate3d(0, 10px, 0) scale(0.98) !important;
+  transition: transform 180ms ease !important;
+}
+
+.shelfd-search-premium-notice.is-open .shelfd-search-premium-notice-card {
+  transform: translate3d(0, 0, 0) scale(1) !important;
+}
+
+.shelfd-search-premium-notice-copy {
+  display: block !important;
+  color: #ffffff !important;
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  line-height: 1.42 !important;
+  letter-spacing: -0.015em !important;
+  text-align: center !important;
+}
+
 /* ---------- Animations ---------- */
 @keyframes shelfdSearchRowIn {
   from { opacity: 0; transform: translateY(8px); }
@@ -4271,7 +6399,9 @@ body.light-mode .shelfd-search-noresults strong { color: #111111; }
   margin: 18px auto 22px;
   filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.32));
   transition: filter 200ms cubic-bezier(0.22, 1, 0.36, 1), transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: filter, transform;
+  /* v950: dropped `filter` from will-change — filter is non-compositable; only
+     transform benefits from the layer hint. */
+  will-change: transform;
 }
 .gis-signin-target:hover {
   filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.40));
@@ -4823,6 +6953,9 @@ body.true-dark-mode #games-discover-view .discover-card {
   box-shadow: none !important;
   border-radius: 14px !important;
   overflow: hidden !important;
+}
+body.true-dark-mode #games-discover-view .discover-card:not(.discover-card-expanded) {
+  border-radius: 3px !important;
 }
 body.true-dark-mode #games-discover-view .discover-card .discover-card-body {
   background: transparent !important;
@@ -5623,7 +7756,7 @@ body.light-mode .anime-discover-type-btn.active {
   min-width: 0;
   /* v688: paper-white border 1px, 30% opacity. */
   border: 1px solid rgba(248, 244, 255, 0.30);
-  border-radius: 10px;
+  border-radius: 3px;
   padding: 8px;
   background: rgba(255, 255, 255, 0.025);
 }
@@ -5637,7 +7770,7 @@ body.light-mode .anime-seasonal-card {
 .anime-seasonal-card-poster {
   position: relative;
   aspect-ratio: 2 / 3;
-  border-radius: 8px;
+  border-radius: 3px 3px 0 0;
   overflow: hidden;
   background: rgba(255,255,255,0.05);
   cursor: pointer;
@@ -5964,8 +8097,8 @@ body.light-mode .sas-back-btn:active {
 .direct-messages-topbar {
   background: rgba(5,4,16,0.86) !important;
   border-bottom: 1px solid rgba(167,139,250,0.14) !important;
-  backdrop-filter: blur(26px) !important;
-  -webkit-backdrop-filter: blur(26px) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
 }
 .direct-messages-close {
   background: rgba(255,255,255,0.055) !important;
@@ -5985,8 +8118,8 @@ body.light-mode .sas-back-btn:active {
   position: relative !important;
   overflow: hidden !important;
   box-shadow: 0 10px 28px rgba(0,0,0,0.22), inset 0 0 0 1px rgba(255,255,255,0.03) !important;
-  backdrop-filter: blur(14px) !important;
-  -webkit-backdrop-filter: blur(14px) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
   transition:
     background 0.15s ease,
     border-color 0.15s ease,
@@ -6216,9 +8349,9 @@ body.light-mode .sas-back-btn:active {
 
 /* -- DM: Thread head ? sticky user bar in chat view ------------------- */
 .direct-messages-page .dm-thread-head {
-  background: rgba(5,4,16,0.90) !important;
-  backdrop-filter: blur(24px) !important;
-  -webkit-backdrop-filter: blur(24px) !important;
+  /* v950: dropped `backdrop-filter: blur(24px)` — element is position:sticky,
+     so Safari was rasterizing blur every scroll frame. rgba 0.90 -> 0.94 keeps the look. */
+  background: rgba(5,4,16,0.94) !important;
   border-bottom: 1px solid rgba(167,139,250,0.12) !important;
 }
 
@@ -6379,15 +8512,16 @@ body.light-mode .direct-messages-page .dm-action-sent {
   align-items: flex-end;
   justify-content: center;
   background: transparent;
-  transition: background 0.28s ease, backdrop-filter 0.28s ease;
-  -webkit-backdrop-filter: blur(0px);
-  backdrop-filter: blur(0px);
+  /* v950: dropped `backdrop-filter 0.28s` animation — animating GPU blur on a
+     full-viewport overlay is one of the most expensive things you can do on iPhone.
+     Now: open/close just toggles a fixed blur and the background fade does the work. */
+  transition: background 0.28s ease;
   pointer-events: none;
 }
 .profile-social-overlay.profile-social-open {
   background: rgba(0,0,0,0.64);
-  -webkit-backdrop-filter: blur(16px);
-  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   pointer-events: auto;
 }
 
@@ -7217,26 +9351,25 @@ body.light-mode .profile-social-state-spinner {
 
 /* -- Thread head ----------------------------------------------------- */
 #direct-messages-page .dm-thread-head {
-  background: rgba(8,6,28,0.96) !important;
+  /* v950: dropped blur — sticky element, was rasterizing on every scroll frame.
+     rgba 0.96 alpha already reads opaque. */
+  background: rgba(8,6,28,0.97) !important;
   border-bottom: 1px solid rgba(255,255,255,0.07) !important;
-  backdrop-filter: blur(24px) !important;
-  -webkit-backdrop-filter: blur(24px) !important;
 }
 
 /* v921: Direct Messages true-dark redesign
    Keeps behavior intact, replaces the last legacy-looking layer with
    the same cleaner true-dark language used elsewhere in the app. */
 #direct-messages-page {
-  background:
-    radial-gradient(circle at top, rgba(120, 119, 198, 0.12), transparent 34%),
-    linear-gradient(180deg, #07080d 0%, #0b0d12 42%, #090b10 100%) !important;
+  background: #0E0E0E !important;
 }
 #direct-messages-page .direct-messages-topbar {
-  background: linear-gradient(180deg, rgba(10, 12, 18, 0.96), rgba(10, 12, 18, 0.82)) !important;
-  border-bottom: 1px solid rgba(255,255,255,0.06) !important;
-  backdrop-filter: blur(26px) saturate(120%) !important;
-  -webkit-backdrop-filter: blur(26px) saturate(120%) !important;
-  box-shadow: 0 8px 28px rgba(0,0,0,0.28) !important;
+  background: #0E0E0E !important;
+  border-bottom: 1px solid rgba(255,255,255,0.07) !important;
+  /* v950: was `blur(10px) saturate(120%)` — capped to 10px and dropped saturate (2× GPU op). */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
 }
 #direct-messages-page .direct-messages-title-wrap {
   gap: 4px !important;
@@ -7283,10 +9416,63 @@ body.light-mode .profile-social-state-spinner {
   color: rgba(245,246,248,0.88) !important;
   box-shadow: 0 12px 24px rgba(0,0,0,0.24) !important;
 }
+#direct-messages-page .direct-messages-close,
+#direct-messages-page .direct-messages-new-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+}
+#direct-messages-page .dm-topbar-icon {
+  width: 18px !important;
+  height: 18px !important;
+  display: block !important;
+  flex: 0 0 auto !important;
+  stroke: currentColor !important;
+  pointer-events: none !important;
+}
+#direct-messages-page::before {
+  background: transparent !important;
+}
+#direct-messages-page:not(.dm-thread-open) {
+  --dm-main-topbar-h: 106px;
+}
+#direct-messages-page:not(.dm-thread-open) .direct-messages-topbar {
+  display: grid !important;
+  grid-template-columns: 44px minmax(0, 1fr) 44px !important;
+  min-height: var(--dm-main-topbar-h) !important;
+  height: var(--dm-main-topbar-h) !important;
+  padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px 10px !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+#direct-messages-page:not(.dm-thread-open) .direct-messages-title-wrap {
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
+  align-self: center !important;
+  padding-bottom: 0 !important;
+}
+#direct-messages-page:not(.dm-thread-open) .direct-messages-title-wrap strong,
+#direct-messages-page:not(.dm-thread-open) .direct-messages-title-wrap .creator-name,
+#direct-messages-page:not(.dm-thread-open) .direct-messages-title-wrap .creator-name-wrap {
+  text-align: center !important;
+}
+#direct-messages-page:not(.dm-thread-open) .direct-messages-content {
+  padding-top: 8px !important;
+}
 #direct-messages-page .direct-messages-content {
   padding-left: 12px !important;
   padding-right: 12px !important;
   padding-bottom: 132px !important;
+}
+@media (max-width: 700px) {
+  #direct-messages-page:not(.dm-thread-open) {
+    --dm-main-topbar-h: 108px;
+  }
+  #direct-messages-page:not(.dm-thread-open) .direct-messages-topbar {
+    padding: calc(env(safe-area-inset-top, 0px) + 17px) 13px 9px !important;
+  }
 }
 #direct-messages-page .dm-subtabs {
   display: grid !important;
@@ -8086,8 +10272,9 @@ body.light-mode #mylist-view .mylist-search-row .search-input {
     border: 1px solid rgba(196,181,253,0.12) !important;
     background: rgba(24, 28, 32, 0.72) !important;
     box-shadow: 0 18px 40px rgba(0,0,0,0.3) !important;
-    backdrop-filter: blur(22px) saturate(1.4) !important;
-    -webkit-backdrop-filter: blur(22px) saturate(1.4) !important;
+    /* v950: was `blur(22px) saturate(1.4)` — capped to 10px and dropped saturate. */
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
     visibility: visible !important;
     pointer-events: auto !important;
     z-index: 5200 !important;
@@ -8141,6 +10328,31 @@ body.light-mode #mylist-view .mylist-search-row .search-input {
     padding: 8px 0 !important;
   }
 
+  #mobile-bottom-nav .bottom-nav-icon-btn,
+  .mobile-bottom-nav .bottom-nav-icon-btn {
+    color: rgba(231, 226, 244, 0.72) !important;
+  }
+
+  #mobile-bottom-nav .bottom-nav-icon-btn.active,
+  .mobile-bottom-nav .bottom-nav-icon-btn.active {
+    color: #ffffff !important;
+  }
+
+  #mobile-bottom-nav #mobile-nav-mylist,
+  .mobile-bottom-nav #mobile-nav-mylist {
+    color: #f5d27a !important;
+  }
+
+  #mobile-bottom-nav #mobile-nav-mylist.active,
+  .mobile-bottom-nav #mobile-nav-mylist.active {
+    color: #fde68a !important;
+  }
+
+  #mobile-bottom-nav .nav-search-btn,
+  .mobile-bottom-nav .nav-search-btn {
+    color: rgba(216, 207, 243, 0.88) !important;
+  }
+
   body .header,
   body.main-tab-mylist .header,
   body.main-tab-community .header,
@@ -8191,8 +10403,8 @@ body.light-mode #mylist-view .mylist-search-row .search-input {
     transform: translateY(-50%);
     cursor: pointer;
     transition: transform 160ms ease, background 160ms ease, border-color 160ms ease, opacity 160ms ease;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
   #discover-view .discover-friends-scroll-btn svg {
     width: 18px;
@@ -8739,3 +10951,154 @@ body.light-mode #mylist-view .mylist-search-row .search-input {
   }
 }
 
+/* =============================================================================
+   v10.73: Discover title ellipsis — UNIFIED rule.
+
+   PROBLEM: title overflow was inconsistent across Discover card variants.
+   "Regular Show: The Lost Tapes" rendered as "Regular Show: The L" (clipped
+   to card edge, no ellipsis); "Zhan Zhao Adventures" rendered as
+   "Zhan Zhao Adventur". Different Discover card renderers (Newest Releases,
+   Trending, Popular, Most Anticipated, In Theaters, Anime, Games, View All,
+   universal search) inherited slightly different parent flex contexts —
+   notably .discover-new-release-card overrides .discover-card-info-row to
+   `flex-direction: column !important; flex: 1 1 auto !important` which
+   re-applied flex constraints WITHOUT re-declaring `min-width: 0`, letting
+   the title button grow to its content width and overrun the card edge.
+   .discover-title-profile-btn already had ellipsis rules with !important at
+   line 4056, but in certain flex contexts those were undermined by the
+   parent chain expanding to content.
+
+   FIX: lock `min-width: 0` on every link in the flex chain (card / body /
+   info-row / info-stack) AND restate the full single-line ellipsis stack
+   on both `.discover-card-title` and `.discover-title-profile-btn` with
+   high specificity (#view-id .discover-card .name) + !important so this
+   block always wins over any per-variant override. Also explicitly unsets
+   any stray `-webkit-line-clamp` / `-webkit-box-orient` from older 2-line-
+   clamp rules (06-profile.css:3593) which used to compete with nowrap.
+   ============================================================================= */
+#discover-view .discover-card,
+#anime-discover-view .discover-card,
+#games-discover-view .discover-card,
+.discover-category-full-page .discover-card,
+.discover-friends-row .discover-card,
+.discover-friends-full-grid .discover-card,
+#discover-view .discover-card .discover-card-body,
+#anime-discover-view .discover-card .discover-card-body,
+#games-discover-view .discover-card .discover-card-body,
+.discover-category-full-page .discover-card .discover-card-body,
+#discover-view .discover-card .discover-card-info-row,
+#anime-discover-view .discover-card .discover-card-info-row,
+#games-discover-view .discover-card .discover-card-info-row,
+.discover-category-full-page .discover-card .discover-card-info-row,
+.discover-new-release-card .discover-card-info-row,
+#discover-view .discover-card .discover-card-info-stack,
+#anime-discover-view .discover-card .discover-card-info-stack,
+#games-discover-view .discover-card .discover-card-info-stack,
+.discover-category-full-page .discover-card .discover-card-info-stack,
+.discover-new-release-card .discover-card-info-stack {
+  min-width: 0 !important;
+}
+
+#discover-view .discover-card .discover-card-title,
+#anime-discover-view .discover-card .discover-card-title,
+#games-discover-view .discover-card .discover-card-title,
+.discover-category-full-page .discover-card .discover-card-title,
+.discover-new-release-card .discover-card-title,
+#discover-view .discover-card .discover-title-profile-btn,
+#anime-discover-view .discover-card .discover-title-profile-btn,
+#games-discover-view .discover-card .discover-title-profile-btn,
+.discover-category-full-page .discover-card .discover-title-profile-btn,
+.discover-new-release-card .discover-title-profile-btn {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  /* Disable the legacy 2-line clamp (06-profile.css:3593) so it can't compete
+     with nowrap+ellipsis. If a future design wants multi-line, re-enable
+     locally on the variant — don't put it on the base. */
+  -webkit-line-clamp: unset !important;
+  -webkit-box-orient: initial !important;
+}
+
+/* =============================================================================
+   v10.74: Discover title ellipsis — covers the variants v10.73 missed.
+
+   WHY v10.73 DIDN'T FIX IT: v10.73 only targeted titles with class
+   `.discover-card-title` and `.discover-title-profile-btn` (the Movies/TV/
+   universal-search renderers). But the Discover Games hub uses a DIFFERENT
+   title class — `.games-dc-title` (`11-discovery-...js:7344`) — and the
+   Anime Seasonal renderer uses ANOTHER one — `.anime-seasonal-card-title-btn`
+   (`11-discovery-...js:8336`). Both of those classes had `display: -webkit-box;
+   -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;` —
+   a 2-line clamp. When the parent flex chain didn't carry `min-width: 0`
+   down to the title, the title's webkit-box grew to one wide line, the
+   2-line clamp never triggered (only 1 line existed), and the line overran
+   the card edge without ellipsis. That's the exact symptom in the screenshot
+   ("Bug Behind Schedule", "The Right Way is the Wrong Way", "Regular Show:
+   The Lost Tapes", "Zhan Zhao Adventures").
+
+   FIX: select EVERY known Discover title-class by name with `body`-level
+   scope (no `#discover-view` / `.discover-card` ancestor required — this
+   rule wins even if the user is in a layout context where the previous
+   selectors don't match). Force the full single-line ellipsis stack with
+   `!important` on each, and explicitly `unset` the `-webkit-line-clamp`/
+   `-webkit-box-orient` so the old clamp definition can't compete. Lock
+   `min-width: 0` on every parent flex container in the chain.
+   ============================================================================= */
+body .discover-card-title,
+body .discover-title-profile-btn,
+body .games-dc-title,
+body .anime-seasonal-card-title-btn,
+body .discover-friend-watch-title,
+body .discover-country-title {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  -webkit-line-clamp: unset !important;
+  -webkit-box-orient: initial !important;
+  /* Buttons have a small intrinsic minimum-content width on some engines;
+     force the flex/grid path to honor `min-width: 0` instead of intrinsic. */
+  min-inline-size: 0 !important;
+}
+
+/* Parent flex chain — every container that wraps a Discover title gets
+   `min-width: 0` so the title can shrink under its parent's width.
+   `body` scope keeps these rules winning the cascade regardless of any
+   per-variant override that re-sets flex on these classes. */
+body .discover-card,
+body .discover-card-body,
+body .discover-card-info-row,
+body .discover-card-info-stack,
+body .games-dc-body,
+body .games-discover-card,
+body .anime-seasonal-card,
+body .anime-seasonal-card-info,
+body .discover-new-release-card,
+body .discover-friend-watch-card,
+body .discover-card-title-row {
+  min-width: 0 !important;
+}
+
+/* v10.148: DM icon locked to a uniform size across all tabs.
+   v10.150: bumped selector specificity to 0,3,0 so this rule beats
+   the per-tab overrides (Discover 26px, Community 25/28px, My Lists
+   24/25px, mobile-portrait 18px clamp).
+   v10.151: size 15px → 18px (15px read too small). */
+body .header-dm-icon,
+body .header-dm-icon svg,
+body.main-tab-discover .header-dm-icon,
+body.main-tab-discover .header-dm-icon svg,
+body.main-tab-community .header-dm-icon,
+body.main-tab-community .header-dm-icon svg,
+body.main-tab-mylist .header-dm-icon,
+body.main-tab-mylist .header-dm-icon svg {
+  width: 18px !important;
+  height: 18px !important;
+}

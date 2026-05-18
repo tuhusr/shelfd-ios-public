@@ -1615,8 +1615,9 @@
   body.true-dark-mode .mobile-bottom-nav {
     background: rgba(8, 8, 12, 0.62) !important;
     border-color: rgba(255, 255, 245, 0.10) !important;
-    backdrop-filter: blur(22px) saturate(140%) !important;
-    -webkit-backdrop-filter: blur(22px) saturate(140%) !important;
+    /* v950: was `blur(22px) saturate(140%)` — capped to 10px and dropped saturate (2× GPU op). Bottom nav reads identically on iPhone. */
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
   }
   /* Fallback for browsers without backdrop-filter — keep it readable. */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -1670,6 +1671,49 @@
   body.true-dark-mode .profile-settings-card-sub,
   body.true-dark-mode .profile-section-sub {
     color: #a3a3a3;
+  }
+  body.true-dark-mode .comments-page .main-content {
+    background:
+      radial-gradient(circle at 18% 0%, rgba(167,139,250,0.16), transparent 25rem),
+      linear-gradient(180deg, rgba(30,26,44,0.96) 0%, rgba(16,14,24,0.985) 18%, rgba(10,10,14,0.995) 100%);
+    border-color: rgba(196,181,253,0.14);
+    box-shadow:
+      0 -30px 70px rgba(0,0,0,0.58),
+      inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  body.true-dark-mode .comments-page-header,
+  body.true-dark-mode .comment-input-area {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.022)),
+      rgba(13, 12, 20, 0.92);
+    border-color: rgba(196,181,253,0.14);
+    box-shadow: 0 18px 36px rgba(0,0,0,0.24);
+  }
+  body.true-dark-mode .comments-page-title,
+  body.true-dark-mode .comment-author,
+  body.true-dark-mode .comment-author-btn {
+    color: #f5f1ff;
+  }
+  body.true-dark-mode .comments-page-meta,
+  body.true-dark-mode .comment-time,
+  body.true-dark-mode .comments-count,
+  body.true-dark-mode .comments-scope-note {
+    color: rgba(216,208,233,0.72);
+  }
+  body.true-dark-mode .comments-scope-tabs,
+  body.true-dark-mode .comment-textarea {
+    background: rgba(5,5,8,0.84);
+    border-color: rgba(196,181,253,0.12);
+  }
+  body.true-dark-mode .comment-item,
+  body.true-dark-mode .comments-empty {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.018)),
+      rgba(255,255,255,0.018);
+    border-color: rgba(196,181,253,0.1);
+  }
+  body.true-dark-mode .comment-text {
+    color: rgba(242,238,255,0.88);
   }
   body.true-dark-mode .discover-section-desc,
   body.true-dark-mode .discover-card-context { color: #ffffff; }
@@ -2069,8 +2113,8 @@ body.game-media-profile-open .mobile-bottom-nav {
   font-size: 12px;
   font-weight: 900;
   font-family: 'DM Sans', sans-serif;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .game-media-profile-overlay .discover-media-back {
@@ -2531,8 +2575,8 @@ body.game-media-profile-open .mobile-bottom-nav {
 @media (min-width: 701px) {
   .game-media-profile-overlay {
     background: rgba(5, 4, 13, 0.82);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
   .game-media-profile-overlay .discover-media-page {
     max-width: 760px;
@@ -2700,6 +2744,9 @@ body.light-mode .game-media-profile-overlay .discover-media-body {
     gap: 10px;
     text-align: center;
   }
+  .discover-media-profile-overlay .discover-media-hero-content {
+    padding-top: 9px;
+  }
 
   .discover-media-profile-overlay .discover-media-hero-top,
   .game-media-profile-overlay .discover-media-hero-top {
@@ -2735,7 +2782,7 @@ body.light-mode .game-media-profile-overlay .discover-media-body {
   .discover-media-profile-overlay .discover-media-hero h2,
   .game-media-profile-overlay .discover-media-hero h2 {
     margin: 4px auto 5px;
-    max-width: 100%;
+    max-width: 360px;
     text-align: center;
     font-size: clamp(24px, 8vw, 34px);
   }
@@ -3008,8 +3055,8 @@ body.light-mode .discover-person-ai-note {
     opacity: 0;
     transform: translateY(18px);
     transition: opacity 0.24s ease, transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
   .discover-media-profile-overlay.open {
     opacity: 1;
@@ -3045,8 +3092,8 @@ body.light-mode .discover-person-ai-note {
     font-size: 12px;
     font-weight: 900;
     font-family: 'DM Sans', sans-serif;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
   .discover-media-profile-overlay .discover-media-back {
     left: max(14px, calc(50% - 366px));
@@ -3101,6 +3148,7 @@ body.light-mode .discover-person-ai-note {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    padding-top: 9px;
   }
   .discover-media-profile-overlay .discover-media-hero-top {
     display: grid;
@@ -3270,6 +3318,23 @@ body.light-mode .discover-media-profile-overlay .discover-media-body {
   transform: translateZ(0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+}
+
+/* v10.119: top hero poster on movies / TV / anime full-page profiles uses
+   a 3px corner radius (was 4.2px in v10.118, originally 8px). Matches
+   the 3px top-corner radius the same-class poster gets on the main
+   Discover card grid, so the hand-off into a title profile reads as
+   the same visual language. Scoped via .discover-standard-title-page
+   so game profiles (same .discover-media-poster class but no
+   .discover-standard-title-page section class) keep their existing
+   8px (mobile) / 12px (desktop) radius unchanged. Outside any media
+   query so it applies on every viewport. The 3-class selector
+   (.discover-media-page.discover-standard-title-page
+   .discover-media-poster) outscores the existing
+   .discover-media-profile-overlay .discover-media-poster rule
+   regardless of source-order. */
+.discover-media-page.discover-standard-title-page .discover-media-poster {
+  border-radius: 3px;
 }
 
 /* Desktop profile-title click targets: no layout change, only interaction clarity */
@@ -3961,8 +4026,8 @@ body.light-mode .activity-page.user-filter-active .activity-group-label-this-mon
   background: rgba(8, 6, 20, 0.84);
   border: 1px solid rgba(167,139,250,0.30);
   box-shadow: 0 14px 34px rgba(0,0,0,0.34), inset 0 0 0 1px rgba(255,255,255,0.05);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 .activity-page-quick-actions button {
   border: 1px solid rgba(167,139,250,0.28);
@@ -5172,8 +5237,8 @@ body.light-mode .profile-group-stats.profile-group-stats-showcase-labels .profil
   justify-content: center !important;
   padding: 0 !important;
   background: rgba(0,0,0,0.70) !important;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 .profile-favorite-picker-bottom-sheet .profile-library-picker-modal {
   width: min(100vw, 760px) !important;
@@ -5318,8 +5383,8 @@ body.light-mode .profile-library-picker-poster { background: #f8f6ff; border-col
   justify-content: center;
   padding: max(env(safe-area-inset-top, 0px), 16px) 14px max(env(safe-area-inset-bottom, 0px), 16px);
   background: rgba(0, 0, 0, 0.74);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   opacity: 0;
   transition: opacity 0.18s ease;
   -webkit-tap-highlight-color: transparent;
@@ -5756,4 +5821,37 @@ body.light-mode .profile-page .profile-bio-input,
 body.true-dark-mode .profile-page .profile-bio-input {
   font-size: 16px !important;
   line-height: 1.5 !important;
+}
+
+/* v10.134: Frameless ("flat") variant of the FPUP stat card. Used by
+   the new "All Media" stats block which intentionally drops the
+   rounded-rectangle chrome, gradient overlays, and box-shadow so the
+   value + label sit as a clean naked statistic. Defined at the very
+   end of the file so it wins source-order against every late mobile/
+   PWA override that re-applies the padded card via !important. */
+.profile-page .profile-stat-card.profile-stat-card-flat,
+.profile-page .profile-hero-card > .profile-stats-grid > .profile-stat-card.profile-stat-card-flat {
+  padding: 6px 4px !important;
+  min-height: 0 !important;
+  border: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
+}
+.profile-page .profile-stat-card.profile-stat-card-flat::before,
+.profile-page .profile-stat-card.profile-stat-card-flat::after,
+.profile-page .profile-hero-card > .profile-stats-grid > .profile-stat-card.profile-stat-card-flat::before,
+.profile-page .profile-hero-card > .profile-stats-grid > .profile-stat-card.profile-stat-card-flat::after {
+  content: none !important;
+  display: none !important;
+}
+/* Genre-tone cards show a TEXT value (a genre name, not a number) so
+   step the font-size down so long names like "Action & Adventure" or
+   "Sci-Fi & Fantasy" don't wrap awkwardly inside the narrow column. */
+.profile-page .profile-stat-card.profile-stat-card-flat.profile-stat-genre .profile-stat-value,
+.profile-page .profile-hero-card > .profile-stats-grid > .profile-stat-card.profile-stat-card-flat.profile-stat-genre .profile-stat-value {
+  font-size: 18px !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.18 !important;
 }

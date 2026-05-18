@@ -1,3 +1,338 @@
+  /* v10.222: IG-style friends list remodel. Wrapped in .shelfd-friends-vstack
+     so the existing #friends-grid CSS grid (community-grid) doesn't fight the
+     new vertical layout. v10.224: also apply this layout reset to the
+     requests grid surfaces so the new row design stretches correctly. */
+  #friends-grid:has(.shelfd-friends-vstack) {
+    display: block !important;
+    grid-template-columns: none !important;
+    gap: 0 !important;
+    padding: 0 !important;
+  }
+  #incoming-grid:has(.shelfd-friend-req-row),
+  #outgoing-grid:has(.shelfd-friend-req-row) {
+    display: block !important;
+    grid-template-columns: none !important;
+    gap: 0 !important;
+    padding: 0 14px !important;
+  }
+
+  /* v10.224: the friends-tabs header strip blends with the page background
+     so the tabs sit flat instead of inside a chip. Used across the whole
+     community/friends view (Activity / Friends / Requests / Add a Friend). */
+  #community-view .friends-tabs {
+    background: transparent !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    margin: 0 0 16px !important;
+    gap: 0 !important;
+  }
+  #community-view .friends-tab-btn {
+    background: transparent !important;
+    border-radius: 0 !important;
+  }
+  #community-view .friends-tab-btn.active {
+    background: transparent !important;
+  }
+
+  /* v10.224: request rows reuse the .shelfd-friend-row shell; just style the
+     trailing action buttons and section headings. */
+  #incoming-section h3,
+  #outgoing-section h3 {
+    color: #ffffff;
+    font: 500 18px/1.2 'Sohne', 'DM Sans', sans-serif;
+    margin: 16px 14px 8px;
+  }
+  .shelfd-friend-req-row { padding: 10px 0; }
+  .shelfd-friend-req-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .shelfd-friend-req-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 0;
+    padding: 7px 12px;
+    border-radius: 8px;
+    font: 500 13px/1 'Sohne', 'DM Sans', sans-serif;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 120ms ease, transform 120ms ease, background 140ms ease;
+  }
+  .shelfd-friend-req-btn.primary {
+    background: #4b6bff;
+    color: #ffffff;
+  }
+  .shelfd-friend-req-btn.primary:active { opacity: 0.85; transform: scale(0.96); }
+  .shelfd-friend-req-btn.secondary {
+    background: rgba(255,255,255,0.08);
+    color: #f8f4ff;
+  }
+  .shelfd-friend-req-btn.secondary:active { background: rgba(255,255,255,0.14); transform: scale(0.96); }
+  .shelfd-friends-vstack {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 8px 14px 24px;
+    font-family: 'Sohne', 'DM Sans', sans-serif;
+    color: #f8f4ff;
+  }
+
+  /* Search */
+  .shelfd-friends-search-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .shelfd-friends-search-icon {
+    width: 18px;
+    height: 18px;
+    color: rgba(216,208,233,0.62);
+    flex-shrink: 0;
+  }
+  .shelfd-friends-search-input {
+    flex: 1;
+    background: transparent;
+    border: 0;
+    outline: none;
+    color: #f8f4ff;
+    font: 400 15px/1.2 'Sohne', 'DM Sans', sans-serif;
+    min-width: 0;
+  }
+  .shelfd-friends-search-input::placeholder { color: rgba(216,208,233,0.5); }
+
+  /* Follow requests preview row */
+  .shelfd-friends-followreq-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 0;
+    background: transparent;
+    border: 0;
+    width: 100%;
+    cursor: pointer;
+    text-align: left;
+    color: inherit;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .shelfd-friends-followreq-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: #1c1535;
+    flex-shrink: 0;
+  }
+  .shelfd-friends-followreq-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .shelfd-friends-followreq-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .shelfd-friends-followreq-text strong {
+    color: #f8f4ff;
+    font: 500 16px/1.25 'Sohne', 'DM Sans', sans-serif;
+  }
+  .shelfd-friends-followreq-text span {
+    color: rgba(216,208,233,0.55);
+    font: 400 13px/1.3 'Sohne', 'DM Sans', sans-serif;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .shelfd-friends-followreq-indicator {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: #4b6bff;
+    flex-shrink: 0;
+  }
+  .shelfd-friends-followreq-chevron {
+    width: 18px;
+    height: 18px;
+    color: rgba(216,208,233,0.55);
+    flex-shrink: 0;
+  }
+
+  /* Categories */
+  .shelfd-friends-cat-block { display: flex; flex-direction: column; gap: 4px; }
+  .shelfd-friends-cat-heading {
+    color: #ffffff;
+    font: 500 18px/1.2 'Sohne', 'DM Sans', sans-serif;
+    margin-bottom: 4px;
+  }
+  .shelfd-friends-cat-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 8px 0;
+    background: transparent;
+    border: 0;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    color: inherit;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .shelfd-friends-cat-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: #1c1535;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    color: rgba(216,208,233,0.5);
+  }
+  .shelfd-friends-cat-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .shelfd-friends-cat-avatar.is-empty svg { width: 30px; height: 30px; }
+  .shelfd-friends-cat-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .shelfd-friends-cat-text strong {
+    color: #f8f4ff;
+    font: 500 15px/1.25 'Sohne', 'DM Sans', sans-serif;
+  }
+  .shelfd-friends-cat-text span {
+    color: rgba(216,208,233,0.5);
+    font: 400 13px/1.3 'Sohne', 'DM Sans', sans-serif;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Sort header.
+     v10.226: full-bleed divider. The parent (.shelfd-friends-vstack +
+     container.main-content) has horizontal padding, so a plain border-top
+     gets inset on both sides. We render the divider as an absolutely
+     positioned pseudo-element pinned to 100vw via `left: 50%; translateX(-50%)`
+     so it spans the entire screen edge-to-edge regardless of ancestor padding. */
+  .shelfd-friends-sort-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0 0;
+    margin-top: 4px;
+    border-top: 0;
+  }
+  .shelfd-friends-sort-row::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100vw;
+    height: 1px;
+    background: rgba(255,255,255,0.08);
+    pointer-events: none;
+  }
+  .shelfd-friends-sort-label {
+    color: rgba(216,208,233,0.7);
+    font: 400 14px/1.2 'Sohne', 'DM Sans', sans-serif;
+  }
+  .shelfd-friends-sort-label strong {
+    color: #ffffff;
+    font-weight: 500;
+  }
+  .shelfd-friends-sort-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    border: 0;
+    color: #f8f4ff;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .shelfd-friends-sort-btn svg { width: 20px; height: 20px; }
+  .shelfd-friends-sort-btn:active { background: rgba(255,255,255,0.05); }
+
+  /* Friend rows */
+  .shelfd-friends-userlist { display: flex; flex-direction: column; gap: 4px; }
+  .shelfd-friend-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 8px 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .shelfd-friend-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 999px;
+    object-fit: cover;
+    background: #1c1535;
+    flex-shrink: 0;
+  }
+  .shelfd-friend-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .shelfd-friend-handle {
+    color: #f8f4ff;
+    font: 500 15px/1.25 'Sohne', 'DM Sans', sans-serif;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .shelfd-friend-name {
+    color: rgba(216,208,233,0.55);
+    font: 400 13px/1.3 'Sohne', 'DM Sans', sans-serif;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .shelfd-friend-x {
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    border: 0;
+    color: rgba(216,208,233,0.72);
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .shelfd-friend-x svg { width: 20px; height: 20px; }
+  .shelfd-friend-x:active { background: rgba(255,255,255,0.05); transform: scale(0.94); }
+
+  .shelfd-friends-empty {
+    padding: 48px 16px;
+    text-align: center;
+    color: rgba(216,208,233,0.55);
+  }
+  .shelfd-friends-empty .friends-empty-icon { font-size: 32px; margin-bottom: 8px; }
+
   /* Friends */
   .friends-tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 1px solid #2a2248; }
   .friends-tab-btn {

@@ -241,6 +241,17 @@ async function addDiscoveryTitle(type, tmdbId, btn, status = 'planned', original
       ? [await buildRawgLibraryItem(tmdbId, status, rating)]
       : await buildTmdbLibraryItems(type, tmdbId, status, rating);
     const item = builtItems[0];
+    if (type === 'game') {
+      if (typeof traceShelfdGameIdentity === 'function') traceShelfdGameIdentity('7 game object passed to My Lists save', item, { tmdbId, status, rating });
+      if (typeof assertShelfdGameIdentity === 'function' && !assertShelfdGameIdentity('7 discover add before My Lists save', item)) {
+        if (btn) {
+          btn.disabled = false;
+          btn.classList.remove('added');
+          btn.textContent = originalText || '+ Add to Library';
+        }
+        return { ok: false, identityMismatch: true };
+      }
+    }
     const section = type === 'movie'
       ? 'movies'
       : type === 'game'
@@ -281,6 +292,7 @@ async function addDiscoveryTitle(type, tmdbId, btn, status = 'planned', original
       showToast("Added to your library");
       const result = { ok: true, item: { ...item }, section, status, rating: Number(rating || 0) || 0, source: 'discover-add' };
       if (status === 'watched' && options.promptPost !== false && typeof openScreenListActivityPostPrompt === 'function') {
+        if (type === 'game' && typeof traceShelfdGameIdentity === 'function') traceShelfdGameIdentity('8 game object passed to Activity Feed prompt', item, { status, rating });
         window.setTimeout(() => openScreenListActivityPostPrompt(result), Number(options.postPromptDelayMs || 0));
       }
       return result;
@@ -349,6 +361,7 @@ async function addDiscoveryTitle(type, tmdbId, btn, status = 'planned', original
     }
     const result = { ok: true, item: { ...item }, section, status, rating: Number(rating || 0) || 0, source: 'discover-add' };
     if (status === 'watched' && options.promptPost !== false && typeof openScreenListActivityPostPrompt === 'function') {
+      if (type === 'game' && typeof traceShelfdGameIdentity === 'function') traceShelfdGameIdentity('8 game object passed to Activity Feed prompt', item, { status, rating });
       window.setTimeout(() => openScreenListActivityPostPrompt(result), Number(options.postPromptDelayMs || 0));
     }
     return result;
@@ -440,12 +453,64 @@ function resetDiscoverButton(btn) {
 
 
 async function buildRawgLibraryItem(rawgId, status = 'planned', rating = 0) {
-  const res = await fetchRawgProxy(`games/${rawgId}`);
+  const requestedId = String(rawgId || '').trim();
+  const seed = typeof getGameMediaProfileSeed === 'function' ? (getGameMediaProfileSeed(requestedId, {}) || {}) : {};
+  const lockedSeed = seed && typeof attachShelfdGameIdentityLock === 'function'
+    ? attachShelfdGameIdentityLock({ ...seed }, seed.shelfdGameIdentityLock || (typeof createShelfdGameIdentityLock === 'function' ? createShelfdGameIdentityLock(seed, 'discover-add-build-game') : null))
+    : { ...seed };
+  if (typeof traceShelfdGameIdentity === 'function') traceShelfdGameIdentity('5 add-to-library build input', lockedSeed, { requestedId, status, rating });
+  const seedRawgId = typeof getShelfdGameIdentityRawgId === 'function' ? getShelfdGameIdentityRawgId(lockedSeed) : String(lockedSeed.rawgId || (/^\d+$/.test(requestedId) ? requestedId : '') || '');
+  const seedIgdbId = typeof getShelfdGameIdentityIgdbId === 'function' ? getShelfdGameIdentityIgdbId(lockedSeed) : String(lockedSeed.igdbId || (requestedId.match(/^igdb:(\d+)$/i)?.[1] || '') || '');
+  if (!seedRawgId && (seedIgdbId || requestedId.startsWith('igdb:'))) {
+    const title = lockedSeed.title || lockedSeed.name || '';
+    const cover = lockedSeed.igdbCoverUrl || lockedSeed.cover || lockedSeed.poster || lockedSeed.image || lockedSeed.background_image || '';
+    const item = {
+      id: Date.now().toString() + '-igdb-' + (seedIgdbId || requestedId.replace(/^igdb:/i, '')),
+      title,
+      name: title,
+      cover,
+      igdbCoverUrl: lockedSeed.igdbCoverUrl || cover,
+      poster: cover,
+      image: cover,
+      background_image: cover,
+      genre: Array.isArray(lockedSeed.genres) ? lockedSeed.genres.map(g => g?.name || g).filter(Boolean).join(', ') : (lockedSeed.genre || ''),
+      genreNames: Array.isArray(lockedSeed.genreNames) ? lockedSeed.genreNames : (Array.isArray(lockedSeed.genres) ? lockedSeed.genres.map(g => g?.name || g).filter(Boolean) : []),
+      year: String(lockedSeed.released || lockedSeed.year || '').slice(0, 4),
+      status,
+      rating,
+      dateAdded: new Date().toISOString(),
+      imdbId: '',
+      platforms: Array.isArray(lockedSeed.platforms) ? lockedSeed.platforms.map(p => typeof p === 'string' ? p : (p?.platform?.name || p?.name || '')).filter(Boolean).join(', ') : (lockedSeed.platforms || ''),
+      metacritic: lockedSeed.metacritic || '',
+      metacriticSlug: lockedSeed.metacriticSlug || '',
+      rawgId: '',
+      rawgSlug: '',
+      igdbId: seedIgdbId,
+      igdbSlug: lockedSeed.igdbSlug || lockedSeed.slug || '',
+      backloggdSlug: lockedSeed.backloggdSlug || lockedSeed.igdbSlug || lockedSeed.slug || '',
+      source: 'igdb',
+      sourceId: seedIgdbId,
+      gameIdentityKey: lockedSeed.gameIdentityKey || lockedSeed.shelfdGameIdentityLock?.key || requestedId,
+      tmdbId: '',
+      mediaCategory: 'games',
+      librarySection: 'games',
+      episodes: []
+    };
+    if (lockedSeed.shelfdGameIdentityLock && typeof attachShelfdGameIdentityLock === 'function') attachShelfdGameIdentityLock(item, lockedSeed.shelfdGameIdentityLock);
+    else if (typeof attachShelfdGameIdentityLock === 'function' && typeof createShelfdGameIdentityLock === 'function') attachShelfdGameIdentityLock(item, createShelfdGameIdentityLock(item, 'discover-add-build-igdb-library-item'));
+    if (typeof assertShelfdGameIdentity === 'function' && !assertShelfdGameIdentity('7 discover add IGDB game save object', item)) {
+      throw new Error('Game identity mismatch before save');
+    }
+    return item;
+  }
+  const cleanRawgId = seedRawgId || requestedId;
+  const res = await fetchRawgProxy(`games/${cleanRawgId}`);
   if (!res.ok) throw new Error("RAWG details request failed");
   const d = await res.json();
-  return {
-    id: Date.now().toString() + '-rawg-' + rawgId,
+  let item = {
+    id: Date.now().toString() + '-rawg-' + cleanRawgId,
     title: d.name || '',
+    name: d.name || '',
     cover: d.background_image || '',
     genre: (d.genres || []).map(g => g.name).join(', '),
     year: (d.released || '').slice(0, 4),
@@ -456,13 +521,26 @@ async function buildRawgLibraryItem(rawgId, status = 'planned', rating = 0) {
     platforms: (d.platforms || []).map(p => p.platform?.name).filter(Boolean).join(', '),
     metacritic: d.metacritic || '',
     metacriticSlug: d.slug || '',
-    rawgId: String(rawgId),
+    rawgId: String(cleanRawgId),
     rawgSlug: d.slug || '',
     backloggdSlug: d.slug || '',
     source: 'rawg',
     tmdbId: '',
+    mediaCategory: 'games',
+    librarySection: 'games',
     episodes: []
   };
+  if (Object.keys(lockedSeed || {}).length && typeof mergeShelfdGameIdentityLockedItem === 'function') {
+    item = mergeShelfdGameIdentityLockedItem(lockedSeed, item, 'discover-add-rawg-details');
+    item.id = Date.now().toString() + '-rawg-' + cleanRawgId;
+    item.status = status;
+    item.rating = rating;
+    item.dateAdded = new Date().toISOString();
+  }
+  if (typeof assertShelfdGameIdentity === 'function' && !assertShelfdGameIdentity('7 discover add RAWG game save object', item)) {
+    throw new Error('Game identity mismatch before save');
+  }
+  return item;
 }
 
 function applySteamFieldsToLibraryItem(item = {}, entry = {}) {

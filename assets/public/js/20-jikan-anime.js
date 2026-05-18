@@ -265,19 +265,54 @@
     const base = mapJikanItemToTmdbShape(j);
     if (!base) return null;
 
-    /* Characters → credits.cast (with VAs as crew where available) */
-    const cast = characters.map(c => {
-      const ch = c?.character || {};
-      const va = (Array.isArray(c?.voice_actors) ? c.voice_actors : []).find(v => (v?.language || '').toLowerCase() === 'japanese') || {};
-      const profile = ch.images?.jpg?.image_url || '';
-      return {
-        id: ch.mal_id,
-        name: ch.name || '',
-        character: va?.person?.name || '',
-        profile_path: profile,    /* full https URL */
-        order: c?.role === 'Main' ? 0 : 1
-      };
-    }).filter(p => p.name);
+    /* v10.117: Split Jikan characters into two complementary structures so
+       the media profile renders the MAL-style two-row layout:
+         - credits.cast        = voice actors (Japanese VA where available)
+                                  with the character's name as the subtitle
+                                  ("playing Coco"). Falls back to character
+                                  art when no VA is listed so the row never
+                                  collapses into an empty entry.
+         - credits.characters  = the character themselves (character art +
+                                  character name + role tag like Main /
+                                  Supporting). Rendered as the Characters
+                                  row below the Cast row on anime profiles.
+       Both arrays preserve Jikan's natural Main-first ordering. */
+    const cast = characters
+      .map((c, idx) => {
+        const ch = c?.character || {};
+        const vas = Array.isArray(c?.voice_actors) ? c.voice_actors : [];
+        const va = vas.find(v => (v?.language || '').toLowerCase() === 'japanese') || vas[0] || null;
+        const vaName = va?.person?.name || '';
+        const vaPhoto = va?.person?.images?.jpg?.image_url || '';
+        const chPhoto = ch.images?.jpg?.image_url || '';
+        const photo = vaPhoto || chPhoto;
+        const displayName = vaName || ch.name || '';
+        if (!displayName) return null;
+        return {
+          id: va?.person?.mal_id || ch.mal_id || `jikan-cast-${idx}`,
+          name: displayName,
+          character: vaName ? (ch.name || '') : '',
+          profile_path: photo,           /* full https URL — getTmdbImageUrl passes URLs through */
+          order: c?.role === 'Main' ? 0 : 1
+        };
+      })
+      .filter(Boolean);
+
+    const charactersList = characters
+      .map((c, idx) => {
+        const ch = c?.character || {};
+        const photo = ch.images?.jpg?.image_url || '';
+        const name = ch.name || '';
+        if (!name) return null;
+        return {
+          id: ch.mal_id || `jikan-char-${idx}`,
+          name,
+          role: c?.role || '',
+          image: photo,
+          order: c?.role === 'Main' ? 0 : 1
+        };
+      })
+      .filter(Boolean);
 
     /* Trailer → videos.results */
     const videos = [];
@@ -346,7 +381,7 @@
       production_companies: studios,
       networks: producers,
       created_by,
-      credits: { cast, crew },
+      credits: { cast, crew, characters: charactersList },
       videos: { results: videos },
       similar: { results: similar },
       external_ids: {

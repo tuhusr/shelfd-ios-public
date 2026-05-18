@@ -242,6 +242,7 @@ function scheduleLiveFriendActivityRefresh() {
     if (activityOpen) loadFullActivityFeed();
     else if (activeFriendsTab === 'activity') {
       if (isWatchActivitySubTab()) renderActiveWatchActivitySubTab();
+      else if (activeActivitySubTab === 'notifications') return;
       else loadActivityTabFeed();
     }
   }, 250);
@@ -698,6 +699,11 @@ function updateRequestsBadges() {
   const sharedWatchIncomingTotal = watchTogetherIncomingRequestIds.length;
   const friendIncomingTotal = incomingRequests.length;
   const directMessageTotal = getDirectMessageNotificationCount();
+  const activityNotificationTotal = Number(
+    window.activityNotificationsUnreadCount ||
+    (typeof activityNotificationsUnreadCount !== 'undefined' ? activityNotificationsUnreadCount : 0) ||
+    0
+  ) || 0;
   const requestTabTotal = friendIncomingTotal + sharedWatchIncomingTotal;
   const communityAlertTotal = requestTabTotal + directMessageTotal;
   const requestsTab = document.getElementById('ftab-requests');
@@ -719,7 +725,7 @@ function updateRequestsBadges() {
   }
 
   if (activityDot) {
-    activityDot.style.display = (friendActivityUnread || sharedWatchIncomingTotal > 0 || directMessageTotal > 0) ? 'inline-block' : 'none';
+    activityDot.style.display = (friendActivityUnread || sharedWatchIncomingTotal > 0 || directMessageTotal > 0 || activityNotificationTotal > 0) ? 'inline-block' : 'none';
   }
 
   updateRequestSubtabBadges();
@@ -841,7 +847,7 @@ function runFriendsTabWorkWhenSmooth(fn) {
 }
 
 function switchFriendsTab(tab) {
-  if (tab === 'activity') {
+  if (tab === 'activity' && !isValidActivitySubTab(activeActivitySubTab)) {
     activeActivitySubTab = 'feed';
   }
   activeFriendsTab = tab;
@@ -865,6 +871,9 @@ function switchFriendsTab(tab) {
   const communityView = document.getElementById('community-view');
   if (communityView) communityView.classList.toggle('friends-activity-active', tab === 'activity');
   if (activityView) activityView.style.display = tab === 'activity' ? 'block' : 'none';
+  if (tab !== 'activity' && typeof stopActivityNotificationsLiveListener === 'function') {
+    stopActivityNotificationsLiveListener();
+  }
   friendsView.style.display = tab === 'friends' ? 'block' : 'none';
   requestsView.style.display = tab === 'requests' ? 'block' : 'none';
   if (addFriendView) addFriendView.style.display = tab === 'add-friend' ? 'block' : 'none';
@@ -876,6 +885,8 @@ function switchFriendsTab(tab) {
       if (activeFriendsTab !== 'activity') return;
       if (isWatchActivitySubTab()) {
         renderActiveWatchActivitySubTab();
+      } else if (activeActivitySubTab === 'notifications') {
+        renderActivityNotificationsPage();
       } else {
         friendActivityStorySeenAtSnapshot = getFriendActivitySeenAt();
         loadActivityTabFeed();
@@ -1009,6 +1020,10 @@ function isWatchActivitySubTab(tab = activeActivitySubTab) {
   return tab === 'friendWatch' || tab === 'sharedWatch';
 }
 
+function isValidActivitySubTab(tab = activeActivitySubTab) {
+  return ['feed', 'notifications', 'sharedWatch', 'friendWatch'].includes(tab);
+}
+
 function renderActiveWatchActivitySubTab(skipHydrate = false) {
   if (activeActivitySubTab === 'friendWatch') return renderFriendWatchRequestsActivity(skipHydrate);
   if (activeActivitySubTab === 'sharedWatch') return renderSharedWatchActivity(skipHydrate);
@@ -1081,13 +1096,22 @@ function buildSharedWatchDashboardCards(groups = []) {
 
 function updateActivitySubtabUi() {
   const feed = document.getElementById('friend-activity-feed');
+  const notifications = document.getElementById('activity-notifications-feed');
   const shared = document.getElementById('shared-watch-feed');
   const communityView = document.getElementById('community-view');
   if (feed) feed.style.display = activeActivitySubTab === 'feed' ? 'block' : 'none';
+  if (notifications) notifications.style.display = activeActivitySubTab === 'notifications' ? 'block' : 'none';
   if (shared) shared.style.display = isWatchActivitySubTab() ? 'block' : 'none';
+  if (activeActivitySubTab !== 'notifications' && typeof stopActivityNotificationsLiveListener === 'function') {
+    stopActivityNotificationsLiveListener();
+  }
   if (communityView) {
-    communityView.classList.remove('activity-subtab-feed', 'activity-subtab-watch-requests', 'activity-subtab-shared-watch');
-    communityView.classList.add(activeActivitySubTab === 'friendWatch' ? 'activity-subtab-watch-requests' : (activeActivitySubTab === 'sharedWatch' ? 'activity-subtab-shared-watch' : 'activity-subtab-feed'));
+    communityView.classList.remove('activity-subtab-feed', 'activity-subtab-notifications', 'activity-subtab-watch-requests', 'activity-subtab-shared-watch');
+    communityView.classList.add(activeActivitySubTab === 'friendWatch'
+      ? 'activity-subtab-watch-requests'
+      : (activeActivitySubTab === 'sharedWatch'
+        ? 'activity-subtab-shared-watch'
+        : (activeActivitySubTab === 'notifications' ? 'activity-subtab-notifications' : 'activity-subtab-feed')));
   }
   updateSharedWatchActivityBadge();
 }
@@ -1097,6 +1121,8 @@ function renderCurrentActivitySubTab() {
   updateActivitySubtabUi();
   if (activeActivitySubTab === 'friendWatch') {
     return renderFriendWatchRequestsActivity();
+  } else if (activeActivitySubTab === 'notifications') {
+    return renderActivityNotificationsPage();
   } else if (activeActivitySubTab === 'sharedWatch') {
     return renderSharedWatchActivity();
   } else {
@@ -1109,6 +1135,7 @@ function renderCurrentActivitySubTab() {
 }
 
 function getActivitySubTabPane(tab = activeActivitySubTab) {
+  if (tab === 'notifications') return document.getElementById('activity-notifications-feed');
   return tab === 'feed'
     ? document.getElementById('friend-activity-feed')
     : document.getElementById('shared-watch-feed');
@@ -1116,8 +1143,9 @@ function getActivitySubTabPane(tab = activeActivitySubTab) {
 
 function getActivitySubTabSpatialOrder(tab = activeActivitySubTab) {
   if (tab === 'friendWatch') return 0;
+  if (tab === 'notifications') return 1;
   if (tab === 'sharedWatch') return 2;
-  return 1;
+  return 0;
 }
 
 function clearActivitySubTabSpatialClasses(pane) {
@@ -1172,13 +1200,17 @@ function runActivitySubTabSpatialTransition(previousSubTab = 'feed', nextSubTab 
 }
 
 async function switchActivitySubTab(tab = 'feed') {
-  const requestedSubTab = tab === 'friendWatch' ? 'friendWatch' : (tab === 'sharedWatch' ? 'sharedWatch' : 'feed');
+  const requestedSubTab = tab === 'friendWatch'
+    ? 'friendWatch'
+    : (tab === 'notifications' ? 'notifications' : (tab === 'sharedWatch' ? 'sharedWatch' : 'feed'));
   if (activeActivitySubTab === requestedSubTab) {
     updateActivitySubtabUi();
+    if (requestedSubTab === 'notifications') await renderActivityNotificationsPage();
+    persistUiState();
     return;
   }
 
-  const previousSubTab = activeActivitySubTab === 'friendWatch' || activeActivitySubTab === 'sharedWatch' ? activeActivitySubTab : 'feed';
+  const previousSubTab = isValidActivitySubTab(activeActivitySubTab) ? activeActivitySubTab : 'feed';
   const previousPane = getActivitySubTabPane(previousSubTab);
   activeActivitySubTab = requestedSubTab;
 
@@ -1238,28 +1270,28 @@ async function renderFriendWatchRequestsActivity(skipHydrate = false) {
 
 
 function buildSharedWatchDescriptionCard() {
-  return `<section class="shared-watch-description-card" data-shared-watch-description-card>
-    <button class="shared-watch-description-toggle" type="button" onclick="toggleSharedWatchDescriptionCard(this)" aria-expanded="true">
+  return `<section class="shared-watch-description-card collapsed" data-shared-watch-description-card>
+    <button class="shared-watch-description-toggle" type="button" onclick="toggleSharedWatchDescriptionCard(this)" aria-expanded="false">
       <span>What is Shared Watch?</span>
-      <em>Collapse</em>
+      <em>Expand</em>
     </button>
     <div class="shared-watch-description-body">
       <section class="shared-watch-description-section">
         <h4>Overview</h4>
-        <p><strong>Shared Watch</strong> is a new feature that lets you tag friends on movies, TV shows, and anime that you plan to watch together or already watched together. It helps you keep track of who you are watching what with.</p>
+        <p><strong>Shared Watch</strong> lets you connect friends to movies, TV shows, and anime that you plan to watch together or already watched together.</p>
       </section>
       <section class="shared-watch-description-section">
         <h4>How it works</h4>
-        <p>If a movie, TV show, or anime has not released yet, or you have not watched it yet, you can tag someone as a reminder that you want to watch that title together. We all forget media we planned to watch with someone or with a group.</p>
-        <p>If you already watched a title together, you can tag the people you watched it with. This displays on your My Lists title card with the profile pictures of the friends you watched it with, and anyone who views your list can see it.</p>
+        <p>If a title has not released yet, or you have not watched it yet, you can add someone as a reminder that you want to watch it together.</p>
+        <p>If you already watched a title together, you can tag the people you watched it with so the title card keeps that shared watch connection visible.</p>
       </section>
       <section class="shared-watch-description-section">
-        <h4>How to add people</h4>
-        <p>You can add people to planning or watched titles by using the plus button at the bottom right of a title card in your My Lists page.</p>
+        <h4>How to start</h4>
+        <p>Tap the two-person Shared Watch icon on a title card to invite someone to watch together.</p>
       </section>
       <section class="shared-watch-description-section">
         <h4>Privacy</h4>
-        <p>Planning tags are private to you. Confirmed watched-together tags can be shared so people can see who watched that title together.</p>
+        <p>Planning tags stay private to you. Confirmed watched-together tags can be shared so people can see who watched that title together.</p>
       </section>
     </div>
   </section>`;
@@ -1271,7 +1303,7 @@ function toggleSharedWatchDescriptionCard(btn) {
   const collapsed = card.classList.toggle('collapsed');
   btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
   const label = btn.querySelector('em');
-  if (label) label.textContent = collapsed ? 'Read' : 'Collapse';
+  if (label) label.textContent = collapsed ? 'Expand' : 'Collapse';
 }
 
 async function renderSharedWatchActivity(skipHydrate = false) {
@@ -1347,32 +1379,35 @@ async function buildFriendRequestCards(uids = [], type = 'incoming') {
     console.error(type === 'incoming' ? "Incoming requests load failed:" : "Outgoing requests load failed:", e);
     throw e;
   }
+  /* v10.224: requests page rebuilt in the same IG row style as the Friends
+     tab — circular avatar, handle line + display name underneath, trailing
+     action buttons. Incoming = Confirm + Delete; outgoing = Cancel. */
   let html = '';
   docs.forEach(doc => {
     if (!doc.exists) return;
     const u = { uid: doc.id, ...(doc.data() || {}) };
     usersMap[u.uid] = u;
-    const avatar = u.photo || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.name || '?') + '&background=1e2028&color=60a5fa';
-    if (type === 'incoming') {
-      html += `<div class="user-card locked" style="justify-content:space-between;">
-        <div style="display:flex;align-items:center;gap:14px;flex:1;min-width:0;">
-          <img class="user-card-avatar" src="${escAttr(avatar)}" alt="">
-          <div><div class="user-card-name">${renderDisplayNameHTML(u, 'User')}</div><div class="user-card-stats">wants to be friends</div></div>
-        </div>
-        <div class="friend-actions-group">
-          <button class="friend-action-btn friend-accept-btn" onclick="acceptFriendRequest('${escAttr(u.uid)}')">Accept</button>
-          <button class="friend-action-btn friend-remove-btn" onclick="rejectFriendRequest('${escAttr(u.uid)}')">Decline</button>
-        </div>
-      </div>`;
-    } else {
-      html += `<div class="user-card locked" style="justify-content:space-between;">
-        <div style="display:flex;align-items:center;gap:14px;flex:1;min-width:0;">
-          <img class="user-card-avatar" src="${escAttr(avatar)}" alt="">
-          <div><div class="user-card-name">${renderDisplayNameHTML(u, 'User')}</div><div class="user-card-stats">awaiting response</div></div>
-        </div>
-        <button class="friend-action-btn friend-remove-btn" onclick="cancelFriendRequest('${escAttr(u.uid)}')">Cancel</button>
-      </div>`;
-    }
+    const fallbackAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.name || '?') + '&background=1e2028&color=60a5fa';
+    const avatar = u.photo || fallbackAvatar;
+    const handle = String(u.userHandle || u.handle || u.username || u.name || 'User').trim();
+    const displayName = String(u.customName || u.fullName || u.displayName || '').trim();
+    const uidAttr = escAttr(u.uid);
+    const actionsHtml = type === 'incoming'
+      ? `<div class="shelfd-friend-req-actions">
+           <button type="button" class="shelfd-friend-req-btn primary" onclick="event.stopPropagation(); acceptFriendRequest('${uidAttr}')">Confirm</button>
+           <button type="button" class="shelfd-friend-req-btn secondary" onclick="event.stopPropagation(); rejectFriendRequest('${uidAttr}')">Delete</button>
+         </div>`
+      : `<div class="shelfd-friend-req-actions">
+           <button type="button" class="shelfd-friend-req-btn secondary" onclick="event.stopPropagation(); cancelFriendRequest('${uidAttr}')">Cancel</button>
+         </div>`;
+    html += `<div class="shelfd-friend-row shelfd-friend-req-row" data-friend-uid="${uidAttr}" onclick="openUserProfile('${uidAttr}')">
+      <img class="shelfd-friend-avatar" src="${escAttr(avatar)}" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${escAttr(fallbackAvatar)}'">
+      <div class="shelfd-friend-text">
+        <strong class="shelfd-friend-handle">${escHtml(handle)}</strong>
+        ${displayName ? `<span class="shelfd-friend-name">${escHtml(displayName)}</span>` : ''}
+      </div>
+      ${actionsHtml}
+    </div>`;
   });
   return html;
 }
@@ -1550,52 +1585,197 @@ async function renderFriendsList() {
     .filter(Boolean);
   const hasAllCachedProfiles = cachedProfiles.length === friends.length && cachedProfiles.every(profile => profile.name);
 
+  /* v10.222: IG-style remodel of the friends list — search bar, follow
+     requests preview row, categories block, sort header, vertical user rows
+     (avatar + handle + name + X only). The header (tabs/title) above is
+     untouched. No Message button, per the spec. */
   function buildFriendsListHtml(profiles) {
-    let html = '';
-    profiles.forEach(u => {
-      if (!u) return;
+    const safeProfiles = (profiles || []).filter(Boolean);
+    let listHtml = '';
+    safeProfiles.forEach(u => {
+      if (!u || !u.uid) return;
       usersMap[u.uid] = { ...usersMap[u.uid], ...u };
-      const avatar = u.photo || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.name || '?') + '&background=1e2028&color=60a5fa';
-      html += `<div class="user-card friend-list-card" style="justify-content:space-between;">
-        <div class="friend-card-main" style="display:flex;align-items:center;gap:14px;flex:1;min-width:0;cursor:pointer;" onclick="viewUserFromMap('${u.uid}')">
-          <img class="user-card-avatar" src="${avatar}" alt="">
-          <div class="friend-card-copy"><div class="user-card-name">${renderDisplayNameHTML(u, 'User')}</div></div>
+      const fallbackAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.name || '?') + '&background=1e2028&color=60a5fa';
+      const avatar = u.photo || fallbackAvatar;
+      const handle = String(u.userHandle || u.handle || u.username || u.name || 'User').trim();
+      const displayName = String(u.customName || u.fullName || u.displayName || '').trim();
+      const filterTokens = [handle, displayName, u.name || ''].map(s => String(s || '').toLowerCase()).join(' ');
+      const removeLabel = escAttr(displayName || handle || 'this friend');
+      listHtml += `<div class="shelfd-friend-row" data-friend-uid="${escAttr(u.uid)}" data-friend-filter="${escAttr(filterTokens)}" onclick="viewUserFromMap('${escAttr(u.uid)}')">
+        <img class="shelfd-friend-avatar" src="${escAttr(avatar)}" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${escAttr(fallbackAvatar)}'">
+        <div class="shelfd-friend-text">
+          <strong class="shelfd-friend-handle">${escHtml(handle)}</strong>
+          ${displayName ? `<span class="shelfd-friend-name">${escHtml(displayName)}</span>` : ''}
         </div>
-        <div class="friend-actions-group">
-          <button class="friend-action-btn friend-mobile-list-btn friend-screenlist-btn" onclick="event.stopPropagation(); viewUserFromMap('${u.uid}')">View Shelf</button>
-          <button class="friend-action-btn friend-profile-btn friend-message-btn" onclick="event.stopPropagation(); openDirectMessageFromUser('${u.uid}')">Message</button>
-          <button class="friend-action-btn friend-profile-btn friend-mobile-profile-btn" onclick="event.stopPropagation(); openUserProfile('${u.uid}')">Profile</button>
-          <button class="friend-action-btn friend-profile-btn friend-profile-desktop-btn" onclick="event.stopPropagation(); openUserProfile('${u.uid}')">Profile</button>
-          <button class="friend-action-btn friend-remove-btn friend-remove-desktop-btn" onclick="event.stopPropagation(); removeFriend('${u.uid}')">Remove</button>
-          <button class="friend-mobile-remove-x" type="button" aria-label="Remove friend" onclick="event.stopPropagation(); confirmRemoveFriend('${u.uid}', '${escAttr(u.displayName || u.name || 'this friend')}')">×</button>
-        </div>
+        <button class="shelfd-friend-x" type="button" aria-label="Remove friend" onclick="event.stopPropagation(); confirmRemoveFriend('${escAttr(u.uid)}','${removeLabel}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        </button>
       </div>`;
     });
-    return html || `<div class="friends-empty" style="grid-column:1/-1;"><div class="friends-empty-icon">👥</div><p style="color:#7a6f99;">No friends found</p></div>`;
+    const emptyHtml = `<div class="shelfd-friends-empty"><div class="friends-empty-icon">👥</div><p>No friends found</p></div>`;
+    return listHtml || emptyHtml;
+  }
+
+  function buildFollowRequestsRowHtml() {
+    const list = Array.isArray(incomingRequests) ? incomingRequests : [];
+    if (!list.length) return '';
+    const firstUid = list[0];
+    const firstUser = usersMap[firstUid] || {};
+    const firstHandle = String(firstUser.userHandle || firstUser.handle || firstUser.username || firstUser.name || 'someone').trim();
+    const firstAvatar = firstUser.photo || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(firstUser.name || '?') + '&background=1e2028&color=60a5fa');
+    const others = Math.max(0, list.length - 1);
+    const sub = others > 0 ? `${escHtml(firstHandle)} + ${others} other${others === 1 ? '' : 's'}` : escHtml(firstHandle);
+    return `<button class="shelfd-friends-followreq-row" type="button" onclick="switchFriendsTab && switchFriendsTab('requests')">
+      <span class="shelfd-friends-followreq-avatar"><img src="${escAttr(firstAvatar)}" alt="" loading="lazy" decoding="async"></span>
+      <span class="shelfd-friends-followreq-text">
+        <strong>Follow requests</strong>
+        <span>${sub}</span>
+      </span>
+      <span class="shelfd-friends-followreq-indicator" aria-hidden="true"></span>
+      <svg class="shelfd-friends-followreq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
+    </button>`;
+  }
+
+  function buildCategoriesHtml(profiles) {
+    // Compute lightweight previews for each category. These are best-effort
+    // signals over current cached profile data — Shelfd is a symmetric-friend
+    // model so "people you don't follow back" is structurally empty, but the
+    // row is preserved to mirror the IG layout the user referenced.
+    const safe = (profiles || []).filter(Boolean);
+    const deactivated = safe.filter(u => !u || !u.name || u.deactivated === true || u.disabled === true);
+    const interactionCount = uid => {
+      if (typeof getDirectMessageThreadMessageCount === 'function') {
+        try { return Number(getDirectMessageThreadMessageCount(uid) || 0); } catch (_) {}
+      }
+      return 0;
+    };
+    const sortedByInteraction = safe.slice().sort((a, b) => interactionCount(a.uid) - interactionCount(b.uid));
+    const leastInteracted = sortedByInteraction.slice(0, Math.min(5, sortedByInteraction.length));
+
+    const renderRow = (key, label, sampleList, fallbackText) => {
+      const sample = sampleList[0] || null;
+      const sampleHandle = sample ? String(sample.userHandle || sample.handle || sample.username || sample.name || 'user').trim() : '';
+      const sampleAvatar = sample ? (sample.photo || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(sample.name || '?') + '&background=1e2028&color=60a5fa') : '';
+      const others = Math.max(0, sampleList.length - 1);
+      const sub = sample
+        ? `${escHtml(sampleHandle)} and ${others} other${others === 1 ? '' : 's'}`
+        : escHtml(fallbackText);
+      return `<button class="shelfd-friends-cat-row" type="button" data-category="${escAttr(key)}" onclick="handleFriendsCategoryOpen && handleFriendsCategoryOpen('${escAttr(key)}')">
+        <span class="shelfd-friends-cat-avatar${sample ? '' : ' is-empty'}">
+          ${sampleAvatar ? `<img src="${escAttr(sampleAvatar)}" alt="" loading="lazy" decoding="async">` : `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="9" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>`}
+        </span>
+        <span class="shelfd-friends-cat-text">
+          <strong>${escHtml(label)}</strong>
+          <span>${sub}</span>
+        </span>
+      </button>`;
+    };
+
+    return `<div class="shelfd-friends-cat-block">
+      <div class="shelfd-friends-cat-heading">Categories</div>
+      ${renderRow("dont-follow-back", "People you don't follow back", [], 'No suggestions yet')}
+      ${renderRow('least-interacted', 'Least interacted with', leastInteracted, 'Start chatting to see suggestions')}
+      ${renderRow('deactivated', 'Deactivated accounts', deactivated, 'No deactivated accounts')}
+    </div>`;
+  }
+
+  function renderShelfdFriendsLayout(profiles) {
+    const followReqHtml = buildFollowRequestsRowHtml();
+    const listHtml = buildFriendsListHtml(profiles);
+    // v10.224: Categories block removed per spec — kept only the search bar,
+    // follow-requests preview row, sort header, and friend list.
+    grid.innerHTML = `
+      <section class="shelfd-friends-vstack" data-shelfd-friends-vstack>
+        <label class="shelfd-friends-search-bar" for="shelfd-friends-search-input">
+          <svg class="shelfd-friends-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="M16.2 16.2 21 21"/></svg>
+          <input id="shelfd-friends-search-input" class="shelfd-friends-search-input" type="search" inputmode="search" autocomplete="off" spellcheck="false" placeholder="Search" oninput="filterShelfdFriendsList(this.value)">
+        </label>
+        ${followReqHtml}
+        <div class="shelfd-friends-sort-row">
+          <span class="shelfd-friends-sort-label">Sort by <strong data-shelfd-friends-sort-label>Date followed: latest</strong></span>
+          <button class="shelfd-friends-sort-btn" type="button" aria-label="Change sort" onclick="cycleShelfdFriendsSort()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="8 4 8 20"/><polyline points="4 8 8 4 12 8"/><polyline points="16 4 16 20"/><polyline points="12 16 16 20 20 16"/></svg>
+          </button>
+        </div>
+        <div class="shelfd-friends-userlist" data-shelfd-friends-list>${listHtml}</div>
+      </section>`;
   }
 
   if (hasAllCachedProfiles) {
-    grid.innerHTML = buildFriendsListHtml(cachedProfiles);
+    renderShelfdFriendsLayout(cachedProfiles);
     return;
   }
 
-  grid.innerHTML = '<div class="skeleton-card" style="grid-column:1/-1;"></div>';
+  grid.innerHTML = '<div class="skeleton-card"></div>';
   try {
     const profiles = await primeFriendProfiles(true);
     const normalizedProfiles = (profiles || [])
       .map((u, index) => u ? { ...u, uid: u.uid || friends[index] } : null)
       .filter(Boolean);
-    grid.innerHTML = buildFriendsListHtml(normalizedProfiles);
+    renderShelfdFriendsLayout(normalizedProfiles);
   } catch(e) {
-    grid.innerHTML = '<div class="app-error" style="grid-column:1/-1;">Failed to load friends. Try again in a moment.</div>';
+    grid.innerHTML = '<div class="app-error">Failed to load friends. Try again in a moment.</div>';
     console.error(e);
   }
 }
+
+/* v10.222: live search filter for the IG-style friends list. Toggles
+   display:none on rows whose handle/name don't match — no full re-render. */
+window.filterShelfdFriendsList = function(value = '') {
+  const q = String(value || '').trim().toLowerCase();
+  const rows = document.querySelectorAll('[data-shelfd-friends-list] .shelfd-friend-row');
+  rows.forEach(row => {
+    if (!q) { row.style.display = ''; return; }
+    const filter = String(row.getAttribute('data-friend-filter') || '').toLowerCase();
+    row.style.display = filter.includes(q) ? '' : 'none';
+  });
+};
+
+/* v10.222: cycle sort order for the friends list. Order modes: latest /
+   oldest / a–z. The friends array is reordered then re-rendered. */
+let shelfdFriendsSortMode = 'latest';
+const SHELFD_FRIENDS_SORT_LABELS = {
+  latest: 'Date followed: latest',
+  oldest: 'Date followed: oldest',
+  alpha: 'Alphabetical (A–Z)'
+};
+window.cycleShelfdFriendsSort = function() {
+  shelfdFriendsSortMode = shelfdFriendsSortMode === 'latest'
+    ? 'oldest'
+    : (shelfdFriendsSortMode === 'oldest' ? 'alpha' : 'latest');
+  const label = document.querySelector('[data-shelfd-friends-sort-label]');
+  if (label) label.textContent = SHELFD_FRIENDS_SORT_LABELS[shelfdFriendsSortMode] || '';
+  const list = document.querySelector('[data-shelfd-friends-list]');
+  if (!list) return;
+  const rows = Array.from(list.querySelectorAll('.shelfd-friend-row'));
+  rows.sort((a, b) => {
+    if (shelfdFriendsSortMode === 'alpha') {
+      const ha = String(a.querySelector('.shelfd-friend-handle')?.textContent || '').toLowerCase();
+      const hb = String(b.querySelector('.shelfd-friend-handle')?.textContent || '').toLowerCase();
+      return ha.localeCompare(hb);
+    }
+    // Use index of the uid in the friends[] array as a proxy for join order.
+    const ua = a.getAttribute('data-friend-uid') || '';
+    const ub = b.getAttribute('data-friend-uid') || '';
+    const ia = (Array.isArray(friends) ? friends.indexOf(ua) : -1);
+    const ib = (Array.isArray(friends) ? friends.indexOf(ub) : -1);
+    return shelfdFriendsSortMode === 'oldest' ? ia - ib : ib - ia;
+  });
+  rows.forEach(r => list.appendChild(r));
+};
+
+/* v10.222: stub category opener — UI rows are rendered to match the
+   reference design; full per-category filtering ships in a follow-up. */
+window.handleFriendsCategoryOpen = function(key) {
+  if (typeof showToast === 'function') showToast('Category coming soon');
+};
 
 
 let peopleSearchGridOverrideId = '';
 const FRIEND_HOME_ENTER_TRANSITION_MS = 600;
 let friendHomeTransitionTimer = 0;
+let friendHomeExitPromise = null;
+let friendHomeExitToken = 0;
 
 function cloneFriendRouteState(state = null) {
   if (!state || typeof state !== 'object') return null;
@@ -1609,7 +1789,7 @@ function captureCommunityReturnState(source = 'community') {
     mainTab: 'community',
     friendsTab: ['friends', 'requests', 'activity'].includes(activeFriendsTab) ? activeFriendsTab : 'activity',
     requestsSubTab: activeRequestsSubTab === 'friends' ? 'friends' : 'friends',
-    activitySubTab: ['feed', 'friendWatch', 'sharedWatch'].includes(activeActivitySubTab) ? activeActivitySubTab : 'feed',
+    activitySubTab: ['feed', 'notifications', 'friendWatch', 'sharedWatch'].includes(activeActivitySubTab) ? activeActivitySubTab : 'feed',
     messagesSubTab: ['chats', 'requests'].includes(activeMessagesSubTab) ? activeMessagesSubTab : 'chats',
     friendsListMode: document.body.classList.contains('shelfd-friends-list-mode') || activeFriendsTab === 'friends'
   };
@@ -1624,7 +1804,7 @@ function normalizeCommunityReturnState(state = null) {
     mainTab: 'community',
     friendsTab: ['friends', 'requests', 'activity'].includes(next.friendsTab) ? next.friendsTab : fallback.friendsTab,
     requestsSubTab: next.requestsSubTab === 'friends' ? 'friends' : fallback.requestsSubTab,
-    activitySubTab: ['feed', 'friendWatch', 'sharedWatch'].includes(next.activitySubTab) ? next.activitySubTab : fallback.activitySubTab,
+    activitySubTab: ['feed', 'notifications', 'friendWatch', 'sharedWatch'].includes(next.activitySubTab) ? next.activitySubTab : fallback.activitySubTab,
     messagesSubTab: ['chats', 'requests'].includes(next.messagesSubTab) ? next.messagesSubTab : fallback.messagesSubTab,
     friendsListMode: typeof next.friendsListMode === 'boolean' ? next.friendsListMode : fallback.friendsListMode
   };
@@ -1638,6 +1818,25 @@ function clearFriendHomeChrome() {
   if (addBtn) addBtn.style.display = '';
   if (bannerArea) bannerArea.innerHTML = '';
   clearListSearch();
+}
+
+function restoreOwnLibraryFromFriendViewCache() {
+  if (isPreviewMode()) {
+    const previewOwnData = ownDataCache ? cloneListData(ownDataCache) : cloneListData(DEMO_DATA);
+    data = cloneListData(previewOwnData);
+    ownDataCache = cloneListData(previewOwnData);
+    myData = null;
+    return previewOwnData;
+  }
+
+  const cachedOwnData = myData
+    ? cloneListData(myData)
+    : (ownDataCache ? cloneListData(ownDataCache) : cloneListData(data || getEmptyListData()));
+
+  data = cloneListData(cachedOwnData);
+  ownDataCache = cloneListData(cachedOwnData);
+  myData = null;
+  return cachedOwnData;
 }
 
 async function restoreOwnLibraryAfterFriendView(previousFriendData = null) {
@@ -1682,6 +1881,20 @@ async function restoreCommunityReturnState(state = null) {
     loadFriendActivity();
   }
   persistUiState();
+  return nextState;
+}
+
+function showImmediateCommunityReturnState(state = null) {
+  const nextState = normalizeCommunityReturnState(state);
+  activeFriendsTab = nextState.friendsTab;
+  activeRequestsSubTab = nextState.requestsSubTab;
+  activeActivitySubTab = nextState.activitySubTab;
+  activeMessagesSubTab = nextState.messagesSubTab;
+  document.body.classList.toggle('shelfd-friends-list-mode', nextState.friendsListMode || nextState.friendsTab === 'friends');
+  setBottomNavVisibility(true);
+  syncMainNavButtons('community');
+  setMainNavVisibility('community');
+  switchFriendsTab(nextState.friendsTab);
   return nextState;
 }
 
@@ -2060,6 +2273,24 @@ async function sendFriendRequest(uid) {
     showToast("Couldn't send that friend request. Try again.");
     return;
   }
+  /* v10.145: live notification trigger — recipient gets a notification
+     the moment the friend request lands. Deterministic doc ID
+     `friend_request:{actorUid}` so re-sending after a reject/remove
+     overwrites the same doc instead of creating a duplicate. Fire-and-
+     forget; failures are logged inside createActivityNotification but
+     don't roll back the request itself. */
+  if (typeof createActivityNotification === 'function') {
+    try {
+      createActivityNotification({
+        recipientUid: uid,
+        actorUid: currentUser.uid,
+        type: 'friend_request',
+        targetActivityId: `friend_request:${currentUser.uid}`,
+        targetKind: 'friend_request',
+        createdAtMs: Date.now()
+      });
+    } catch (notifError) { console.warn('Friend request notification failed:', notifError); }
+  }
   refilterPeople();
   refreshProfileSocialModal();
   showToast("Friend request sent");
@@ -2170,6 +2401,23 @@ async function acceptFriendRequest(uid) {
     commitFriendsDataState(rollback, { silent: true, skipSelfRepair: true });
     showToast("Couldn't accept that request. Try again.");
     return;
+  }
+  /* v10.145: live notification trigger — original requester gets a
+     notification the moment we accept. Deterministic doc ID
+     `friend_accept:{actorUid}` (actorUid = our uid here since we're
+     the acceptor) so repeated accept/remove/re-accept cycles keep
+     overwriting the same doc instead of stacking. */
+  if (typeof createActivityNotification === 'function') {
+    try {
+      createActivityNotification({
+        recipientUid: uid,
+        actorUid: currentUser.uid,
+        type: 'friend_accept',
+        targetActivityId: `friend_accept:${currentUser.uid}`,
+        targetKind: 'friend_request',
+        createdAtMs: Date.now()
+      });
+    } catch (notifError) { console.warn('Friend accept notification failed:', notifError); }
   }
   updateRequestsBadges();
   updateFriendsCountBadge();
@@ -2381,11 +2629,59 @@ async function viewUserList(uid, name, photo) {
 }
 
 async function backToMyList(targetTab = null) {
-  resetFriendHomeEnterTransition();
-  const previousFriendData = friendViewData ? cloneListData(friendViewData) : null;
-  const savedReturnState = !targetTab ? cloneFriendRouteState(viewingReturnState) : null;
-  const returnTab = targetTab || viewingReturnTab || 'mylist';
-  if (typeof isShelfdGuestBrowsing === 'function' && isShelfdGuestBrowsing() && !currentUser) {
+  if (friendHomeExitPromise) return friendHomeExitPromise;
+  const exitToken = ++friendHomeExitToken;
+  const exitTask = (async () => {
+    resetFriendHomeEnterTransition();
+    const previousFriendData = friendViewData ? cloneListData(friendViewData) : null;
+    const savedReturnState = !targetTab ? cloneFriendRouteState(viewingReturnState) : null;
+    const returnTab = targetTab || viewingReturnTab || 'mylist';
+    const navReturnTab = returnTab === 'games-discover' ? 'discover' : returnTab;
+    if (typeof isShelfdGuestBrowsing === 'function' && isShelfdGuestBrowsing() && !currentUser) {
+      viewingUser = null;
+      friendViewData = null;
+      viewingReturnState = null;
+      viewingReturnTab = 'mylist';
+      profileViewingUser = null;
+      profileViewingProfile = null;
+      profileViewingData = null;
+      document.body.classList.remove('viewing-other-user', 'landing-public-lists', 'profile-active', 'guest-creator-lists');
+      syncViewingUserHeaderBackButton(false);
+      const addBtn = document.getElementById('add-btn');
+      const bannerArea = document.getElementById('viewing-banner-area');
+      if (addBtn) addBtn.style.display = '';
+      if (bannerArea) bannerArea.innerHTML = '';
+      clearListSearch();
+      if (returnTab === 'mylist') {
+        if (typeof openGuestCreatorListsView === 'function') await openGuestCreatorListsView({ returnTab: 'discover' });
+        return;
+      }
+      setBottomNavVisibility(true);
+      syncMainNavButtons(navReturnTab);
+      setMainNavVisibility(returnTab);
+      if (returnTab === 'community') {
+        loadCommunity(true);
+        loadFriendActivity();
+      } else if (returnTab === 'discover' || returnTab === 'games-discover') {
+        if (returnTab === 'games-discover') activeDiscoveryHub = 'gaming';
+        loadActiveDiscoveryHub();
+      }
+      persistUiState();
+      return;
+    }
+    if (landingPublicProfileActive && !currentUser && returnTab === 'landing') {
+      viewingUser = null;
+      friendViewData = null;
+      viewingReturnState = null;
+      viewingReturnTab = 'mylist';
+      profileViewingUser = null;
+      profileViewingProfile = null;
+      profileViewingData = null;
+      document.body.classList.remove('viewing-other-user', 'landing-public-lists', 'profile-active');
+      syncViewingUserHeaderBackButton(false);
+      showLandingPage();
+      return;
+    }
     viewingUser = null;
     friendViewData = null;
     viewingReturnState = null;
@@ -2393,95 +2689,50 @@ async function backToMyList(targetTab = null) {
     profileViewingUser = null;
     profileViewingProfile = null;
     profileViewingData = null;
-    document.body.classList.remove('viewing-other-user', 'landing-public-lists', 'profile-active', 'guest-creator-lists');
-    syncViewingUserHeaderBackButton(false);
-    const addBtn = document.getElementById('add-btn');
-    const bannerArea = document.getElementById('viewing-banner-area');
-    if (addBtn) addBtn.style.display = '';
-    if (bannerArea) bannerArea.innerHTML = '';
-    clearListSearch();
-    if (returnTab === 'mylist') {
-      if (typeof openGuestCreatorListsView === 'function') await openGuestCreatorListsView({ returnTab: 'discover' });
-      return;
-    }
+    clearFriendHomeChrome();
     setBottomNavVisibility(true);
-    syncMainNavButtons(returnTab);
-    setMainNavVisibility(returnTab);
-    if (returnTab === 'community') {
-      loadCommunity(true);
-      loadFriendActivity();
-    } else if (returnTab === 'discover' || returnTab === 'games-discover') {
-      if (returnTab === 'games-discover') activeDiscoveryHub = 'gaming';
-      loadActiveDiscoveryHub();
-    }
-    persistUiState();
-    return;
-  }
-  if (landingPublicProfileActive && !currentUser && returnTab === 'landing') {
-    viewingUser = null;
-    friendViewData = null;
-    viewingReturnState = null;
-    viewingReturnTab = 'mylist';
-    profileViewingUser = null;
-    profileViewingProfile = null;
-    profileViewingData = null;
-    document.body.classList.remove('viewing-other-user', 'landing-public-lists', 'profile-active');
-    syncViewingUserHeaderBackButton(false);
-    showLandingPage();
-    return;
-  }
-  viewingUser = null;
-  friendViewData = null;
-  viewingReturnState = null;
-  viewingReturnTab = 'mylist';
-  clearFriendHomeChrome();
-  setBottomNavVisibility(true);
+    restoreOwnLibraryFromFriendViewCache();
 
-  if (isPreviewMode()) {
-    await restoreOwnLibraryAfterFriendView(previousFriendData);
     if (!targetTab && savedReturnState?.kind === 'community') {
-      await restoreCommunityReturnState(savedReturnState);
-      return;
-    }
-    syncMainNavButtons(returnTab);
-    setMainNavVisibility(returnTab);
-    if (returnTab === 'community') {
-      loadCommunity();
-      loadFriendActivity();
-    } else if (returnTab === 'discover' || returnTab === 'games-discover') {
-      if (returnTab === 'games-discover') activeDiscoveryHub = 'gaming';
-      loadActiveDiscoveryHub();
+      showImmediateCommunityReturnState(savedReturnState);
+      loadCommunity(false).catch(e => console.error('Friend home community restore failed:', e));
+      if (savedReturnState.friendsTab === 'activity') loadFriendActivity();
+      persistUiState();
     } else {
-      activeSection = "shows";
-      activeTab = "watching";
-      render();
+      if (returnTab === 'games-discover') activeDiscoveryHub = 'gaming';
+      syncMainNavButtons(navReturnTab);
+      setMainNavVisibility(returnTab);
+      if (returnTab === 'community') {
+        loadCommunity();
+        loadFriendActivity();
+      } else if (returnTab === 'discover' || returnTab === 'games-discover') {
+        loadActiveDiscoveryHub();
+      } else {
+        activeSection = "shows";
+        activeTab = "watching";
+        render();
+      }
+      persistUiState();
     }
+
+    if (!isPreviewMode()) {
+      try {
+        await restoreOwnLibraryAfterFriendView(previousFriendData);
+      } catch (e) {
+        console.error('Failed to refresh own library after friend view close:', e);
+      }
+    }
+
+    if (exitToken !== friendHomeExitToken || viewingUser) return;
+    if (getActiveMainTab() === 'mylist') render();
     persistUiState();
-    return;
+  })();
+  friendHomeExitPromise = exitTask;
+  try {
+    await exitTask;
+  } finally {
+    if (friendHomeExitPromise === exitTask) friendHomeExitPromise = null;
   }
-
-  await restoreOwnLibraryAfterFriendView(previousFriendData);
-  if (!targetTab && savedReturnState?.kind === 'community') {
-    await restoreCommunityReturnState(savedReturnState);
-    return;
-  }
-
-  syncMainNavButtons(returnTab);
-  setMainNavVisibility(returnTab);
-  if (returnTab === 'community') {
-    loadCommunity();
-    loadFriendActivity();
-  }
-  else if (returnTab === 'discover' || returnTab === 'games-discover') {
-    if (returnTab === 'games-discover') activeDiscoveryHub = 'gaming';
-    loadActiveDiscoveryHub();
-  }
-  else {
-    activeSection = "shows";
-    activeTab = "watching";
-    render();
-  }
-  persistUiState();
 }
 
 function syncViewingUserHeaderBackButton(enabled = false) {

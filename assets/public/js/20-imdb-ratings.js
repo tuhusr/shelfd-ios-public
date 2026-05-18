@@ -20,7 +20,7 @@
 
   /* v677: bump cache namespace so any old display-side fallback entries are
      ignored after switching Discover/profile rendering to IMDb-only output. */
-  const LS_PREFIX = 'shelfd:imdb-rating:v6:';
+  const LS_PREFIX = 'shelfd:imdb-rating:v7:';
   const TTL_DEFAULT_MS = 7 * 24 * 60 * 60 * 1000;
   const TTL_MISS_MS = 6 * 60 * 60 * 1000;
   const memCache = new Map();
@@ -131,6 +131,21 @@
     return Number.isFinite(n) ? n : 0;
   }
 
+  function parseMetascore(value) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    const clean = String(value || '').trim();
+    if (!clean || clean.toUpperCase() === 'N/A') return 0;
+    const n = Number(clean.replace(/[^0-9.]/g, ''));
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function parseImdbGenreList(value) {
+    return String(value || '')
+      .split(',')
+      .map(part => String(part || '').trim())
+      .filter(Boolean);
+  }
+
   function normalizeRatingData(data) {
     if (!data || typeof data !== 'object') return null;
     if (data.ok === false) return { ok: false };
@@ -181,6 +196,14 @@
       if (rating.runtime) item.imdbRuntime = String(rating.runtime);
       if (rating.rated) item.imdbRated = String(rating.rated);
       if (rating.year) item.imdbYear = String(rating.year);
+      if (rating.genre) {
+        const imdbGenres = parseImdbGenreList(rating.genre);
+        item.imdbGenre = String(rating.genre);
+        item.imdbGenres = imdbGenres;
+        item.imdbPrimaryGenre = imdbGenres[0] || '';
+      }
+      const metascore = parseMetascore(rating.metascore || rating.Metascore || rating.imdbMetascore);
+      if (metascore > 0) item.imdbMetascore = metascore;
 
       /* Overwrite TMDB fields so existing display code uses IMDb. */
       item.vote_average = r;
@@ -313,6 +336,11 @@
       params.set('type', t);
       if (tmdbId) params.set('tmdbId', String(tmdbId));
       if (imdbId) params.set('imdbId', String(imdbId));
+      /* v10.72: send title + year so the worker's Tavily/AI fallback resolver
+         has enough payload to attempt an IMDb-style rating when OMDb is
+         unavailable (e.g. daily quota hit). Was tmdbId/imdbId/type only. */
+      if (title) params.set('title', String(title));
+      if (year) params.set('year', String(year));
       const res = await fetch(`/api/imdb/rating?${params.toString()}`);
       if (!res.ok) return null;
       const json = await res.json();
@@ -322,6 +350,7 @@
         imdbRating: Number(json.imdbRating) || 0,
         imdbVotes: json.imdbVotes || '',
         imdbVotesNumber: parseImdbVotes(json.imdbVotes),
+        metascore: json.metascore || json.Metascore || '',
         imdbId: json.imdbId || imdbId || '',
         title: json.title || title || '',
         year: json.year || year || '',

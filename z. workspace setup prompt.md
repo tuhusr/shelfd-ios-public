@@ -66,6 +66,11 @@ Goal:
 Every animation should feel as close as possible to native iPhone app smoothness.
 
 
+Poster corner default for Shelfd:
+
+- My Lists title-card posters should default to 3.3px corner radius.
+
+
 
 
 

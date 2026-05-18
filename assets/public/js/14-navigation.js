@@ -240,7 +240,29 @@ function setMainNavVisibility(tab) {
   syncDesktopMyListNavPlacement(normalizedTab);
 }
 
+function isMainNavPanelVisible(element) {
+  return !!(element && getComputedStyle(element).display !== 'none');
+}
+
 function getActiveMainTab() {
+  if (document.body.classList.contains('main-tab-discover')) return 'discover';
+  if (document.body.classList.contains('main-tab-community')) return 'community';
+  if (document.body.classList.contains('main-tab-mylist')) return 'mylist';
+
+  const communityView = document.getElementById('community-view');
+  if (isMainNavPanelVisible(communityView)) return 'community';
+
+  const discoverView = document.getElementById('discover-view');
+  const animeDiscoverView = document.getElementById('anime-discover-view');
+  const gamesDiscoverView = document.getElementById('games-discover-view');
+  if (isMainNavPanelVisible(discoverView) || isMainNavPanelVisible(animeDiscoverView) || isMainNavPanelVisible(gamesDiscoverView)) {
+    return 'discover';
+  }
+
+  const myListHeader = document.getElementById('mylist-header');
+  const myListView = document.getElementById('mylist-view');
+  if (isMainNavPanelVisible(myListHeader) || isMainNavPanelVisible(myListView)) return 'mylist';
+
   const navDiscover = document.getElementById('nav-discover');
   const navCommunity = document.getElementById('nav-community');
   if (navDiscover?.classList.contains('active')) return 'discover';
@@ -301,7 +323,7 @@ async function restoreUiState() {
   if (state.activeRequestsSubTab === 'friends') {
     activeRequestsSubTab = 'friends';
   }
-  if (state.activeActivitySubTab && ['feed', 'friendWatch', 'sharedWatch'].includes(state.activeActivitySubTab)) {
+  if (state.activeActivitySubTab && ['feed', 'notifications', 'friendWatch', 'sharedWatch'].includes(state.activeActivitySubTab)) {
     activeActivitySubTab = state.activeActivitySubTab;
   }
   if (state.activeMessagesSubTab && ['chats', 'requests'].includes(state.activeMessagesSubTab)) {
@@ -870,37 +892,53 @@ function closeSearchPage() {
 window.openSearchPage = openSearchPage;
 window.closeSearchPage = closeSearchPage;
 
-/* v703: Swipe-down-to-close gesture for the search page.
-   Tracks the finger in real-time, applies translate with no transition (instant
-   follow), then spring-snaps closed or back on release. The swipe zone starts
-   below the topbar (~80px) so the search input, chips, and back button are
-   fully protected. Only fires when the inner scroll position is at the top so
-   normal result-list scrolling still works. */
+/* v703 / v10.215: Pull-down-anywhere-to-dismiss gesture for the bottom-nav
+   full-page Search overlay (#shelfd-search-page).
+   ----------------------------------------------------------------------
+   Bug fix v10.215: the previous version looked up the inner wrapper with
+   `getElementById('shelfd-search-page-inner')`, but the markup has that
+   token as a CLASS, not an ID — so `attach()` returned early and NO
+   listeners were ever wired up. That's why pull-down silently did nothing.
+   Also: scrollTop was being checked against `.shelfd-search-page-inner`
+   which is `overflow: hidden`, instead of the real scroll container
+   `.shelfd-search-body`. So even after fixing the lookup, the at-top guard
+   was always satisfied at scrollTop=0 regardless of how far down the user
+   had scrolled the results.
+   ----------------------------------------------------------------------
+   Behavior now:
+     - Touch starts anywhere on the page (whole-page drag, per user spec).
+     - If the results body has been scrolled down (>4px), native scroll
+       wins — pull-down only activates after the user scrolls back to top.
+     - Vertical-vs-horizontal gate prevents chip-row horizontal swipes from
+       firing a dismiss.
+     - 4px activation threshold; 90px or fast-flick velocity (>0.55 px/ms,
+       >30px traveled) closes; otherwise springs back.
+     - All transforms applied inside rAF for 120Hz ProMotion smoothness.
+     - Compositor-only properties (transform/opacity), no layout writes. */
 (function initSearchPageSwipeGesture() {
   const pageId  = 'shelfd-search-page';
-  const innerId = 'shelfd-search-page-inner';
   let active   = false, startY = 0, startX = 0, curY = 0;
   let lastY    = 0, lastT = 0, velocity = 0;
   let pointerId = null, rafId = 0, closing = false;
 
   function getEls() {
+    const page = document.getElementById(pageId);
     return {
-      page:  document.getElementById(pageId),
-      inner: document.getElementById(innerId)
+      page,
+      inner:    page ? page.querySelector('.shelfd-search-page-inner') : null,
+      scroller: page ? page.querySelector('.shelfd-search-body')       : null
     };
   }
 
   function onDown(e) {
     if (!shelfdSearchPageOpen || closing) return;
     if (e.touches && e.touches.length !== 1) return;
-    const { page, inner } = getEls();
-    if (!page || !inner) return;
+    const { page, scroller } = getEls();
+    if (!page) return;
     const pt = e.touches?.[0] || e;
-    /* Protect topbar — only allow gesture below first 80px of the overlay. */
-    const relY = pt.clientY - page.getBoundingClientRect().top;
-    if (relY < 80) return;
-    /* Only if content is scrolled to the top (so normal scroll still works). */
-    if (inner.scrollTop > 4) return;
+    /* Only intercept when the results body is at the top — otherwise let
+       native scroll do its thing. */
+    if (scroller && scroller.scrollTop > 4) return;
     active = true;
     startY = pt.clientY; startX = pt.clientX;
     curY   = 0; velocity = 0;
@@ -916,6 +954,9 @@ window.closeSearchPage = closeSearchPage;
     const dx = pt.clientX - startX;
     /* Cancel if moving left/right more than down, or if moving up. */
     if (dy <= 0 || Math.abs(dx) > Math.abs(dy) * 1.3) { active = false; return; }
+    /* Need at least 4px of downward travel before stealing the gesture so
+       single taps on buttons/inputs don't get hijacked. */
+    if (dy < 4) return;
     if (e.cancelable) e.preventDefault();
     /* Track velocity for fast-flick detection. */
     const now = performance.now();
@@ -964,16 +1005,19 @@ window.closeSearchPage = closeSearchPage;
   }
 
   function attach() {
-    const inner = document.getElementById(innerId);
-    if (!inner) return;
-    inner.addEventListener('pointerdown',  onDown,  { passive: true  });
-    inner.addEventListener('pointermove',  onMove,  { passive: false });
-    inner.addEventListener('pointerup',    onUp,    { passive: true  });
-    inner.addEventListener('pointercancel',onUp,    { passive: true  });
-    inner.addEventListener('touchstart',   onDown,  { passive: true  });
-    inner.addEventListener('touchmove',    onMove,  { passive: false });
-    inner.addEventListener('touchend',     onUp,    { passive: true  });
-    inner.addEventListener('touchcancel',  onUp,    { passive: true  });
+    const page = document.getElementById(pageId);
+    if (!page) return;
+    /* Attach to the page itself (always present) rather than an inner
+       element that may not exist yet, and so a single set of listeners
+       covers EVERY child — input, chips, results, padding, etc. */
+    page.addEventListener('pointerdown',  onDown,  { passive: true  });
+    page.addEventListener('pointermove',  onMove,  { passive: false });
+    page.addEventListener('pointerup',    onUp,    { passive: true  });
+    page.addEventListener('pointercancel',onUp,    { passive: true  });
+    page.addEventListener('touchstart',   onDown,  { passive: true  });
+    page.addEventListener('touchmove',    onMove,  { passive: false });
+    page.addEventListener('touchend',     onUp,    { passive: true  });
+    page.addEventListener('touchcancel',  onUp,    { passive: true  });
   }
 
   if (document.readyState === 'loading') {

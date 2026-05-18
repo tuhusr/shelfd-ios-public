@@ -48,10 +48,12 @@ function buildProfileReturnState() {
   return { kind: 'main', tab: mainTab };
 }
 
+/* v10.133: Backloggd link entry removed permanently — no plans to bring
+   it back, so the config no longer mentions it and the visibility key
+   `linkBackloggd` is gone from the default visibility map below. */
 const PROFILE_LINK_CONFIG = [
   { key: 'imdb', label: 'IMDb', domain: 'imdb.com', placeholder: 'https://www.imdb.com/user/...' },
   { key: 'letterboxd', label: 'Letterboxd', domain: 'letterboxd.com', placeholder: 'https://letterboxd.com/username/' },
-  { key: 'backloggd', label: 'Backloggd', domain: 'backloggd.com', placeholder: 'https://www.backloggd.com/u/username/', optionalMobile: true, visibilityKey: 'linkBackloggd' },
   { key: 'instagram', label: 'Instagram', domain: 'instagram.com', placeholder: 'https://www.instagram.com/username/' },
   { key: 'twitter', label: 'Twitter / X', domain: 'x.com', placeholder: 'https://x.com/username' },
   { key: 'appleMusic', label: 'Apple Music', domain: 'music.apple.com', placeholder: 'https://music.apple.com/profile/username', optionalMobile: true, visibilityKey: 'linkAppleMusic' },
@@ -113,7 +115,6 @@ function getDefaultProfileVisibility() {
     statsGameHours: true,
     statsAnimeAvg: true,
     statsGamesAvg: true,
-    linkBackloggd: true,
     linkAppleMusic: true,
     linkSpotify: true
   };
@@ -295,6 +296,10 @@ function renderMyListEditControls() {
         onblur="saveMyListProfileBio(this)"
         onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
       >${escHtml(currentBio)}</div>
+      <div class="mylist-profile-action-row" aria-label="My Lists quick actions">
+        <button type="button" class="mylist-profile-action-btn mylist-profile-action-btn--game" onclick="openMovieRatingDuelLauncher()">Rating Game</button>
+        <button type="button" class="mylist-profile-action-btn mylist-profile-action-btn--tier" onclick="openMovieRatingDuelTierListPage()">Tier List</button>
+      </div>
       ${desktopMyListNav}
     </div>` : '';
       profileHost.innerHTML = profileShortcut;
@@ -1021,7 +1026,96 @@ function calculateProfileStats() {
   const animeAvg = formatAverageRatingForSection(source.anime || [], 'anime');
   const gamesAvg = formatAverageRatingForSection(source.games || [], 'games');
   const allMediaAvg = formatAverageRatingForSection([...(source.movies || []), ...(source.shows || []), ...(source.anime || [])], 'shows');
-  return { movieHours, tvHours, moviesTvHours, allMediaHours, animeHours, gameHours, movieAvg, tvAvg, moviesTvAvg, animeAvg, gamesAvg, allMediaAvg };
+  const { mostWatchedGenre, bestRatingGenre } = calculateProfileGenreStats(source);
+  return { movieHours, tvHours, moviesTvHours, allMediaHours, animeHours, gameHours, movieAvg, tvAvg, moviesTvAvg, animeAvg, gamesAvg, allMediaAvg, mostWatchedGenre, bestRatingGenre };
+}
+
+/* v10.134: Genre-level stat aggregation across all watchable media
+   (movies + TV + anime). Two outputs surfaced on the FPUP "All Media"
+   stats block:
+     - mostWatchedGenre  = the genre with the most total hours watched
+     - bestRatingGenre   = the genre with the highest average user
+                            rating, with a 3-rated-items minimum so a
+                            single 10/10 fluke can't claim the top
+   Genres are pulled off each item's `genreNames` array (preferred) or
+   parsed from the legacy comma-separated `genre` string. Items with
+   no genres are silently skipped. */
+function calculateProfileGenreStats(source = getProfileDataForStats()) {
+  const genreHours = {};
+  const genreRatings = {};
+
+  const extractGenres = (item) => {
+    if (Array.isArray(item?.genreNames) && item.genreNames.length) {
+      return item.genreNames.map(g => String(g || '').trim()).filter(Boolean);
+    }
+    return String(item?.genre || '')
+      .split(',')
+      .map(g => g.trim())
+      .filter(Boolean);
+  };
+
+  const bumpHours = (genres, hours) => {
+    if (!(hours > 0)) return;
+    genres.forEach(g => {
+      genreHours[g] = (genreHours[g] || 0) + hours;
+    });
+  };
+
+  const bumpRating = (genres, rating) => {
+    if (!(rating > 0)) return;
+    genres.forEach(g => {
+      if (!genreRatings[g]) genreRatings[g] = { sum: 0, count: 0 };
+      genreRatings[g].sum += rating;
+      genreRatings[g].count += 1;
+    });
+  };
+
+  (source.movies || []).forEach(item => {
+    const genres = extractGenres(item);
+    if (!genres.length) return;
+    if (item.status === 'watched') {
+      const runtimeMinutes = Number(item.runtimeMinutes || item.runtime || 0);
+      bumpHours(genres, runtimeMinutes > 0 ? runtimeMinutes / 60 : 2);
+    }
+    bumpRating(genres, Number(item.rating || 0));
+  });
+
+  (source.shows || []).forEach(item => {
+    const genres = extractGenres(item);
+    if (!genres.length) return;
+    bumpHours(genres, getWatchedEpisodeCount(item, 'shows') * 45 / 60);
+    bumpRating(genres, Number(item.rating || 0));
+  });
+
+  (source.anime || []).forEach(item => {
+    const genres = extractGenres(item);
+    if (!genres.length) return;
+    bumpHours(genres, getWatchedEpisodeCount(item, 'anime') * 24 / 60);
+    bumpRating(genres, Number(item.rating || 0));
+  });
+
+  let mostWatchedGenre = '—';
+  let mostWatchedHours = 0;
+  Object.entries(genreHours).forEach(([genre, hours]) => {
+    if (hours > mostWatchedHours) {
+      mostWatchedHours = hours;
+      mostWatchedGenre = genre;
+    }
+  });
+
+  let bestRatingGenre = '—';
+  let bestAvg = 0;
+  const MIN_RATED_ITEMS = 3;
+  Object.entries(genreRatings).forEach(([genre, { sum, count }]) => {
+    if (count < MIN_RATED_ITEMS) return;
+    const avg = sum / count;
+    if (avg > bestAvg) {
+      bestAvg = avg;
+      bestRatingGenre = genre;
+    }
+  });
+
+  return { mostWatchedGenre, bestRatingGenre };
 }
 
 function formatProfileHours(value) {
@@ -1037,35 +1131,25 @@ function renderProfileStats() {
   const el = document.getElementById('profile-stats-grid');
   if (!el) return;
   const stats = calculateProfileStats();
-  const profile = getActiveProfile();
-  const visibility = normalizeProfileVisibility(profile?.profileVisibility);
-  const listVisibility = getProfileListTabVisibility(profile);
-  const editing = !isViewingOtherProfile() && profileEditModeOpen;
+  /* v10.134: FPUP stats simplified to a single "All Media" group of 4
+     cards (Hours Watched, Average Rating, Most Watched Genre, Best
+     Average Rating Genre). The per-section Movies / TV Shows / Anime /
+     Games stat cards were removed since the same information is now
+     surfaced inside the Top 3 favorites cards lower on the page.
+     Each card carries the .profile-stat-card-flat modifier so the CSS
+     can strip the rounded-rectangle "outer card" chrome (border,
+     background, box-shadow, gradient pseudo-elements) and render the
+     value + labels as a clean, frameless statistic block. */
   const cards = [
-    { key: 'allMediaHours', optional: false, tone: 'hours', value: formatProfileHours(stats.allMediaHours), labelMain: 'All Media', labelSub: 'Hours Watched' },
-    { key: 'allMediaAvg', optional: false, tone: 'score', value: stats.allMediaAvg, labelMain: 'All Media', labelSub: 'Average Rating' },
-    { key: 'movieHours', optional: false, tone: 'hours', value: formatProfileHours(stats.movieHours), labelMain: 'Movies', labelSub: 'Hours Watched' },
-    { key: 'movieAvg', optional: false, tone: 'score', value: stats.movieAvg, labelMain: 'Movies', labelSub: 'Average Rating' },
-    { key: 'tvHours', optional: false, tone: 'hours', value: formatProfileHours(stats.tvHours), labelMain: 'TV Shows', labelSub: 'Hours Watched' },
-    { key: 'tvAvg', optional: false, tone: 'score', value: stats.tvAvg, labelMain: 'TV Shows', labelSub: 'Average Rating' },
-    { key: 'statsAnimeHours', optional: true, tone: 'hours', value: formatProfileHours(stats.animeHours), labelMain: 'Anime', labelSub: 'Hours Watched' },
-    { key: 'statsAnimeAvg', optional: true, tone: 'score', value: stats.animeAvg, labelMain: 'Anime', labelSub: 'Average Score' },
-    { key: 'statsGameHours', optional: true, tone: 'hours', value: formatProfileHours(stats.gameHours), labelMain: 'Games', labelSub: 'Hours Played' },
-    { key: 'statsGamesAvg', optional: true, tone: 'score', value: stats.gamesAvg, labelMain: 'Games', labelSub: 'Average Score' }
+    { key: 'allMediaHours', tone: 'hours', value: formatProfileHours(stats.allMediaHours), labelMain: 'All Media', labelSub: 'Hours Watched' },
+    { key: 'allMediaAvg', tone: 'score', value: stats.allMediaAvg, labelMain: 'All Media', labelSub: 'Average Rating' },
+    { key: 'allMediaMostWatchedGenre', tone: 'genre', value: stats.mostWatchedGenre || '—', labelMain: 'All Media', labelSub: 'Most Watched Genre' },
+    { key: 'allMediaBestRatingGenre', tone: 'genre', value: stats.bestRatingGenre || '—', labelMain: 'All Media', labelSub: 'Best Average Rating Genre' }
   ];
   el.innerHTML = cards.map(card => {
-    const hiddenByListTab =
-      (card.key === 'statsAnimeHours' || card.key === 'statsAnimeAvg') ? listVisibility.anime === false :
-      (card.key === 'statsGameHours' || card.key === 'statsGamesAvg') ? listVisibility.games === false : false;
-    const visible = !hiddenByListTab && (!card.optional || visibility[card.key] !== false);
-    if (!visible && !editing) return '';
-    if (hiddenByListTab && editing) return '';
-    const toggle = card.optional && editing
-      ? `<label class="profile-stat-toggle"><input type="checkbox" class="profile-section-toggle-input" data-profile-visible-key="${escAttr(card.key)}" ${visible ? 'checked' : ''} onchange="toggleProfileStatVisibility('${escAttr(card.key)}', this.checked)"> Display</label>`
-      : '';
+    const visible = true;
     return `
-      <div class="profile-stat-card profile-stat-${escAttr(card.tone || 'default')} ${visible ? '' : 'profile-stat-hidden'}">
-        ${toggle}
+      <div class="profile-stat-card profile-stat-card-flat profile-stat-${escAttr(card.tone || 'default')}">
         <div class="profile-stat-value">${getProfileSummaryCardValueHTML(card, visible)}</div>
         <div class="profile-stat-label"><span class="profile-stat-label-main">${getProfileStatsMainLabelHTML(card)}</span><span class="profile-stat-label-sub">${getProfileStatSubLabelHTML(card)}</span></div>
       </div>

@@ -97,6 +97,8 @@
     gap: 0;
   }
 
+  /* v10.223: diagnostic red outline removed — was meant to be temporary. */
+
   /* -- Group labels -- */
   .activity-group-label {
     font-size: 10px; font-weight: 700; letter-spacing: 1.8px;
@@ -127,19 +129,17 @@
     animation: activityCardIn 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
     transition: box-shadow 0.2s, border-color 0.2s;
   }
-  /* top event-color stripe */
-  .activity-card::before {
-    content: ''; position: absolute; top: 0; left: 0; right: 0;
-    height: 3px; z-index: 2;
-  }
-  .card-top-rated::before    { background: #f59e0b; }
-  .card-top-completed::before{ background: #06b6d4; }
-  .card-top-started::before  { background: #22c55e; }
-  .card-top-paused::before   { background: #f97316; }
-  .card-top-dropped::before  { background: #ef4444; }
-  .card-top-commented::before{ background: #6366f1; }
+  /* v10.223: colored top-stripe accents removed from activity cards.
+     Cards now use clean FPReview-style hairline dividers instead. */
+  .activity-card::before { content: none !important; display: none !important; }
+  .card-top-rated::before,
+  .card-top-completed::before,
+  .card-top-started::before,
+  .card-top-paused::before,
+  .card-top-dropped::before,
+  .card-top-commented::before,
   .card-top-added::before,
-  .card-top-planned::before  { background: #7c3aed; }
+  .card-top-planned::before { content: none !important; display: none !important; background: transparent !important; }
 
   @media (hover: hover) {
     .activity-card:hover {
@@ -160,6 +160,7 @@
     grid-row: 1;
     width: 88px; min-width: 88px;
     position: relative; overflow: hidden;
+    border-radius: 3px;
     background: #0e0c22;
     flex-shrink: 0;
     justify-self: end;
@@ -168,6 +169,7 @@
   .activity-poster-img {
     width: 100%; height: 100%; min-height: 116px;
     object-fit: cover; display: block;
+    border-radius: inherit;
     transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
   }
   /* Right-edge fade into card */
@@ -182,6 +184,7 @@
     width: 88px; min-width: 88px; min-height: 116px; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
     background: linear-gradient(145deg, #100d26, #080618);
+    border-radius: 3px;
     justify-self: end;
     align-self: stretch;
   }
@@ -457,7 +460,8 @@
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
+    /* v950: was `transition: all 0.2s` — explicit list avoids animating layout props */
+    transition: opacity 0.2s, transform 0.2s, color 0.2s, background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
     font-family: 'DM Sans', sans-serif;
   }
   .feed-composer-action-btn:hover {
@@ -528,7 +532,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.3s;
+    /* v950: was `transition: all 0.3s` */
+    transition: opacity 0.3s, transform 0.3s, color 0.3s, background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
   }
   .feed-post-trailer-play:hover {
     background: rgba(124, 58, 237, 1);
@@ -590,8 +595,27 @@
   .activity-interaction-btn.liked [data-like-icon-slot] { color: #ff4968; }
   .activity-interaction-btn.liked [data-activity-like-count] { color: #ff6b7d; }
   .activity-interaction-btn svg {
-    width: 18px;
-    height: 18px;
+    width: 24px;
+    height: 24px;
+  }
+
+  .activity-card.feed-post .activity-interactions {
+    gap: 11px !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  .activity-card.feed-post .activity-interaction-btn {
+    gap: 5px !important;
+    min-width: 0 !important;
+    padding: 2px 0 !important;
+  }
+  .activity-card.feed-post .activity-interaction-btn [data-activity-like-count],
+  .activity-card.feed-post .activity-interaction-btn [data-activity-reply-count] {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 12px !important;
+    min-width: 12px !important;
   }
 
   /* -- Feed Post Delete Button -- */
@@ -605,7 +629,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
+    /* v950: was `transition: all 0.2s` */
+    transition: opacity 0.2s, transform 0.2s, color 0.2s, background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
     margin-left: 8px;
   }
   .feed-post-delete-btn:hover {
@@ -633,8 +658,10 @@
   .overlay-page-header {
     position: sticky;
     top: 0;
+    /* v950: dropped `backdrop-filter: blur(12px)` — element is position:sticky so
+       Safari was rasterizing the blur on every scroll frame. The rgba background
+       was raised to 0.95 already so the visual identity is preserved without GPU cost. */
     background: rgba(10, 8, 24, 0.95);
-    backdrop-filter: blur(12px);
     border-bottom: 1px solid #17142e;
     padding: 16px;
     padding-top: max(16px, calc(env(safe-area-inset-top) + 8px));
@@ -653,7 +680,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
+    /* v950: was `transition: all 0.2s` */
+    transition: opacity 0.2s, transform 0.2s, color 0.2s, background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
   }
   .overlay-page-back-btn:hover {
     background: rgba(42, 34, 72, 0.3);
@@ -881,7 +909,8 @@
     overflow: hidden;
     background: #0e0c22;
     border: 1px solid #17142e;
-    transition: all 0.2s;
+    /* v950: was `transition: all 0.2s` */
+    transition: opacity 0.2s, transform 0.2s, color 0.2s, background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
   }
   .trailer-option-card:hover {
     border-color: #7c3aed;
@@ -971,6 +1000,17 @@
     overflow: hidden; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
     display: flex; flex-direction: column;
     transition: box-shadow 0.24s ease, border-color 0.24s ease, transform 0.24s ease;
+  }
+  .discover-card:not(.discover-card-expanded) {
+    border-radius: 3px;
+  }
+  .discover-card:not(.discover-card-expanded) > .discover-poster,
+  .discover-card:not(.discover-card-expanded) > .discover-poster .discover-poster-media,
+  .discover-card:not(.discover-card-expanded) > .discover-poster .discover-poster-video {
+    border-radius: 3px 3px 0 0;
+  }
+  .discover-card:not(.discover-card-expanded) > .discover-card-body {
+    border-radius: 0 0 3px 3px;
   }
   .discover-card:not(.games-discover-card) {
     position: relative;
@@ -2168,18 +2208,18 @@
 .activity-page .shelfd-social-card .sl-activity-poster {
   grid-column: 2 !important;
   grid-row: 1 / 3 !important;
-  /* v864: align poster top with the username line instead of centering
-     vertically. align-self:start pins the poster's top edge to the top
-     of the card's content area, matching where the username sits. */
+  /* v10.230: poster top now aligns with the username row instead of being
+     pushed down to the action/title line (reverts the v895 offset). */
   align-self: start !important;
   justify-self: center !important;
+  margin-top: 0 !important;
   width: clamp(97px, 15.1vw, 130px) !important;
   height: clamp(149px, 20.7vw, 199px) !important;
   min-width: 0 !important;
   min-height: 0 !important;
   padding: 0 !important;
   border: 0 !important;
-  border-radius: clamp(15px, 1.92vw, 17px) !important;
+  border-radius: 3px !important;
   background: #12091f !important;
   box-shadow: 0 10px 24px rgba(0,0,0,.34), 0 0 0 1px rgba(255,255,255,.05) !important;
   overflow: hidden !important;
@@ -2217,7 +2257,7 @@
   min-width: 0 !important;
   min-height: 34px !important;
   border-top: 0 !important;
-  padding-left: clamp(49px, 8.4vw, 64px) !important;
+  padding-left: calc(clamp(37px, 6.5vw, 46px) + clamp(8px, 1.3vw, 12px) - 3px) !important;
   padding-bottom: 6px !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-actions,
@@ -2226,7 +2266,7 @@
   display: flex !important;
   align-items: center !important;
   justify-content: flex-start !important;
-  gap: 14px !important;
+  gap: 11px !important;
   margin-left: 0 !important;
   width: auto !important;
   min-width: 0 !important;
@@ -2243,35 +2283,37 @@
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 4px !important;
+  gap: 5px !important;
   width: auto !important;
   height: auto !important;
-  min-width: clamp(30px, 4.9vw, 36px) !important;
-  min-height: clamp(28px, 4.6vw, 34px) !important;
+  min-width: 0 !important;
+  min-height: clamp(30px, 4.9vw, 36px) !important;
   padding: 2px 0 !important;
   border: 0 !important;
   background: transparent !important;
   color: #ffffff !important;
-  font: 500 11px/1 'Sohne', 'DM Sans', sans-serif !important;
+  font: 600 10px/1 'Sohne', 'DM Sans', sans-serif !important;
   letter-spacing: 0 !important;
   box-shadow: none !important;
   cursor: pointer !important;
   appearance: none !important;
-  transition: color 180ms ease, transform 180ms ease !important;
+  transition: color 180ms ease, transform 180ms ease, opacity 180ms ease !important;
+  transform: translateZ(0) !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-icon-slot,
 .activity-page .shelfd-social-card .sl-activity-icon-slot {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  width: 12px !important;
-  height: 12px !important;
-  flex: 0 0 12px !important;
+  width: 24px !important;
+  height: 24px !important;
+  flex: 0 0 24px !important;
+  line-height: 0 !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-btn svg,
 .activity-page .shelfd-social-card .sl-activity-action-btn svg {
-  width: 12px !important;
-  height: 12px !important;
+  width: 24px !important;
+  height: 24px !important;
   color: currentColor !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-btn [data-activity-like-count],
@@ -2281,11 +2323,14 @@
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  min-width: 0 !important;
-  font-size: 10px !important;
-  font-weight: 600 !important;
+  width: 12px !important;
+  min-width: 12px !important;
+  font-size: 9px !important;
+  font-weight: 700 !important;
   line-height: 1 !important;
   letter-spacing: 0 !important;
+  color: rgba(232,226,255,.68) !important;
+  transform: translateY(0.5px) !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-btn[data-activity-action="delete"],
 .activity-page .shelfd-social-card .sl-activity-action-btn[data-activity-action="delete"] {
@@ -2293,8 +2338,8 @@
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-btn[data-activity-action="delete"] svg,
 .activity-page .shelfd-social-card .sl-activity-action-btn[data-activity-action="delete"] svg {
-  width: 12px !important;
-  height: 12px !important;
+  width: 24px !important;
+  height: 24px !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-btn[data-activity-action="like"],
 .activity-page .shelfd-social-card .sl-activity-action-btn[data-activity-action="like"] { color: rgba(255,255,255,.92) !important; }
@@ -2310,7 +2355,8 @@
   align-items: center !important;
   justify-content: center !important;
   transform-origin: center !important;
-  transition: color 180ms ease, transform 180ms ease !important;
+  filter: drop-shadow(0 0 0 rgba(255,73,104,0)) !important;
+  transition: color 180ms ease, transform 180ms ease, filter 220ms ease !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-btn.liked [data-like-icon-slot],
 .activity-page .shelfd-social-card .sl-activity-action-btn.liked [data-like-icon-slot] {
@@ -2323,7 +2369,12 @@
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-heart-pop [data-like-icon-slot],
 .activity-page .shelfd-social-card .sl-activity-heart-pop [data-like-icon-slot],
 .activity-interaction-btn.sl-activity-heart-pop [data-like-icon-slot] {
-  animation: slActivityHeartPop 320ms cubic-bezier(.18, 1.35, .32, 1) both !important;
+  animation: slActivityHeartPop 420ms cubic-bezier(.18, 1.2, .28, 1) both !important;
+}
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-heart-pop [data-activity-like-count],
+.activity-page .shelfd-social-card .sl-activity-heart-pop [data-activity-like-count],
+.activity-interaction-btn.sl-activity-heart-pop [data-activity-like-count] {
+  animation: slActivityHeartCountPop 420ms cubic-bezier(.18, 1.2, .28, 1) both !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-stack-action-count,
 .activity-page .shelfd-social-card .sl-activity-stack-action-count {
@@ -2333,19 +2384,37 @@
   min-width: clamp(28px, 4.35vw, 32px) !important;
   padding: 0 !important;
   gap: 0 !important;
-  border: 1px solid rgba(167,139,250,0.44) !important;
-  border-radius: 999px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
   background: transparent !important;
   color: #a78bfa !important;
   font-size: clamp(12px, 2.14vw, 14px) !important;
   font-weight: 400 !important;
   line-height: 1 !important;
+  opacity: 1 !important;
+}
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-stack-action-count svg,
+.activity-page .shelfd-social-card .sl-activity-stack-action-count svg {
+  display: block !important;
+  width: 20px !important;
+  height: 20px !important;
+  color: currentColor !important;
+  opacity: 1 !important;
+  flex: 0 0 20px !important;
 }
 
 @keyframes slActivityHeartPop {
-  0% { transform: scale(1); }
-  45% { transform: scale(1.18); }
-  100% { transform: scale(1); }
+  0% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(255,73,104,0)); }
+  34% { transform: scale(1.24); filter: drop-shadow(0 0 10px rgba(255,73,104,0.22)); }
+  62% { transform: scale(0.94); filter: drop-shadow(0 0 6px rgba(255,73,104,0.16)); }
+  82% { transform: scale(1.08); filter: drop-shadow(0 0 8px rgba(255,73,104,0.2)); }
+  100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(255,73,104,0)); }
+}
+@keyframes slActivityHeartCountPop {
+  0% { transform: translateY(0.5px) scale(1); }
+  34% { transform: translateY(0.5px) scale(1.08); }
+  62% { transform: translateY(0.5px) scale(0.97); }
+  100% { transform: translateY(0.5px) scale(1); }
 }
 
 body.light-mode #community-view #activity-tab-view .shelfd-social-card,
@@ -2626,33 +2695,34 @@ body.light-mode .activity-page .shelfd-social-card .sl-activity-plain-note {
   .activity-page .shelfd-social-card .sl-activity-comment { font-size: 16px !important; }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-poster,
   .activity-page .shelfd-social-card .sl-activity-poster {
+    margin-top: 18px !important;
     width: clamp(81px, 22.2vw, 94px) !important;
     height: clamp(125px, 36.5vw, 149px) !important;
-    border-radius: 13px !important;
+    border-radius: 3px !important;
   }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-bottom-safe,
   .activity-page .shelfd-social-card .sl-activity-bottom-safe {
     min-height: 35px !important;
-    padding-left: 44px !important;
+    padding-left: 50px !important;
     padding-bottom: 6px !important;
   }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-btn,
   .activity-page .shelfd-social-card .sl-activity-action-btn { font-size: 11px !important; }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-icon-slot,
   .activity-page .shelfd-social-card .sl-activity-icon-slot {
-    width: 12px !important;
-    height: 12px !important;
-    flex-basis: 12px !important;
+    width: 24px !important;
+    height: 24px !important;
+    flex-basis: 24px !important;
   }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-btn svg,
   .activity-page .shelfd-social-card .sl-activity-action-btn svg {
-    width: 12px !important;
-    height: 12px !important;
+    width: 24px !important;
+    height: 24px !important;
   }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-btn[data-activity-action="delete"] svg,
   .activity-page .shelfd-social-card .sl-activity-action-btn[data-activity-action="delete"] svg {
-    width: 12px !important;
-    height: 12px !important;
+    width: 24px !important;
+    height: 24px !important;
   }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-stack-action-count,
   .activity-page .shelfd-social-card .sl-activity-stack-action-count {
@@ -2881,8 +2951,9 @@ body.light-mode .activity-page .shelfd-social-card .sl-activity-plain-note {
     rgba(8, 7, 18, 0.66) !important;
   color: #fff3c6 !important;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3), 0 0 18px rgba(255, 216, 127, 0.14) !important;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  /* v950: blur(12px) -> blur(8px) — GPU cap */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 .screenlist-post-submit:active,
 .screenlist-delete-post-confirm:active {
@@ -3369,8 +3440,9 @@ body.light-mode .activity-page .activity-card {
   font-size: 11px !important;
   font-weight: 900 !important;
   cursor: pointer !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
+  /* v950: blur(12px) -> blur(8px) — GPU cap */
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
   box-shadow: 0 8px 20px rgba(0,0,0,0.22) !important;
 }
 
@@ -3509,6 +3581,8 @@ body.light-mode .activity-page .activity-card {
   z-index: 3 !important;
   width: 100% !important;
   margin: 0 !important;
+  min-height: calc(clamp(190px, 21vw, 242px) + 18px) !important;
+  padding-bottom: 18px !important;
 }
 
 #community-view #activity-tab-view .sl-activity-stack-front .sl-activity-poster-stack,
@@ -3529,11 +3603,26 @@ body.light-mode .activity-page .activity-card {
   right: 0 !important;
   width: clamp(88px, 14.2vw, 112px) !important;
   height: 100% !important;
-  border-radius: clamp(15px, 1.92vw, 17px) !important;
+  border-radius: 3px !important;
   overflow: hidden !important;
   background: #12091f !important;
   box-shadow: 0 10px 24px rgba(0,0,0,.30), 0 0 0 1px rgba(255,255,255,.05) !important;
   transform-origin: 50% 100% !important;
+}
+/* v10.252: when every stacked card is a music section album, lock each
+   poster card to 1:1 square (matches the single-music-card override in
+   v10.236). Top-aligned so the cards anchor at the top of the row, not
+   stretched to full height. */
+#community-view #activity-tab-view .sl-activity-stack-front .sl-activity-poster-stack--music .sl-activity-poster-stack-card,
+.activity-page .sl-activity-stack-front .sl-activity-poster-stack--music .sl-activity-poster-stack-card {
+  height: clamp(106px, 16.5vw, 139px) !important;
+  width: clamp(106px, 16.5vw, 139px) !important;
+  aspect-ratio: 1 / 1 !important;
+}
+#community-view #activity-tab-view .sl-activity-stack-front .sl-activity-poster-stack--music .sl-activity-poster-img,
+.activity-page .sl-activity-stack-front .sl-activity-poster-stack--music .sl-activity-poster-img {
+  object-fit: cover !important;
+  object-position: center center !important;
 }
 
 #community-view #activity-tab-view .sl-activity-stack-front .sl-activity-poster-stack-card-1,
@@ -3721,7 +3810,7 @@ body.light-mode .activity-page .activity-card {
 .activity-page .sl-activity-stack-compact-card .sl-activity-poster {
   width: clamp(66px, 19vw, 82px) !important;
   height: clamp(58px, 17vw, 72px) !important;
-  border-radius: 13px !important;
+  border-radius: 3px !important;
 }
 
 #community-view #activity-tab-view .sl-activity-stack-compact-card .sl-rating-star,
@@ -3748,8 +3837,8 @@ body.light-mode .activity-page .activity-card {
 
 #community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-action-btn svg,
 .activity-page .sl-activity-stack-compact-card .sl-activity-action-btn svg {
-  width: clamp(15.5px, 4.2vw, 18px) !important;
-  height: clamp(15.5px, 4.2vw, 18px) !important;
+  width: 24px !important;
+  height: 24px !important;
 }
 
 @media (max-width: 520px) {
@@ -3989,5 +4078,150 @@ body.light-mode .activity-page .activity-card {
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-title,
 .activity-page .shelfd-social-card .sl-activity-title {
   font-weight: 400 !important;
+}
+
+/* v10.240: "View review" is the right-most item in the bottom interactions
+   row, beside the like/reply/delete cluster. `margin-left: auto` pushes it
+   to the far right. Lavender accent, subtle press state. Tap opens the
+   Full Page Review. */
+.sl-activity-view-review-bottom {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 6px 10px;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #c4b5fd;
+  font: 500 13px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.sl-activity-view-review-bottom::after {
+  content: '›';
+  margin-left: 2px;
+  color: rgba(196,181,253,0.7);
+  font-weight: 400;
+}
+.sl-activity-view-review-bottom:hover { color: #f8f4ff; }
+.sl-activity-view-review-bottom:active { opacity: 0.7; transform: scale(0.97); }
+
+/* v10.236 / v10.241: music activity-card posters render as 1:1 square
+   album art. v10.241 bumps the square +9px in every dimension so the album
+   art reads bolder on the feed. Width is normally constrained by the card's
+   right grid column — overriding with !important forces the cell to grow. */
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-poster--music,
+.activity-page .shelfd-social-card .sl-activity-poster--music {
+  aspect-ratio: 1 / 1 !important;
+  width: clamp(106px, 16.5vw, 139px) !important;
+  height: clamp(106px, 16.5vw, 139px) !important;
+}
+/* v10.259: when a stacked activity card is expanded inline and shows its
+   child rows, lift the album cover up by 30px so it aligns with the body
+   instead of sitting flush with the bottom dividing line. */
+#community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-poster--music,
+.activity-page .sl-activity-stack-compact-card .sl-activity-poster--music {
+  transform: translateY(-30px) !important;
+}
+
+/* v10.260: tighten the vertical spacing inside stacked-child media-review
+   cards by ~25% (action → title and title → rating gaps), and add breathing
+   room between the rating row and the heart/comment icon row. */
+#community-view #activity-tab-view .sl-activity-stack-compact-card .sl-media-review-action,
+.activity-page .sl-activity-stack-compact-card .sl-media-review-action {
+  margin-top: 3px !important;
+}
+#community-view #activity-tab-view .sl-activity-stack-compact-card .sl-media-review-title,
+.activity-page .sl-activity-stack-compact-card .sl-media-review-title {
+  margin-top: 4px !important;
+}
+#community-view #activity-tab-view .sl-activity-stack-compact-card .sl-media-review-rating,
+.activity-page .sl-activity-stack-compact-card .sl-media-review-rating {
+  margin-top: 6px !important;
+  margin-bottom: 14px !important;
+}
+#community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-bottom-safe,
+.activity-page .sl-activity-stack-compact-card .sl-activity-bottom-safe {
+  padding-top: 8px !important;
+}
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-poster--music .sl-activity-poster-img,
+.activity-page .shelfd-social-card .sl-activity-poster--music .sl-activity-poster-img {
+  object-fit: cover !important;
+  object-position: center center !important;
+}
+
+/* v10.223 / v10.227 / v10.228: flat activity feed — remove rounded card
+   chrome and use the SAME full-bleed hairline divider trick used by the
+   friends page + FPReview. A plain border-bottom gets inset by the ancestor
+   .container/.main-content padding; an absolutely positioned ::after pinned
+   to `left: 50%; transform: translateX(-50%); width: 100vw` bleeds past
+   every level of padding so the divider spans the entire viewport width.
+   v10.228: ALSO override the existing `overflow: hidden !important` on the
+   card — it was previously there to clip the rounded corners, but with the
+   flat redesign there's no radius to clip and the overflow:hidden was
+   actually slicing the full-bleed pseudo-element divider down to card width.
+   That was the missing piece. */
+#community-view #activity-tab-view .shelfd-social-card,
+.activity-page .shelfd-social-card,
+.activity-card {
+  position: relative !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  overflow: visible !important;
+}
+/* v10.229: the activity tab itself has `overflow-x: hidden` and
+   `contain: layout paint` (12-pwa-header-continuity.css). `contain: paint`
+   in particular forces the tab to clip ANY descendant painting to its own
+   box, which is what was actually slicing the 100vw divider down to feed
+   width every time. Relaxing both lets the full-bleed `::after` extend to
+   the viewport edges. Transition states (.activity-subtab-transitioning)
+   re-declare their own overflow:hidden so they're unaffected. */
+#community-view #activity-tab-view:not(.activity-subtab-transitioning) {
+  overflow-x: visible !important;
+  contain: none !important;
+}
+#community-view #activity-tab-view:not(.activity-subtab-transitioning) #friend-activity-feed,
+#community-view #activity-tab-view:not(.activity-subtab-transitioning) .activity-feed-list {
+  overflow: visible !important;
+  contain: none !important;
+}
+#community-view #activity-tab-view .shelfd-social-card::after,
+.activity-page .shelfd-social-card::after,
+.activity-card::after {
+  content: '' !important;
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 100vw !important;
+  height: 1px !important;
+  background: rgba(255,255,255,0.08) !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+}
+#community-view #activity-tab-view .activity-feed-list .shelfd-social-card:last-child::after,
+.activity-page .activity-feed-list .shelfd-social-card:last-child::after,
+.activity-card:last-child::after {
+  display: none !important;
+}
+.activity-card:hover,
+#community-view #activity-tab-view .shelfd-social-card:hover,
+.activity-page .shelfd-social-card:hover {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+#community-view #activity-tab-view .shelfd-social-card:hover::after,
+.activity-page .shelfd-social-card:hover::after,
+.activity-card:hover::after {
+  background: rgba(255,255,255,0.12) !important;
 }
 

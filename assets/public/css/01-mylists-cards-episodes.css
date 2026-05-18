@@ -295,6 +295,20 @@
     color: #c4b5fd;
     font-weight: 600;
   }
+  /* v10.259: music sort menu uses a directional arrow instead of the dot
+     indicator. The arrow is rendered as inline content next to the active
+     option's label. Suppress the dot only when inside the music variant. */
+  .sort-dropdown-menu--music .sort-dropdown-item {
+    justify-content: space-between;
+  }
+  .sort-dropdown-menu--music .sort-dropdown-item.active::after { display: none !important; }
+  .sort-dropdown-arrow {
+    color: #c4b5fd;
+    font-size: 16px;
+    line-height: 1;
+    margin-left: 8px;
+    font-variant-numeric: tabular-nums;
+  }
   .sort-dropdown-item.active::after {
     content: '';
     display: block;
@@ -366,17 +380,712 @@
     contain: paint;
   }
   .card:hover { border-color: #3d3466; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06), 0 2px 12px rgba(0,0,0,0.5); }
+  #mylist-view .card[data-mylist-review-card] { cursor: pointer; }
+  #mylist-view .card[data-mylist-review-card] button,
+  #mylist-view .card[data-mylist-review-card] a,
+  #mylist-view .card[data-mylist-review-card] input,
+  #mylist-view .card[data-mylist-review-card] textarea,
+  #mylist-view .card[data-mylist-review-card] select,
+  #mylist-view .card[data-mylist-review-card] .card-cover { cursor: auto; }
   .card-header { display: flex; gap: 14px; padding: 14px; }
   .card-cover {
-    width: 100px; aspect-ratio: 1400 / 2100; border-radius: 4px; overflow: hidden;
+    width: 100px; aspect-ratio: 1400 / 2100; border-radius: 3.3px; overflow: hidden;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0; align-self: flex-start; font-size: 28; background-size: cover; background-position: center;
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
   }
+  #mylist-view .card-cover { border-radius: 3.3px; }
   .card-cover.no-img { background: linear-gradient(135deg, #2a1f5e 0%, #2d1b4e 100%); }
+  /* v10.236: album art is always square. Lock the cover element to a 1:1
+     aspect ratio when the card is a music section item so it visually reads
+     as an album, not a portrait poster. The base .card-cover sets a 1400×2100
+     (2:3) portrait ratio for movies/TV/games — this rule overrides it. */
+  .card-cover.card-cover-music {
+    aspect-ratio: 1 / 1 !important;
+    background-position: center center !important;
+  }
+  /* v10.237 / v10.241: music my-list cards are visually shorter — collapse
+     the internal padding + unused slot heights so the card hugs the square
+     art. Movies/TV/games keep their taller layout. v10.241 bumps the cover
+     to 100×100 and removes the status-pill selector + tabs toolbar so the
+     section reads like a single "Albums" surface. */
+  #mylist-view .card[data-library-section="music"] .card-header {
+    padding: 10px 12px !important;
+  }
+  #mylist-view .card[data-library-section="music"] { min-height: 0 !important; }
+  #mylist-view .card[data-library-section="music"] .card-action-row {
+    min-height: 0 !important;
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+  }
+  /* v10.241 / v10.243: 120×120 px cover on the my-lists music card (was 100). */
+  #mylist-view .card[data-library-section="music"] .card-cover.card-cover-music {
+    width: 120px !important;
+  }
+  /* v10.261: music tab order — Planned → In Rotation → Listened. The
+     static HTML order is Watching · Planned · Watched, so we use CSS flex
+     order to reposition them visually when active section is music. */
+  body.mylist-section-music #mylist-toolbar .tab-btn[data-tab="planned"]  { order: 1; }
+  body.mylist-section-music #mylist-toolbar .tab-btn[data-tab="watching"] { order: 2; }
+  body.mylist-section-music #mylist-toolbar .tab-btn[data-tab="watched"]  { order: 3; }
+
+  /* v10.241 / v10.258 / v10.259: music title card now shows the status pill
+     (so the user can swap between Listened / Planned), the artist line, and
+     the rating. Year + genre are hidden — only title + artist + status +
+     rating + cover. */
+  #mylist-view .card[data-library-section="music"] .card-year.mylist-watchlist-year {
+    display: none !important;
+  }
+  #mylist-view .card[data-library-section="music"] .card-genre {
+    display: none !important;
+  }
+  /* v10.241 / v10.254: music section now shows the status toolbar again
+     with two tabs only (Listened + Planned) — JS label logic in
+     06-mylists-render-episodes-ratings.js handles the per-section text. */
+
+  /* v10.245 / v10.259: "Tracklist" pill on the music my-list card. Black
+     fill + white-rgba border to match the existing "+" plus-button style. */
+  #mylist-view .card-action-row .card-tracklist-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    min-width: 0;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.30);
+    background: rgba(5,5,10,0.94);
+    color: rgba(255,255,255,0.72);
+    font: 500 12px/1 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 140ms ease;
+  }
+  #mylist-view .card-action-row .card-tracklist-btn:hover {
+    color: #ffffff;
+    background: rgba(12,12,18,0.98);
+    border-color: rgba(255,255,255,0.40);
+  }
+  #mylist-view .card-action-row .card-tracklist-btn:active { transform: scale(0.94); }
+
+  /* v10.245: My-List Album Shelf Page — full-screen slide-in-from-right
+     overlay. Hero (cover + title + artist) centered, tracklist below with
+     pop-out rating row to the LEFT of each track's star toggle. Shelfd
+     palette + same .star-btn animations as every other rating surface. */
+  body.mylist-album-shelf-open { overflow: hidden; }
+  .mylist-album-shelf-page {
+    position: fixed;
+    inset: 0;
+    z-index: 7320;
+    pointer-events: auto;
+    background: transparent;
+  }
+  .mylist-album-shelf-shell {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    background: #0f0f12;
+    color: #f8f4ff;
+    transform: translate3d(100%, 0, 0);
+    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+    font-family: 'Sohne', 'DM Sans', sans-serif;
+    overflow: hidden;
+  }
+  .mylist-album-shelf-page.is-open .mylist-album-shelf-shell {
+    transform: translate3d(0, 0, 0);
+  }
+  .mylist-album-shelf-topbar {
+    flex: 0 0 auto;
+    min-height: 56px;
+    padding: max(12px, env(safe-area-inset-top, 0px)) 16px 10px;
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
+    align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    background: #0f0f12;
+  }
+  .mylist-album-shelf-back {
+    width: 38px;
+    height: 38px;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px;
+    background: rgba(255,255,255,0.05);
+    color: #f8f4ff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
+  }
+  .mylist-album-shelf-back svg { width: 24px; height: 24px; }
+  .mylist-album-shelf-back:active { transform: scale(0.94); }
+  .mylist-album-shelf-title-bar {
+    text-align: center;
+    font: 500 14px/1 'Sohne', 'DM Sans', sans-serif;
+    color: #f8f4ff;
+  }
+  .mylist-album-shelf-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    padding: 24px 18px max(28px, calc(env(safe-area-inset-bottom, 0px) + 24px));
+  }
+  .mylist-album-shelf-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 14px;
+    margin-bottom: 26px;
+  }
+  .mylist-album-shelf-cover {
+    width: min(72vw, 260px);
+    aspect-ratio: 1 / 1;
+    border-radius: 0.9px;
+    background-size: cover;
+    background-position: center center;
+    background-color: #1c1535;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+    display: grid;
+    place-items: center;
+    font-size: 56px;
+    color: rgba(196,181,253,0.6);
+  }
+  .mylist-album-shelf-cover.no-img {
+    background: linear-gradient(135deg, rgba(42,31,94,0.92), rgba(45,27,78,0.92));
+  }
+  .mylist-album-shelf-album-title {
+    margin: 0;
+    color: #fff;
+    font: 500 24px/1.18 'Sohne', 'DM Sans', sans-serif;
+    word-break: break-word;
+  }
+  .mylist-album-shelf-album-artist {
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    color: rgba(216,208,233,0.78);
+    font: 500 15px/1.2 'Sohne', 'DM Sans', sans-serif;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 140ms ease;
+  }
+  .mylist-album-shelf-album-artist:hover { color: #f8f4ff; }
+  .mylist-album-shelf-album-artist:active { opacity: 0.7; }
+  /* v10.257: year · genre meta line under the artist. */
+  .mylist-album-shelf-album-meta {
+    color: rgba(216,208,233,0.55);
+    font: 400 13px/1.3 'Sohne', 'DM Sans', sans-serif;
+  }
+
+  .mylist-album-shelf-tracks {
+    padding-top: 22px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .mylist-album-shelf-tracks-heading {
+    color: #ffffff;
+    font: 500 16px/1.2 'Sohne', 'DM Sans', sans-serif;
+    margin: 0 0 12px;
+  }
+  .mylist-album-shelf-track-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  /* v10.247 / v10.253: track row is `# | title | favorite-star`. The 10-star
+     rating expander was replaced with a single favorite toggle. */
+  .mylist-album-shelf-track {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .mylist-album-shelf-track:last-child { border-bottom: 0; }
+  .mylist-album-shelf-track-num {
+    color: rgba(216,208,233,0.45);
+    font: 500 13px/1 'Sohne', 'DM Sans', sans-serif;
+    text-align: right;
+  }
+  .mylist-album-shelf-track-title {
+    color: #f8f4ff;
+    font: 500 14px/1.25 'Sohne', 'DM Sans', sans-serif;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
+  }
+  .mylist-album-shelf-track-length { display: none !important; }
+  /* v10.253: simple favorite-toggle button replaces the 10-star expander. */
+  .mylist-album-shelf-track-fav {
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(216,208,233,0.4);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 140ms ease, transform 120ms ease;
+    min-width: 32px;
+  }
+  .mylist-album-shelf-track-fav .star-btn {
+    font-size: 22px;
+    color: inherit;
+    pointer-events: none;
+    transition: color 0.15s, transform 0.15s;
+  }
+  .mylist-album-shelf-track-fav.is-fav { color: #f59e0b; }
+  .mylist-album-shelf-track-fav.is-fav .star-btn { color: #f59e0b; }
+  .mylist-album-shelf-track-fav:active { transform: scale(0.9); }
+
+  /* v10.253: album-level rating widget — sits between hero and tracklist.
+     Uses the standard Shelfd `.stars .star-btn` pattern. */
+  .mylist-album-shelf-rating {
+    margin: 6px 0 22px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .mylist-album-shelf-rating-label {
+    color: rgba(216,208,233,0.62);
+    font: 500 11px/1.2 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .mylist-album-shelf-rating-stars {
+    display: inline-flex;
+    gap: 4px;
+    touch-action: none;
+  }
+  .mylist-album-shelf-rating-stars .star-btn {
+    font-size: var(--star-size, 26px);
+    line-height: 1;
+  }
+  /* v10.255: favorite-ratio readout below the rating widget. Lives inside
+     the same `.mylist-album-shelf-rating` block so the section reads as one
+     "your engagement" cluster. Lavender accent on the star, muted text. */
+  .mylist-album-shelf-fav-ratio {
+    margin-top: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: rgba(216,208,233,0.72);
+    font: 500 12px/1.2 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: 0.02em;
+  }
+  .mylist-album-shelf-fav-ratio-icon {
+    color: #f59e0b;
+    font-size: 14px;
+    line-height: 1;
+  }
+  .mylist-album-shelf-track-empty {
+    padding: 14px 0;
+    color: rgba(216,208,233,0.55);
+    font: 400 13px/1.3 'Sohne', 'DM Sans', sans-serif;
+    text-align: center;
+  }
+  /* v10.258: release date + record label sit at the very bottom of the
+     tracklist as a small facts block. */
+  .mylist-album-shelf-album-footer {
+    margin: 22px 0 0;
+    padding: 18px 0 0;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px 18px;
+  }
+  .mylist-album-shelf-footer-fact dt {
+    margin: 0 0 2px;
+    color: rgba(216,208,233,0.55);
+    font: 500 11px/1.2 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .mylist-album-shelf-footer-fact dd {
+    margin: 0;
+    color: #f8f4ff;
+    font: 500 14px/1.25 'Sohne', 'DM Sans', sans-serif;
+    word-break: break-word;
+  }
+  @media (min-width: 720px) {
+    .mylist-album-shelf-shell {
+      max-width: 720px;
+      left: auto;
+      right: 0;
+      box-shadow: -24px 0 60px rgba(0,0,0,0.4);
+    }
+    .mylist-album-shelf-cover { width: 300px; }
+  }
+
+  /* v10.246: Music Artist Profile page — full-screen slide-in. Hero =
+     name + disambig + facts grid (type / DOB / age / place). Below =
+     discography list. Tap any album → opens the existing Album Profile. */
+  body.music-artist-profile-open { overflow: hidden; }
+  .music-artist-profile-page {
+    position: fixed;
+    inset: 0;
+    z-index: 7340;
+    pointer-events: auto;
+    background: transparent;
+  }
+  .music-artist-profile-shell {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    background: #0f0f12;
+    color: #f8f4ff;
+    transform: translate3d(100%, 0, 0);
+    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+    font-family: 'Sohne', 'DM Sans', sans-serif;
+    overflow: hidden;
+  }
+  .music-artist-profile-page.is-open .music-artist-profile-shell {
+    transform: translate3d(0, 0, 0);
+  }
+  .music-artist-profile-topbar {
+    flex: 0 0 auto;
+    min-height: 56px;
+    padding: max(12px, env(safe-area-inset-top, 0px)) 16px 10px;
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
+    align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    background: #0f0f12;
+  }
+  .music-artist-profile-back {
+    width: 38px; height: 38px;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px;
+    background: rgba(255,255,255,0.05);
+    color: #f8f4ff;
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
+  }
+  .music-artist-profile-back svg { width: 24px; height: 24px; }
+  .music-artist-profile-back:active { transform: scale(0.94); }
+  .music-artist-profile-title-bar {
+    text-align: center;
+    font: 500 14px/1 'Sohne', 'DM Sans', sans-serif;
+    color: #f8f4ff;
+  }
+  /* v10.258: heart-favorite button in the artist profile topbar. Mirrors the
+     actor/actress heart pattern — outline when unfav, filled rose when fav. */
+  .music-artist-profile-fav {
+    width: 38px;
+    height: 38px;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px;
+    background: rgba(255,255,255,0.05);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+    justify-self: end;
+  }
+  .music-artist-profile-fav svg {
+    width: 20px;
+    height: 20px;
+    fill: rgba(248,244,255,0.6);
+    transition: fill 140ms ease, transform 140ms ease;
+  }
+  .music-artist-profile-fav.is-favorited svg { fill: #ff6b7f; }
+  .music-artist-profile-fav.is-favorited {
+    background: rgba(255,107,127,0.10);
+    border-color: rgba(255,107,127,0.36);
+  }
+  .music-artist-profile-fav:active { transform: scale(0.94); }
+  .music-artist-profile-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    padding: 24px 18px max(28px, calc(env(safe-area-inset-bottom, 0px) + 24px));
+  }
+
+  .music-artist-profile-hero {
+    margin-bottom: 22px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 14px;
+  }
+  /* v10.247: circular portrait hero (best-effort Wikipedia thumbnail). */
+  .music-artist-profile-portrait {
+    width: min(56vw, 200px);
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(42,31,94,0.92), rgba(45,27,78,0.92));
+    background-size: cover;
+    background-position: center center;
+    box-shadow: 0 22px 56px rgba(0,0,0,0.5);
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .music-artist-profile-portrait.has-img { background-color: #1c1535; }
+  .music-artist-profile-portrait-initial {
+    color: rgba(248,244,255,0.7);
+    font: 600 56px/1 'Sohne', 'DM Sans', sans-serif;
+  }
+  .music-artist-profile-portrait.has-img .music-artist-profile-portrait-initial {
+    display: none;
+  }
+  .music-artist-profile-name {
+    margin: 0;
+    color: #fff;
+    font: 500 28px/1.12 'Sohne', 'DM Sans', sans-serif;
+    word-break: break-word;
+  }
+  .music-artist-profile-disambig {
+    margin-top: 6px;
+    color: rgba(216,208,233,0.62);
+    font: 400 14px/1.3 'Sohne', 'DM Sans', sans-serif;
+  }
+  .music-artist-profile-facts {
+    margin: 16px 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px 18px;
+  }
+  .music-artist-profile-fact dt {
+    margin: 0 0 2px;
+    color: rgba(216,208,233,0.55);
+    font: 500 11px/1.2 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .music-artist-profile-fact dd {
+    margin: 0;
+    color: #f8f4ff;
+    font: 500 14px/1.25 'Sohne', 'DM Sans', sans-serif;
+    word-break: break-word;
+  }
+
+  .music-artist-profile-albums {
+    margin-top: 8px;
+    padding-top: 22px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .music-artist-profile-albums-heading {
+    color: #ffffff;
+    font: 500 16px/1.2 'Sohne', 'DM Sans', sans-serif;
+    margin: 0 0 12px;
+  }
+  .music-artist-profile-album-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .music-artist-profile-album {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .music-artist-profile-album:last-child { border-bottom: 0; }
+  .music-artist-profile-album-cover {
+    width: 56px;
+    height: 56px;
+    border-radius: 0.9px;
+    background-size: cover;
+    background-position: center center;
+    background-color: #1c1535;
+    flex-shrink: 0;
+  }
+  .music-artist-profile-album-cover.no-img {
+    background: linear-gradient(135deg, rgba(42,31,94,0.92), rgba(45,27,78,0.92));
+  }
+  .music-artist-profile-album-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .music-artist-profile-album-title {
+    color: #f8f4ff;
+    font: 500 14px/1.25 'Sohne', 'DM Sans', sans-serif;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
+  }
+  .music-artist-profile-album-year {
+    color: rgba(216,208,233,0.55);
+    font: 400 12px/1.2 'Sohne', 'DM Sans', sans-serif;
+  }
+  .music-artist-profile-album-chevron {
+    width: 18px;
+    height: 18px;
+    color: rgba(216,208,233,0.45);
+    flex-shrink: 0;
+  }
+  .music-artist-profile-album:active {
+    background: rgba(255,255,255,0.04);
+  }
+  .music-artist-profile-album-loading,
+  .music-artist-profile-album-empty {
+    padding: 14px 0;
+    color: rgba(216,208,233,0.55);
+    font: 400 13px/1.3 'Sohne', 'DM Sans', sans-serif;
+    text-align: center;
+  }
+  @media (min-width: 720px) {
+    .music-artist-profile-shell {
+      max-width: 720px;
+      left: auto;
+      right: 0;
+      box-shadow: -24px 0 60px rgba(0,0,0,0.4);
+    }
+  }
+
+  /* v10.241: artist line on the FPReview hero for music albums. */
+  .mylist-media-review-page.is-music-review .mylist-media-review-artist {
+    margin-top: 6px;
+    color: rgba(216,208,233,0.78);
+    font: 500 15px/1.2 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: 0;
+    word-break: break-word;
+  }
+  /* v10.247: tracklist dropdown on the FPReview music hero. Sits below the
+     rating chip. Closed by default — tap to expand. */
+  .mylist-review-tracklist {
+    margin-top: 14px;
+  }
+  .mylist-review-tracklist-toggle {
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 4px 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #c4b5fd;
+    font: 500 13px/1.2 'Sohne', 'DM Sans', sans-serif;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mylist-review-tracklist-chevron {
+    width: 14px;
+    height: 14px;
+    transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .mylist-review-tracklist-toggle.is-open .mylist-review-tracklist-chevron {
+    transform: rotate(180deg);
+  }
+  .mylist-review-tracklist-toggle:hover { color: #f8f4ff; }
+  .mylist-review-tracklist-toggle:active { opacity: 0.7; }
+  .mylist-review-tracklist-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .mylist-review-tracklist-list.is-open {
+    max-height: 1600px;
+    margin-top: 8px;
+  }
+  .mylist-review-tracklist-row {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .mylist-review-tracklist-row:last-child { border-bottom: 0; }
+  .mylist-review-tracklist-num {
+    color: rgba(216,208,233,0.45);
+    font: 500 12px/1 'Sohne', 'DM Sans', sans-serif;
+    text-align: right;
+  }
+  .mylist-review-tracklist-title {
+    color: #f8f4ff;
+    font: 500 13px/1.25 'Sohne', 'DM Sans', sans-serif;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
+  }
+  .mylist-review-tracklist-rating {
+    color: #f59e0b;
+    font: 500 13px/1 'Sohne', 'DM Sans', sans-serif;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  /* v10.253: filled star marker for favorited tracks (no number). */
+  .mylist-review-tracklist-fav {
+    color: #f59e0b;
+    font-size: 15px;
+    line-height: 1;
+  }
+
+  /* v10.237 / v10.241: music FPReview + composer covers — 1:1 square,
+     0.9px corners. v10.241 bumps the FPR cover to 150×150 px (same on
+     mobile and the desktop breakpoint, since music art doesn't need the
+     extra portrait height that movies do). */
+  .mylist-media-review-page.is-music-review .mylist-media-review-poster {
+    aspect-ratio: 1 / 1 !important;
+    width: 150px !important;
+    border-radius: 0.9px !important;
+    background-position: center center !important;
+  }
+  .shelf-log-composer.is-music-composer .shelf-log-composer-poster {
+    aspect-ratio: 1 / 1 !important;
+    border-radius: 0.9px !important;
+    background-position: center center !important;
+  }
+  /* Override the existing 720px+ rule that resets the FPR poster to 132px. */
+  @media (min-width: 720px) {
+    .mylist-media-review-page.is-music-review .mylist-media-review-poster {
+      width: 150px !important;
+    }
+  }
+  /* The hero grid's right column is locked at 104px (132px on tablet+).
+     Widen it to 150px when music so the bigger square poster fits. */
+  .mylist-media-review-page.is-music-review .mylist-media-review-hero {
+    grid-template-columns: minmax(0, 1fr) 150px !important;
+  }
   .card-info { flex: 1; min-width: 0; }
-  .card-title-row { display: flex; justify-content: space-between; align-items: flex-start; }
-  .card-title { font-size: 15px; font-weight: 600; color: #e8e3f3; font-family: 'Sohne', 'DM Sans', sans-serif; }
+  .card-title-row { position: relative; display: flex; align-items: flex-start; padding-right: 38px; min-width: 0; }
+  .card-title { flex: 1 1 auto; min-width: 0; font-size: 15px; font-weight: 600; color: #e8e3f3; font-family: 'Sohne', 'DM Sans', sans-serif; }
   .card-genre { font-size: 11px; color: #a99dc6; text-transform: uppercase; letter-spacing: 1.2px; margin-top: 4px; }
   .card-release-date { font-size: 11px; color: rgba(139, 92, 246, 0.85); font-weight: 600; letter-spacing: 0.3px; margin-top: 2px; font-family: 'Sohne', 'DM Sans', sans-serif; }
   body.light-mode .card-release-date { color: rgba(109,40,217,0.8); }
@@ -384,6 +1093,7 @@
     background: none; border: none; color: #9990b3; cursor: pointer;
     font-size: 20px; padding: 4px 8px; min-width: 36px; min-height: 36px;
     display: flex; align-items: center; justify-content: center;
+    position: absolute; top: -2px; right: -8px;
   }
   .delete-btn:hover { color: #ef4444; }
   .friend-card-add-btn {
@@ -391,6 +1101,7 @@
     background: rgba(103,232,249,0.10); color: #67e8f9; font-size: 22px; line-height: 1;
     font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
     flex-shrink: 0; transition: background 0.2s, border-color 0.2s, transform 0.2s, opacity 0.2s;
+    position: absolute; top: -1px; right: -6px;
   }
   .friend-card-add-btn:hover { background: rgba(103,232,249,0.18); border-color: #67e8f9; transform: scale(1.05); }
   .friend-card-add-btn.added { cursor: default; opacity: 0.75; transform: none; }
@@ -416,6 +1127,24 @@
   .progress-area { margin-top: 8px; }
   .progress-meta { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px; color: #9990b3; }
   .progress-meta span:last-child { color: #a99dc6; }
+  .progress-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+  }
+  .progress-bar-row .progress-bar {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .progress-percent-inline {
+    flex: 0 0 auto;
+    min-width: 28px;
+    color: #a99dc6;
+    font-size: 11px;
+    text-align: right;
+    white-space: nowrap;
+  }
   .progress-bar { height: 5px; background: #1a1430; border-radius: 3px; overflow: hidden; }
   .progress-fill {
     height: 100%; background: linear-gradient(90deg, #7c3aed, #a855f7);
@@ -457,6 +1186,918 @@
   #mylist-view .star-label { color: #ffffff !important; }
   .rating-area { margin-top: 6px; }
   .rating-label { font-size: 11px; color: #ffffff; margin-bottom: 2px; font-weight: 300; }
+
+  body.mylist-media-review-open { overflow: hidden; }
+  .mylist-media-review-page {
+    position: fixed;
+    inset: 0;
+    z-index: 7200;
+    background: #0f0f12;
+    color: #f8f4ff;
+    transform: translate3d(100%, 0, 0);
+    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+    overflow: hidden;
+  }
+  .mylist-media-review-page.is-open { transform: translate3d(0, 0, 0); }
+  .mylist-media-review-page,
+  .mylist-media-review-page * { font-weight: 500 !important; }
+  .mylist-media-review-shell {
+    position: relative;
+    z-index: 1;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #0f0f12;
+    transition: filter 220ms ease, transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: filter, transform;
+  }
+  .mylist-media-review-page.actions-open .mylist-media-review-shell {
+    filter: blur(9px);
+    transform: scale3d(0.985, 0.985, 1);
+  }
+  .mylist-media-review-topbar {
+    flex: 0 0 auto;
+    min-height: 56px;
+    padding: max(12px, env(safe-area-inset-top, 0px)) 16px 10px;
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
+    align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .mylist-media-review-topbar span {
+    text-align: center;
+    font: 500 14px/1 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: 0;
+  }
+  .mylist-media-review-back,
+  .mylist-media-review-menu {
+    width: 38px;
+    height: 38px;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px;
+    background: rgba(255,255,255,0.05);
+    color: #f8f4ff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mylist-media-review-menu {
+    justify-self: end;
+  }
+  .mylist-media-review-back svg {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.1;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .mylist-media-review-menu svg {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
+  }
+  .mylist-media-review-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    /* v10.263: side padding moved into the inner hero + body so the hero
+       slate strip can extend full-width like the composer's meta strip. */
+    padding: 0 0 max(32px, calc(env(safe-area-inset-bottom, 0px) + 24px));
+  }
+  .mylist-media-review-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 104px;
+    gap: 18px;
+    align-items: start;
+    /* v10.263: composer-style meta strip — `#17171b` slate plate behind the
+       title/poster/rating block, hairline divider below. Mirrors the
+       `.shelf-log-composer-meta` look. */
+    background: #17171b;
+    padding: 18px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .mylist-media-review-main {
+    min-width: 0;
+    padding-top: 2px;
+  }
+  .mylist-media-review-author {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .mylist-media-review-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 999px;
+    object-fit: cover;
+    background: #1c1535;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.32);
+  }
+  .mylist-media-review-author strong {
+    display: block;
+    color: #fff;
+    font: 500 15px/1.12 'Sohne', 'DM Sans', sans-serif;
+  }
+  .mylist-media-review-author span {
+    display: block;
+    margin-top: 4px;
+    color: rgba(216,208,233,0.64);
+    font: 500 12px/1.1 'Sohne', 'DM Sans', sans-serif;
+  }
+  .mylist-media-review-main h1 {
+    margin: 0;
+    color: #fff;
+    font: 500 27px/0.98 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: 0;
+  }
+  .mylist-media-review-year {
+    margin-top: 8px;
+    color: rgba(216,208,233,0.58);
+    font: 500 13px/1 'Sohne', 'DM Sans', sans-serif;
+  }
+  .mylist-media-review-rating {
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    color: #f6c84c;
+  }
+  .mylist-review-filled-stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    color: #f6c84c;
+    line-height: 1;
+  }
+  .mylist-review-filled-star {
+    font-size: 17px;
+    line-height: 1;
+  }
+  .mylist-review-rating-label,
+  .mylist-review-rating-empty {
+    color: rgba(248,244,255,0.72);
+    font: 500 13px/1 'Sohne', 'DM Sans', sans-serif;
+  }
+  .mylist-review-rating-empty { margin-top: 14px; }
+  .mylist-media-review-poster {
+    width: 104px;
+    aspect-ratio: 2 / 3;
+    border-radius: 2.7px;
+    background-size: cover;
+    background-position: top center;
+    display: grid;
+    place-items: center;
+    color: #c4b5fd;
+    font-size: 30px;
+    overflow: hidden;
+    box-shadow: 0 18px 38px rgba(0,0,0,0.44), inset 0 0 0 1px rgba(255,255,255,0.08);
+  }
+  .mylist-media-review-poster.no-img {
+    background: linear-gradient(135deg, rgba(42,31,94,0.92), rgba(45,27,78,0.92));
+  }
+  .mylist-media-review-body {
+    /* v10.263: body sits on the base `#0f0f12` and inherits its own side
+       padding now that the parent .mylist-media-review-content no longer
+       provides it. The hero strip above already has a border-bottom, so
+       the body's prior border-top + margin-top are redundant. */
+    margin-top: 0;
+    padding: 22px 16px 0;
+    border-top: 0;
+    background: #0f0f12;
+  }
+  .mylist-media-review-body p {
+    margin: 0;
+    color: rgba(248,244,255,0.92);
+    font: 400 18px/1.55 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: 0;
+    white-space: pre-wrap;
+  }
+  /* v10.221: explicit override that beats the universal weight cap above
+     (`.mylist-media-review-page * { font-weight: 500 !important; }`).
+     Higher selector specificity wins among same-priority !important rules. */
+  .mylist-media-review-page .mylist-media-review-body p { font-weight: 400 !important; }
+  .mylist-media-review-reply {
+    margin-top: 18px;
+    min-height: 34px;
+    padding: 0 16px;
+    border: 1px solid rgba(196,181,253,0.24);
+    border-radius: 999px;
+    background: rgba(196,181,253,0.08);
+    color: #f8f4ff;
+    font: 500 13px/1 'Sohne', 'DM Sans', sans-serif;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mylist-media-review-body > .mylist-media-review-reply:first-child {
+    margin-top: 0;
+  }
+  .mylist-media-review-action-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    border: 0;
+    padding: 0;
+    background: rgba(0,0,0,0.36);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 220ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mylist-media-review-page.actions-open .mylist-media-review-action-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .mylist-media-review-action-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 3;
+    padding: 16px 16px max(18px, calc(env(safe-area-inset-bottom, 0px) + 14px));
+    border-radius: 24px 24px 0 0;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-bottom: 0;
+    background: #17171b;
+    box-shadow: 0 -24px 54px rgba(0,0,0,0.46);
+    transform: translate3d(0, 110%, 0);
+    transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+  }
+  .mylist-media-review-page.actions-open .mylist-media-review-action-sheet {
+    transform: translate3d(0, 0, 0);
+  }
+  .mylist-media-review-action-meta {
+    padding: 2px 4px 14px;
+    text-align: center;
+  }
+  .mylist-media-review-action-meta strong {
+    display: block;
+    color: #fff;
+    font: 500 16px/1.18 'Sohne', 'DM Sans', sans-serif;
+  }
+  .mylist-media-review-action-meta span {
+    display: block;
+    margin-top: 5px;
+    color: rgba(216,208,233,0.64);
+    font: 500 12px/1.1 'Sohne', 'DM Sans', sans-serif;
+  }
+  .mylist-media-review-action-list {
+    display: grid;
+    gap: 8px;
+  }
+  .mylist-media-review-action {
+    width: 100%;
+    min-height: 49px;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    background: rgba(255,255,255,0.055);
+    color: #f8f4ff;
+    font: 500 15px/1 'Sohne', 'DM Sans', sans-serif;
+    text-align: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mylist-media-review-action.danger {
+    color: #ff6b7f;
+  }
+  .mylist-media-review-action.done {
+    background: rgba(196,181,253,0.14);
+    border-color: rgba(196,181,253,0.22);
+  }
+  @media (min-width: 720px) {
+    .mylist-media-review-shell { align-items: center; }
+    .mylist-media-review-topbar,
+    .mylist-media-review-content {
+      width: min(100%, 720px);
+    }
+    .mylist-media-review-hero {
+      grid-template-columns: minmax(0, 1fr) 132px;
+    }
+    .mylist-media-review-poster { width: 132px; }
+    .mylist-media-review-action-sheet {
+      left: 50%;
+      right: auto;
+      width: min(100%, 520px);
+      transform: translate3d(-50%, 110%, 0);
+    }
+    .mylist-media-review-page.actions-open .mylist-media-review-action-sheet {
+      transform: translate3d(-50%, 0, 0);
+    }
+  }
+
+  /* v10.217 / v10.218: "I Watched..." / "I Played..." intermediate log
+     composer. Slides in from the right when a user taps the + on a
+     Watched/Played title card. On Save, hands off to .mylist-media-review-page.
+     v10.218 — repalleted to match the Shelfd app scheme used in the FPReview:
+       - page bg #0f0f12 (deep near-black) instead of slate
+       - meta strip #17171b (Shelfd action-sheet surface) with subtle border
+       - lavender #c4b5fd accents (Save, focused chips)
+       - gold #f6c84c stars (matches FPReview rating)
+       - rose #ff6b7f heart (matches FPReview danger / liked accent)
+       - muted text rgba(216,208,233, .55-.64) (matches existing meta lines)
+     Animation is transform-only (no layout writes) for ProMotion smoothness. */
+  body.shelf-log-composer-open { overflow: hidden; }
+  .shelf-log-composer {
+    position: fixed;
+    inset: 0;
+    z-index: 7250;
+    pointer-events: auto;
+    background: transparent;
+  }
+  .shelf-log-composer-shell {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    background: #0f0f12;
+    color: #f8f4ff;
+    transform: translate3d(100%, 0, 0);
+    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+    overflow: hidden;
+    font-family: 'Sohne', 'DM Sans', sans-serif;
+  }
+  .shelf-log-composer.is-open .shelf-log-composer-shell {
+    transform: translate3d(0, 0, 0);
+  }
+
+  /* ----- Topbar ----- */
+  .shelf-log-composer-topbar {
+    flex: 0 0 auto;
+    padding: max(12px, env(safe-area-inset-top, 0px)) 18px 12px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 12px;
+    background: #0f0f12;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .shelf-log-composer-cancel,
+  .shelf-log-composer-save {
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 6px 0;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .shelf-log-composer-cancel { color: rgba(216,208,233,0.64); justify-self: start; }
+  .shelf-log-composer-save   { color: #c4b5fd; justify-self: end; }
+  .shelf-log-composer-cancel:active { opacity: 0.6; }
+  .shelf-log-composer-save:active   { opacity: 0.7; transform: scale(0.96); }
+  .shelf-log-composer-title {
+    text-align: center;
+    font-size: 17px;
+    font-weight: 500;
+    color: #f8f4ff;
+    letter-spacing: 0;
+  }
+
+  /* ----- Meta strip (poster + title + year) ----- */
+  .shelf-log-composer-meta {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 18px;
+    background: #17171b;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .shelf-log-composer-poster {
+    width: 54px;
+    aspect-ratio: 2 / 3;
+    border-radius: 4px;
+    background-size: cover;
+    background-position: center;
+    background-color: #1c1535;
+    flex: 0 0 auto;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.44), inset 0 0 0 1px rgba(255,255,255,0.06);
+  }
+  .shelf-log-composer-poster.no-img {
+    background: linear-gradient(135deg, rgba(42,31,94,0.92), rgba(45,27,78,0.92));
+  }
+  .shelf-log-composer-meta-text {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+  .shelf-log-composer-meta-title {
+    color: #fff;
+    font-size: 17px;
+    font-weight: 500;
+  }
+  .shelf-log-composer-meta-year {
+    color: rgba(216,208,233,0.55);
+    font-size: 13px;
+    font-weight: 400;
+  }
+
+  /* ----- Scrollable body ----- */
+  .shelf-log-composer-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    background: #0f0f12;
+  }
+
+  /* ----- Generic row ----- */
+  .shelf-log-composer-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 18px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    background: transparent;
+    color: inherit;
+    text-align: left;
+  }
+  .shelf-log-composer-row-label {
+    color: #f8f4ff;
+    font-size: 15px;
+    font-weight: 500;
+  }
+  .shelf-log-composer-row-value {
+    color: rgba(216,208,233,0.62);
+    font-size: 15px;
+    font-weight: 400;
+  }
+
+  /* ----- Date row ----- */
+  .shelf-log-composer-date-row {
+    position: relative;
+    width: 100%;
+    appearance: none;
+    -webkit-appearance: none;
+    border: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .shelf-log-composer-date-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    pointer-events: auto;
+    border: 0;
+    padding: 0;
+    background: transparent;
+  }
+
+  /* ----- Rated row (Shelfd 10-star, no half steps) ----- */
+  .shelf-log-composer-rate-row {
+    display: flex !important;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 18px 18px;
+  }
+  /* Reuse the global .stars / .star-btn rules (defined above) so the visual,
+     hover scale, and `star-pop` animation match the rest of the app exactly.
+     We just scope a few size + color tweaks for the composer surface. */
+  .shelf-log-composer-stars {
+    --star-size: 24px;
+    gap: 4px;
+  }
+  .shelf-log-composer-stars .star-btn {
+    font-size: var(--star-size);
+    line-height: 1;
+    color: rgba(248,244,255,0.18);
+  }
+  .shelf-log-composer-stars .star-btn.lit { color: #f59e0b; }
+
+  /* ----- Review textarea ----- */
+  .shelf-log-composer-review-row {
+    display: block;
+    padding: 14px 18px 8px;
+  }
+  .shelf-log-composer-review {
+    width: 100%;
+    min-height: 160px;
+    border: 0;
+    padding: 6px 0;
+    background: transparent;
+    color: #f8f4ff;
+    font-family: 'Sohne', 'DM Sans', sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.5;
+    resize: none;
+    outline: none;
+  }
+  .shelf-log-composer-review::placeholder { color: rgba(216,208,233,0.48); }
+
+  /* ----- Tags ----- */
+  .shelf-log-composer-tags-row {
+    display: block;
+    padding: 14px 18px;
+  }
+  .shelf-log-composer-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .shelf-log-composer-tags:empty { margin-bottom: 0; }
+  .shelf-log-composer-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 4px 4px 10px;
+    border-radius: 999px;
+    background: rgba(196,181,253,0.14);
+    color: #c4b5fd;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid rgba(196,181,253,0.22);
+  }
+  .shelf-log-composer-tag-remove {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    width: 20px;
+    height: 20px;
+    border-radius: 999px;
+    color: #c4b5fd;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .shelf-log-composer-tag-input {
+    width: 100%;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.04);
+    color: #f8f4ff;
+    font-family: 'Sohne', 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 400;
+    outline: none;
+    transition: border-color 140ms ease, background 140ms ease;
+  }
+  .shelf-log-composer-tag-input::placeholder { color: rgba(216,208,233,0.48); }
+  .shelf-log-composer-tag-input:focus {
+    border-color: rgba(196,181,253,0.42);
+    background: rgba(196,181,253,0.06);
+  }
+
+  /* ----- Bottom toggles row ----- */
+  .shelf-log-composer-foot {
+    flex: 0 0 auto;
+    padding: 14px 14px max(18px, calc(env(safe-area-inset-bottom, 0px) + 12px));
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    background: #0f0f12;
+  }
+  .shelf-log-composer-toggle {
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 6px 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    color: rgba(216,208,233,0.46);
+    font-family: 'Sohne', 'DM Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 120ms ease;
+  }
+  .shelf-log-composer-toggle svg {
+    width: 30px;
+    height: 30px;
+    stroke: currentColor;
+  }
+  .shelf-log-composer-toggle.is-on { color: #f8f4ff; }
+  .shelf-log-composer-toggle:active { transform: scale(0.95); }
+
+  @media (min-width: 720px) {
+    .shelf-log-composer-shell {
+      max-width: 720px;
+      left: auto;
+      right: 0;
+      box-shadow: -24px 0 60px rgba(0,0,0,0.4);
+    }
+  }
+
+  /* v10.233: Music Album Profile — slide-in-from-right overlay for albums
+     surfaced by the universal-search Music chip. Shelfd palette: #0f0f12
+     base, lavender accents, gold rating, rose for danger. Compositor-only
+     transforms for ProMotion smoothness. */
+  body.music-album-profile-open { overflow: hidden; }
+  .music-album-profile-page {
+    position: fixed;
+    inset: 0;
+    /* v10.249: bumped above the artist profile (7340) so a user tapping an
+       album in the artist's discography sees the album profile slide in on
+       TOP. Previously the album opened underneath, only revealing itself
+       after the artist profile was dismissed. */
+    z-index: 7400;
+    pointer-events: auto;
+    background: transparent;
+  }
+  .music-album-profile-shell {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    background: #0f0f12;
+    color: #f8f4ff;
+    transform: translate3d(100%, 0, 0);
+    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+    font-family: 'Sohne', 'DM Sans', sans-serif;
+    overflow: hidden;
+  }
+  .music-album-profile-page.is-open .music-album-profile-shell {
+    transform: translate3d(0, 0, 0);
+  }
+  .music-album-profile-topbar {
+    flex: 0 0 auto;
+    min-height: 56px;
+    padding: max(12px, env(safe-area-inset-top, 0px)) 16px 10px;
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
+    align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    background: #0f0f12;
+  }
+  .music-album-profile-back {
+    width: 38px;
+    height: 38px;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px;
+    background: rgba(255,255,255,0.05);
+    color: #f8f4ff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
+  }
+  .music-album-profile-back svg { width: 24px; height: 24px; }
+  .music-album-profile-back:active { transform: scale(0.94); }
+  .music-album-profile-title {
+    text-align: center;
+    font: 500 14px/1 'Sohne', 'DM Sans', sans-serif;
+    color: #f8f4ff;
+  }
+  .music-album-profile-topbar-spacer { display: block; }
+  .music-album-profile-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    padding: 24px 20px max(28px, calc(env(safe-area-inset-bottom, 0px) + 24px));
+  }
+  .music-album-profile-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 26px;
+  }
+  .music-album-profile-cover {
+    width: min(72vw, 240px);
+    aspect-ratio: 1 / 1;
+    /* v10.234: 0px corners per spec — sharp/square album art. */
+    border-radius: 0;
+    background-size: cover;
+    background-position: center;
+    background-color: #1c1535;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+    display: grid;
+    place-items: center;
+    font-size: 56px;
+    color: rgba(196,181,253,0.6);
+  }
+  .music-album-profile-cover.no-img {
+    background: linear-gradient(135deg, rgba(42,31,94,0.92), rgba(45,27,78,0.92));
+  }
+  .music-album-profile-meta {
+    text-align: center;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .music-album-profile-album-title {
+    margin: 0;
+    color: #fff;
+    font: 500 26px/1.15 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: 0;
+    word-break: break-word;
+  }
+  .music-album-profile-artist {
+    color: rgba(216,208,233,0.78);
+    font: 500 16px/1.2 'Sohne', 'DM Sans', sans-serif;
+  }
+  .music-album-profile-year {
+    color: rgba(216,208,233,0.55);
+    font: 400 14px/1.1 'Sohne', 'DM Sans', sans-serif;
+  }
+  /* v10.234: facts list (release / genre / runtime). */
+  .music-album-profile-facts {
+    margin: 12px 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px 18px;
+    text-align: left;
+  }
+  .music-album-profile-fact dt {
+    margin: 0 0 2px;
+    color: rgba(216,208,233,0.55);
+    font: 500 11px/1.2 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .music-album-profile-fact dd {
+    margin: 0;
+    color: #f8f4ff;
+    font: 500 14px/1.25 'Sohne', 'DM Sans', sans-serif;
+    word-break: break-word;
+  }
+  /* v10.234: tracks block. */
+  .music-album-profile-tracks {
+    margin-top: 26px;
+    padding-top: 22px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .music-album-profile-tracks-heading {
+    color: #ffffff;
+    font: 500 16px/1.2 'Sohne', 'DM Sans', sans-serif;
+    margin: 0 0 12px;
+  }
+  .music-album-profile-track-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .music-album-profile-track {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .music-album-profile-track:last-child { border-bottom: 0; }
+  .music-album-profile-track-num {
+    color: rgba(216,208,233,0.45);
+    font: 500 13px/1 'Sohne', 'DM Sans', sans-serif;
+    text-align: right;
+  }
+  .music-album-profile-track-title {
+    color: #f8f4ff;
+    font: 500 14px/1.25 'Sohne', 'DM Sans', sans-serif;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
+  }
+  .music-album-profile-track-length {
+    color: rgba(216,208,233,0.62);
+    font: 400 13px/1 'Sohne', 'DM Sans', sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  .music-album-profile-track-loading,
+  .music-album-profile-track-empty {
+    padding: 14px 0;
+    color: rgba(216,208,233,0.55);
+    font: 400 13px/1.3 'Sohne', 'DM Sans', sans-serif;
+    text-align: center;
+  }
+  .music-album-profile-add-btn {
+    width: 100%;
+    min-height: 52px;
+    margin: 16px 0 0;
+    padding: 0 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid rgba(196,181,253,0.32);
+    border-radius: 14px;
+    background: rgba(196,181,253,0.12);
+    color: #f8f4ff;
+    font: 500 16px/1 'Sohne', 'DM Sans', sans-serif;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 140ms ease, transform 140ms ease;
+  }
+  .music-album-profile-add-btn svg {
+    width: 20px;
+    height: 20px;
+    color: #c4b5fd;
+  }
+  .music-album-profile-add-btn:active {
+    background: rgba(196,181,253,0.2);
+    transform: scale(0.98);
+  }
+  /* v10.258 / v10.262: progressive add zone.
+     - Default: full-width "Add to Shelf" pill (`.music-album-profile-add-btn`).
+     - Tap it → row of three small status buttons (Listened / Planned / In
+       Rotation) fits the same row width.
+     - When album is already in the library → "Already Added · {status}"
+       check pill replaces both states. */
+  .music-album-profile-add-zone {
+    margin: 16px 0 0;
+  }
+  .music-album-profile-add-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+  }
+  .music-album-profile-add-row[hidden] { display: none !important; }
+  .music-album-profile-add-choice {
+    appearance: none;
+    -webkit-appearance: none;
+    min-height: 44px;
+    padding: 0 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(196,181,253,0.32);
+    border-radius: 12px;
+    background: rgba(196,181,253,0.12);
+    color: #f8f4ff;
+    font: 500 13px/1 'Sohne', 'DM Sans', sans-serif;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 140ms ease, transform 140ms ease;
+    white-space: nowrap;
+    text-align: center;
+  }
+  .music-album-profile-add-choice:active {
+    background: rgba(196,181,253,0.2);
+    transform: scale(0.96);
+  }
+  .music-album-profile-add-btn[hidden] { display: none !important; }
+  /* v10.262: "Already Added" state — green-tinted pill with check icon. */
+  .music-album-profile-already-added {
+    background: rgba(52,211,153,0.10) !important;
+    border-color: rgba(52,211,153,0.32) !important;
+  }
+  .music-album-profile-already-added svg {
+    color: #34d399 !important;
+  }
+  /* v10.251: swap which icon shows based on data-add-state. + (plus) shows
+     when the album is not yet in the shelf; ✓ (check) shows when it's
+     already saved. */
+  .music-album-profile-add-icon-add,
+  .music-album-profile-add-icon-check { display: none; }
+  .music-album-profile-add-btn[data-add-state="add"] .music-album-profile-add-icon-add { display: inline; }
+  .music-album-profile-add-btn[data-add-state="in-shelf"] .music-album-profile-add-icon-check { display: inline; }
+  .music-album-profile-add-btn[data-add-state="in-shelf"] {
+    background: rgba(52,211,153,0.10);
+    border-color: rgba(52,211,153,0.32);
+  }
+  .music-album-profile-add-btn[data-add-state="in-shelf"] svg.music-album-profile-add-icon-check {
+    color: #34d399;
+  }
+  .music-album-profile-add-btn[data-add-state="in-shelf"] [data-music-profile-add-label] {
+    color: #f8f4ff;
+  }
+  @media (min-width: 720px) {
+    .music-album-profile-shell {
+      max-width: 720px;
+      left: auto;
+      right: 0;
+      box-shadow: -24px 0 60px rgba(0,0,0,0.4);
+    }
+    .music-album-profile-cover { width: 280px; }
+  }
 
   /* Episodes */
   .ep-toggle-bar {
@@ -805,6 +2446,26 @@
 .game-library-card {
   position: relative;
   padding-bottom: 8px;
+}
+.games-wishlist-card .games-wishlist-card-info {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+.games-wishlist-card .games-wishlist-card-genre,
+.games-wishlist-card .games-wishlist-card-platforms {
+  font-size: 12px;
+  font-weight: 500;
+}
+.games-wishlist-card .games-wishlist-card-priority {
+  margin-top: auto;
+  padding-top: 10px;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-end;
+}
+.games-wishlist-card .games-wishlist-card-priority .watchlist-priority-slot {
+  min-height: 26px;
 }
 .game-library-card .card-action-row {
   padding-right: 0;
@@ -1928,6 +3589,18 @@ body.light-mode #mylist-view .games-playing-toggle small {
 body.light-mode #mylist-view .card-year.mylist-watchlist-year {
   color: rgba(60, 40, 110, 0.78);
 }
+/* v10.231: artist line under album title for music section cards. */
+#mylist-view .card-artist {
+  font-size: 13px;
+  color: rgba(232, 222, 255, 0.82);
+  font-weight: 500;
+  letter-spacing: 0;
+  margin-top: 3px;
+  font-family: 'Sohne', 'DM Sans', sans-serif;
+}
+body.light-mode #mylist-view .card-artist {
+  color: rgba(60, 40, 110, 0.82);
+}
 #mylist-view .card-availability-line {
   display: flex;
   align-items: center;
@@ -1939,6 +3612,10 @@ body.light-mode #mylist-view .card-year.mylist-watchlist-year {
   letter-spacing: 0.02em;
   font-family: 'Sohne', 'DM Sans', sans-serif;
   line-height: 1.2;
+}
+#mylist-view .watchlist-card-metadata {
+  display: flex;
+  flex-direction: column;
 }
 #mylist-view .mylist-availability-release-date {
   color: #67e8f9;
@@ -2379,6 +4056,81 @@ body.screenlist-game-cover-picker-open { overflow: hidden !important; }
 }
 #mylist-view .card-action-row .card-comment-add-btn:active { transform: scale(0.94); }
 
+/* v10.220: layers icon shown on title cards when ANOTHER user is viewing the
+   list and the owner has written a review for that title. Same chip shape +
+   palette as the legacy + button so the action-row stays visually balanced. */
+#mylist-view .card-action-row .card-review-layers-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(196,181,253,0.32);
+  background: rgba(28,21,53,0.86);
+  color: #c4b5fd;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 160ms ease, background 160ms ease, border-color 160ms ease, transform 140ms ease;
+}
+#mylist-view .card-action-row .card-review-layers-btn svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+#mylist-view .card-action-row .card-review-layers-btn:hover {
+  background: rgba(34,24,68,0.96);
+  border-color: rgba(196,181,253,0.48);
+  color: #f8f4ff;
+}
+#mylist-view .card-action-row .card-review-layers-btn:active { transform: scale(0.94); }
+@media (max-width: 720px) {
+  #mylist-view .card-action-row .card-review-layers-btn { width: 30px; height: 30px; min-width: 30px; min-height: 30px; }
+}
+
+/* v10.220: media-review activity card body stack — username on top (handled
+   by the existing meta row), then "wrote a review", then the title, then the
+   star rating. Poster still floats on the right via the existing .sl-activity-poster
+   absolute positioning. */
+.shelfd-social-card.shelfd-media-review-card .sl-media-review-action {
+  margin-top: 4px;
+  color: #c4b5fd;
+  font-family: 'Sohne', 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.2;
+}
+.shelfd-social-card.shelfd-media-review-card .sl-media-review-title {
+  display: block;
+  margin-top: 6px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: #ffffff;
+  font-family: 'Sohne', 'DM Sans', sans-serif;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  word-break: break-word;
+}
+.shelfd-social-card.shelfd-media-review-card .sl-media-review-title:active { opacity: 0.78; }
+.shelfd-social-card.shelfd-media-review-card .sl-media-review-rating {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+}
+
 /* v803/v817: Comment body — flat white text floated on the card, above the
    action row. Tap to edit for owner; read-only for others.
 
@@ -2392,6 +4144,15 @@ body.screenlist-game-cover-picker-open { overflow: hidden !important; }
 /* v851: posted comment now lives in the card body above the action row.
    This keeps it out of the footer flex row so buttons/overlays cannot cover
    or squeeze it out of view. */
+/* v10.77: collapse the comment slot when there's no comment so it doesn't
+   reserve awkward empty space below the rating area on Watched cards. The
+   slot is always rendered (so partial-update helpers can find it by id),
+   but an empty slot is `:empty` because `buildCardCommentBodyHtml` returns
+   `''` when no comment exists. */
+#mylist-view .card-comment-slot:empty {
+  display: none;
+}
+
 #mylist-view .card-comment-body {
   position: relative;
   z-index: 2;
@@ -2411,6 +4172,12 @@ body.screenlist-game-cover-picker-open { overflow: hidden !important; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+#mylist-view .card-comment-body.card-comment-body--watched-media {
+  font-size: 13px;
+}
+#mylist-view .rating-area + .card-comment-body.card-comment-body--watched-media {
+  margin-top: 23px;
 }
 /* v850: inner span must inherit the parent's truncation contract,
    not its legacy block + break-word rules. */

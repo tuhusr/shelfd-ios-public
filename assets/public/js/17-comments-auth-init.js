@@ -170,7 +170,7 @@ function dismissCommentsPageForProfileNavigation() {
   }
   const commentsPageEl = document.getElementById('comments-page');
   if (commentsPageEl) {
-    commentsPageEl.classList.remove('comments-page-animating', 'comments-page-animating-in', 'comments-page-closing');
+    commentsPageEl.classList.remove('comments-page-animating', 'comments-page-animating-in', 'comments-page-closing', 'comments-page-open');
     commentsPageEl.style.display = 'none';
     commentsPageEl.style.position = '';
     commentsPageEl.style.left = '';
@@ -182,9 +182,16 @@ function dismissCommentsPageForProfileNavigation() {
     commentsPageEl.style.opacity = '';
     commentsPageEl.style.transform = '';
     commentsPageEl.style.pointerEvents = '';
+    commentsPageEl.setAttribute('aria-hidden', 'true');
     commentsPageEl.style.removeProperty('--comments-origin-x');
     commentsPageEl.style.removeProperty('--comments-origin-y');
+    commentsPageEl.removeEventListener('touchmove', handleCommentsPageBackdropTouchMove);
   }
+  if (commentsCloseTimer) {
+    clearTimeout(commentsCloseTimer);
+    commentsCloseTimer = null;
+  }
+  unlockCommentsPageBackgroundScroll();
   commentsItemId = null;
   commentsMediaKey = null;
   commentsScope = 'friends';
@@ -235,6 +242,91 @@ let commentsTransitionOriginRect = null;
 let commentsPageClosing = false;
 let commentsCloseAnimation = null;
 let commentsRestoreView = null;
+let commentsCloseTimer = null;
+let commentsScrollLockState = null;
+
+function lockCommentsPageBackgroundScroll() {
+  if (commentsScrollLockState) return;
+  const scrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+  const body = document.body;
+  commentsScrollLockState = {
+    scrollY,
+    bodyPosition: body.style.position,
+    bodyTop: body.style.top,
+    bodyLeft: body.style.left,
+    bodyRight: body.style.right,
+    bodyWidth: body.style.width,
+    bodyOverflow: body.style.overflow,
+    htmlOverflow: document.documentElement.style.overflow
+  };
+  body.style.position = 'fixed';
+  body.style.top = `-${scrollY}px`;
+  body.style.left = '0';
+  body.style.right = '0';
+  body.style.width = '100%';
+  body.style.overflow = 'hidden';
+  document.documentElement.style.overflow = 'hidden';
+  document.body.classList.add('comments-page-scroll-locked');
+}
+
+function unlockCommentsPageBackgroundScroll() {
+  const state = commentsScrollLockState;
+  if (!state) return;
+  commentsScrollLockState = null;
+  const body = document.body;
+  body.style.position = state.bodyPosition || '';
+  body.style.top = state.bodyTop || '';
+  body.style.left = state.bodyLeft || '';
+  body.style.right = state.bodyRight || '';
+  body.style.width = state.bodyWidth || '';
+  body.style.overflow = state.bodyOverflow || '';
+  document.documentElement.style.overflow = state.htmlOverflow || '';
+  document.body.classList.remove('comments-page-scroll-locked');
+  window.scrollTo(0, state.scrollY || 0);
+}
+
+function handleCommentsPageBackdropTouchMove(event) {
+  const target = event.target;
+  if (!target || !target.closest) return;
+  if (target.closest('#comments-page .main-content')) return;
+  if (event.cancelable) event.preventDefault();
+}
+
+function openCommentsBottomSheet(commentsPageEl) {
+  if (!commentsPageEl) return;
+  if (commentsCloseTimer) {
+    clearTimeout(commentsCloseTimer);
+    commentsCloseTimer = null;
+  }
+  commentsPageEl.style.display = 'block';
+  commentsPageEl.style.pointerEvents = '';
+  commentsPageEl.classList.remove('comments-page-animating', 'comments-page-animating-in', 'comments-page-closing', 'comments-page-open');
+  commentsPageEl.setAttribute('aria-hidden', 'false');
+  lockCommentsPageBackgroundScroll();
+  commentsPageEl.addEventListener('touchmove', handleCommentsPageBackdropTouchMove, { passive: false });
+  void commentsPageEl.offsetWidth;
+  requestAnimationFrame(() => commentsPageEl.classList.add('comments-page-open'));
+}
+
+function closeCommentsBottomSheet(commentsPageEl, onComplete) {
+  if (!commentsPageEl) {
+    if (typeof onComplete === 'function') onComplete();
+    return;
+  }
+  commentsPageEl.classList.remove('comments-page-open', 'comments-page-animating', 'comments-page-animating-in');
+  commentsPageEl.classList.add('comments-page-closing');
+  commentsPageEl.style.pointerEvents = 'none';
+  commentsPageEl.setAttribute('aria-hidden', 'true');
+  commentsPageEl.removeEventListener('touchmove', handleCommentsPageBackdropTouchMove);
+  unlockCommentsPageBackgroundScroll();
+  if (commentsCloseTimer) clearTimeout(commentsCloseTimer);
+  const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const hideMs = reduceMotion ? 0 : 380;
+  commentsCloseTimer = setTimeout(() => {
+    commentsCloseTimer = null;
+    if (typeof onComplete === 'function') onComplete();
+  }, hideMs);
+}
 
 function restoreCommentsSourceView() {
   setBottomNavVisibility(true);
@@ -253,7 +345,7 @@ function restoreCommentsSourceView() {
 
 function cleanupCommentsPageState() {
   const commentsPageEl = document.getElementById('comments-page');
-  commentsPageEl.classList.remove('comments-page-animating', 'comments-page-animating-in', 'comments-page-closing');
+  commentsPageEl.classList.remove('comments-page-animating', 'comments-page-animating-in', 'comments-page-closing', 'comments-page-open');
   commentsPageEl.style.display = 'none';
   commentsPageEl.style.position = '';
   commentsPageEl.style.left = '';
@@ -265,8 +357,15 @@ function cleanupCommentsPageState() {
   commentsPageEl.style.opacity = '';
   commentsPageEl.style.transform = '';
   commentsPageEl.style.pointerEvents = '';
+  commentsPageEl.setAttribute('aria-hidden', 'true');
   commentsPageEl.style.removeProperty('--comments-origin-x');
   commentsPageEl.style.removeProperty('--comments-origin-y');
+  commentsPageEl.removeEventListener('touchmove', handleCommentsPageBackdropTouchMove);
+  if (commentsCloseTimer) {
+    clearTimeout(commentsCloseTimer);
+    commentsCloseTimer = null;
+  }
+  unlockCommentsPageBackgroundScroll();
 
   if (typeof commentsRestoreView === 'function') commentsRestoreView();
 
@@ -284,10 +383,9 @@ function cleanupCommentsPageState() {
 
 function cancelCommentsCloseIfNeeded() {
   if (!commentsPageClosing) return;
-  if (commentsCloseAnimation) {
-    commentsCloseAnimation.onfinish = null;
-    commentsCloseAnimation.oncancel = null;
-    commentsCloseAnimation.cancel();
+  if (commentsCloseTimer) {
+    clearTimeout(commentsCloseTimer);
+    commentsCloseTimer = null;
   }
   cleanupCommentsPageState();
 }
@@ -319,11 +417,8 @@ function openCommentsPage(itemId, triggerEl) {
   document.getElementById('mylist-view').style.display = 'none';
   document.getElementById('community-view').style.display = 'none';
   document.getElementById('mylist-header').style.display = 'none';
-  commentsPageEl.style.display = 'block';
-  commentsPageEl.style.pointerEvents = '';
-  commentsPageEl.classList.remove('comments-page-animating', 'comments-page-animating-in', 'comments-page-closing');
-  commentsPageEl.style.opacity = '1';
-  commentsPageEl.style.transform = 'none';
+  setBottomNavVisibility(false);
+  openCommentsBottomSheet(commentsPageEl);
 
   const emoji = getSectionIcon(activeSection);
   const coverHtml = item.cover
@@ -367,6 +462,8 @@ function openCommentsPage(itemId, triggerEl) {
   renderCommentsInput();
   loadComments();
   persistUiState();
+  const commentsSheet = commentsPageEl.querySelector('.main-content');
+  if (commentsSheet) commentsSheet.scrollTo({ top: 0, behavior: 'auto' });
 }
 
 function openCommentsPageForActivity(mediaKey, title, cover, commentId = '') {
@@ -394,11 +491,8 @@ function openCommentsPageForActivity(mediaKey, title, cover, commentId = '') {
       setBottomNavVisibility(true);
     };
   }
-  commentsPageEl.style.display = 'block';
-  commentsPageEl.style.pointerEvents = '';
-  commentsPageEl.classList.remove('comments-page-animating', 'comments-page-animating-in', 'comments-page-closing');
-  commentsPageEl.style.opacity = '1';
-  commentsPageEl.style.transform = 'none';
+  setBottomNavVisibility(false);
+  openCommentsBottomSheet(commentsPageEl);
   const coverHtml = cover
     ? `<div class="comments-page-cover" style="background-image:url('${escAttr(cover)}')"></div>`
     : `<div class="comments-page-cover no-img" style="display:flex;align-items:center;justify-content:center;font-size:24px;">💬</div>`;
@@ -416,6 +510,8 @@ function openCommentsPageForActivity(mediaKey, title, cover, commentId = '') {
   renderCommentsInput();
   loadComments();
   persistUiState();
+  const commentsSheet = commentsPageEl.querySelector('.main-content');
+  if (commentsSheet) commentsSheet.scrollTo({ top: 0, behavior: 'auto' });
   if (commentId) {
     setTimeout(() => {
       const row = document.querySelector(`#comments-list .comment-item[data-comment-id="${CSS.escape(commentId)}"]`);
@@ -437,13 +533,10 @@ function closeCommentsPage() {
   if (commentsUnsubscribe) { commentsUnsubscribe(); commentsUnsubscribe = null; }
 
   const commentsPageEl = document.getElementById('comments-page');
-  commentsPageEl.classList.remove('comments-page-animating', 'comments-page-animating-in', 'comments-page-closing');
-  commentsPageEl.style.pointerEvents = 'none';
-
   commentsRestoreView = restoreCommentsSourceView;
-  cleanupCommentsPageState();
   commentsViewState = null;
   persistUiState();
+  closeCommentsBottomSheet(commentsPageEl, cleanupCommentsPageState);
 }
 
 function loadComments() {

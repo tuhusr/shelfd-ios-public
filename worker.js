@@ -7,9 +7,22 @@ const OMDB_ORIGIN = "https://www.omdbapi.com/";
 const TAVILY_ORIGIN = "https://api.tavily.com/";
 const IGDB_ORIGIN = "https://api.igdb.com/v4/";
 const TWITCH_TOKEN_ORIGIN = "https://id.twitch.tv/oauth2/token";
+const MUSICBRAINZ_ORIGIN = "https://musicbrainz.org/ws/2/";
+const COVER_ART_ARCHIVE_ORIGIN = "https://coverartarchive.org/";
+/* v10.248: Deezer Simple API — no key, no auth, 50 req/5s/IP. Used as the
+   primary music metadata source (search, albums, artists, tracklists) because
+   it returns real cover art, official tracklists with durations + features,
+   and popularity-ranked results. MusicBrainz is kept around as fallback for
+   anything Deezer can't resolve. */
+const DEEZER_ORIGIN = "https://api.deezer.com/";
+const SCREENLIST_DEEZER_CACHE_TTL_SECONDS = 60 * 60 * 24; // 24h: Deezer metadata is stable
+const YOUTUBE_ORIGIN = "https://www.googleapis.com/youtube/v3/";
+const YOUTUBE_ENV_NAMES = ["YOUTUBE_API_KEY", "YT_KEY", "YOUTUBE_KEY"];
+const SCREENLIST_YOUTUBE_CACHE_TTL_SECONDS = 60 * 60 * 6;
 const SCREENLIST_AI_MODEL = "@cf/meta/llama-3.1-8b-instruct";
 const SCREENLIST_AI_CACHE_TTL_SECONDS = 60 * 60 * 24 * 30;
 const SCREENLIST_API_CACHE_TTL_SECONDS = 60 * 60 * 6;
+const SCREENLIST_MUSICBRAINZ_CACHE_TTL_SECONDS = 60 * 60 * 24 * 7;
 const SCREENLIST_RANK_CACHE_TTL_SECONDS = 60 * 60 * 24;
 const SCREENLIST_IMDB_RATING_CACHE_TTL_SECONDS = 60 * 60 * 24 * 7;
 const SCREENLIST_TAVILY_RATING_CACHE_TTL_SECONDS = 60 * 60 * 24 * 30;
@@ -70,6 +83,28 @@ function getSteamConfigError(env) {
   const status = getSteamPublicStatus(env);
   if (status.configured) return "";
   return `Steam API key is not configured. Add it as a Cloudflare Worker secret named ${STEAM_ENV_NAMES[0]}. Also accepted: ${STEAM_ENV_NAMES.slice(1).join(", ")}.`;
+}
+
+/* v10.152: YouTube Data API v3 config — used by the new
+   /api/youtube/videos and /api/youtube/comments endpoints that power
+   the Most Anticipated hype-score pipeline. Key stored as a Cloudflare
+   Worker secret (YOUTUBE_API_KEY). Same lookup-by-env-name-list
+   pattern as OMDb/TMDB/Trakt above. */
+function getYoutubeClientConfig(env) {
+  for (const name of YOUTUBE_ENV_NAMES) {
+    const value = getEnvString(env, name);
+    if (value) return { name, value };
+  }
+  return { name: "", value: "" };
+}
+
+function getYoutubePublicStatus(env) {
+  const config = getYoutubeClientConfig(env);
+  return {
+    configured: !!config.value,
+    envName: config.name || "",
+    acceptedEnvNames: YOUTUBE_ENV_NAMES
+  };
 }
 
 function getOmdbClientConfig(env) {
@@ -144,6 +179,66 @@ function getIgdbConfigError(env) {
   const status = getIgdbPublicStatus(env);
   if (status.configured) return "";
   return `IGDB/Twitch cover lookup is not configured. Add Cloudflare Worker secrets named ${IGDB_CLIENT_ID_ENV_NAMES[0]} and ${IGDB_CLIENT_SECRET_ENV_NAMES[0]}.`;
+}
+
+function getMusicBrainzUserAgent(env) {
+  return getEnvString(env, "MUSICBRAINZ_USER_AGENT")
+    || "Shelfd/10.137 (https://www.myshelfd.com)";
+}
+
+function getMusicBrainzPublicStatus(env) {
+  return {
+    configured: true,
+    authRequired: false,
+    userAgentConfigured: !!getEnvString(env, "MUSICBRAINZ_USER_AGENT"),
+    userAgentEnvName: "MUSICBRAINZ_USER_AGENT",
+    rateLimit: "Design client calls around MusicBrainz public API etiquette: cache responses and avoid bursts; 1 request/second is the safest target."
+  };
+}
+
+function normalizeMusicBrainzEntityType(value = "") {
+  const clean = String(value || "").trim().toLowerCase().replace(/_/g, "-");
+  const aliases = {
+    album: "release",
+    albums: "release",
+    artist: "artist",
+    artists: "artist",
+    track: "recording",
+    tracks: "recording",
+    song: "recording",
+    songs: "recording",
+    recording: "recording",
+    recordings: "recording",
+    release: "release",
+    releases: "release",
+    "release-group": "release-group",
+    "release-groups": "release-group",
+    label: "label",
+    labels: "label",
+    work: "work",
+    works: "work",
+    area: "area",
+    areas: "area",
+    event: "event",
+    events: "event",
+    genre: "genre",
+    genres: "genre",
+    instrument: "instrument",
+    instruments: "instrument",
+    place: "place",
+    places: "place",
+    series: "series",
+    url: "url",
+    urls: "url"
+  };
+  return aliases[clean] || "";
+}
+
+function buildMusicBrainzHeaders(env) {
+  return {
+    "Accept": "application/json",
+    "User-Agent": getMusicBrainzUserAgent(env)
+  };
 }
 
 function escapeIgdbSearchString(value = "") {
@@ -487,7 +582,7 @@ async function runIgdbSearchEndpoint(request, env) {
   const config = getIgdbClientConfig(env);
   const escaped = escapeIgdbSearchString(query);
   const body = [
-    "fields name, first_release_date, cover.image_id, genres.name, platforms.name, summary, slug, total_rating, total_rating_count;",
+    "fields name, first_release_date, cover.image_id, genres.name, themes.name, platforms.name, summary, slug, total_rating, total_rating_count, rating, rating_count, aggregated_rating, aggregated_rating_count, hypes, follows;",
     `search "${escaped}";`,
     `limit ${limit};`
   ].join("\n");
@@ -512,11 +607,118 @@ async function runIgdbSearchEndpoint(request, env) {
     released: g.first_release_date ? new Date(g.first_release_date * 1000).toISOString().slice(0, 10) : "",
     cover: g.cover?.image_id ? buildIgdbCoverUrl(g.cover.image_id) : "",
     genres: (g.genres || []).map(x => x.name).filter(Boolean),
+    themes: (g.themes || []).map(x => x.name).filter(Boolean),
     platforms: (g.platforms || []).map(x => x.name).filter(Boolean),
     summary: g.summary || "",
     total_rating: g.total_rating || 0,
     total_rating_count: g.total_rating_count || 0,
+    rating: g.rating || 0,
+    rating_count: g.rating_count || 0,
+    aggregated_rating: g.aggregated_rating || 0,
+    aggregated_rating_count: g.aggregated_rating_count || 0,
+    hypes: g.hypes || 0,
+    follows: g.follows || 0,
     source: "igdb"
+  }));
+
+  return jsonResponse({ ok: true, results: games });
+}
+
+function parseIgdbNumberList(value = "") {
+  return String(value || "")
+    .split(",")
+    .map(part => Number(String(part || "").trim()))
+    .filter(value => Number.isFinite(value) && value > 0);
+}
+
+function appendIgdbWhereClause(parts = [], clause = "") {
+  const clean = String(clause || "").trim();
+  if (clean) parts.push(clean);
+}
+
+async function runIgdbDiscoverGamesEndpoint(request, env) {
+  const url = new URL(request.url);
+  const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit") || 60)));
+  const preset = String(url.searchParams.get("preset") || "popular").trim().toLowerCase();
+  const genreIds = parseIgdbNumberList(url.searchParams.get("genreIds"));
+  const themeIds = parseIgdbNumberList(url.searchParams.get("themeIds"));
+  const platformIds = parseIgdbNumberList(url.searchParams.get("platformIds"));
+  const fromDate = String(url.searchParams.get("from") || "").trim();
+  const toDate = String(url.searchParams.get("to") || "").trim();
+
+  const tokenResult = await fetchIgdbAccessToken(env);
+  if (!tokenResult.ok) return jsonResponse(tokenResult, tokenResult.status || 502);
+
+  const whereParts = [];
+  appendIgdbWhereClause(whereParts, "name != null");
+  if (genreIds.length) appendIgdbWhereClause(whereParts, `genres = (${genreIds.join(",")})`);
+  if (themeIds.length) appendIgdbWhereClause(whereParts, `themes = (${themeIds.join(",")})`);
+  if (platformIds.length) appendIgdbWhereClause(whereParts, `platforms = (${platformIds.join(",")})`);
+  if (fromDate && /^\d{4}-\d{2}-\d{2}$/.test(fromDate)) {
+    const fromEpoch = Math.floor(Date.parse(`${fromDate}T00:00:00Z`) / 1000);
+    if (Number.isFinite(fromEpoch)) appendIgdbWhereClause(whereParts, `first_release_date >= ${fromEpoch}`);
+  }
+  if (toDate && /^\d{4}-\d{2}-\d{2}$/.test(toDate)) {
+    const toEpoch = Math.floor(Date.parse(`${toDate}T23:59:59Z`) / 1000);
+    if (Number.isFinite(toEpoch)) appendIgdbWhereClause(whereParts, `first_release_date <= ${toEpoch}`);
+  }
+  if (preset === "upcoming" || preset === "anticipated") {
+    appendIgdbWhereClause(whereParts, `first_release_date > ${Math.floor(Date.now() / 1000)}`);
+  }
+
+  const sort = (preset === "upcoming" || preset === "anticipated")
+    ? "sort hypes desc;"
+    : preset === "rated"
+      ? "sort total_rating desc;"
+      : "sort total_rating_count desc;";
+
+  const config = getIgdbClientConfig(env);
+  const body = [
+    "fields name, slug, first_release_date, cover.image_id, genres.name, themes.name, platforms.name, summary, total_rating, total_rating_count, rating, rating_count, aggregated_rating, aggregated_rating_count, hypes, follows;",
+    whereParts.length ? `where ${whereParts.join(" & ")};` : "",
+    sort,
+    `limit ${limit};`
+  ].filter(Boolean).join("\n");
+
+  const result = await fetchJsonWithTimeout(new URL("games", IGDB_ORIGIN).toString(), {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "text/plain",
+      "Client-ID": config.clientId,
+      "Authorization": `Bearer ${tokenResult.token}`
+    },
+    body
+  }, 9000);
+
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error || "IGDB discover failed." }, 502);
+
+  const games = (Array.isArray(result.data) ? result.data : []).map(g => ({
+    id: `igdb:${g.id}`,
+    sourceId: String(g.id || ""),
+    igdbId: String(g.id || ""),
+    name: g.name || "",
+    slug: g.slug || "",
+    igdbSlug: g.slug || "",
+    released: g.first_release_date ? new Date(g.first_release_date * 1000).toISOString().slice(0, 10) : "",
+    background_image: g.cover?.image_id ? buildIgdbCoverUrl(g.cover.image_id) : "",
+    cover: g.cover?.image_id ? buildIgdbCoverUrl(g.cover.image_id) : "",
+    igdbCover: g.cover?.image_id ? buildIgdbCoverUrl(g.cover.image_id) : "",
+    genres: (g.genres || []).map(x => ({ name: x.name })).filter(x => x.name),
+    themes: (g.themes || []).map(x => ({ name: x.name })).filter(x => x.name),
+    platforms: (g.platforms || []).map(x => ({ platform: { name: x.name } })).filter(x => x.platform.name),
+    summary: g.summary || "",
+    overview: g.summary || "",
+    total_rating: g.total_rating || 0,
+    total_rating_count: g.total_rating_count || 0,
+    rating: g.rating ? Number(g.rating) / 20 : (g.total_rating ? Number(g.total_rating) / 20 : 0),
+    rating_count: g.rating_count || 0,
+    aggregated_rating: g.aggregated_rating || 0,
+    aggregated_rating_count: g.aggregated_rating_count || 0,
+    hypes: g.hypes || 0,
+    follows: g.follows || 0,
+    source: "igdb",
+    kind: "game"
   }));
 
   return jsonResponse({ ok: true, results: games });
@@ -900,6 +1102,7 @@ async function fetchOmdbImdbRating(env, imdbId = "", timeoutMs = 6500) {
     /* v734: extra OMDb fields used by the filmography page card layout. */
     runtime: data.Runtime || "",
     rated: data.Rated || "",
+    metascore: data.Metascore || "",
     genre: data.Genre || "",
     plot: data.Plot || "",
     source: "IMDb",
@@ -955,6 +1158,7 @@ async function fetchOmdbTitleRating(env, title = "", type = "tv", year = "", tim
     year: data.Year || cleanYear,
     runtime: data.Runtime || "",
     rated: data.Rated || "",
+    metascore: data.Metascore || "",
     genre: data.Genre || "",
     plot: data.Plot || "",
     source: "IMDb",
@@ -1572,12 +1776,16 @@ async function runImdbRatingEndpoint(request, env, ctx) {
   const type = normalizeImdbMediaType(url.searchParams.get("type"));
   const tmdbId = String(url.searchParams.get("tmdbId") || url.searchParams.get("id") || "").trim();
   let imdbId = normalizeImdbTitleId(url.searchParams.get("imdbId") || "");
+  /* v10.72: accept title + year so the Tavily/AI fallback resolver below has
+     enough payload to run when OMDb is unavailable (e.g. daily quota hit). */
+  const title = String(url.searchParams.get("title") || "").trim();
+  const year = String(url.searchParams.get("year") || "").trim().match(/^(18|19|20)\d{2}$/)?.[0] || "";
 
   if (!imdbId && !tmdbId) {
     return jsonResponse({ ok: false, error: "Missing tmdbId or imdbId." }, 400);
   }
 
-  const cacheKey = new Request(`${url.origin}/__screenlist_imdb_rating/v1/${type}/${tmdbId || "no-tmdb"}/${imdbId || "lookup"}`, { method: "GET" });
+  const cacheKey = new Request(`${url.origin}/__screenlist_imdb_rating/v3/${type}/${tmdbId || "no-tmdb"}/${imdbId || "lookup"}`, { method: "GET" });
   const cached = await caches.default.match(cacheKey);
   if (cached) {
     const headers = new Headers(cached.headers);
@@ -1585,21 +1793,29 @@ async function runImdbRatingEndpoint(request, env, ctx) {
     return new Response(cached.body, { status: cached.status, statusText: cached.statusText, headers });
   }
 
-  if (!imdbId) {
-    try {
-      imdbId = await fetchTmdbExternalImdbId(env, type, tmdbId, 6500);
-    } catch (error) {
-      return jsonResponse({
-        ok: false,
-        error: errorMessage(error),
-        tmdbId,
-        type,
-        sources: { tmdb: { configured: !!env.TMDB_KEY }, imdb: getOmdbPublicStatus(env) }
-      }, 502);
-    }
-  }
+  /* v10.72: route through the proper fallback resolver instead of calling
+     `fetchOmdbImdbRating` bare. Previously, when OMDb returned 401 ("Request
+     limit reached!"), this endpoint propagated `ok:false` and the client UI
+     showed no IMDb rating at all. The resolver tries (in order):
+       1. TMDB external_ids → IMDb ID lookup
+       2. OMDb-by-imdbId   (the old bare path)
+       3. OMDb-by-title+year
+       4. Tavily search-AI (web → IMDb number)
+       5. Workers-AI memory fallback (estimate)
+     Steps 4+5 keep the IMDb-style rating flowing when OMDb is unavailable.
+     Source is recorded on the response (`ratingSource`) so the client never
+     conflates a TMDB vote_average with an IMDb rating. */
+  const rating = await resolveScreenListRating(
+    { type, tmdbId, imdbId, title, year },
+    env,
+    ctx,
+    { allowAi: true }
+  );
 
-  const rating = await fetchOmdbImdbRating(env, imdbId, 6500);
+  /* Preserve the imdbId the resolver actually settled on so the response
+     payload + cache key still reflect it for debugging. */
+  if (rating && rating.imdbId) imdbId = normalizeImdbTitleId(rating.imdbId) || imdbId;
+
   const status = rating.ok ? 200 : (rating.status >= 400 && rating.status < 600 ? rating.status : 502);
   /* v674: same recency-aware TTL as the batch endpoint. */
   const ttl = rating.ok ? getImdbCacheTtlSeconds(rating.year) : 60 * 30;
@@ -1607,6 +1823,7 @@ async function runImdbRatingEndpoint(request, env, ctx) {
     ...rating,
     type,
     tmdbId,
+    imdbId,
     sources: {
       tmdb: { configured: !!env.TMDB_KEY },
       imdb: getOmdbPublicStatus(env)
@@ -1617,6 +1834,348 @@ async function runImdbRatingEndpoint(request, env, ctx) {
   });
 
   if (rating.ok && ctx?.waitUntil) ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+  return response;
+}
+
+/* =============================================================================
+   v10.152: YouTube Data API endpoints — drive the Most Anticipated hype score.
+
+   /api/youtube/videos?ids=id1,id2,...
+     Batch-fetches statistics + snippet for up to 50 YouTube video IDs.
+     Returns a clean array of { videoId, channelId, channelTitle, title,
+     publishedAt, viewCount, likeCount, commentCount }. 1 quota unit per call.
+
+   /api/youtube/comments?videoId=ID
+     Fetches the top 100 top-level comment threads (ordered by relevance,
+     i.e. by like count). Returns { items: [{ commentId, likeCount,
+     replyCount }], totalCommentLikes }. 1 quota unit per call.
+
+   Both cached at the Cloudflare edge for 6 hours per response (trailer view
+   counts move slowly enough that 6h is a fair tradeoff between freshness
+   and quota usage). Errors fall through with empty payloads — never block
+   the ranking pipeline.
+   ============================================================================= */
+async function runYoutubeVideosEndpoint(request, env, ctx) {
+  const url = new URL(request.url);
+  const rawIds = String(url.searchParams.get("ids") || "").trim();
+  if (!rawIds) return jsonResponse({ ok: false, error: "Missing ids parameter." }, 400);
+
+  const config = getYoutubeClientConfig(env);
+  if (!config.value) {
+    return jsonResponse({
+      ok: false,
+      error: `YouTube API key is not configured. Add it as a Cloudflare Worker secret named ${YOUTUBE_ENV_NAMES[0]}.`,
+      youtube: getYoutubePublicStatus(env)
+    }, 500);
+  }
+
+  const idList = rawIds.split(",").map(id => id.trim()).filter(Boolean).slice(0, 50);
+  if (!idList.length) return jsonResponse({ ok: false, error: "No valid video IDs." }, 400);
+
+  /* Sort the IDs for a stable cache key so two requests with the same IDs
+     in different order hit the same cache entry. */
+  const cacheKey = new Request(`${url.origin}/__screenlist_youtube_videos/v1/${idList.slice().sort().join(",")}`, { method: "GET" });
+  const cached = await caches.default.match(cacheKey);
+  if (cached) {
+    const headers = new Headers(cached.headers);
+    headers.set("x-screenlist-youtube-cache", "HIT");
+    return new Response(cached.body, { status: cached.status, statusText: cached.statusText, headers });
+  }
+
+  const ytUrl = new URL(`${YOUTUBE_ORIGIN}videos`);
+  ytUrl.searchParams.set("part", "statistics,snippet");
+  ytUrl.searchParams.set("id", idList.join(","));
+  ytUrl.searchParams.set("key", config.value);
+
+  const result = await fetchJsonWithTimeout(ytUrl, {}, 8000);
+  const data = result.data && typeof result.data === "object" ? result.data : {};
+
+  if (!result.ok) {
+    return jsonResponse({
+      ok: false,
+      error: (data && data.error && data.error.message) || result.error || "YouTube videos request failed.",
+      status: result.status,
+      youtube: getYoutubePublicStatus(env)
+    }, result.status >= 400 && result.status < 600 ? result.status : 502);
+  }
+
+  const items = Array.isArray(data.items) ? data.items.map(item => {
+    const stats = (item && item.statistics) || {};
+    const snip = (item && item.snippet) || {};
+    return {
+      videoId: item.id || "",
+      channelId: snip.channelId || "",
+      channelTitle: snip.channelTitle || "",
+      title: snip.title || "",
+      publishedAt: snip.publishedAt || "",
+      viewCount: Number(stats.viewCount || 0),
+      likeCount: Number(stats.likeCount || 0),
+      commentCount: Number(stats.commentCount || 0)
+    };
+  }) : [];
+
+  const response = jsonResponse({
+    ok: true,
+    items,
+    requested: idList.length,
+    returned: items.length
+  }, 200, {
+    "Cache-Control": `public, max-age=${SCREENLIST_YOUTUBE_CACHE_TTL_SECONDS}`,
+    "x-screenlist-youtube-cache": "MISS"
+  });
+
+  if (ctx && ctx.waitUntil) ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+  return response;
+}
+
+/* v10.164: YouTube search fallback for titles where TMDB has wrong/
+   missing trailer IDs (e.g. The Odyssey was tagged with War of the
+   Worlds' YouTube key, Avatar Aang has zero trailers cataloged, etc.).
+   100 quota units per call — expensive — so it's gated client-side
+   and cached at the edge for 24 hours. Returns top 10 search results
+   with channelTitle so the client can filter to studio channels. */
+async function runYoutubeSearchEndpoint(request, env, ctx) {
+  const url = new URL(request.url);
+  const query = String(url.searchParams.get("q") || "").trim();
+  if (!query) return jsonResponse({ ok: false, error: "Missing q parameter." }, 400);
+
+  const config = getYoutubeClientConfig(env);
+  if (!config.value) {
+    return jsonResponse({
+      ok: false,
+      error: `YouTube API key is not configured. Add it as a Cloudflare Worker secret named ${YOUTUBE_ENV_NAMES[0]}.`,
+      youtube: getYoutubePublicStatus(env)
+    }, 500);
+  }
+
+  const SEARCH_CACHE_TTL = 60 * 60 * 24;
+  const cacheKey = new Request(`${url.origin}/__screenlist_youtube_search/v1/${encodeURIComponent(query.toLowerCase())}`, { method: "GET" });
+  const cached = await caches.default.match(cacheKey);
+  if (cached) {
+    const headers = new Headers(cached.headers);
+    headers.set("x-screenlist-youtube-cache", "HIT");
+    return new Response(cached.body, { status: cached.status, statusText: cached.statusText, headers });
+  }
+
+  const ytUrl = new URL(`${YOUTUBE_ORIGIN}search`);
+  ytUrl.searchParams.set("part", "snippet");
+  ytUrl.searchParams.set("q", query);
+  ytUrl.searchParams.set("type", "video");
+  ytUrl.searchParams.set("maxResults", "10");
+  ytUrl.searchParams.set("order", "relevance");
+  ytUrl.searchParams.set("safeSearch", "moderate");
+  ytUrl.searchParams.set("key", config.value);
+
+  const result = await fetchJsonWithTimeout(ytUrl, {}, 8000);
+  const data = result.data && typeof result.data === "object" ? result.data : {};
+
+  if (!result.ok) {
+    return jsonResponse({
+      ok: false,
+      error: (data && data.error && data.error.message) || result.error || "YouTube search request failed.",
+      status: result.status,
+      youtube: getYoutubePublicStatus(env)
+    }, result.status >= 400 && result.status < 600 ? result.status : 502);
+  }
+
+  const items = Array.isArray(data.items) ? data.items.map(item => {
+    const id = item && item.id;
+    const snip = (item && item.snippet) || {};
+    return {
+      videoId: id && id.videoId ? id.videoId : "",
+      channelId: snip.channelId || "",
+      channelTitle: snip.channelTitle || "",
+      title: snip.title || "",
+      publishedAt: snip.publishedAt || ""
+    };
+  }).filter(v => v.videoId) : [];
+
+  const response = jsonResponse({
+    ok: true,
+    items,
+    query
+  }, 200, {
+    "Cache-Control": `public, max-age=${SEARCH_CACHE_TTL}`,
+    "x-screenlist-youtube-cache": "MISS"
+  });
+
+  if (ctx && ctx.waitUntil) ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+  return response;
+}
+
+/* v10.165: Recent uploads from a specific YouTube channel.
+   Uses the channel's "uploads" playlist (UU{rest} when the channel ID
+   is UC{rest}) which is 1 quota unit per call — 100× cheaper than
+   `search.list?channelId=...` (100 units). For 20+ studio channels this
+   is ~20 units total per refresh. Returns the most recent N videos
+   with title + publishedAt + channelTitle so the client can extract
+   the movie/show title and match it to TMDB for metadata. */
+async function runYoutubeChannelUploadsEndpoint(request, env, ctx) {
+  const url = new URL(request.url);
+  const channelId = String(url.searchParams.get("channelId") || "").trim();
+  if (!channelId) return jsonResponse({ ok: false, error: "Missing channelId parameter." }, 400);
+  if (!/^UC[A-Za-z0-9_-]{16,30}$/.test(channelId)) {
+    return jsonResponse({ ok: false, error: "channelId must be a YouTube channel ID starting with UC." }, 400);
+  }
+  const maxResults = Math.min(50, Math.max(1, Number(url.searchParams.get("maxResults") || 50)));
+
+  const config = getYoutubeClientConfig(env);
+  if (!config.value) {
+    return jsonResponse({
+      ok: false,
+      error: `YouTube API key is not configured. Add it as a Cloudflare Worker secret named ${YOUTUBE_ENV_NAMES[0]}.`,
+      youtube: getYoutubePublicStatus(env)
+    }, 500);
+  }
+
+  /* The uploads playlist for any channel UCxxx is UUxxx. Stable trick
+     since YouTube launched — saves the cost of a separate channel.list
+     call to discover the uploads playlist ID. */
+  const uploadsPlaylistId = `UU${channelId.slice(2)}`;
+
+  /* v10.167: TTL 6h → 24h. Once per UTC day per studio channel is
+     plenty of refresh — studios upload 1-3 trailers per day max, and
+     we already cap at 50 most recent. Longer TTL means we burn quota
+     for a channel's uploads at most once every 24 hours regardless
+     of how many users open Most Anticipated. */
+  const CHANNEL_UPLOADS_CACHE_TTL = 60 * 60 * 24;
+  const cacheKey = new Request(`${url.origin}/__screenlist_youtube_channel_uploads/v1/${channelId}/${maxResults}`, { method: "GET" });
+  const cached = await caches.default.match(cacheKey);
+  if (cached) {
+    const headers = new Headers(cached.headers);
+    headers.set("x-screenlist-youtube-cache", "HIT");
+    return new Response(cached.body, { status: cached.status, statusText: cached.statusText, headers });
+  }
+
+  const ytUrl = new URL(`${YOUTUBE_ORIGIN}playlistItems`);
+  ytUrl.searchParams.set("part", "snippet");
+  ytUrl.searchParams.set("playlistId", uploadsPlaylistId);
+  ytUrl.searchParams.set("maxResults", String(maxResults));
+  ytUrl.searchParams.set("key", config.value);
+
+  const result = await fetchJsonWithTimeout(ytUrl, {}, 8000);
+  const data = result.data && typeof result.data === "object" ? result.data : {};
+
+  if (!result.ok) {
+    return jsonResponse({
+      ok: false,
+      error: (data && data.error && data.error.message) || result.error || "YouTube channel uploads request failed.",
+      status: result.status,
+      youtube: getYoutubePublicStatus(env)
+    }, result.status >= 400 && result.status < 600 ? result.status : 502);
+  }
+
+  const items = Array.isArray(data.items) ? data.items.map(item => {
+    const snip = (item && item.snippet) || {};
+    const resourceId = snip.resourceId || {};
+    return {
+      videoId: resourceId.videoId || "",
+      channelId: snip.channelId || channelId,
+      channelTitle: snip.channelTitle || "",
+      title: snip.title || "",
+      publishedAt: snip.publishedAt || ""
+    };
+  }).filter(v => v.videoId) : [];
+
+  const response = jsonResponse({
+    ok: true,
+    items,
+    channelId,
+    count: items.length
+  }, 200, {
+    "Cache-Control": `public, max-age=${CHANNEL_UPLOADS_CACHE_TTL}`,
+    "x-screenlist-youtube-cache": "MISS"
+  });
+
+  if (ctx && ctx.waitUntil) ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+  return response;
+}
+
+async function runYoutubeCommentsEndpoint(request, env, ctx) {
+  const url = new URL(request.url);
+  const videoId = String(url.searchParams.get("videoId") || "").trim();
+  if (!videoId) return jsonResponse({ ok: false, error: "Missing videoId." }, 400);
+
+  const config = getYoutubeClientConfig(env);
+  if (!config.value) {
+    return jsonResponse({
+      ok: false,
+      error: `YouTube API key is not configured. Add it as a Cloudflare Worker secret named ${YOUTUBE_ENV_NAMES[0]}.`,
+      youtube: getYoutubePublicStatus(env)
+    }, 500);
+  }
+
+  const cacheKey = new Request(`${url.origin}/__screenlist_youtube_comments/v1/${videoId}`, { method: "GET" });
+  const cached = await caches.default.match(cacheKey);
+  if (cached) {
+    const headers = new Headers(cached.headers);
+    headers.set("x-screenlist-youtube-cache", "HIT");
+    return new Response(cached.body, { status: cached.status, statusText: cached.statusText, headers });
+  }
+
+  const ytUrl = new URL(`${YOUTUBE_ORIGIN}commentThreads`);
+  ytUrl.searchParams.set("part", "snippet");
+  ytUrl.searchParams.set("videoId", videoId);
+  ytUrl.searchParams.set("order", "relevance");
+  ytUrl.searchParams.set("maxResults", "100");
+  ytUrl.searchParams.set("key", config.value);
+
+  const result = await fetchJsonWithTimeout(ytUrl, {}, 8000);
+  const data = result.data && typeof result.data === "object" ? result.data : {};
+
+  /* Comments-disabled trailers return 403. Treat as zero comment-likes,
+     not an error — we don't want to fail the whole hype query just
+     because one trailer disabled comments. */
+  if (!result.ok) {
+    const errors = (data && data.error && Array.isArray(data.error.errors)) ? data.error.errors : [];
+    const isCommentsDisabled = errors.some(e => e && (e.reason === "commentsDisabled" || e.reason === "forbidden"));
+    if (isCommentsDisabled || result.status === 403) {
+      const emptyResponse = jsonResponse({
+        ok: true,
+        items: [],
+        totalCommentLikes: 0,
+        threadCount: 0,
+        commentsDisabled: true
+      }, 200, {
+        "Cache-Control": `public, max-age=${SCREENLIST_YOUTUBE_CACHE_TTL_SECONDS}`,
+        "x-screenlist-youtube-cache": "MISS-DISABLED"
+      });
+      if (ctx && ctx.waitUntil) ctx.waitUntil(caches.default.put(cacheKey, emptyResponse.clone()));
+      return emptyResponse;
+    }
+    return jsonResponse({
+      ok: false,
+      error: (data && data.error && data.error.message) || result.error || "YouTube comments request failed.",
+      status: result.status,
+      youtube: getYoutubePublicStatus(env)
+    }, result.status >= 400 && result.status < 600 ? result.status : 502);
+  }
+
+  const threads = Array.isArray(data.items) ? data.items : [];
+  let totalCommentLikes = 0;
+  const items = threads.map(thread => {
+    const snip = (thread && thread.snippet) || {};
+    const topComment = (snip.topLevelComment && snip.topLevelComment.snippet) || {};
+    const likeCount = Number(topComment.likeCount || 0);
+    totalCommentLikes += likeCount;
+    return {
+      commentId: thread.id || "",
+      likeCount,
+      replyCount: Number(snip.totalReplyCount || 0)
+    };
+  });
+
+  const response = jsonResponse({
+    ok: true,
+    items,
+    totalCommentLikes,
+    threadCount: items.length
+  }, 200, {
+    "Cache-Control": `public, max-age=${SCREENLIST_YOUTUBE_CACHE_TTL_SECONDS}`,
+    "x-screenlist-youtube-cache": "MISS"
+  });
+
+  if (ctx && ctx.waitUntil) ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
   return response;
 }
 
@@ -1668,11 +2227,11 @@ async function getCachedImdbRatingForItem(env, ctx, originUrl, item = {}) {
      After OMDb resolves we write under BOTH keys so a future direct-imdbId
      lookup (e.g. from the media profile) finds the same entry. */
   const tmdbCacheKey = new Request(
-    `${originUrl.origin}/__screenlist_imdb_rating_batch/v2/${type}/${tmdbId || "no-tmdb"}`,
+    `${originUrl.origin}/__screenlist_imdb_rating_batch/v3/${type}/${tmdbId || "no-tmdb"}`,
     { method: "GET" }
   );
   function imdbCacheKey(id) {
-    return new Request(`${originUrl.origin}/__screenlist_imdb_rating_batch/v2/by-imdb/${id}`, { method: "GET" });
+    return new Request(`${originUrl.origin}/__screenlist_imdb_rating_batch/v3/by-imdb/${id}`, { method: "GET" });
   }
 
   async function tryCache(key) {
@@ -1723,6 +2282,7 @@ async function getCachedImdbRatingForItem(env, ctx, originUrl, item = {}) {
     /* v734: extra metadata shipped to the client filmography card layout. */
     runtime: rating.runtime || "",
     rated: rating.rated || "",
+    metascore: rating.metascore || "",
     genre: rating.genre || "",
     plot: rating.plot || "",
     ratingSource: rating.ok ? "imdb" : "",
@@ -3835,6 +4395,176 @@ async function proxyApi(request, env, options, ctx) {
   return response;
 }
 
+function copySearchParams(sourceParams, targetUrl, blockedKeys = new Set()) {
+  sourceParams.forEach((value, key) => {
+    if (!blockedKeys.has(String(key).toLowerCase())) targetUrl.searchParams.set(key, value);
+  });
+}
+
+async function proxyMusicBrainzGet(request, env, ctx, upstreamUrl, cacheNamespace = "musicbrainz") {
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    return jsonResponse({ ok: false, error: "MusicBrainz proxy only supports GET requests." }, 405);
+  }
+
+  upstreamUrl.searchParams.set("fmt", "json");
+  const url = new URL(request.url);
+  const force = url.searchParams.get("force") === "1" || url.searchParams.get("refresh") === "1";
+  const cacheKey = new Request(`${url.origin}/__shelfd_${cacheNamespace}/v10137/${upstreamUrl.toString()}`, { method: "GET" });
+  if (!force) {
+    const cached = await caches.default.match(cacheKey);
+    if (cached) {
+      const headers = new Headers(cached.headers);
+      headers.set("x-shelfd-musicbrainz-cache", "HIT");
+      return new Response(cached.body, { status: cached.status, statusText: cached.statusText, headers });
+    }
+  }
+
+  const upstreamResponse = await fetch(upstreamUrl.toString(), {
+    method: "GET",
+    headers: buildMusicBrainzHeaders(env),
+    redirect: "follow"
+  });
+  const headers = new Headers(upstreamResponse.headers);
+  headers.set("Cache-Control", `public, max-age=${SCREENLIST_MUSICBRAINZ_CACHE_TTL_SECONDS}`);
+  headers.set("x-shelfd-musicbrainz-cache", "MISS");
+  const response = new Response(upstreamResponse.body, {
+    status: upstreamResponse.status,
+    statusText: upstreamResponse.statusText,
+    headers
+  });
+  if (upstreamResponse.ok && ctx?.waitUntil) ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+  return response;
+}
+
+async function runMusicBrainzEndpoint(request, env, ctx) {
+  const url = new URL(request.url);
+  const suffix = url.pathname.replace(/^\/api\/musicbrainz\/?/, "");
+
+  if (url.pathname === "/api/musicbrainz" || url.pathname === "/api/musicbrainz/" || suffix === "health") {
+    return jsonResponse({
+      ok: true,
+      baseUrl: MUSICBRAINZ_ORIGIN,
+      coverArtArchiveBaseUrl: COVER_ART_ARCHIVE_ORIGIN,
+      musicbrainz: getMusicBrainzPublicStatus(env),
+      routes: {
+        search: "/api/musicbrainz/search?type=artist&q=kendrick",
+        lookup: "/api/musicbrainz/lookup?type=release&id={mbid}&inc=recordings+artists+genres+tags",
+        rawProxy: "/api/musicbrainz/{entity-or-entity/mbid}?query=...&inc=...",
+        coverArt: "/api/musicbrainz/cover-art/release/{releaseMbid}"
+      }
+    });
+  }
+
+  if (suffix === "search") {
+    const type = normalizeMusicBrainzEntityType(url.searchParams.get("type") || url.searchParams.get("entity"));
+    const query = String(url.searchParams.get("q") || url.searchParams.get("query") || "").trim();
+    if (!type) return jsonResponse({ ok: false, error: "Missing or unsupported MusicBrainz search type.", supported: ["artist", "release", "release-group", "recording", "label", "work", "area", "event", "genre", "instrument", "place", "series"] }, 400);
+    if (!query) return jsonResponse({ ok: false, error: "Missing search query. Use q= or query=." }, 400);
+    const upstream = new URL(type, MUSICBRAINZ_ORIGIN);
+    copySearchParams(url.searchParams, upstream, new Set(["type", "entity", "q", "query", "force", "refresh"]));
+    upstream.searchParams.set("query", query);
+    return proxyMusicBrainzGet(request, env, ctx, upstream);
+  }
+
+  if (suffix === "lookup") {
+    const type = normalizeMusicBrainzEntityType(url.searchParams.get("type") || url.searchParams.get("entity"));
+    const id = String(url.searchParams.get("id") || url.searchParams.get("mbid") || "").trim();
+    if (!type) return jsonResponse({ ok: false, error: "Missing or unsupported MusicBrainz lookup type." }, 400);
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return jsonResponse({ ok: false, error: "Missing or invalid MusicBrainz MBID." }, 400);
+    }
+    const upstream = new URL(`${type}/${id}`, MUSICBRAINZ_ORIGIN);
+    copySearchParams(url.searchParams, upstream, new Set(["type", "entity", "id", "mbid", "force", "refresh"]));
+    return proxyMusicBrainzGet(request, env, ctx, upstream);
+  }
+
+  if (suffix.startsWith("cover-art/")) {
+    const coverPath = suffix.replace(/^cover-art\/+/, "");
+    if (!coverPath || coverPath.includes("..")) return jsonResponse({ ok: false, error: "Invalid Cover Art Archive path." }, 400);
+    const upstream = new URL(coverPath, COVER_ART_ARCHIVE_ORIGIN);
+    copySearchParams(url.searchParams, upstream, new Set(["force", "refresh"]));
+    return proxyMusicBrainzGet(request, env, ctx, upstream, "coverart");
+  }
+
+  const cleanSuffix = suffix.replace(/^\/+/, "");
+  if (!cleanSuffix || cleanSuffix.includes("..")) return jsonResponse({ ok: false, error: "Invalid MusicBrainz path." }, 400);
+  const firstSegment = cleanSuffix.split("/")[0] || "";
+  if (!normalizeMusicBrainzEntityType(firstSegment)) {
+    return jsonResponse({ ok: false, error: "Unsupported MusicBrainz entity path.", path: cleanSuffix }, 400);
+  }
+  const upstream = new URL(cleanSuffix, MUSICBRAINZ_ORIGIN);
+  copySearchParams(url.searchParams, upstream, new Set(["force", "refresh"]));
+  return proxyMusicBrainzGet(request, env, ctx, upstream);
+}
+
+/* v10.248: Deezer Simple API proxy. Routes:
+     - /api/deezer/search?q=...                 → general search
+     - /api/deezer/search/artist?q=...          → artist-only search
+     - /api/deezer/search/album?q=...           → album-only search
+     - /api/deezer/album/{id}                   → album + tracklist
+     - /api/deezer/artist/{id}                  → artist details
+     - /api/deezer/artist/{id}/albums?limit=... → artist discography
+   All responses cached at the edge for 24h. */
+async function runDeezerEndpoint(request, env, ctx) {
+  const url = new URL(request.url);
+  const suffix = url.pathname.replace(/^\/api\/deezer\/?/, "");
+  if (!suffix || suffix === "health") {
+    return jsonResponse({
+      ok: true,
+      baseUrl: DEEZER_ORIGIN,
+      cacheTtlSeconds: SCREENLIST_DEEZER_CACHE_TTL_SECONDS,
+      routes: {
+        search: "/api/deezer/search?q=kanye+west",
+        searchArtist: "/api/deezer/search/artist?q=kanye+west",
+        searchAlbum: "/api/deezer/search/album?q=yeezus",
+        album: "/api/deezer/album/{id}",
+        artist: "/api/deezer/artist/{id}",
+        artistAlbums: "/api/deezer/artist/{id}/albums?limit=200"
+      }
+    });
+  }
+  /* Whitelist the paths we accept to avoid blind proxying. */
+  const allowed = /^(search(?:\/(?:artist|album|track|playlist))?|album\/\d+(?:\/tracks)?|artist\/\d+(?:\/(?:albums|top|related))?|track\/\d+|chart(?:\/\d+)?)$/;
+  if (!allowed.test(suffix)) {
+    return jsonResponse({ ok: false, error: "Unsupported Deezer path.", path: suffix }, 400);
+  }
+  const upstream = new URL(suffix, DEEZER_ORIGIN);
+  copySearchParams(url.searchParams, upstream, new Set(["force", "refresh"]));
+  upstream.searchParams.set("output", "json");
+
+  const cache = caches.default;
+  const cacheKey = new Request(upstream.toString(), { method: "GET" });
+  const force = url.searchParams.get("force") === "1" || url.searchParams.get("refresh") === "1";
+  if (!force) {
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      const headers = new Headers(cached.headers);
+      headers.set("x-shelfd-deezer-cache", "HIT");
+      return new Response(cached.body, { status: cached.status, headers });
+    }
+  }
+  let upstreamRes;
+  try {
+    upstreamRes = await fetch(upstream.toString(), {
+      method: "GET",
+      headers: { "Accept": "application/json", "User-Agent": "ShelfdMusicProxy/1.0 (+https://myshelfd.com)" }
+    });
+  } catch (e) {
+    return jsonResponse({ ok: false, error: "Deezer fetch failed", detail: String(e?.message || e) }, 502);
+  }
+  const body = await upstreamRes.arrayBuffer();
+  const headers = new Headers();
+  headers.set("Content-Type", upstreamRes.headers.get("content-type") || "application/json");
+  headers.set("Cache-Control", `public, max-age=${SCREENLIST_DEEZER_CACHE_TTL_SECONDS}`);
+  headers.set("Access-Control-Allow-Origin", "*");
+  headers.set("x-shelfd-deezer-cache", "MISS");
+  const response = new Response(body, { status: upstreamRes.status, headers });
+  if (upstreamRes.ok) {
+    ctx.waitUntil(cache.put(cacheKey, response.clone()));
+  }
+  return response;
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -3890,11 +4620,20 @@ export default {
     if (url.pathname === "/api/igdb/search") {
       return runIgdbSearchEndpoint(request, env);
     }
+    if (url.pathname === "/api/igdb/discover-games") {
+      return runIgdbDiscoverGamesEndpoint(request, env);
+    }
     if (url.pathname === "/api/igdb/cover") {
       return runIgdbCoverEndpoint(request, env, ctx);
     }
     if (url.pathname === "/api/igdb/covers") {
       return runIgdbCoversEndpoint(request, env, ctx);
+    }
+    if (url.pathname === "/api/musicbrainz" || url.pathname.startsWith("/api/musicbrainz/")) {
+      return runMusicBrainzEndpoint(request, env, ctx);
+    }
+    if (url.pathname === "/api/deezer" || url.pathname.startsWith("/api/deezer/")) {
+      return runDeezerEndpoint(request, env, ctx);
     }
     if (url.pathname === "/api/game/web-covers") {
       return runGameWebCoversEndpoint(request, env, ctx);
@@ -3937,6 +4676,24 @@ export default {
 
     if (url.pathname === "/api/imdb/rating-batch") {
       return runImdbRatingBatchEndpoint(request, env, ctx);
+    }
+
+    /* v10.152: YouTube Data API proxy routes for the Most Anticipated
+       hype-score pipeline. Key never leaves the worker. */
+    if (url.pathname === "/api/youtube/videos") {
+      return runYoutubeVideosEndpoint(request, env, ctx);
+    }
+
+    if (url.pathname === "/api/youtube/comments") {
+      return runYoutubeCommentsEndpoint(request, env, ctx);
+    }
+
+    if (url.pathname === "/api/youtube/search") {
+      return runYoutubeSearchEndpoint(request, env, ctx);
+    }
+
+    if (url.pathname === "/api/youtube/channel-uploads") {
+      return runYoutubeChannelUploadsEndpoint(request, env, ctx);
     }
 
     if (url.pathname.startsWith("/api/tmdb/")) {

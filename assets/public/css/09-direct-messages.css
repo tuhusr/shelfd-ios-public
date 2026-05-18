@@ -14,7 +14,7 @@
   border: 1px solid rgba(167,139,250,0.18);
   background: linear-gradient(145deg, rgba(18,12,38,0.94), rgba(8,6,20,0.96));
   box-shadow: 0 18px 46px rgba(0,0,0,0.28);
-  backdrop-filter: blur(18px);
+  backdrop-filter: blur(10px);
 }
 .dm-header-card {
   display: flex;
@@ -460,8 +460,8 @@ body.light-mode .dm-search-strip input { color: #12082e; }
   justify-content: center;
   cursor: pointer;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.035), 0 12px 28px rgba(0,0,0,0.18);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
 .header-dm-btn:hover { transform: translateY(-1px); border-color: rgba(196,181,253,0.44); background: rgba(139,92,246,0.14); }
@@ -513,8 +513,8 @@ body.light-mode .dm-search-strip input { color: #12082e; }
   gap: 12px;
   border-bottom: 1px solid rgba(167,139,250,0.10);
   background: rgba(5,4,16,0.64);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 .direct-messages-close {
   width: 38px;
@@ -550,9 +550,10 @@ body.light-mode .dm-search-strip input { color: #12082e; }
   top: -14px;
   margin: -14px -16px 0;
   padding: 10px 16px 12px;
-  background: rgba(5,4,16,0.86);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
+  /* v950: was `blur(10px)` on a `position: sticky` head, so Safari rasterized
+     the blur on every scroll frame. Removed entirely — the rgba background
+     was raised to 0.92 which reads identically on iPhone without GPU cost. */
+  background: rgba(5,4,16,0.92);
 }
 .direct-messages-page .dm-message-list {
   max-height: none;
@@ -571,8 +572,8 @@ body.light-mode .dm-search-strip input { color: #12082e; }
   border-radius: 999px;
   background: rgba(12,10,29,0.86);
   box-shadow: 0 18px 40px rgba(0,0,0,0.32);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 .direct-messages-page .dm-compose-row input {
   min-height: 42px;
@@ -930,7 +931,8 @@ body.light-mode .direct-messages-top-avatar {
   z-index: 9;
   opacity: 1;
   transform: translate3d(0, 0, 0);
-  will-change: transform, border-radius;
+  /* v950: dropped `border-radius` from will-change — only transform is compositable. */
+  will-change: transform;
   overflow: hidden;
   pointer-events: none;
   background: #050410;
@@ -1464,7 +1466,8 @@ body.light-mode .direct-messages-page.dm-keyboard-active .dm-compose-row {
   }
   .direct-messages-page.dm-thread-open .direct-messages-topbar {
     transition: height .34s cubic-bezier(.16,1,.3,1), padding .34s cubic-bezier(.16,1,.3,1) !important;
-    will-change: height, padding;
+    /* v950: removed `will-change: height, padding` — those are non-compositable layout
+       properties; the will-change hint did nothing but allocate a wasted GPU layer. */
   }
   .direct-messages-page.dm-opening-thread .dm-thread-panel {
     animation: dmThreadPullUpSmoothV78 .58s cubic-bezier(.16, 1, .3, 1) both !important;
@@ -1684,8 +1687,8 @@ body.light-mode .direct-messages-page .dm-send-btn { background: #12082e !import
 .direct-messages-topbar {
   background: rgba(5,4,16,0.88) !important;
   border-bottom: 1px solid rgba(167,139,250,0.16) !important;
-  backdrop-filter: blur(26px) !important;
-  -webkit-backdrop-filter: blur(26px) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
 }
 .direct-messages-title-wrap strong,
 .direct-messages-title-wrap .creator-name,
@@ -1762,8 +1765,8 @@ body.light-mode .direct-messages-page .dm-send-btn { background: #12082e !import
   box-shadow:
     0 8px 24px rgba(0,0,0,0.28),
     inset 0 0 0 1px rgba(255,255,255,0.04) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
   position: relative !important;
   overflow: hidden !important;
   transition:
@@ -2020,10 +2023,10 @@ body.light-mode .direct-messages-page .dm-send-btn { background: #12082e !import
 
 /* ── Thread head (sticky chat user bar) ──────────────────────────────── */
 .direct-messages-page .dm-thread-head {
-  background: rgba(5,4,16,0.92) !important;
+  /* v950: dropped `backdrop-filter: blur(10px)` here too — element is sticky and
+     was repainting blur every scroll frame. Solid rgba reads the same on iPhone. */
+  background: rgba(5,4,16,0.94) !important;
   border-bottom: 1px solid rgba(167,139,250,0.12) !important;
-  backdrop-filter: blur(24px) !important;
-  -webkit-backdrop-filter: blur(24px) !important;
 }
 
 /* ── Light mode ───────────────────────────────────────────────────────── */

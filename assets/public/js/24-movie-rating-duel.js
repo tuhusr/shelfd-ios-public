@@ -20,6 +20,8 @@
   const TIER_ROW_LOAD_STEP = 12;
   const S_TIER_CAP = 5;
   const DUEL_SWAP_MS = 240;
+  const MOVIE_DUEL_BASE_CLOSE_MS = 180;
+  const MOVIE_DUEL_TIER_TRANSITION_MS = 450;
 
   const MEDIA_CONFIGS = {
     movies: {
@@ -549,6 +551,23 @@
     });
   }
 
+  /* v10.80: Fisher-Yates shuffle for Rating Game opponent randomization.
+     Opponents must NOT follow tier order, rating order, alphabetical order,
+     added order, or current list order. We still draw from the same rating
+     band (so the climbing/placement logic stays intact), but the order
+     within the band is fully randomized so the player can't predict which
+     opponent will come up next. */
+  function shuffleArrayForDuel(items = []) {
+    const arr = [...items];
+    for (let i = arr.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = arr[i];
+      arr[i] = arr[j];
+      arr[j] = tmp;
+    }
+    return arr;
+  }
+
   function getOccupiedBands(itemsByBand = {}) {
     return Array.from({ length: 10 }, (_, idx) => idx + 1).filter(band => Array.isArray(itemsByBand[band]) && itemsByBand[band].length);
   }
@@ -580,7 +599,14 @@
 
   function getOpponentsForBand(targetItem, itemsByBand = {}, band = 0, mediaKey = duelMediaKey) {
     const targetId = getTierItemId(targetItem);
-    return sortItemsForDuel(itemsByBand[band] || []).filter(item => getTierItemId(item) !== targetId);
+    /* v10.80: Randomize opponent order. We still pull from the same rating
+       band so the climbing/inference logic stays intact, but the order
+       within the band is fully shuffled (Fisher-Yates) — opponents must NOT
+       follow tier order, rating order, alphabetical, added, or current-list
+       order. The .filter() afterwards is identity-preserving (only removes
+       the target), so randomness is fully preserved. */
+    const pool = (itemsByBand[band] || []).filter(item => getTierItemId(item) !== targetId);
+    return shuffleArrayForDuel(pool);
   }
 
   function getBandState(targetItem, itemsByBand = {}, band = 0, mediaKey = duelMediaKey) {
@@ -753,10 +779,16 @@
     for (let tierIndex = targetTierIndex; tierIndex >= 0; tierIndex -= 1) {
       const tier = TIER_ROWS[tierIndex];
       const row = Array.isArray(tierList[tier.key]) ? tierList[tier.key] : [];
-      const opponents = row
-        .map((entry, entryIndex) => ({ ...entry, __tierOrder: entryIndex, tier: tier.key }))
-        .reverse()
-        .filter(entry => cleanText(entry.id || '') !== cleanId)
+      /* v10.80: Randomize opponent order within the tier. We previously
+         used .reverse() (newest-first), which is a predictable order.
+         Shuffle so opponents in the same tier appear in random order each
+         run — opponents must NOT follow tier order, rating order,
+         alphabetical, added, or current-list order. */
+      const opponents = shuffleArrayForDuel(
+        row
+          .map((entry, entryIndex) => ({ ...entry, __tierOrder: entryIndex, tier: tier.key }))
+          .filter(entry => cleanText(entry.id || '') !== cleanId)
+      )
         .map(entry => makeSessionOpponentFromTierEntry(entry, libraryMap.get(cleanText(entry.id || '')) || null, mediaKey));
       if (!opponents.length) continue;
       comparisonQueue.push({
@@ -852,9 +884,6 @@
             </span>
           ` : `<span class="movie-duel-picker-open-placeholder">Choose a ${html(config.lower)}</span>`}
         </button>
-        <div class="movie-duel-launch-copy">
-          The result stays separate from My Lists ratings. It only updates the ${html(config.tierTitle.toLowerCase())}.
-        </div>
         <div id="movie-duel-status" class="movie-duel-status${message ? ' is-visible' : ''}">${html(message)}</div>
         <div class="movie-duel-actions">
           <button type="button" class="movie-duel-secondary" onclick="closeMovieRatingDuel()">Cancel</button>
@@ -1103,6 +1132,39 @@
     } else if (defeatedBand) {
       summary = `It landed in the ${getTierKeyForRating(resultBand)} tier, directly behind the ${defeatedBand}/10 title that stopped it.`;
     }
+
+    /* v10.80: When the suggested tier differs from the saved Tier List
+       placement (or the title isn't on the saved list yet), render a
+       confirmation prompt instead of an auto-saved "Finish". The
+       suggested placement does NOT touch the saved Tier List until
+       the user taps "Update Tier List". */
+    const requiresUserConfirmation = !!resultMeta?.requiresUserConfirmation;
+    const hadPreviousEntry = !!resultMeta?.hadPreviousEntry;
+    const previousTierKey = cleanText(resultMeta?.previousTier || '').toUpperCase();
+    const newTierKey = cleanText(resultMeta?.newTier || getTierKeyForRating(resultBand)).toUpperCase();
+    const noteCopy = requiresUserConfirmation
+      ? `Not saved to your ${html(config.tierTitle.toLowerCase())} yet. Choose below. Nothing changed in My Lists.`
+      : `Saved to your separate ${html(config.tierTitle.toLowerCase())}. Nothing changed in My Lists.`;
+    const promptCopy = hadPreviousEntry
+      ? `This title is currently in the ${html(previousTierKey)} tier on your saved ${html(config.tierTitle.toLowerCase())}. The Rating Game suggests moving it to the ${html(newTierKey)} tier.`
+      : `This title isn't on your saved ${html(config.tierTitle.toLowerCase())} yet. The Rating Game suggests placing it in the ${html(newTierKey)} tier.`;
+    const actionsHtml = requiresUserConfirmation
+      ? `
+        <div class="movie-duel-confirm-prompt">
+          <div class="movie-duel-confirm-title">Do you want to update this title's ranking on your Tier List?</div>
+          <div class="movie-duel-confirm-copy">${promptCopy}</div>
+        </div>
+        <div class="movie-duel-actions movie-duel-actions-result movie-duel-actions-confirm">
+          <button type="button" class="movie-duel-primary" onclick="confirmMovieRatingDuelTierUpdate()">Update Tier List</button>
+          <button type="button" class="movie-duel-secondary" onclick="keepMovieRatingDuelCurrentRanking()">Keep Current Ranking</button>
+        </div>
+      `
+      : `
+        <div class="movie-duel-actions movie-duel-actions-result">
+          <button type="button" class="movie-duel-primary" onclick="returnToMovieRatingDuelTierList()">Finish</button>
+        </div>
+      `;
+
     overlay.querySelector('.movie-duel-sheet').innerHTML = `
       <div class="movie-duel-header">
         <div>
@@ -1124,11 +1186,9 @@
         <div class="movie-duel-result-recap">
           ${getMovieDuelRecapCopy(listRating, tierRating)}
         </div>
-        <div class="movie-duel-result-note">Saved to your separate ${html(config.tierTitle.toLowerCase())}. Nothing changed in My Lists.</div>
+        <div class="movie-duel-result-note">${noteCopy}</div>
       </div>
-      <div class="movie-duel-actions movie-duel-actions-result">
-        <button type="button" class="movie-duel-primary" onclick="returnToMovieRatingDuelTierList()">Finish</button>
-      </div>
+      ${actionsHtml}
     `;
   }
 
@@ -1154,9 +1214,10 @@
         <button type="button" class="movie-duel-close" onclick="closeMovieRatingDuel()" aria-label="Close">&times;</button>
       </div>
       ${renderMediaTabs('tier')}
-      ${renderMovieDuelTierList(getSavedTierList(duelMediaKey), '', { mediaKey: duelMediaKey })}
-      <div class="movie-duel-actions movie-duel-actions-result"${readOnly ? ' style="display:none;"' : ''}>
-        <button type="button" class="movie-duel-secondary" onclick="openMovieRatingDuelLauncher(false)">Back</button>
+      <div class="movie-duel-tier-page-body">
+        <div class="movie-duel-tier-page-scroll">
+          ${renderMovieDuelTierList(getSavedTierList(duelMediaKey), '', { mediaKey: duelMediaKey })}
+        </div>
       </div>
     `;
   }
@@ -1195,6 +1256,7 @@
     if (resetToActiveSection) duelMediaKey = getDefaultDuelMediaKey();
     duelState = null;
     const overlay = ensureMovieDuelOverlay();
+    overlay.classList.remove('is-closing-tier-list');
     overlay.classList.remove('has-tier-list-page');
     overlay.classList.remove('has-tier-result');
     overlay.classList.remove('has-movie-picker');
@@ -1211,6 +1273,7 @@
       return;
     }
     const overlay = ensureMovieDuelOverlay();
+    overlay.classList.remove('is-closing-tier-list');
     overlay.classList.remove('has-tier-list-page');
     lockMovieDuelScroll();
     requestAnimationFrame(() => overlay.classList.add('is-open'));
@@ -1225,9 +1288,11 @@
     }
     duelReadOnlyUser = null;
     duelMediaKey = MEDIA_CONFIGS[duelMediaKey] ? duelMediaKey : getDefaultDuelMediaKey();
+    const overlay = ensureMovieDuelOverlay();
+    overlay.classList.remove('is-closing-tier-list');
     renderTierListPage();
     lockMovieDuelScroll();
-    requestAnimationFrame(() => ensureMovieDuelOverlay().classList.add('is-open'));
+    requestAnimationFrame(() => overlay.classList.add('is-open'));
   }
 
   async function refreshViewingUserTierListProfile() {
@@ -1256,9 +1321,11 @@
     if (!viewingUser) return;
     duelReadOnlyUser = await refreshViewingUserTierListProfile() || viewingUser;
     duelMediaKey = MEDIA_CONFIGS[mediaKey] ? mediaKey : getDefaultDuelMediaKey();
+    const overlay = ensureMovieDuelOverlay();
+    overlay.classList.remove('is-closing-tier-list');
     renderTierListPage();
     lockMovieDuelScroll();
-    requestAnimationFrame(() => ensureMovieDuelOverlay().classList.add('is-open'));
+    requestAnimationFrame(() => overlay.classList.add('is-open'));
   }
 
   function switchMovieRatingDuelMedia(mediaKey = 'movies', context = 'launcher') {
@@ -1293,12 +1360,14 @@
       unlockMovieDuelScroll();
       return;
     }
-    overlay.classList.remove('has-tier-list-page');
+    const closingTierList = overlay.classList.contains('has-tier-list-page');
+    if (closingTierList) overlay.classList.add('is-closing-tier-list');
+    else overlay.classList.remove('has-tier-list-page');
     overlay.classList.remove('is-open');
-    setTimeout(() => {
+    window.setTimeout(() => {
       overlay.remove();
       unlockMovieDuelScroll();
-    }, 180);
+    }, closingTierList ? MOVIE_DUEL_TIER_TRANSITION_MS : MOVIE_DUEL_BASE_CLOSE_MS);
   }
 
   function startMovieRatingDuel() {
@@ -1336,24 +1405,107 @@
     const tierList = getSavedTierList(mediaKey);
     const targetEntry = makeTierEntry(duelState.targetItem, mediaKey, finalBand);
     const anchorEntry = anchorItem ? makeTierEntry(anchorItem, mediaKey, finalBand) : null;
+
+    /* v10.80: Capture the target's existing tier placement BEFORE we
+       mutate the working tier list. We need this to compare the
+       suggested result against the saved placement and decide whether
+       to write silently or defer the write behind a user confirmation
+       prompt. */
+    const targetId = cleanText(targetEntry.id || '');
+    let previousTier = '';
+    let hadPreviousEntry = false;
+    TIER_ROWS.forEach(tier => {
+      if (hadPreviousEntry) return;
+      const row = Array.isArray(tierList[tier.key]) ? tierList[tier.key] : [];
+      if (row.some(entry => cleanText(entry?.id || '') === targetId)) {
+        previousTier = tier.key;
+        hadPreviousEntry = true;
+      }
+    });
+
     if (options?.placement === 'start') {
       insertTierEntryAtStart(tierList, targetEntry);
     } else {
       insertTierEntryAfter(tierList, targetEntry, anchorEntry);
     }
     const displacedFromS = finalBand === 10 ? enforceSTierCap(tierList) : null;
+    const newTier = getTierKeyForRating(finalBand);
+
+    /* v10.80: Do NOT auto-overwrite the saved Tier List when the
+       suggested tier differs from the saved one (or when the title
+       isn't on the saved list yet). The new placement becomes a
+       *suggestion* the user has to accept via "Update Tier List".
+       If the suggested tier matches the saved tier, save silently —
+       there's nothing meaningful for the user to decide. */
+    const tiersMatch = hadPreviousEntry && previousTier === newTier;
+    const requiresUserConfirmation = !tiersMatch;
+
     duelState.finalTierList = tierList;
-    const savePromise = saveTierList(mediaKey, tierList);
-    renderResult(finalBand, defeatedBand, tierList, {
+    duelState.pendingTierList = requiresUserConfirmation ? tierList : null;
+    duelState.pendingResultBand = finalBand;
+    duelState.pendingDefeatedBand = defeatedBand;
+    duelState.pendingMediaKey = mediaKey;
+
+    const meta = {
       ...(options || {}),
-      displacedFromS
-    });
+      displacedFromS,
+      previousTier,
+      hadPreviousEntry,
+      newTier,
+      requiresUserConfirmation
+    };
+
+    if (!requiresUserConfirmation) {
+      const savePromise = saveTierList(mediaKey, tierList);
+      renderResult(finalBand, defeatedBand, tierList, meta);
+      try {
+        await savePromise;
+      } catch (error) {
+        console.warn('Tier list save failed:', error);
+        if (typeof showToast === 'function') showToast('Tier list saved locally, but sync failed');
+      }
+      return;
+    }
+
+    /* v10.80: Suggested placement differs from saved — render the
+       result with a confirmation prompt and let the user decide. No
+       write happens until they tap "Update Tier List". */
+    renderResult(finalBand, defeatedBand, tierList, meta);
+  }
+
+  /* v10.80: User accepted the Rating Game suggestion — commit the
+     pending tier list to storage. */
+  async function confirmMovieRatingDuelTierUpdate() {
+    if (!duelState) {
+      returnToMovieRatingDuelTierList();
+      return;
+    }
+    const pending = duelState.pendingTierList;
+    const mediaKey = duelState.pendingMediaKey || duelState.mediaKey || duelMediaKey;
+    duelState.pendingTierList = null;
+    if (!pending) {
+      returnToMovieRatingDuelTierList();
+      return;
+    }
     try {
-      await savePromise;
+      await saveTierList(mediaKey, pending);
+      if (typeof showToast === 'function') showToast('Tier list updated');
     } catch (error) {
       console.warn('Tier list save failed:', error);
       if (typeof showToast === 'function') showToast('Tier list saved locally, but sync failed');
     }
+    returnToMovieRatingDuelTierList();
+  }
+
+  /* v10.80: User declined the Rating Game suggestion — discard the
+     pending placement and leave the saved Tier List exactly as it
+     was. */
+  function keepMovieRatingDuelCurrentRanking() {
+    if (duelState) {
+      duelState.pendingTierList = null;
+      duelState.finalTierList = null;
+    }
+    returnToMovieRatingDuelTierList();
   }
 
   function chooseMovieRatingDuelWinner(choice = '') {
@@ -1413,4 +1565,9 @@
   window.chooseMovieRatingDuelWinner = chooseMovieRatingDuelWinner;
   window.loadMoreMovieRatingDuelTier = loadMoreMovieRatingDuelTier;
   window.openViewingUserTierListPage = openViewingUserTierListPage;
+  /* v10.80: confirmation prompt handlers for the Rating Game result
+     screen — wired to the new "Update Tier List" / "Keep Current
+     Ranking" buttons in renderResult. */
+  window.confirmMovieRatingDuelTierUpdate = confirmMovieRatingDuelTierUpdate;
+  window.keepMovieRatingDuelCurrentRanking = keepMovieRatingDuelCurrentRanking;
 })();

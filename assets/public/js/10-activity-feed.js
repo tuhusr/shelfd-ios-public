@@ -3,6 +3,7 @@
 function getActivityEventType(activity) {
   if (activity.type === 'comment') return 'commented';
   if (activity.type === 'import-batch') return 'import-batch';
+  if (activity.type === 'media-review') return 'review';
   if (activity.type === 'activity-stack') return activity.stackEventType || activity.eventType || 'added';
   const item = activity.item || {};
   const evType = activity.eventType;
@@ -76,6 +77,9 @@ function renderPreviewFriendActivity() {
 }
 
 let friendActivityClickTargets = {};
+/* v10.225: expose for the FPReview synth fallback so completion / review cards
+   can route through to the Full Page Review for ANY user, not just owners. */
+window.friendActivityClickTargets = friendActivityClickTargets;
 const screenListExpandedInlineActivityStacks = new Set();
 
 function screenlistStableHash(value = '') {
@@ -138,7 +142,7 @@ const SCREENLIST_ACTIVITY_DELETED_IDS_FIELD = 'activityDeletedIds';
 const SCREENLIST_ACTIVITY_DELETED_LOCAL_PREFIX = 'screenlist-deleted-activity-ids-';
 
 function getScreenListTrashIconSvg() {
-  return `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" stroke="currentColor" stroke-width="1.2" viewBox="0 0 256 256" aria-hidden="true" focusable="false"><path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z"></path></svg>`;
 }
 
 function getScreenListDeletedActivityLocalKey(uid = '') {
@@ -400,6 +404,8 @@ function canCurrentUserNoteActivity(activity = {}) {
   if (activity.type === 'post') return false;
   if (activity.type === 'trailer') return false;
   if (activity.type === 'import-batch') return false;
+  // v10.220: review posts get their own UX (full page review). No + on owner.
+  if (activity.type === 'media-review') return false;
   const eventType = getActivityEventType(activity);
   const item = activity.item || {};
   const section = item.librarySection || item.mediaCategory || '';
@@ -414,6 +420,10 @@ function canCurrentUserNoteActivity(activity = {}) {
 
 function getScreenListPlusIconSvg() {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>`;
+}
+
+function getScreenListLayersIconSvg() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/></svg>`;
 }
 
 function renderScreenListActivityNoteHTML(activity = {}) {
@@ -828,6 +838,13 @@ function getScreenListStackedActivityClassification(activity = {}) {
   const status = getScreenListActivityStackStatus(activity, item);
   const mediaKey = getScreenListActivityMediaStackKey(activity, item);
   const hasEpisodeWatch = eventType === 'episode-watched' || ((eventType === 'episode-rated' || eventType === 'rated') && (activity.mergedHadEpisodeWatch || item.lastEpisodeActivityAt));
+  /* v10.252: media-review posts (wrote a review) stack when the same user
+     writes multiple reviews within a single time bucket. Detail key is just
+     'reviews' so any 2+ reviews from the same user in the same section bucket
+     get grouped — e.g. four album reviews in an hour → one stacked card. */
+  if (eventType === 'review' || activity.type === 'media-review') {
+    return { type: 'review', section, detailKey: 'reviews' };
+  }
 
   if ((section === 'shows' || section === 'anime') && hasEpisodeWatch) {
     return { type: 'episode-watched', section, detailKey: mediaKey || 'episode-title' };
@@ -898,6 +915,7 @@ function getScreenListStackedActivityDisplayParts(group = [], type = '') {
   if (type === 'watched') return { action: 'watched', title: `${total} ${plural}` };
   if (type === 'played') return { action: 'played', title: `${total} ${plural}` };
   if (type === 'rated') return { action: 'rated', title: `${total} ${plural}` };
+  if (type === 'review') return { action: 'wrote', title: `${total} review${total === 1 ? '' : 's'}` };
   if (type === 'added') {
     const destination = getScreenListActivityDestinationLabel(getScreenListActivityStackStatus(primary, item), section);
     return { action: 'added', title: `${total} ${plural} to ${destination}` };
@@ -1247,13 +1265,13 @@ async function resolveActivityInteractionTarget(activityId = '') {
 
 
 function getScreenListReplyIconSvg() {
-  return `<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" stroke="currentColor" stroke-width="1.2" viewBox="0 0 256 256" aria-hidden="true" focusable="false"><path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z"></path></svg>`;
 }
 
 function getScreenListHeartIconSvg(isLiked = false) {
   return isLiked
-    ? `<svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`
-    : `<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`;
+    ? `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" stroke="currentColor" stroke-width="1.2" viewBox="0 0 256 256" aria-hidden="true" focusable="false"><path d="M223,57a58.07,58.07,0,0,0-81.92-.1L128,69.05,114.91,56.86A58,58,0,0,0,33,139l89.35,90.66a8,8,0,0,0,11.4,0L223,139a58,58,0,0,0,0-82Z"></path></svg>`
+    : `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" stroke="currentColor" stroke-width="1.2" viewBox="0 0 256 256" aria-hidden="true" focusable="false"><path d="M223,57a58.07,58.07,0,0,0-81.92-.1L128,69.05,114.91,56.86A58,58,0,0,0,33,139l89.35,90.66a8,8,0,0,0,11.4,0L223,139a58,58,0,0,0,0-82Zm-11.35,70.76L128,212.6,44.3,127.68a42,42,0,0,1,59.4-59.4l.2.2,18.65,17.35a8,8,0,0,0,10.9,0L152.1,68.48l.2-.2a42,42,0,1,1,59.36,59.44Z"></path></svg>`;
 }
 
 function isActivityLikedByCurrentUser(activity = {}) {
@@ -1275,6 +1293,14 @@ function updateActivityInteractionCardState(card, activity = {}) {
   if (likeCountEl) likeCountEl.textContent = String(likeCount);
   if (likeBtn) likeBtn.classList.toggle('liked', !!isLiked);
   if (likeIconSlot) likeIconSlot.innerHTML = getScreenListHeartIconSvg(!!isLiked);
+}
+
+function setScreenListActivityLikeButtonVisualState(btnEl, isLiked = false) {
+  if (!btnEl) return;
+  btnEl.classList.toggle('liked', !!isLiked);
+  btnEl.setAttribute('aria-label', isLiked ? 'Unlike activity' : 'Like activity');
+  const iconSlot = btnEl.querySelector('[data-like-icon-slot]');
+  if (iconSlot) iconSlot.innerHTML = getScreenListHeartIconSvg(!!isLiked);
 }
 
 async function getPersistedActivityInteractionState(activityId = '') {
@@ -1402,6 +1428,616 @@ async function createFeedPost(postData) {
   return feedPost;
 }
 
+/* =============================================================================
+   v10.145: NOTIFICATIONS MODULE — clean rebuild from scratch.
+
+   Replaces the prior ~800-line implementation that had hydration races,
+   multi-source backfills, signature-cached renders, and false empty states.
+
+   Architecture:
+     collection:  notifications/{recipientUid}/items/{notificationId}
+     window:      last 11 days (1.5 weeks)
+     storage:     one module-scoped array `activityNotificationsList`
+     live update: one onSnapshot listener, attached when the tab is opened
+     render:      one renderNotificationsList() — draws the full array
+
+   4 supported types only:
+     - activity_like      (friend liked your activity card)
+     - activity_comment   (friend commented on your activity card)
+     - friend_request     (friend sent you a friend request)
+     - friend_accept      (friend accepted your friend request)
+
+   Deterministic doc IDs prevent duplicates:
+     activity_like:{activityId}:{actorUid}
+     activity_comment:{activityId}:{commentId|actorUid}
+     friend_request:{actorUid}
+     friend_accept:{actorUid}
+   (recipientUid is the parent doc ID, so it doesn't need to be in the
+   child ID.)
+   ============================================================================= */
+
+const SHELFD_NOTIFICATIONS_WINDOW_MS = 11 * 24 * 60 * 60 * 1000;
+const SHELFD_NOTIFICATIONS_LISTENER_LIMIT = 80;
+const SHELFD_NOTIFICATIONS_VALID_TYPES = ['activity_like', 'activity_comment', 'friend_request', 'friend_accept'];
+
+let activityNotificationsList = [];
+let activityNotificationsLoadedOnce = false;
+let activityNotificationsUnsubscribe = null;
+let activityNotificationsListenerUid = '';
+let activityNotificationsBackfillRanForUid = '';
+let activityNotificationsUnreadCount = 0;
+
+function getShelfdNotificationCutoffMs() {
+  return Date.now() - SHELFD_NOTIFICATIONS_WINDOW_MS;
+}
+
+function sanitizeShelfdNotifIdPart(value = '') {
+  const clean = String(value || '').trim().replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+  return clean ? clean.slice(0, 96) : 'x';
+}
+
+function buildShelfdNotificationDocId(options = {}) {
+  const type = String(options.type || '').trim();
+  const activity = sanitizeShelfdNotifIdPart(options.targetActivityId || '');
+  const actor = sanitizeShelfdNotifIdPart(options.actorUid || '');
+  if (type === 'activity_like') return `activity_like:${activity}:${actor}`;
+  if (type === 'activity_comment') {
+    const comment = sanitizeShelfdNotifIdPart(options.targetCommentId || options.actorUid || '');
+    return `activity_comment:${activity}:${comment}`;
+  }
+  if (type === 'friend_request') return `friend_request:${actor}`;
+  if (type === 'friend_accept') return `friend_accept:${actor}`;
+  return `${sanitizeShelfdNotifIdPart(type)}:${activity}:${actor}`;
+}
+
+function getShelfdNotificationActorProfile(actorUid = '') {
+  const uid = String(actorUid || '').trim();
+  const isSelf = currentUser && currentUser.uid === uid;
+  const fromMap = (typeof usersMap === 'object' && usersMap && uid && usersMap[uid]) ? usersMap[uid] : {};
+  const fromSelf = isSelf ? (userProfile || currentUser || {}) : {};
+  const merged = { ...fromSelf, ...fromMap };
+  const actorName = (typeof getDisplayName === 'function')
+    ? getDisplayName(merged, merged.displayName || merged.name || (isSelf ? (currentUser && currentUser.displayName) : '') || 'Shelfd user')
+    : (merged.displayName || merged.name || 'Shelfd user');
+  const actorPhoto = merged.photo || merged.photoURL || (isSelf && currentUser ? currentUser.photoURL : '') || '';
+  return { actorName, actorPhoto };
+}
+
+function getShelfdNotificationActivityMedia(activity = {}) {
+  if (!activity || typeof activity !== 'object') return { mediaTitle: '', mediaPoster: '' };
+  const item = activity.item || {};
+  const content = activity.content || {};
+  const title = String(
+    item.title ||
+    item.name ||
+    content.mediaTitle ||
+    content.trailerTitle ||
+    content.text ||
+    activity.commentText ||
+    ''
+  ).trim();
+  let poster = '';
+  if (typeof getScreenListActivityItemCover === 'function') {
+    try { poster = getScreenListActivityItemCover(item) || ''; } catch (e) {}
+  }
+  if (!poster) poster = item.cover || item.poster || content.trailerCover || content.poster || content.thumbnail || '';
+  return { mediaTitle: title, mediaPoster: poster };
+}
+
+function getActivityNotificationOwnerUid(activity = {}) {
+  if (!activity || typeof activity !== 'object') return '';
+  return String(activity.uid || activity.ownerUid || activity.userId || '').trim();
+}
+
+function parseShelfdNotificationMs(value, fallback = 0) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof parseFriendActivityTime === 'function') {
+    try {
+      const ms = parseFriendActivityTime(value);
+      if (ms) return ms;
+    } catch (e) {}
+  }
+  if (!value) return fallback;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+/* ---------- Central writer ----------
+   Single source of truth for creating a notification doc. Used by both
+   live trigger paths (like / comment / friend events) and the one-shot
+   backfill. Self-notifications are blocked at the door; duplicate writes
+   are no-ops because doc IDs are deterministic and we use set+merge. */
+async function createActivityNotification(options = {}) {
+  if (!currentUser || !db) return false;
+  const recipientUid = String(options.recipientUid || '').trim();
+  const actorUid = String(options.actorUid || currentUser.uid || '').trim();
+  let type = String(options.type || '').trim();
+
+  /* v10.145: Type normalization — older trigger sites passed 'feed_like',
+     'comment_reply', 'comment_like', or 'shared_watch_request'. Collapse
+     to the 4 canonical types or drop the write. */
+  if (type === 'feed_like') type = 'activity_like';
+  if (type === 'comment_reply') type = 'activity_comment';
+  if (!SHELFD_NOTIFICATIONS_VALID_TYPES.includes(type)) return false;
+
+  if (!recipientUid || !actorUid) return false;
+  if (recipientUid === actorUid) return false;
+
+  const activity = options.activity || {};
+  const media = { ...getShelfdNotificationActivityMedia(activity), ...(options.media || {}) };
+  const actor = getShelfdNotificationActorProfile(actorUid);
+  const docId = buildShelfdNotificationDocId({ ...options, recipientUid, actorUid, type });
+  const nowMs = Date.now();
+  const eventMs = Number(options.createdAtMs || nowMs) || nowMs;
+
+  const payload = {
+    notificationId: docId,
+    recipientUid,
+    actorUid,
+    actorName: String(options.actorName || actor.actorName || 'Shelfd user').trim(),
+    actorPhoto: String(options.actorPhoto || actor.actorPhoto || '').trim(),
+    type,
+    targetActivityId: String(options.targetActivityId || '').trim(),
+    targetCommentId: String(options.targetCommentId || '').trim(),
+    targetKind: String(options.targetKind || (type.startsWith('activity_') ? 'activity' : 'friend_request')).trim(),
+    targetCollection: String(options.targetCollection || '').trim(),
+    mediaTitle: String(media.mediaTitle || '').trim(),
+    mediaPoster: String(media.mediaPoster || '').trim(),
+    textSnippet: String(options.textSnippet || '').trim().slice(0, 180),
+    createdAtMs: eventMs,
+    updatedAtMs: nowMs,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    read: false
+  };
+  if (options.backfilled) {
+    payload.backfilled = true;
+    payload.backfilledAtMs = nowMs;
+  }
+
+  try {
+    const ref = db.collection('notifications').doc(recipientUid).collection('items').doc(docId);
+    await ref.set(payload, { merge: true });
+    return true;
+  } catch (error) {
+    console.warn('[shelfd notifications] create failed:', error && error.message ? error.message : error);
+    return false;
+  }
+}
+
+async function markActivityNotificationRead(notificationId = '') {
+  if (!currentUser || !db || !notificationId) return;
+  try {
+    await db.collection('notifications').doc(currentUser.uid).collection('items').doc(String(notificationId)).set({
+      read: true,
+      updatedAtMs: Date.now(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  } catch (error) {
+    console.warn('[shelfd notifications] mark read failed:', error && error.message ? error.message : error);
+  }
+}
+
+/* ---------- Live listener ---------- */
+
+function applyShelfdNotificationsSnapshot(snapshot) {
+  const cutoffMs = getShelfdNotificationCutoffMs();
+  const docs = (snapshot && snapshot.docs ? snapshot.docs : []).map(doc => {
+    const data = doc.data() || {};
+    return { notificationId: doc.id, ...data };
+  });
+  /* Filter by supported types + 11-day window, then dedupe by
+     (type|actor|target|comment) so older docs with the legacy ID format
+     don't render alongside the new deterministic IDs. */
+  const filtered = docs
+    .filter(item => SHELFD_NOTIFICATIONS_VALID_TYPES.includes(String(item.type || '')))
+    .filter(item => Number(item.createdAtMs || 0) >= cutoffMs);
+  filtered.sort((a, b) => Number(b.createdAtMs || 0) - Number(a.createdAtMs || 0));
+  const seenKeys = new Set();
+  activityNotificationsList = filtered.filter(item => {
+    const key = `${item.type}|${item.actorUid}|${item.targetActivityId || ''}|${item.targetCommentId || ''}`;
+    if (seenKeys.has(key)) return false;
+    seenKeys.add(key);
+    return true;
+  });
+  activityNotificationsLoadedOnce = true;
+  updateShelfdNotificationsUnreadBadge();
+  if (typeof activeFriendsTab !== 'undefined' && typeof activeActivitySubTab !== 'undefined'
+      && activeFriendsTab === 'activity' && activeActivitySubTab === 'notifications') {
+    renderActivityNotificationsList();
+  }
+}
+
+function attachShelfdNotificationsListener() {
+  if (!currentUser || !db) return;
+  const uid = String(currentUser.uid || '').trim();
+  if (!uid) return;
+  if (activityNotificationsUnsubscribe && activityNotificationsListenerUid === uid) return;
+  if (activityNotificationsUnsubscribe && activityNotificationsListenerUid !== uid) stopActivityNotificationsLiveListener();
+  activityNotificationsListenerUid = uid;
+  try {
+    activityNotificationsUnsubscribe = db.collection('notifications')
+      .doc(uid)
+      .collection('items')
+      .orderBy('createdAtMs', 'desc')
+      .limit(SHELFD_NOTIFICATIONS_LISTENER_LIMIT)
+      .onSnapshot(applyShelfdNotificationsSnapshot, error => {
+        console.warn('[shelfd notifications] listener error:', error && error.message ? error.message : error);
+      });
+  } catch (error) {
+    console.warn('[shelfd notifications] listener setup failed:', error && error.message ? error.message : error);
+  }
+}
+
+function stopActivityNotificationsLiveListener() {
+  if (activityNotificationsUnsubscribe) {
+    try { activityNotificationsUnsubscribe(); } catch (e) {}
+  }
+  activityNotificationsUnsubscribe = null;
+  activityNotificationsListenerUid = '';
+}
+
+function updateShelfdNotificationsUnreadBadge() {
+  activityNotificationsUnreadCount = activityNotificationsList.filter(item => item.read !== true).length;
+  window.activityNotificationsUnreadCount = activityNotificationsUnreadCount;
+  if (typeof updateRequestsBadges === 'function') {
+    try { updateRequestsBadges(); } catch (e) {}
+  }
+}
+
+/* ---------- Rendering ---------- */
+
+function getShelfdNotificationCopy(notification = {}) {
+  const type = String(notification.type || '').trim();
+  const name = String(notification.actorName || '').trim() || 'Someone';
+  if (type === 'activity_like') return `${name} liked your activity.`;
+  if (type === 'activity_comment') return `${name} commented on your activity.`;
+  if (type === 'friend_request') return `${name} sent you a friend request.`;
+  if (type === 'friend_accept') return `${name} accepted your friend request.`;
+  return `${name} interacted with your activity.`;
+}
+
+function getShelfdNotificationRelativeTime(notification = {}) {
+  const ms = Number(notification.createdAtMs || 0);
+  if (!ms) return '';
+  const diff = Date.now() - ms;
+  if (diff < 60000) return 'just now';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
+  return `${Math.floor(diff / 86400000)}d`;
+}
+
+function getShelfdNotificationAccentClass(type = '') {
+  if (type === 'activity_like') return 'like';
+  if (type === 'activity_comment') return 'comment';
+  if (type === 'friend_request' || type === 'friend_accept') return 'friend';
+  return 'default';
+}
+
+function buildActivityNotificationRowHTML(notification = {}) {
+  const id = String(notification.notificationId || '').trim();
+  if (!id) return '';
+  const unread = notification.read !== true;
+  const accent = getShelfdNotificationAccentClass(notification.type);
+  const photo = String(notification.actorPhoto || '').trim();
+  const name = String(notification.actorName || 'Shelfd user').trim();
+  const text = getShelfdNotificationCopy(notification);
+  const time = getShelfdNotificationRelativeTime(notification);
+  const snippet = String(notification.textSnippet || '').trim();
+  const poster = String(notification.mediaPoster || '').trim();
+  const a = (typeof escAttr === 'function') ? escAttr : (v) => String(v || '');
+  const h = (typeof escHtml === 'function') ? escHtml : (v) => String(v || '');
+  const avatarHtml = photo
+    ? `<img src="${a(photo)}" alt="" loading="lazy" decoding="async">`
+    : `<span class="activity-notification-avatar-fallback">${h((name.charAt(0) || 'S').toUpperCase())}</span>`;
+  const posterHtml = poster
+    ? `<div class="activity-notification-thumb"><img src="${a(poster)}" alt="" loading="lazy" decoding="async"></div>`
+    : '';
+  return `<button class="activity-notification-row ${unread ? 'unread' : 'read'} accent-${accent}" type="button" onclick="openActivityNotificationTarget('${a(id)}')" data-notification-id="${a(id)}">
+    <div class="activity-notification-avatar">${avatarHtml}</div>
+    <div class="activity-notification-copy">
+      <div class="activity-notification-text">${h(text)}</div>
+      ${snippet ? `<div class="activity-notification-snippet">${h(snippet)}</div>` : ''}
+      <time class="activity-notification-time">${h(time)}</time>
+    </div>
+    ${posterHtml}
+  </button>`;
+}
+
+function renderActivityNotificationsList() {
+  const feed = document.getElementById('activity-notifications-feed');
+  if (!feed) return;
+  const headerHtml = (typeof buildActivityFeedHeaderHTML === 'function')
+    ? buildActivityFeedHeaderHTML('Notifications')
+    : '';
+  /* Loading state: only show while we genuinely have nothing yet.
+     Once a Firestore snapshot has arrived, switch to list (≥1) or empty
+     (0) — no middle states, no hydration flags. */
+  if (!activityNotificationsLoadedOnce && !activityNotificationsList.length) {
+    feed.innerHTML = `${headerHtml}<div class="activity-notifications-shell"><div class="activity-notifications-loading">Loading notifications...</div></div>`;
+    return;
+  }
+  if (!activityNotificationsList.length) {
+    feed.innerHTML = `${headerHtml}<div class="activity-notifications-empty"><strong>No notifications yet</strong><span>Likes, comments, and friend events from the last 11 days will show up here.</span></div>`;
+    return;
+  }
+  feed.innerHTML = `${headerHtml}<div class="activity-notifications-shell">${activityNotificationsList.map(buildActivityNotificationRowHTML).join('')}</div>`;
+}
+
+/* ---------- Tap-to-open ---------- */
+
+async function openActivityNotificationTarget(notificationId = '') {
+  if (!currentUser || !db || !notificationId) return;
+  /* Try the local cache first; only hit Firestore if missing. */
+  let notification = activityNotificationsList.find(item => String(item.notificationId || '') === String(notificationId)) || null;
+  if (!notification) {
+    try {
+      const snap = await db.collection('notifications').doc(currentUser.uid).collection('items').doc(String(notificationId)).get();
+      if (snap.exists) notification = { notificationId: snap.id, ...(snap.data() || {}) };
+    } catch (e) {}
+  }
+  /* Mark read in the background; don't block the open. */
+  markActivityNotificationRead(notificationId);
+  if (!notification) return;
+
+  const type = String(notification.type || '').trim();
+  /* Friend events → open the actor's profile / user list. */
+  if (type === 'friend_request' || type === 'friend_accept') {
+    const actorUid = String(notification.actorUid || '').trim();
+    if (actorUid && typeof openActivityUserList === 'function') {
+      try { openActivityUserList(actorUid); return; } catch (e) {}
+    }
+    if (typeof switchActivitySubTab === 'function') {
+      try { await switchActivitySubTab('feed'); } catch (e) {}
+    }
+    return;
+  }
+
+  /* Activity events → deep-link to the post. Switch to Activity Feed
+     sub-tab first so the deep-link page can layer over it. */
+  const targetId = String(notification.targetActivityId || '').trim();
+  if (!targetId) return;
+  if (typeof switchActivitySubTab === 'function') {
+    try { await switchActivitySubTab('feed'); } catch (e) {}
+  }
+  window.setTimeout(() => {
+    const isFeed = String(notification.targetKind || '').trim() === 'feed'
+      || String(notification.targetCollection || '').trim() === 'feed';
+    try {
+      if (isFeed && typeof openFeedPostPage === 'function') openFeedPostPage(targetId);
+      else if (typeof openActivityReplyPage === 'function') openActivityReplyPage(targetId);
+    } catch (e) {
+      console.warn('[shelfd notifications] tap open failed:', e && e.message ? e.message : e);
+    }
+  }, 120);
+}
+
+/* ---------- Backfill (one-shot per signed-in user per session) ----------
+
+   Reconstructs notifications for events that happened before the live
+   triggers existed, scoped to the last 11 days. Three sources:
+
+     1. Likes + comments on the user's own feed posts (querying `feed`
+        directly — doesn't depend on any in-memory cache).
+     2. Likes + comments on the user's own library activity items
+        (requires the friend-activity cache; we prefetch it via
+        fetchAllFriendActivities if it's empty).
+     3. Pending incoming friend requests (best-effort timestamp = now).
+
+   Friend ACCEPT backfill is intentionally skipped because there is no
+   reliable timestamp recorded for when a friendship was accepted — it
+   would either land all accepts at the current time (misleading) or
+   silently drop them. Live triggers cover accepts going forward.
+*/
+async function backfillRecentActivityNotifications() {
+  if (!currentUser || !db) return;
+  const uid = String(currentUser.uid || '').trim();
+  if (!uid) return;
+  if (activityNotificationsBackfillRanForUid === uid) return;
+  activityNotificationsBackfillRanForUid = uid;
+  const cutoffMs = getShelfdNotificationCutoffMs();
+  let feedCreated = 0;
+  let libCreated = 0;
+  let socialCreated = 0;
+  try { feedCreated = await backfillShelfdFeedInteractions(uid, cutoffMs); } catch (e) {}
+  try { libCreated = await backfillShelfdLibraryActivityInteractions(uid, cutoffMs); } catch (e) {}
+  try { socialCreated = await backfillShelfdIncomingFriendRequests(uid); } catch (e) {}
+  try {
+    console.info('[shelfd notifications] backfill summary', {
+      uid,
+      feed: feedCreated,
+      library: libCreated,
+      friendRequests: socialCreated,
+      total: feedCreated + libCreated + socialCreated
+    });
+  } catch (e) {}
+}
+
+async function backfillShelfdFeedInteractions(uid, cutoffMs) {
+  let created = 0;
+  try {
+    const snap = await db.collection('feed')
+      .where('uid', '==', uid)
+      .orderBy('timestamp', 'desc')
+      .limit(60)
+      .get();
+    for (const doc of snap.docs) {
+      const post = { ...doc.data(), id: doc.id, _collection: 'feed' };
+      const postMs = parseShelfdNotificationMs(post.timestamp || post.createdAt || post.updatedAt, 0);
+      if (postMs && postMs < cutoffMs) continue;
+      const targetActivityId = String(post.postId || doc.id || '').trim();
+      if (!targetActivityId) continue;
+      const likes = Array.isArray(post.likes) ? post.likes : [];
+      for (const likeUid of likes) {
+        const actorUid = String(likeUid || '').trim();
+        if (!actorUid || actorUid === uid) continue;
+        if (await createActivityNotification({
+          recipientUid: uid,
+          actorUid,
+          type: 'activity_like',
+          targetActivityId,
+          targetKind: 'feed',
+          targetCollection: 'feed',
+          activity: post,
+          createdAtMs: postMs || Date.now(),
+          backfilled: true
+        })) created += 1;
+      }
+      const replies = Array.isArray(post.replies) ? post.replies : [];
+      for (const reply of replies) {
+        const actorUid = String((reply && reply.uid) || '').trim();
+        if (!actorUid || actorUid === uid) continue;
+        const replyMs = parseShelfdNotificationMs(reply && reply.timestamp, postMs || 0);
+        if (replyMs && replyMs < cutoffMs) continue;
+        if (await createActivityNotification({
+          recipientUid: uid,
+          actorUid,
+          type: 'activity_comment',
+          targetActivityId,
+          targetCommentId: String((reply && reply.id) || ''),
+          targetKind: 'feed',
+          targetCollection: 'feed',
+          activity: post,
+          textSnippet: String((reply && reply.text) || ''),
+          createdAtMs: replyMs || postMs || Date.now(),
+          backfilled: true
+        })) created += 1;
+      }
+    }
+  } catch (error) {
+    console.warn('[shelfd notifications] feed interaction backfill failed:', error && error.message ? error.message : error);
+  }
+  return created;
+}
+
+async function backfillShelfdLibraryActivityInteractions(uid, cutoffMs) {
+  let created = 0;
+  /* Prefetch friend-activity cache if it's empty — without it we have
+     no list of the user's library activity entries to look up. */
+  try {
+    const ready = Array.isArray(friendActivityCache && friendActivityCache.activities) && friendActivityCache.activities.length;
+    if (!ready && typeof fetchAllFriendActivities === 'function') {
+      try { await fetchAllFriendActivities(typeof FRIEND_ACTIVITY_INITIAL_DAYS !== 'undefined' ? FRIEND_ACTIVITY_INITIAL_DAYS : 7); } catch (e) {}
+    }
+  } catch (e) {}
+
+  const ownActivities = (friendActivityCache && Array.isArray(friendActivityCache.activities))
+    ? friendActivityCache.activities.filter(a => String((a && a.uid) || '') === uid)
+    : [];
+
+  for (const activity of ownActivities) {
+    const activityMs = parseShelfdNotificationMs(
+      activity && (activity.timestamp || (activity.item && (activity.item.dateModified || activity.item.dateAdded))),
+      0
+    );
+    if (activityMs && activityMs < cutoffMs) continue;
+    const stableId = (typeof getStableActivityDocId === 'function')
+      ? getStableActivityDocId(activity, activity.id || activity.activityId || '')
+      : String(activity.id || '');
+    if (!stableId) continue;
+    try {
+      const metaDocId = (typeof getActivityInteractionMetaDocId === 'function') ? getActivityInteractionMetaDocId(stableId) : '';
+      if (!metaDocId) continue;
+      const snap = await db.collection('meta').doc(metaDocId).get();
+      if (!snap.exists) continue;
+      const data = snap.data() || {};
+      const merged = { ...activity, ...data, id: stableId, _collection: 'meta' };
+      const likes = Array.isArray(data.likes) ? data.likes : [];
+      for (const likeUid of likes) {
+        const actorUid = String(likeUid || '').trim();
+        if (!actorUid || actorUid === uid) continue;
+        if (await createActivityNotification({
+          recipientUid: uid,
+          actorUid,
+          type: 'activity_like',
+          targetActivityId: stableId,
+          targetKind: 'activity',
+          targetCollection: 'meta',
+          activity: merged,
+          createdAtMs: activityMs || Date.now(),
+          backfilled: true
+        })) created += 1;
+      }
+      const replies = Array.isArray(data.replies) ? data.replies : [];
+      for (const reply of replies) {
+        const actorUid = String((reply && reply.uid) || '').trim();
+        if (!actorUid || actorUid === uid) continue;
+        const replyMs = parseShelfdNotificationMs(reply && reply.timestamp, activityMs || 0);
+        if (replyMs && replyMs < cutoffMs) continue;
+        if (await createActivityNotification({
+          recipientUid: uid,
+          actorUid,
+          type: 'activity_comment',
+          targetActivityId: stableId,
+          targetCommentId: String((reply && reply.id) || ''),
+          targetKind: 'activity',
+          targetCollection: 'meta',
+          activity: merged,
+          textSnippet: String((reply && reply.text) || ''),
+          createdAtMs: replyMs || activityMs || Date.now(),
+          backfilled: true
+        })) created += 1;
+      }
+    } catch (error) {
+      console.warn('[shelfd notifications] library interaction backfill skipped for', stableId, error && error.message ? error.message : error);
+    }
+  }
+  return created;
+}
+
+async function backfillShelfdIncomingFriendRequests(uid) {
+  let created = 0;
+  try {
+    const incoming = (typeof incomingRequests !== 'undefined' && Array.isArray(incomingRequests)) ? incomingRequests : [];
+    const nowMs = Date.now();
+    for (const requesterUid of incoming) {
+      const actorUid = String(requesterUid || '').trim();
+      if (!actorUid || actorUid === uid) continue;
+      if (await createActivityNotification({
+        recipientUid: uid,
+        actorUid,
+        type: 'friend_request',
+        targetActivityId: `friend_request:${actorUid}`,
+        targetKind: 'friend_request',
+        createdAtMs: nowMs,
+        backfilled: true
+      })) created += 1;
+    }
+  } catch (error) {
+    console.warn('[shelfd notifications] friend request backfill failed:', error && error.message ? error.message : error);
+  }
+  return created;
+}
+
+/* ---------- Public entry: open the Notifications tab ---------- */
+
+async function renderActivityNotificationsPage() {
+  const feed = document.getElementById('activity-notifications-feed');
+  if (!feed) return;
+  if (!currentUser) {
+    const headerHtml = (typeof buildActivityFeedHeaderHTML === 'function') ? buildActivityFeedHeaderHTML('Notifications') : '';
+    feed.innerHTML = `${headerHtml}<div class="activity-notifications-empty"><strong>Sign in to see notifications</strong><span>Likes, comments, and friend events appear here once you're signed in.</span></div>`;
+    return;
+  }
+  /* If the signed-in user changed since we last attached, reset state. */
+  if (activityNotificationsListenerUid && activityNotificationsListenerUid !== currentUser.uid) {
+    stopActivityNotificationsLiveListener();
+    activityNotificationsList = [];
+    activityNotificationsLoadedOnce = false;
+    activityNotificationsBackfillRanForUid = '';
+  }
+  attachShelfdNotificationsListener();
+  renderActivityNotificationsList();
+  /* Fire backfill once per session per user; non-blocking. */
+  backfillRecentActivityNotifications();
+}
+
+window.renderActivityNotificationsPage = renderActivityNotificationsPage;
+window.openActivityNotificationTarget = openActivityNotificationTarget;
+window.stopActivityNotificationsLiveListener = stopActivityNotificationsLiveListener;
+window.createActivityNotification = createActivityNotification;
+window.markActivityNotificationRead = markActivityNotificationRead;
+
 let screenlistCompletionRatingState = null;
 let screenlistActivityPostPromptState = null;
 let screenlistCompletionRatingAutoSubmitTimer = null;
@@ -1442,6 +2078,9 @@ function getScreenListActivityItemCover(item = {}) {
 function normalizeScreenListActivityPostItem(item = {}, section = '', status = 'watched', rating = 0, comment = '') {
   const nowIso = new Date().toISOString();
   const cleanSection = section || item.librarySection || item.mediaCategory || activeSection || '';
+  if (cleanSection === 'games' && typeof window.assertShelfdGameIdentity === 'function' && !window.assertShelfdGameIdentity('8 normalize game activity post item', item)) {
+    throw new Error('Game identity mismatch before activity post');
+  }
   const cleanRating = Number(rating || item.rating || 0) || 0;
   const cleanComment = String(comment || '').trim();
   const copy = {
@@ -1459,6 +2098,10 @@ function normalizeScreenListActivityPostItem(item = {}, section = '', status = '
     copy.activityComment = cleanComment;
     copy.watchedComment = cleanComment;
     copy.comment = cleanComment;
+  }
+  if (cleanSection === 'games' && item?.shelfdGameIdentityLock && typeof window.attachShelfdGameIdentityLock === 'function') {
+    window.attachShelfdGameIdentityLock(copy, item.shelfdGameIdentityLock);
+    if (typeof window.traceShelfdGameIdentity === 'function') window.traceShelfdGameIdentity('8 activity post normalized game object', copy, { status, rating });
   }
   return copy;
 }
@@ -1694,6 +2337,10 @@ function closeScreenListActivityPostPrompt() {
 function handleScreenListActivityCardOpen(activityId = '', kind = 'activity') {
   const cleanId = String(activityId || '').trim();
   if (!cleanId) return;
+  /* v10.238: reverted the v10.230 routing intercept. The FPReview entry
+     point is now an explicit "View review" text/button inside the card body
+     (see buildActivityCardHTML). Clicking the rest of the card defaults back
+     to the comment sheet, which is the established Shelfd pattern. */
   const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const opener = kind === 'feed' ? () => openFeedPostPage(cleanId) : () => openActivityReplyPage(cleanId);
   if (reduceMotion) {
@@ -1828,6 +2475,7 @@ function openScreenListActivityPostPrompt(options = {}) {
   const item = options.item || {};
   if (!item || typeof item !== 'object') return;
   const section = options.section || item.librarySection || item.mediaCategory || activeSection || '';
+  if (section === 'games' && typeof window.assertShelfdGameIdentity === 'function' && !window.assertShelfdGameIdentity('8 before opening game Activity Feed prompt', item)) return;
   const rating = Number(options.rating || item.rating || 0) || 0;
   const title = getScreenListActivityItemTitle(item);
   const cover = getScreenListActivityItemCover(item);
@@ -1875,6 +2523,9 @@ async function submitScreenListActivityPostPrompt() {
   if (skipBtn) skipBtn.disabled = true;
 
   try {
+    if (state.section === 'games' && typeof window.assertShelfdGameIdentity === 'function' && !window.assertShelfdGameIdentity('8 before posting game Activity Feed item', state.item)) {
+      throw new Error('Game identity mismatch before activity post');
+    }
     const item = normalizeScreenListActivityPostItem(state.item, state.section, state.status, state.rating, comment);
     const mediaKey = getScreenListActivityPostMediaKey(item);
     const post = await createFeedPost({
@@ -2189,7 +2840,8 @@ function initFeedComposer() {
   const initial = name.charAt(0).toUpperCase();
   
   if (photo) {
-    avatar.innerHTML = `<img src="${escAttr(photo)}" alt="">`;
+    /* v10.62: decoding="async" lets Safari decode off the main thread. */
+    avatar.innerHTML = `<img src="${escAttr(photo)}" alt="" decoding="async">`;
   } else {
     avatar.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#a78bfa;">${initial}</div>`;
   }
@@ -2208,6 +2860,7 @@ const ACTIVITY_TYPE_META = {
   commented: { label: 'Comment',  labelClass: 'el-commented', ringClass: 'ring-commented', storyRingClass: 'story-ring-commented', topClass: 'card-top-commented' },
   post:      { label: 'Post',     labelClass: 'el-added',     ringClass: 'ring-added',     storyRingClass: 'story-ring-added',     topClass: 'card-top-added'     },
   trailer:   { label: 'Trailer',  labelClass: 'el-started',   ringClass: 'ring-started',   storyRingClass: 'story-ring-started',   topClass: 'card-top-started'   },
+  review:    { label: 'Review',   labelClass: 'el-rated',     ringClass: 'ring-rated',     storyRingClass: 'story-ring-rated',     topClass: 'card-top-rated'     },
 };
 
 
@@ -2404,6 +3057,7 @@ async function toggleActivityLike(activityId, btnEl) {
   if (!currentUser || !activityId) return;
 
   const isLiked = btnEl.classList.contains('liked');
+  setScreenListActivityLikeButtonVisualState(btnEl, !isLiked);
   if (!isLiked && btnEl) {
     btnEl.classList.remove('sl-activity-heart-pop');
     void btnEl.offsetWidth;
@@ -2428,6 +3082,20 @@ async function toggleActivityLike(activityId, btnEl) {
 
     const latest = await target.ref.get();
     const latestActivity = latest.exists ? { ...target.activity, ...latest.data(), id: target.id, _collection: target.collection } : target.activity;
+    if (!isLiked) {
+      /* v10.145: live notification trigger — friend likes your activity
+         card. createActivityNotification normalizes 'feed_like' →
+         'activity_like' internally so this stays a single supported
+         type. */
+      await createActivityNotification({
+        recipientUid: getActivityNotificationOwnerUid(target.activity),
+        type: 'activity_like',
+        targetActivityId: target.collection === 'feed' ? target.id : (target.cardId || target.id || target.activityPersistenceId),
+        targetKind: target.collection === 'feed' ? 'feed' : 'activity',
+        targetCollection: target.deleteCollection || target.collection || '',
+        activity: latestActivity
+      });
+    }
     const rawMemory = friendActivityClickTargets[activityId];
     if (rawMemory) {
       rawMemory.likes = Array.isArray(latestActivity.likes) ? latestActivity.likes : [];
@@ -2436,6 +3104,7 @@ async function toggleActivityLike(activityId, btnEl) {
     refreshVisibleActivityInteractionCards(activityId, latestActivity);
     refreshVisibleActivityInteractionCards(target.id, latestActivity);
   } catch(err) {
+    setScreenListActivityLikeButtonVisualState(btnEl, isLiked);
     console.error('Error toggling activity like:', err);
     if (typeof showToast === 'function') showToast('Could not update like. Try again.');
   }
@@ -2490,6 +3159,7 @@ async function openActivityReplyPage(activityId) {
     currentFeedPostActivityId = target.cardId || target.id;
     currentFeedPostCollection = target.collection || 'activities';
     const activity = { ...target.activity, id: target.cardId || target.id, _collection: target.collection };
+    currentFeedPostActivityData = activity;
     const canDeleteDetailPost = canCurrentUserDeleteActivity(activity);
     setFeedPostPageDeleteButton(target.activityPersistenceId || target.cardId || target.id, target.deleteCollection || 'activities', canDeleteDetailPost);
     console.log('Activity loaded:', activity);
@@ -2539,6 +3209,23 @@ function buildFeedReplyItemHTML(reply, index = 0, total = 1, depth = 0, childHtm
     ? `<img class="feed-reply-avatar-img" src="${escAttr(avatarSrc)}" alt="" loading="lazy">`
     : `<div class="feed-reply-avatar-img feed-reply-avatar-placeholder">${escHtml(initial)}</div>`;
 
+  /* v10.79: per-comment heart/like. Storage shape:
+       reply = { id, uid, text, timestamp, parentReplyId?, likes?: [uid, ...] }
+     New `likes` array on the reply object — kept on the existing
+     `feed/{postId}.replies` doc, not a new collection. Like/unlike rewrites
+     the whole replies array (Firestore can't update a sub-field of an
+     array element directly). Comment likes are independent of the
+     activity-card likes (`post.likes` at the doc root). */
+  const myUid = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) ? currentUser.uid : '';
+  const replyLikes = Array.isArray(reply.likes) ? reply.likes : [];
+  const isLiked = !!(myUid && replyLikes.includes(myUid));
+  const likeCount = replyLikes.length;
+  const sheetPostId = (typeof currentFeedPostId !== 'undefined' && currentFeedPostId) ? String(currentFeedPostId) : '';
+  const likeBtnHtml = `<button class="feed-reply-like ${isLiked ? 'liked' : ''}" type="button" data-reply-like-btn aria-label="${isLiked ? 'Unlike comment' : 'Like comment'}" onclick="event.stopPropagation(); toggleFeedReplyLike('${escAttr(sheetPostId)}','${escAttr(replyId)}', this)">
+    <span class="feed-reply-like-icon" data-reply-like-icon>${getScreenListHeartIconSvg(isLiked)}</span>
+    <span class="feed-reply-like-count" data-reply-like-count>${likeCount > 0 ? likeCount : ''}</span>
+  </button>`;
+
   return `<article class="feed-reply-item x-reply-item ${parentId ? 'feed-reply-threaded' : ''}" data-reply-id="${escAttr(replyId)}" data-parent-reply-id="${escAttr(parentId)}">
     <div class="feed-reply-avatar-col">
       ${avatarHtml}
@@ -2552,6 +3239,7 @@ function buildFeedReplyItemHTML(reply, index = 0, total = 1, depth = 0, childHtm
       <div class="feed-reply-text">${escHtml(reply.text || '')}</div>
       <button class="feed-reply-inline-reply" type="button" onclick="event.stopPropagation(); startFeedReplyTo('${escAttr(replyId)}','${escAttr(reply.uid || '')}')">Reply</button>
     </div>
+    ${likeBtnHtml}
   </article>`;
 }
 
@@ -2625,10 +3313,83 @@ async function loadActivityReplies(activityId, collection = 'feed', displayActiv
   }
 }
 
+/* v10.79: per-comment like toggle.
+   - Reads `feed/{postId}` doc, finds the matching reply by id, flips
+     its `likes` array membership for the current uid, writes the whole
+     replies array back.
+   - Optimistic UI: heart class + count update before the network roundtrip.
+     On error we revert.
+   - Distinct from `toggleFeedLike` (activity-card like) — different storage
+     location (`reply.likes` vs `post.likes`), so comment likes and post
+     likes never collide. */
+async function toggleFeedReplyLike(postId, replyId, btnEl) {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
+  if (!currentUser || !postId || !replyId || !btnEl) return;
+  const uid = currentUser.uid;
+  const collection = (typeof currentFeedPostCollection !== 'undefined' && currentFeedPostCollection) || 'feed';
+  const wasLiked = btnEl.classList.contains('liked');
+  const willBeLiked = !wasLiked;
+
+  /* --- Optimistic UI update ---------------------------------- */
+  btnEl.classList.toggle('liked', willBeLiked);
+  btnEl.setAttribute('aria-label', willBeLiked ? 'Unlike comment' : 'Like comment');
+  const iconSlot = btnEl.querySelector('[data-reply-like-icon]');
+  if (iconSlot) iconSlot.innerHTML = getScreenListHeartIconSvg(willBeLiked);
+  const countSlot = btnEl.querySelector('[data-reply-like-count]');
+  if (countSlot) {
+    let current = Number(String(countSlot.textContent || '').trim() || 0);
+    current = Math.max(0, current + (willBeLiked ? 1 : -1));
+    countSlot.textContent = current > 0 ? String(current) : '';
+  }
+
+  /* --- Server: read-modify-write the replies array ------------ */
+  try {
+    const ref = db.collection(collection).doc(postId);
+    const doc = await ref.get();
+    if (!doc.exists) throw new Error('Post no longer exists');
+    const data = doc.data() || {};
+    const replies = Array.isArray(data.replies) ? data.replies : [];
+    const idx = replies.findIndex(r => String(r && r.id) === String(replyId));
+    if (idx === -1) throw new Error('Reply not found in post');
+    const target = { ...(replies[idx] || {}) };
+    const likes = Array.isArray(target.likes) ? [...target.likes] : [];
+    const has = likes.includes(uid);
+    if (willBeLiked) {
+      if (!has) likes.push(uid);
+    } else {
+      const removeAt = likes.indexOf(uid);
+      if (removeAt !== -1) likes.splice(removeAt, 1);
+    }
+    target.likes = likes;
+    const newReplies = [...replies];
+    newReplies[idx] = target;
+    await ref.update({ replies: newReplies });
+    /* v10.145: removed the `comment_like` notification trigger. The
+       rebuilt notifications system supports only 4 types
+       (activity_like, activity_comment, friend_request, friend_accept);
+       likes on individual comments are not one of them, so we no
+       longer write a notification doc here. The like itself still
+       persists to the comment's `likes` array above. */
+  } catch (err) {
+    console.error('[v10.79] toggleFeedReplyLike failed — reverting optimistic UI:', err);
+    /* Revert UI on failure so we don't show a state that didn't persist. */
+    btnEl.classList.toggle('liked', wasLiked);
+    btnEl.setAttribute('aria-label', wasLiked ? 'Unlike comment' : 'Like comment');
+    if (iconSlot) iconSlot.innerHTML = getScreenListHeartIconSvg(wasLiked);
+    if (countSlot) {
+      let current = Number(String(countSlot.textContent || '').trim() || 0);
+      current = Math.max(0, current + (wasLiked ? 1 : -1));
+      countSlot.textContent = current > 0 ? String(current) : '';
+    }
+  }
+}
+window.toggleFeedReplyLike = toggleFeedReplyLike;
+
 async function toggleFeedLike(postId, btnEl) {
   if (!currentUser || !postId) return;
 
   const isLiked = btnEl.classList.contains('liked');
+  setScreenListActivityLikeButtonVisualState(btnEl, !isLiked);
 
   try {
     if (isLiked) {
@@ -2642,9 +3403,24 @@ async function toggleFeedLike(postId, btnEl) {
     const doc = await postRef.get();
     if (doc.exists) {
       const activity = { ...doc.data(), id: postId, _collection: 'feed' };
+      if (!isLiked) {
+        /* v10.145: live notification trigger — friend likes your feed
+           post. Normalized type 'activity_like' is the canonical one;
+           createActivityNotification also accepts 'feed_like' and
+           remaps internally for safety. */
+        await createActivityNotification({
+          recipientUid: getActivityNotificationOwnerUid(activity),
+          type: 'activity_like',
+          targetActivityId: postId,
+          targetKind: 'feed',
+          targetCollection: 'feed',
+          activity
+        });
+      }
       refreshVisibleActivityInteractionCards(postId, activity);
     }
   } catch(err) {
+    setScreenListActivityLikeButtonVisualState(btnEl, isLiked);
     console.error('Error toggling like:', err);
   }
 }
@@ -2705,138 +3481,291 @@ async function playTrailerVideo(trailerId) {
   if (typeof showToast === 'function') showToast('Trailer not available');
 }
 
-function showTrailerModal(youtubeKey, title) {
-  // Check if mobile
-  const isMobile = window.innerWidth <= 768;
-  
-  if (isMobile) {
-    // On mobile: create container with close button
-    const container = document.createElement('div');
-    container.id = 'trailer-fullscreen-container';
-    container.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: #000;
-      z-index: 999999;
-      display: flex;
-      flex-direction: column;
-    `;
-    
-    // Close button
-    const closeBtn = document.createElement('button');
-    closeBtn.style.cssText = `
-      position: absolute;
-      top: max(12px, env(safe-area-inset-top));
-      right: 12px;
-      z-index: 1000000;
-      background: rgba(0, 0, 0, 0.8);
-      border: none;
-      color: #fff;
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      backdrop-filter: blur(10px);
-    `;
-    closeBtn.innerHTML = `
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M18 6L6 18M6 6l12 12"/>
-      </svg>
-    `;
-    closeBtn.onclick = () => closeTrailerModal();
-    
-    const iframeWrapper = document.createElement('div');
-    iframeWrapper.style.cssText = `
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-    `;
-    
-    const iframe = document.createElement('iframe');
-    iframe.style.cssText = 'width: 100%; height: 100%; border: none;';
-    iframe.src = `https://www.youtube.com/embed/${youtubeKey}?autoplay=1&playsinline=0&rel=0&modestbranding=1`;
-    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen';
-    iframe.allowFullscreen = true;
-    
-    iframeWrapper.appendChild(iframe);
-    container.appendChild(closeBtn);
-    container.appendChild(iframeWrapper);
-    document.body.appendChild(container);
-    document.body.style.overflow = 'hidden';
-    
-    // Try to request fullscreen (may not work on all mobile browsers)
-    setTimeout(() => {
-      if (iframe.requestFullscreen) {
-        iframe.requestFullscreen().catch(err => {
-          console.log('Fullscreen not available:', err.message);
-        });
-      } else if (iframe.webkitRequestFullscreen) {
-        iframe.webkitRequestFullscreen();
-      }
-    }, 100);
-    
-    // Close when fullscreen exits (if it was entered)
-    const onFullscreenChange = () => {
-      if (!document.fullscreenElement && 
-          !document.webkitFullscreenElement && 
-          !document.mozFullScreenElement && 
-          !document.msFullscreenElement) {
-        // Don't auto-close, let user use close button
-        console.log('Fullscreen exited');
-      }
-    };
-    
-    document.addEventListener('fullscreenchange', onFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
-    
-    // Store cleanup function
-    container._cleanup = () => {
-      document.removeEventListener('fullscreenchange', onFullscreenChange);
-      document.removeEventListener('webkitfullscreenchange', onFullscreenChange);
-    };
-    
-  } else {
-    // On desktop: show modal with close button
-    const modalHtml = `
-      <div id="trailer-video-modal" class="overlay-page" style="display:block;background:rgba(0,0,0,0.95);z-index:999999;">
-        <div class="overlay-page-inner">
-          <div class="overlay-page-header">
-            <button class="overlay-page-back-btn" onclick="closeTrailerModal()">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M19 12H5M12 19l-7-7 7-7"/>
-              </svg>
-            </button>
-            <h2 class="overlay-page-title">${escHtml(title || 'Trailer')}</h2>
-          </div>
-          <div style="padding:16px;max-width:900px;margin:0 auto;">
-            <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;">
-              <iframe 
-                style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;"
-                src="https://www.youtube.com/embed/${escAttr(youtubeKey)}?autoplay=1&rel=0&modestbranding=1"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowfullscreen>
-              </iframe>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-    
-    const existing = document.getElementById('trailer-video-modal');
-    if (existing) existing.remove();
-    
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    document.body.style.overflow = 'hidden';
+function buildFullscreenTrailerEmbedSrc(youtubeKey) {
+  const key = String(youtubeKey || '').trim();
+  const params = new URLSearchParams({
+    autoplay: '1',
+    mute: '1',
+    playsinline: '1',
+    rel: '0',
+    controls: '1',
+    enablejsapi: '1',
+    origin: window.location.origin
+  });
+  return `https://www.youtube.com/embed/${encodeURIComponent(key)}?${params.toString()}`;
+}
+
+function requestFullscreenTrailerPlayback(iframe) {
+  if (!iframe?.contentWindow) return;
+  try {
+    sendFullscreenTrailerCommand(iframe, 'mute');
+    sendFullscreenTrailerCommand(iframe, 'playVideo');
+  } catch (error) {
+    console.warn('Trailer autoplay request was blocked:', error);
   }
 }
+
+function sendFullscreenTrailerCommand(iframe, command, args = []) {
+  if (!iframe?.contentWindow || !command) return false;
+  try {
+    iframe.contentWindow.postMessage(JSON.stringify({
+      event: 'command',
+      func: command,
+      args
+    }), '*');
+    return true;
+  } catch (error) {
+    console.warn('Trailer player command failed:', command, error);
+    return false;
+  }
+}
+
+function ensureShelfdTrailerOverlayStyles() {
+  if (document.getElementById('shelfd-trailer-overlay-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'shelfd-trailer-overlay-styles';
+  style.textContent = `
+    #trailer-fullscreen-container.shelfd-trailer-overlay {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      z-index: 999999;
+      display: block;
+      background:
+        radial-gradient(circle at 50% -10%, rgba(196,181,253,.14), transparent 34rem),
+        #000;
+      color: #fff;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+    .shelfd-trailer-topbar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: max(12px, calc(env(safe-area-inset-top, 0px) + 10px)) 14px 10px;
+      pointer-events: none;
+    }
+    .shelfd-trailer-title {
+      min-width: 0;
+      margin: 0;
+      color: rgba(255,255,255,.88);
+      font: 800 13px/1.15 'DM Sans', sans-serif;
+      letter-spacing: -.01em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-shadow: 0 1px 12px rgba(0,0,0,.65);
+      pointer-events: none;
+    }
+    .shelfd-trailer-close,
+    .shelfd-trailer-mute {
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(12,11,18,.72);
+      color: #fff;
+      box-shadow: 0 14px 34px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.08);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      pointer-events: auto;
+    }
+    .shelfd-trailer-close {
+      width: 44px;
+      height: 44px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+    }
+    .shelfd-trailer-stage {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+    .shelfd-trailer-wake-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      opacity: 0;
+      pointer-events: auto;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .shelfd-trailer-overlay.controls-visible .shelfd-trailer-wake-layer {
+      pointer-events: none;
+    }
+    .shelfd-trailer-frame {
+      width: min(100vw, calc(100vh * 16 / 9));
+      width: min(100vw, calc(100dvh * 16 / 9));
+      height: min(100vh, calc(100vw * 9 / 16));
+      height: min(100dvh, calc(100vw * 9 / 16));
+      background: #000;
+      overflow: hidden;
+      transform: translate3d(0,0,0);
+    }
+    .shelfd-trailer-frame iframe {
+      width: 100%;
+      height: 100%;
+      display: block;
+      border: 0;
+      background: #000;
+    }
+    .shelfd-trailer-controls {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 5;
+      display: flex;
+      justify-content: center;
+      padding: 10px 16px max(22px, calc(env(safe-area-inset-bottom, 0px) + 16px));
+      opacity: 1;
+      transform: translate3d(0,0,0);
+      transition: opacity 220ms ease, transform 220ms cubic-bezier(.22,1,.36,1);
+    }
+    .shelfd-trailer-controls.is-hidden,
+    .shelfd-trailer-topbar.is-hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .shelfd-trailer-mute {
+      min-width: 124px;
+      min-height: 44px;
+      border-radius: 999px;
+      padding: 0 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      color: rgba(255,255,255,.95);
+      font: 900 13px/1 'DM Sans', sans-serif;
+    }
+    .shelfd-trailer-mute svg,
+    .shelfd-trailer-close svg {
+      color: #c4b5fd;
+    }
+    @media (min-aspect-ratio: 16/9) {
+      .shelfd-trailer-frame {
+        width: min(100vw, calc(100vh * 16 / 9));
+        width: min(100vw, calc(100dvh * 16 / 9));
+        height: min(100vh, calc(100vw * 9 / 16));
+        height: min(100dvh, calc(100vw * 9 / 16));
+      }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function getShelfdTrailerMuteLabel(muted = true) {
+  return muted ? 'Muted' : 'Sound On';
+}
+
+function getShelfdTrailerMuteIcon(muted = true) {
+  return muted
+    ? `<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"></path><path d="m22 9-6 6"></path><path d="m16 9 6 6"></path></svg>`
+    : `<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"></path><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M18.5 5.5a9 9 0 0 1 0 13"></path></svg>`;
+}
+
+function updateShelfdTrailerMuteButton(button, muted = true) {
+  if (!button) return;
+  button.dataset.muted = muted ? '1' : '0';
+  button.setAttribute('aria-label', muted ? 'Unmute trailer' : 'Mute trailer');
+  button.innerHTML = `${getShelfdTrailerMuteIcon(muted)}<span>${getShelfdTrailerMuteLabel(muted)}</span>`;
+}
+
+function revealShelfdTrailerControls(container) {
+  const topbar = container?.querySelector?.('.shelfd-trailer-topbar');
+  const controls = container?.querySelector?.('.shelfd-trailer-controls');
+  if (!container || !topbar || !controls) return;
+  container.classList.add('controls-visible');
+  topbar.classList.remove('is-hidden');
+  controls.classList.remove('is-hidden');
+  clearTimeout(container._controlsTimer);
+  container._controlsTimer = setTimeout(() => {
+    container.classList.remove('controls-visible');
+    topbar.classList.add('is-hidden');
+    controls.classList.add('is-hidden');
+  }, 3400);
+}
+
+function toggleShelfdTrailerMute(button) {
+  const container = button?.closest?.('#trailer-fullscreen-container');
+  const iframe = container?.querySelector?.('iframe');
+  if (!container || !iframe) return;
+  const nextMuted = container.dataset.trailerMuted === '0';
+  container.dataset.trailerMuted = nextMuted ? '1' : '0';
+  updateShelfdTrailerMuteButton(button, nextMuted);
+  sendFullscreenTrailerCommand(iframe, nextMuted ? 'mute' : 'unMute');
+  if (!nextMuted) sendFullscreenTrailerCommand(iframe, 'playVideo');
+  revealShelfdTrailerControls(container);
+}
+
+function showTrailerModal(youtubeKey, title) {
+  const embedSrc = buildFullscreenTrailerEmbedSrc(youtubeKey);
+  ensureShelfdTrailerOverlayStyles();
+  closeTrailerModal();
+
+  const container = document.createElement('div');
+  container.id = 'trailer-fullscreen-container';
+  container.className = 'shelfd-trailer-overlay';
+  container.dataset.trailerMuted = '1';
+  container.innerHTML = `
+    <div class="shelfd-trailer-topbar">
+      <h2 class="shelfd-trailer-title">${escHtml(title || 'Trailer')}</h2>
+      <button class="shelfd-trailer-close" type="button" onclick="closeTrailerModal()" aria-label="Close trailer">
+        <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="shelfd-trailer-stage">
+      <div class="shelfd-trailer-frame">
+        <iframe src="${escAttr(embedSrc)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" title="${escAttr(title || 'Trailer')}"></iframe>
+      </div>
+      <button class="shelfd-trailer-wake-layer" type="button" aria-label="Show trailer controls"></button>
+    </div>
+    <div class="shelfd-trailer-controls">
+      <button class="shelfd-trailer-mute" type="button" onclick="toggleShelfdTrailerMute(this)" aria-label="Unmute trailer"></button>
+    </div>
+  `;
+
+  const iframe = container.querySelector('iframe');
+  const muteButton = container.querySelector('.shelfd-trailer-mute');
+  const wakeLayer = container.querySelector('.shelfd-trailer-wake-layer');
+  updateShelfdTrailerMuteButton(muteButton, true);
+  iframe.onload = () => {
+    requestFullscreenTrailerPlayback(iframe);
+    setTimeout(() => requestFullscreenTrailerPlayback(iframe), 240);
+  };
+  wakeLayer?.addEventListener('click', () => revealShelfdTrailerControls(container));
+  container.addEventListener('pointerdown', (event) => {
+    if (event.target.closest('button')) return;
+    revealShelfdTrailerControls(container);
+  }, { passive: true });
+  container.addEventListener('touchstart', () => revealShelfdTrailerControls(container), { passive: true });
+  document.body.appendChild(container);
+  document.body.style.overflow = 'hidden';
+  revealShelfdTrailerControls(container);
+}
+
+window.requestFullscreenTrailerPlayback = requestFullscreenTrailerPlayback;
+window.toggleShelfdTrailerMute = toggleShelfdTrailerMute;
 
 function closeTrailerModal() {
   console.log('Closing trailer modal...');
@@ -2955,6 +3884,7 @@ async function openMediaProfileFromTrailer(content, triggerEl = null) {
 let currentFeedPostId = null;
 let currentFeedPostActivityId = null;
 let currentFeedPostCollection = 'feed';
+let currentFeedPostActivityData = null;
 let currentFeedReplyParentId = '';
 let feedPostSwipeBackReady = false;
 let feedPostSwipeBackState = null;
@@ -3159,6 +4089,7 @@ async function openFeedPostPage(postId) {
   currentFeedPostId = postId;
   currentFeedPostActivityId = postId;
   currentFeedPostCollection = 'feed';
+  currentFeedPostActivityData = null;
   
   const page = document.getElementById('feed-post-page');
   console.log('feed-post-page element:', page ? 'found' : 'NOT FOUND');
@@ -3223,6 +4154,7 @@ async function openFeedPostPage(postId) {
     }
     
     const post = { ...doc.data(), id: doc.id };
+    currentFeedPostActivityData = { ...post, _collection: 'feed' };
     setFeedPostPageDeleteButton(postId, 'feed', !!(currentUser && post.uid === currentUser.uid));
     console.log('Post data:', post);
     
@@ -3290,6 +4222,10 @@ function buildFeedPostDetailHTML(post, postId) {
       </button>`;
   }
 
+  /* v10.79: action row (reply + like with counts) removed from the comment
+     sheet — it duplicated the same row the user already tapped on the activity
+     card to open this sheet. The card outside the sheet still shows those
+     counts; this view focuses on the post body + comments. */
   return `
     <article class="x-post-detail-card" data-activity-card-id="${escAttr(postId)}" data-post-id="${escAttr(postId)}">
       <div class="x-post-main-row">
@@ -3301,14 +4237,6 @@ function buildFeedPostDetailHTML(post, postId) {
           </div>
           ${postContentHtml || '<div class="x-post-text">Post</div>'}
         </div>
-      </div>
-      <div class="x-post-actions-row" data-activity-interactions>
-        <button class="x-post-action-btn" data-activity-action="reply" type="button" onclick="focusFeedReplyInput()">
-          ${getScreenListReplyIconSvg()}<span data-activity-reply-count>${replies.length}</span>
-        </button>
-        <button class="x-post-action-btn ${isLiked ? 'liked' : ''}" data-activity-action="like" type="button" onclick="toggleFeedLike('${escAttr(postId)}', this)">
-          <span data-like-icon-slot>${getScreenListHeartIconSvg(isLiked)}</span><span data-activity-like-count>${likes.length}</span>
-        </button>
       </div>
     </article>`;
 }
@@ -3340,14 +4268,23 @@ function buildActivityPostDetailHTML(activity, activityId, collection = 'activit
     : '';
 
   let actionText = getActivityVerbPhrase(eventType, item);
-  let ratingHtml = '';
-  if (eventType === 'rated') {
-    const rating = Number(item.rating || 0);
-    actionText = `rated ${formatRatingValueForSection(rating, section, true)}`;
-    const filledStars = Math.round(rating / 2);
+  /* v10.79: unified rating-stars block. Was only built for `rated` events
+     and lived next to the action text; now built for ANY event when the
+     item has a non-zero rating, and used to REPLACE the cyan event-meta
+     line (e.g. "FINISHED WATCHING! • TV SHOW") at the bottom of the post
+     body — that line was redundant with the sheet's own context. The
+     in-line "rated 8/10" actionText for `rated` events is unchanged so
+     the user still sees the score they gave. */
+  const itemRatingValue = Number(item.rating || 0);
+  let activityStarsHtml = '';
+  if (itemRatingValue > 0) {
+    const filledStars = Math.round(itemRatingValue / 2);
     let stars = '';
     for (let i = 1; i <= 5; i += 1) stars += `<span class="activity-star ${i <= filledStars ? 'lit' : 'dim'}">★</span>`;
-    ratingHtml = `<div class="x-post-stars">${stars}</div>`;
+    activityStarsHtml = `<div class="x-post-stars x-post-stars--meta-replacement">${stars}</div>`;
+  }
+  if (eventType === 'rated') {
+    actionText = `rated ${formatRatingValueForSection(itemRatingValue, section, true)}`;
   }
 
   if (eventType === 'added') actionText = `added to ${section === 'games' ? 'library' : 'shelf'}`;
@@ -3355,8 +4292,15 @@ function buildActivityPostDetailHTML(activity, activityId, collection = 'activit
   if (eventType === 'started') actionText = section === 'games' ? 'started playing' : 'started watching';
 
   const commentHtml = activity.commentText ? `<div class="x-post-text">${escHtml(String(activity.commentText))}</div>` : '';
-  const detailLabel = [meta.label, sectionLabel].filter(Boolean).join(' · ');
 
+  /* v10.79:
+     - Cyan event-meta line (e.g. "FINISHED WATCHING! · TV SHOW") removed.
+       Replaced with the user's star rating when one exists; otherwise nothing
+       is rendered. The activity card OUTSIDE the sheet still shows the
+       cyan label — it's only redundant inside the sheet.
+     - Action row (reply + like + delete) removed from the sheet for the
+       same reason: the card outside already has them, and deletion is
+       offered via the sheet's top-bar delete button (#feed-post-delete-top-btn). */
   return `
     <article class="x-post-detail-card activity-detail-post ${meta.topClass}" data-activity-card-id="${escAttr(activityId)}" data-activity-id="${escAttr(activityId)}">
       <div class="x-post-main-row">
@@ -3368,20 +4312,10 @@ function buildActivityPostDetailHTML(activity, activityId, collection = 'activit
           </div>
           <div class="x-post-action-text">${escHtml(actionText)}</div>
           <div class="x-post-title">${escHtml(title)}</div>
-          ${ratingHtml}
           ${commentHtml}
-          <div class="x-post-meta-line"><span class="activity-event-label ${meta.labelClass}">${escHtml(detailLabel)}</span></div>
+          ${activityStarsHtml}
         </div>
         ${posterHtml}
-      </div>
-      <div class="x-post-actions-row" data-activity-interactions>
-        <button class="x-post-action-btn" data-activity-action="reply" type="button" onclick="focusFeedReplyInput()">
-          ${getScreenListReplyIconSvg()}<span data-activity-reply-count>${replies.length}</span>
-        </button>
-        <button class="x-post-action-btn ${isLiked ? 'liked' : ''}" data-activity-action="like" type="button" onclick="toggleActivityLike('${escAttr(activityId)}', this)">
-          <span data-like-icon-slot>${getScreenListHeartIconSvg(isLiked)}</span><span data-activity-like-count>${likes.length}</span>
-        </button>
-        ${canCurrentUserDeleteActivity(activity) ? `<button class="x-post-action-btn" data-activity-action="delete" type="button" onclick="openScreenListDeletePostPrompt('${escAttr(activityId)}','${escAttr(collection)}')">${getScreenListTrashIconSvg()}</button>` : ''}
       </div>
     </article>`;
 }
@@ -3421,6 +4355,7 @@ function closeFeedPostPage() {
   currentFeedPostId = null;
   currentFeedPostActivityId = null;
   currentFeedPostCollection = 'feed';
+  currentFeedPostActivityData = null;
 }
 
 // v430: Instagram-style bottom sheet plumbing for the feed-post-page (comments).
@@ -3633,6 +4568,7 @@ function installShelfdFeedSheetGestures(page) {
       currentFeedPostId = null;
       currentFeedPostActivityId = null;
       currentFeedPostCollection = 'feed';
+      currentFeedPostActivityData = null;
     } else {
       // Snap back: clear inline transform → .is-open CSS rule animates back to 0.
       clearDragTransform(inner);
@@ -3671,7 +4607,8 @@ function initReplyComposer() {
   const initial = name.charAt(0).toUpperCase();
   
   if (photo) {
-    avatar.innerHTML = `<img src="${escAttr(photo)}" alt="">`;
+    /* v10.62: decoding="async" lets Safari decode off the main thread. */
+    avatar.innerHTML = `<img src="${escAttr(photo)}" alt="" decoding="async">`;
   } else {
     avatar.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#a78bfa;">${initial}</div>`;
   }
@@ -3730,6 +4667,7 @@ async function submitFeedReply() {
     const latest = await ref.get();
     const latestActivity = latest.exists
       ? {
+          ...(currentFeedPostActivityData || {}),
           ...latest.data(),
           id: activityCardId || currentFeedPostId,
           activityId: activityCardId || currentFeedPostId,
@@ -3738,6 +4676,7 @@ async function submitFeedReply() {
           _collection: collection
         }
       : {
+          ...(currentFeedPostActivityData || {}),
           id: activityCardId || currentFeedPostId,
           activityId: activityCardId || currentFeedPostId,
           originalActivityId: activityCardId || currentFeedPostId,
@@ -3745,6 +4684,27 @@ async function submitFeedReply() {
           replies: [reply],
           _collection: collection
         };
+    const latestReplies = Array.isArray(latestActivity.replies) ? latestActivity.replies : [];
+    const parentReply = parentReplyId
+      ? latestReplies.find(entry => String(entry?.id || '') === parentReplyId)
+      : null;
+    /* v10.145: live notification trigger — friend comments on your
+       activity card OR replies to your comment under it. Both events
+       collapse to a single 'activity_comment' type in the rebuilt
+       system. createActivityNotification normalizes 'comment_reply' →
+       'activity_comment' as a safety net. */
+    await createActivityNotification({
+      recipientUid: parentReplyId
+        ? String(parentReply?.uid || '').trim()
+        : getActivityNotificationOwnerUid(latestActivity),
+      type: 'activity_comment',
+      targetActivityId: activityCardId || currentFeedPostId,
+      targetKind: collection === 'feed' ? 'feed' : 'activity',
+      targetCollection: collection,
+      targetCommentId: parentReplyId ? parentReplyId : replyId,
+      activity: latestActivity,
+      textSnippet: text
+    });
     refreshVisibleActivityInteractionCards(activityCardId || currentFeedPostId, latestActivity);
 
     const rawMemory = friendActivityClickTargets[activityCardId || currentFeedPostId];
@@ -3977,6 +4937,14 @@ function getActivityDisplayAction(eventType = '', item = {}, activity = {}) {
   }
 
   if (eventType === 'import-batch' || activity.type === 'import-batch') return 'imported titles';
+  /* v10.220: media-review post type — verb reads "wrote a review". */
+  if (eventType === 'review' || activity.type === 'media-review') return 'wrote a review';
+  /* v10.238: music section completion verb. Music storage uses status='watched'
+     internally (single-status model), so 'completed' / 'status-changed→watched'
+     / 'added→watched' all surface here as "listened". */
+  if (section === 'music' && (isCompletionEvent || (eventType === 'added' && status === 'watched'))) {
+    return 'listened';
+  }
   /* v728: capitalise "Rated" so it lines up with the new card metadata format */
   if (eventType === 'rated') return 'rated';
   if (eventType === 'commented' || activity.type === 'comment') return 'commented';
@@ -4134,12 +5102,17 @@ function buildStackedActivityPosterDeckHTML(items = [], activityId = '') {
     if (!cover) return null;
     return {
       cover,
-      title: item.title || item.name || 'Untitled'
+      title: item.title || item.name || 'Untitled',
+      section: String(item.librarySection || item.mediaCategory || '').trim()
     };
   }).filter(Boolean);
   if (posters.length < 3) return '';
   const ordered = posters.slice().reverse();
-  return `<button type="button" class="sl-activity-poster sl-activity-poster-stack" data-inline-stack-toggle onclick="event.stopPropagation(); toggleScreenListInlineActivityStack('${escAttr(activityId)}', event)" aria-label="Open grouped activity stack">
+  /* v10.252: if every poster in the stack belongs to the music section,
+     tag the deck with --music so CSS can lock the cards to 1:1 squares. */
+  const allMusic = posters.every(p => p.section === 'music');
+  const musicClass = allMusic ? ' sl-activity-poster-stack--music' : '';
+  return `<button type="button" class="sl-activity-poster sl-activity-poster-stack${musicClass}" data-inline-stack-toggle onclick="event.stopPropagation(); toggleScreenListInlineActivityStack('${escAttr(activityId)}', event)" aria-label="Open grouped activity stack">
     ${ordered.map((poster, index) => `<span class="sl-activity-poster-stack-card sl-activity-poster-stack-card-${index + 1}" aria-hidden="true"><img class="sl-activity-poster-img" src="${escAttr(poster.cover)}" alt="${escAttr(poster.title)}" loading="lazy"></span>`).join('')}
   </button>`;
 }
@@ -4189,6 +5162,44 @@ function buildStackedActivityCardHTML(a = {}, activityId = '', options = {}) {
     </div>`;
 }
 
+/* v10.220 / v10.225 / v10.239: open the FPReview from an activity-feed card.
+   - Media-review posts resolve via the feed-post synth (item.id == postId).
+   - Completion cards have no media-review post yet, so we route by the
+     activity's underlying item.id + librarySection. The FPReview's
+     synthesize-from-activity fallback picks them up via the activity click
+     targets map.
+   - v10.239: live-resolve the map. Earlier versions only read
+     `window.friendActivityClickTargets`, which was a stale init-time copy
+     after the renderer reassigned the bare variable. Now we try the bare
+     module reference first (via Function trampoline) before window. */
+function _resolveClickTargets() {
+  try {
+    // eslint-disable-next-line no-new-func
+    const live = new Function('try { return typeof friendActivityClickTargets !== "undefined" ? friendActivityClickTargets : null; } catch (_) { return null; }')();
+    if (live && typeof live === 'object') return live;
+  } catch (_) {}
+  if (typeof window !== 'undefined' && window.friendActivityClickTargets && typeof window.friendActivityClickTargets === 'object') {
+    return window.friendActivityClickTargets;
+  }
+  return null;
+}
+window.openMediaReviewFromActivityCard = function(activityId) {
+  if (typeof openFullPageMediaReview !== 'function') {
+    console.warn('[v10.239] openFullPageMediaReview missing — cannot route View Review');
+    return;
+  }
+  const id = String(activityId || '');
+  const targets = _resolveClickTargets();
+  const activity = targets && targets[id] ? targets[id] : null;
+  const item = activity && activity.item ? activity.item : null;
+  if (item && item.id) {
+    const section = item.librarySection || item.mediaCategory || '';
+    try { openFullPageMediaReview(item.id, section); return; } catch (e) { console.warn('[v10.239] openFullPageMediaReview(item.id) threw:', e); }
+  }
+  // Fall back to the post-id path (used by media-review posts).
+  try { openFullPageMediaReview(id, ''); } catch (e) { console.warn('[v10.239] openFullPageMediaReview(postId) threw:', e); }
+};
+
 function buildActivityCardHTML(a, activityId, options = {}) {
   if (a.type === 'activity-stack' && !options.renderStackPrimary) {
     return buildStackedActivityCardHTML(a, activityId, options);
@@ -4199,6 +5210,14 @@ function buildActivityCardHTML(a, activityId, options = {}) {
   if (a.type === 'post' || a.type === 'trailer' || a.type === 'card-comment') {
     return buildFeedPostCardHTML(a, activityId, options);
   }
+
+  /* v10.220: media-review posts use the standard activity card layout
+     (avatar / name / poster on the right), but with:
+       - a vertical body stack: "wrote a review" → {title} → {stars}
+       - card click that opens the Full Page Review (not the reply page)
+       - layers icon in the actions row for non-owner viewers (also opens FPR)
+       - no + (note) button for the owner (handled in canCurrentUserNoteActivity) */
+  const isMediaReview = a.type === 'media-review' || a.eventType === 'review';
 
   const hideActorName = !!options.hideActorName;
   const item = a.item || {};
@@ -4223,11 +5242,14 @@ function buildActivityCardHTML(a, activityId, options = {}) {
   const actorPhoto = String(avatarSrc || '').trim();
   const mediaCover = itemCover && itemCover !== actorPhoto ? itemCover : '';
   const posterClick = `event.stopPropagation(); handleActivityMediaClick('${escAttr(activityId)}', this)`;
+  /* v10.236: tag music posters so CSS can lock them to a 1:1 square aspect
+     — album art is always square. */
+  const posterMusicClass = section === 'music' ? ' sl-activity-poster--music' : '';
   const posterHtml = options.stackPosterDeckHtml || (mediaCover
-    ? `<button type="button" class="sl-activity-poster" data-activity-game-poster="${section === 'games' ? '1' : '0'}" data-activity-game-activity-id="${escAttr(activityId)}" data-game-title="${escAttr(title)}" data-rawg-id="${escAttr(getGameRawgIdValue(item) || '')}" data-steam-app-id="${escAttr(item.steamAppId || item.appId || '')}" onclick="${posterClick}" aria-label="Open ${escAttr(title)} media profile"><img class="sl-activity-poster-img" src="${escAttr(mediaCover)}" alt="${escAttr(title)}" loading="lazy"></button>`
+    ? `<button type="button" class="sl-activity-poster${posterMusicClass}" data-activity-game-poster="${section === 'games' ? '1' : '0'}" data-activity-game-activity-id="${escAttr(activityId)}" data-game-title="${escAttr(title)}" data-rawg-id="${escAttr(getGameRawgIdValue(item) || '')}" data-steam-app-id="${escAttr(item.steamAppId || item.appId || '')}" onclick="${posterClick}" aria-label="Open ${escAttr(title)} media profile"><img class="sl-activity-poster-img" src="${escAttr(mediaCover)}" alt="${escAttr(title)}" loading="lazy"></button>`
     : (section === 'games'
       ? `<button type="button" class="sl-activity-poster sl-activity-poster-empty screenlist-game-cover-pending" data-activity-game-poster="1" data-activity-game-activity-id="${escAttr(activityId)}" data-game-title="${escAttr(title)}" data-rawg-id="${escAttr(getGameRawgIdValue(item) || '')}" data-steam-app-id="${escAttr(item.steamAppId || item.appId || '')}" onclick="${posterClick}" aria-label="Open ${escAttr(title)} media profile"><span>${escHtml(title || 'Shelfd')}</span></button>`
-      : `<button type="button" class="sl-activity-poster sl-activity-poster-empty" onclick="${posterClick}" aria-label="Open ${escAttr(title)} media profile"><span>${escHtml((sectionLabel || title || '?').charAt(0).toUpperCase())}</span></button>`));
+      : `<button type="button" class="sl-activity-poster sl-activity-poster-empty${posterMusicClass}" onclick="${posterClick}" aria-label="Open ${escAttr(title)} media profile"><span>${escHtml((sectionLabel || title || '?').charAt(0).toUpperCase())}</span></button>`));
 
   /* v554/557/560: rating chip selector
      - 'episode-rated' (or merged watch+episode-rated) card → compact "★ N"
@@ -4269,18 +5291,47 @@ function buildActivityCardHTML(a, activityId, options = {}) {
   const stackExtraCount = Math.max(0, Number(options.stackExtraCount || 0));
   const stackActivityId = options.stackActivityId || activityId;
   const stackExtraHtml = stackExtraCount > 0 ? `
-      <button class="sl-activity-action-btn activity-interaction-btn sl-activity-stack-action-count" data-activity-action="stack" data-inline-stack-toggle onclick="toggleScreenListInlineActivityStack('${escAttr(stackActivityId)}', event)" aria-expanded="${screenListExpandedInlineActivityStacks.has(String(stackActivityId || '')) ? 'true' : 'false'}" aria-label="Toggle ${stackExtraCount} more grouped activities">+${stackExtraCount}</button>` : '';
+      <button class="sl-activity-action-btn activity-interaction-btn sl-activity-stack-action-count" data-activity-action="stack" data-inline-stack-toggle onclick="toggleScreenListInlineActivityStack('${escAttr(stackActivityId)}', event)" aria-expanded="${screenListExpandedInlineActivityStacks.has(String(stackActivityId || '')) ? 'true' : 'false'}" aria-label="Toggle ${stackExtraCount} more grouped activities">${getScreenListLayersIconSvg()}</button>` : '';
   const deleteHtml = canCurrentUserDeleteActivity(a) ? `
       <button class="sl-activity-action-btn activity-interaction-btn" data-activity-action="delete" onclick="event.stopPropagation(); openScreenListDeletePostPrompt('${escAttr(activityId)}','activities')" aria-label="Delete activity">
         <span class="sl-activity-icon-slot">${getScreenListTrashIconSvg()}</span>
       </button>` : '';
-  const noteHtml = canCurrentUserNoteActivity(a) ? `
-      <button class="sl-activity-action-btn activity-interaction-btn" data-activity-action="note" onclick="event.stopPropagation(); openScreenListActivityNoteComposer('${escAttr(activityId)}')" aria-label="Add note to activity">
-        <span class="sl-activity-icon-slot">${getScreenListPlusIconSvg()}</span>
+  /* v10.242: removed the + (note) button from all activity cards. The new
+     "View review" link in the bottom row is the discovery path to the
+     Full Page Review where notes can live; the inline + on the card was
+     redundant. Kept the helper around for any legacy reference paths but
+     no longer rendered. */
+  const noteHtml = '';
+  /* v10.220: layers icon for media-review activity cards when the viewer
+     ISN'T the author. Opens the Full Page Review. Owners don't get this
+     because the whole card click already opens FPReview for them too. */
+  const mediaReviewLayersHtml = (isMediaReview && currentUser?.uid && a.uid && String(a.uid) !== String(currentUser.uid)) ? `
+      <button class="sl-activity-action-btn activity-interaction-btn" data-activity-action="open-review" onclick="event.stopPropagation(); openMediaReviewFromActivityCard('${escAttr(activityId)}')" aria-label="Open review">
+        <span class="sl-activity-icon-slot">${getScreenListLayersIconSvg()}</span>
       </button>` : '';
+  /* v10.240: "View review" lives in the bottom interactions row, to the
+     right of the like/reply/delete cluster. Same _shouldShowViewReviewLink
+     gate as before — wrote a review / watched / played / listened /
+     finished watching. */
+  const _actionLowerForBottom = String(activityAction || '').toLowerCase();
+  const _isCompletionRouteBottom = (
+    _actionLowerForBottom === 'watched' ||
+    _actionLowerForBottom === 'played' ||
+    _actionLowerForBottom === 'listened' ||
+    _actionLowerForBottom === 'finished watching' ||
+    eventType === 'completed' ||
+    eventType === 'season-finished' ||
+    ((eventType === 'status-changed' || eventType === 'added') && String(a?.nextStatus || a?.item?.status || '').toLowerCase() === 'watched')
+  );
+  const _showBottomViewReview = isMediaReview || _isCompletionRouteBottom;
+  const bottomViewReviewHtml = _showBottomViewReview
+    ? `<button type="button" class="sl-activity-view-review-bottom" data-activity-action="view-review" onclick="event.stopPropagation(); openMediaReviewFromActivityCard('${escAttr(activityId)}')" aria-label="View review">View review</button>`
+    : '';
+
   const interactionsHtml = options.hideInteractions ? '' : `
     <div class="sl-activity-actions activity-interactions" data-activity-interactions>
       ${stackExtraHtml}
+      ${mediaReviewLayersHtml}
       ${noteHtml}
       <button class="sl-activity-action-btn activity-interaction-btn ${isLiked ? 'liked' : ''}" data-activity-action="like" onclick="event.stopPropagation(); toggleActivityLike('${escAttr(activityId)}', this)" aria-label="Like activity">
         <span class="sl-activity-icon-slot" data-like-icon-slot>${getScreenListHeartIconSvg(isLiked)}</span>
@@ -4289,7 +5340,7 @@ function buildActivityCardHTML(a, activityId, options = {}) {
       <button class="sl-activity-action-btn activity-interaction-btn" data-activity-action="reply" onclick="event.stopPropagation(); openActivityReplyPage('${escAttr(activityId)}')" aria-label="Open comments">
         <span class="sl-activity-icon-slot">${getScreenListReplyIconSvg()}</span>
         <span data-activity-reply-count>${replyCount}</span>
-      </button>${deleteHtml}
+      </button>${deleteHtml}${bottomViewReviewHtml}
     </div>`;
 
   const nameLine = hideActorName
@@ -4306,11 +5357,15 @@ function buildActivityCardHTML(a, activityId, options = {}) {
     ? `${String(rawActionVerb).charAt(0).toUpperCase()}${String(rawActionVerb).slice(1)}`
     : '';
   const actionDetail = actionParts ? actionParts[2] : '';
-  return `<article class="shelfd-social-card ${meta.topClass}" data-activity-card-id="${escAttr(activityId)}" data-activity-id="${escAttr(activityId)}" data-shelfd-activity-card="v4" onclick="handleScreenListActivityCardOpen('${escAttr(activityId)}','activity')">
-    <div class="sl-activity-main">
-      <div class="sl-activity-avatar-zone">${avatarHtml}</div>
-      <div class="sl-activity-copy-zone">
-        <div class="sl-activity-meta-row">${nameLine}<span class="sl-activity-dot">·</span><time class="sl-activity-time">${escHtml(timeStr)}</time></div>
+  /* v10.240: View review moved to the bottom interactions row (see
+     bottomViewReviewHtml above). Body stays clean. */
+  const cardOnclick = `handleScreenListActivityCardOpen('${escAttr(activityId)}','activity')`;
+
+  const bodyHtml = isMediaReview ? `
+        <div class="sl-media-review-action">wrote a review</div>
+        <button class="sl-media-review-title" type="button" onclick="event.stopPropagation(); openMediaReviewFromActivityCard('${escAttr(activityId)}')">${escHtml(displayTitle)}</button>
+        <div class="sl-media-review-rating">${ratingHtml}</div>
+        ${userNoteHtml}` : `
         <div class="sl-activity-action-line">
           <button class="sl-activity-headline sl-activity-title${useCombinedActionTitleHeadline ? ' sl-activity-headline-combined' : ''}" type="button" onclick="event.stopPropagation(); handleActivityMediaClick('${escAttr(activityId)}', this)">
             <span class="sl-activity-action-verb${useCombinedActionTitleHeadline ? ' sl-activity-action-verb-combined' : ''}">${escHtml(actionVerb)}</span> <span class="sl-activity-title-text${useCombinedActionTitleHeadline ? ' sl-activity-title-text-combined' : ''}">${escHtml(displayTitle)}</span>
@@ -4319,7 +5374,14 @@ function buildActivityCardHTML(a, activityId, options = {}) {
         </div>
         ${ratingHtml}
         ${userNoteHtml}
-        ${commentHtml}
+        ${commentHtml}`;
+
+  return `<article class="shelfd-social-card ${meta.topClass}${isMediaReview ? ' shelfd-media-review-card' : ''}" data-activity-card-id="${escAttr(activityId)}" data-activity-id="${escAttr(activityId)}" data-shelfd-activity-card="v4" onclick="${cardOnclick}">
+    <div class="sl-activity-main">
+      <div class="sl-activity-avatar-zone">${avatarHtml}</div>
+      <div class="sl-activity-copy-zone">
+        <div class="sl-activity-meta-row">${nameLine}<span class="sl-activity-dot">·</span><time class="sl-activity-time">${escHtml(timeStr)}</time></div>
+        ${bodyHtml}
       </div>
     </div>
     <div class="sl-activity-bottom-safe">${interactionsHtml}</div>
@@ -4369,11 +5431,11 @@ function buildActivityFeedHeaderHTML(heading = 'Activity Feed', options = {}) {
   const showSectionNav = options.showSharedWatch !== false;
   const actionButtons = [];
   if (showSectionNav) {
-    const friendWatchActive = activeActivitySubTab === 'friendWatch';
     const feedActive = activeActivitySubTab === 'feed';
+    const notificationsActive = activeActivitySubTab === 'notifications';
     const sharedWatchActive = activeActivitySubTab === 'sharedWatch';
-    actionButtons.push(`<button type="button" class="activity-shared-watch-pill friend-watch-pill ${friendWatchActive ? 'active' : 'secondary'}" aria-current="${friendWatchActive ? 'true' : 'false'}" onclick="switchActivitySubTab('friendWatch')">Watch Together ${buildSharedWatchCountBubbleHTML()}</button>`);
     actionButtons.push(`<button type="button" class="activity-shared-watch-pill activity-feed-pill ${feedActive ? 'active' : 'secondary'}" aria-current="${feedActive ? 'true' : 'false'}" onclick="switchActivitySubTab('feed')">Activity Feed</button>`);
+    actionButtons.push(`<button type="button" class="activity-shared-watch-pill notifications-tab-pill ${notificationsActive ? 'active' : 'secondary'}" aria-current="${notificationsActive ? 'true' : 'false'}" onclick="switchActivitySubTab('notifications')">Notifications</button>`);
     actionButtons.push(`<button type="button" class="activity-shared-watch-pill shared-watch-tab-pill ${sharedWatchActive ? 'active' : 'secondary'}" aria-current="${sharedWatchActive ? 'true' : 'false'}" onclick="switchActivitySubTab('sharedWatch')">Shared Watch</button>`);
   }
   if (options.hideHeading && !actionButtons.length) return '';
@@ -4382,7 +5444,14 @@ function buildActivityFeedHeaderHTML(heading = 'Activity Feed', options = {}) {
 
 
 function renderFriendActivityItems(feed, activities, options = {}) {
-  friendActivityClickTargets = {};
+  /* v10.239: clear in-place instead of `= {}`. Reassigning broke the
+     `window.friendActivityClickTargets` export — that reference was captured
+     once at module init (line 82) and stayed pointed at the original (now
+     abandoned) object, so every external caller (openMediaReviewFromActivityCard,
+     the "View review" link handler, etc.) was reading an empty map and
+     silently no-op-ing. Clearing in-place keeps the same object identity so
+     window stays in sync with every re-render. */
+  Object.keys(friendActivityClickTargets).forEach(k => { delete friendActivityClickTargets[k]; });
   activities = collapseStackedActivityBurstActivities(Array.isArray(activities) ? activities : []);
 
   if (!activities.length) {
@@ -4741,6 +5810,24 @@ async function openActivityMediaFullProfile(activity = {}, triggerEl = null) {
 function handleActivityMediaClick(activityId, triggerEl = null) {
   const activity = friendActivityClickTargets[activityId];
   if (!activity || !activity.item) return;
+  /* v10.247: music posters route to the dedicated Album Profile (full-page
+     slide-in with cover / artist / release date / tracklist / Add to Shelf).
+     Falls through to the standard media profile resolver for movies / TV /
+     anime / games. */
+  const section = activity.item.librarySection || activity.item.mediaCategory || '';
+  if (section === 'music' && typeof window.openMusicAlbumProfile === 'function') {
+    try {
+      window.openMusicAlbumProfile({
+        id: activity.item.mbid || activity.item.id || '',
+        mbid: activity.item.mbid || activity.item.id || '',
+        title: activity.item.title || '',
+        artist: activity.item.artist || '',
+        year: activity.item.year || '',
+        poster: activity.item.cover || ''
+      });
+      return;
+    } catch (_) {}
+  }
   openActivityMediaFullProfile(activity, triggerEl);
 }
 
@@ -5308,6 +6395,7 @@ async function fetchAllFriendActivities(dayLimit = 7) {
 async function loadFriendActivity() {
   if (activeFriendsTab === 'activity') {
     if (isWatchActivitySubTab()) renderActiveWatchActivitySubTab();
+    else if (activeActivitySubTab === 'notifications') renderActivityNotificationsPage();
     else loadActivityTabFeed();
   }
 }

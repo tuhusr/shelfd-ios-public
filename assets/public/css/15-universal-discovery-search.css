@@ -155,6 +155,9 @@ body.discover-universal-search-open {
   -webkit-overflow-scrolling: touch;
   padding: 16px 16px calc(20px + env(safe-area-inset-bottom, 0px));
   scrollbar-width: none;
+  /* v10.215: prevent iOS rubber-band/pull-to-refresh from competing with the
+     pull-down-to-dismiss gesture once scrollTop hits 0 */
+  overscroll-behavior-y: contain;
 }
 .discover-universal-search-body::-webkit-scrollbar { display: none; }
 .discover-universal-search-empty {
@@ -1468,6 +1471,16 @@ body.light-mode .discover-universal-search-overlay {
 
 .discover-universal-search-shelfline .discover-universal-search-body {
   padding-top: 10px !important;
+}
+
+.discover-universal-search-body #discover-universal-search-grid.discover-universal-search-preset-host {
+  display: block !important;
+  width: 100% !important;
+  padding: 0 16px calc(26px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+.discover-universal-search-panel .shelfd-search-preset-stack {
+  z-index: 8 !important;
 }
 
 @media (max-width: 390px) {
