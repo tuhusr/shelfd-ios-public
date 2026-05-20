@@ -427,6 +427,13 @@
     for (let i = 0; i < total; i++) if (isTrackFavorited(item, i, tracks[i])) count++;
     return { count, total, percent: Math.round((count / total) * 100) };
   }
+  /* v10.397: track rows aligned left with the "Tracks" heading (no
+     visible number column) and the right-hand toggle replaced with a
+     per-track 5-star rating widget. Default state shows a single star
+     icon + "X.X / 5" (or just "★" if unrated). Tapping the toggle slides
+     the 5-star widget out to the LEFT; tapping a star commits the
+     rating, plays the standard star-pop animation, then collapses back
+     to the toggle with the new value. */
   function renderTracksHtml(item, options = {}) {
     const readOnly = !!options.readOnly;
     const tracks = Array.isArray(item?.tracks) ? item.tracks : [];
@@ -434,19 +441,200 @@
       return '<li class="mylist-album-shelf-track-empty">No tracks listed for this album.</li>';
     }
     return tracks.map((t, idx) => {
-      const num = String(t.number || idx + 1);
       const title = escHtml(t.title || 'Untitled');
-      const fav = isTrackFavorited(item, idx, t);
       return `
         <li class="mylist-album-shelf-track" data-album-track-index="${idx}">
-          <span class="mylist-album-shelf-track-num">${escHtml(num)}</span>
           <span class="mylist-album-shelf-track-title">${title}</span>
-          <button type="button" class="mylist-album-shelf-track-fav${fav ? ' is-fav' : ''}" data-album-track-fav aria-pressed="${fav ? 'true' : 'false'}" aria-label="${fav ? 'Remove from favorites' : 'Mark as favorite'}"${readOnly ? ' disabled aria-disabled="true"' : ''}>
-            <span class="star-btn${fav ? ' lit' : ''}" aria-hidden="true">&#9733;</span>
-          </button>
+          ${buildTrackRatingWidgetHtml(item, idx, t, readOnly)}
         </li>
       `;
     }).join('');
+  }
+
+  /* v10.397: read the user's 5-star rating for a single track. Storage
+     is parallel to commitTrackFavorite's dual shape:
+       primary  → item.trackRatingsByKey[stableKey]  (survives reorder)
+       fallback → item.trackRatings[idx]             (legacy + 10-star pre-v10.253 data)
+     Stored as 0–10 int (same scale as the album-level + title-card
+     ratings), displayed as 0.5 increments / 5. */
+  function getTrackRating(item, idx, track = null) {
+    if (!item) return 0;
+    const trackRef = track || (Array.isArray(item.tracks) ? item.tracks[idx] : null);
+    if (item.trackRatingsByKey && typeof item.trackRatingsByKey === 'object') {
+      const key = getStableTrackKey(trackRef, idx);
+      if (Object.prototype.hasOwnProperty.call(item.trackRatingsByKey, key)) {
+        const v = Number(item.trackRatingsByKey[key] || 0);
+        if (v >= 0 && v <= 10) return v;
+      }
+    }
+    if (Array.isArray(item.trackRatings)) {
+      const v = Number(item.trackRatings[idx] || 0);
+      if (v >= 0 && v <= 10) return v;
+    }
+    return 0;
+  }
+
+  function formatTrackRatingLabel(rating) {
+    if (!(rating > 0)) return '';
+    const display = rating / 2;
+    return Number.isInteger(display) ? String(display) : display.toFixed(1);
+  }
+
+  /* v10.397: emit the collapsed view (toggle) + the expanded 5-star
+     widget. Container is `.mylist-album-shelf-track-rate`; CSS toggles
+     the `.is-expanded` class to swap views and run the slide-out
+     animation. The expanded widget reuses the `.music-rating` class
+     family so all the existing color / hover / lit styling applies. */
+  function buildTrackRatingWidgetHtml(item, idx, track, readOnly) {
+    const rating = getTrackRating(item, idx, track);
+    const itemId = String(item.id || '');
+    const display = formatTrackRatingLabel(rating);
+    const valueHtml = display ? `<span class="mylist-album-shelf-track-rate-value">${display} / 5</span>` : '';
+    const toggleLabel = display
+      ? `Rated ${display} out of 5 — tap to change`
+      : 'Rate this track';
+    const toggleDisabledAttrs = readOnly ? ' disabled aria-disabled="true"' : '';
+    const toggleHandler = readOnly
+      ? ''
+      : ` onclick="event.stopPropagation();onMylistAlbumTrackRateExpand(this)"`;
+    const expandedHtml = readOnly
+      ? ''
+      : `<div class="mylist-album-shelf-track-rate-expanded" aria-hidden="true">${buildTrackRatingStarsMarkup(itemId, idx, rating)}</div>`;
+    return `
+      <div class="mylist-album-shelf-track-rate${rating > 0 ? ' is-rated' : ''}" data-track-rate data-track-idx="${idx}" data-item-id="${itemId}">
+        <button type="button" class="mylist-album-shelf-track-rate-toggle${rating > 0 ? ' is-rated' : ''}" aria-label="${toggleLabel}"${toggleDisabledAttrs}${toggleHandler}>
+          <span class="mylist-album-shelf-track-rate-star" aria-hidden="true">★</span>
+          ${valueHtml}
+        </button>
+        ${expandedHtml}
+      </div>
+    `;
+  }
+
+  /* v10.397: per-track 5-star markup. Same visual shape as the shared
+     buildMusicRatingMarkup (10 half-step buttons via text-indent trick)
+     but the inline onclick targets a track-scoped handler, since the
+     global rate() function only routes to overall/season/episode. */
+  function buildTrackRatingStarsMarkup(itemId, idx, rating) {
+    const size = 22;
+    const halfWidth = Math.max(1, Math.round(size / 2));
+    const cleanRating = Number(rating || 0);
+    const escId = String(itemId).replace(/'/g, "\\'");
+    const styleAttr = `style="--music-star-size:${size}px;--music-half-width:${halfWidth}px;"`;
+    let html = `<div class="music-rating" ${styleAttr} data-item-id="${escId}__track${idx}" data-prefix="track:${idx}" data-section="music">`;
+    for (let star = 1; star <= 5; star++) {
+      const leftVal = star * 2 - 1;
+      const rightVal = star * 2;
+      const leftLit = leftVal <= cleanRating ? ' lit' : '';
+      const rightLit = rightVal <= cleanRating ? ' lit' : '';
+      html += `<button type="button" class="music-rating-half music-rating-half-left${leftLit}" data-star="${leftVal}" onclick="event.stopPropagation();onMylistAlbumTrackRate('${escId}',${idx},${leftVal})">★</button>`;
+      html += `<button type="button" class="music-rating-half music-rating-half-right${rightLit}" data-star="${rightVal}" onclick="event.stopPropagation();onMylistAlbumTrackRate('${escId}',${idx},${rightVal})">★</button>`;
+    }
+    html += `</div>`;
+    return html;
+  }
+
+  /* v10.397: commit the per-track rating to BOTH the stable-key map and
+     the legacy index array. Immediate firestore write when available so
+     a quick app-close doesn't lose the rating to the 500ms debounce. */
+  function commitTrackRating(itemId, trackIdx, score, track = null) {
+    const live = getLiveMusicItem(itemId);
+    if (!live) return;
+    const trackRef = track || (Array.isArray(live.tracks) ? live.tracks[trackIdx] : null);
+    const key = getStableTrackKey(trackRef, trackIdx);
+    const clean = Math.max(0, Math.min(10, Number(score) || 0));
+    if (!live.trackRatingsByKey || typeof live.trackRatingsByKey !== 'object') {
+      live.trackRatingsByKey = {};
+    }
+    live.trackRatingsByKey[key] = clean;
+    if (!Array.isArray(live.trackRatings)) live.trackRatings = [];
+    live.trackRatings[trackIdx] = clean;
+    callGlobalFn('markOwnItemLastEdited', live, 'music');
+    if (typeof window !== 'undefined' && typeof window.persistOwnListDataImmediate === 'function') {
+      window.persistOwnListDataImmediate().catch(err => {
+        console.warn('[track-rating] immediate save failed, fell back to debounced:', err);
+        callGlobalFn('save');
+      });
+    } else {
+      callGlobalFn('save');
+    }
+  }
+
+  /* v10.397: window-exposed handlers — wired from inline onclick on the
+     collapsed toggle (Expand) and the expanded stars (Rate). The
+     expand-on-tap UX is intentional: keeps the row compact when not in
+     use, and the leftward slide makes the rating affordance obvious. */
+  window.onMylistAlbumTrackRateExpand = function(btn) {
+    if (!btn || btn.disabled) return;
+    const widget = btn.closest('.mylist-album-shelf-track-rate');
+    if (!widget) return;
+    /* Collapse any other open track-rating widget first so only one is
+       expanded at a time — keeps the layout from getting noisy. */
+    document.querySelectorAll('.mylist-album-shelf-track-rate.is-expanded').forEach(w => {
+      if (w !== widget) w.classList.remove('is-expanded');
+    });
+    widget.classList.add('is-expanded');
+  };
+
+  window.onMylistAlbumTrackRate = function(itemId, idx, score) {
+    const widget = document.querySelector(
+      `.mylist-album-shelf-track-rate[data-item-id="${CSS.escape(String(itemId))}"][data-track-idx="${idx}"]`
+    );
+    if (!widget) return;
+    const live = getLiveMusicItem(itemId);
+    if (!live) return;
+    const trackRef = Array.isArray(live.tracks) ? live.tracks[idx] : null;
+    const prev = getTrackRating(live, idx, trackRef);
+    const requested = Number(score) || 0;
+    /* Tap on the existing rating value = clear the rating (matches the
+       same toggle-off behavior `rate()` has for the overall rating). */
+    const newScore = prev === requested ? 0 : requested;
+    commitTrackRating(itemId, idx, newScore, trackRef);
+
+    /* Repaint lit state IN-PLACE on the open expanded widget so the
+       star-pop animation has the right targets to play on, then collapse
+       and swap to the fresh collapsed view ~600ms later. */
+    const halves = widget.querySelectorAll('.music-rating-half');
+    const litTargets = [];
+    halves.forEach((b, i) => {
+      const shouldLit = (i + 1) <= newScore;
+      b.classList.toggle('lit', shouldLit);
+      if (shouldLit) litTargets.push(b);
+    });
+    const stagger = 50;
+    litTargets.forEach((star, i) => {
+      star.classList.remove('star-pop');
+      void star.offsetWidth;
+      setTimeout(() => star.classList.add('star-pop'), i * stagger);
+      setTimeout(() => star.classList.remove('star-pop'), i * stagger + 500);
+    });
+
+    setTimeout(() => {
+      const liveAgain = getLiveMusicItem(itemId);
+      if (!liveAgain) {
+        widget.classList.remove('is-expanded');
+        return;
+      }
+      const fresh = buildTrackRatingWidgetHtml(liveAgain, idx, liveAgain.tracks?.[idx], false);
+      const tmp = document.createElement('div');
+      tmp.innerHTML = fresh;
+      const replacement = tmp.firstElementChild;
+      if (replacement) widget.replaceWith(replacement);
+      else widget.classList.remove('is-expanded');
+    }, 600);
+  };
+
+  /* Outside-click closes any expanded track rating without committing. */
+  if (typeof window !== 'undefined' && !window.__shelfdAlbumTrackRateOutsideBound) {
+    document.addEventListener('click', (e) => {
+      const target = e.target;
+      if (!target || target.nodeType !== 1) return;
+      if (target.closest && target.closest('.mylist-album-shelf-track-rate.is-expanded')) return;
+      document.querySelectorAll('.mylist-album-shelf-track-rate.is-expanded').forEach(w => {
+        w.classList.remove('is-expanded');
+      });
+    }, true);
+    window.__shelfdAlbumTrackRateOutsideBound = true;
   }
 
   /* v10.250: ALWAYS resolve the live item by id before reading or writing
@@ -494,35 +682,16 @@
     }
   }
 
-  function attachTrackRatingHandlers(overlay, item) {
-    const itemId = item.id;
-    overlay.querySelectorAll('.mylist-album-shelf-track').forEach(row => {
-      const idx = Number(row.getAttribute('data-album-track-index') || '0');
-      const favBtn = row.querySelector('[data-album-track-fav]');
-      if (!favBtn) return;
-      favBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        const live = getLiveMusicItem(itemId);
-        if (!live) return;
-        const trackRef = Array.isArray(live.tracks) ? live.tracks[idx] : null;
-        const next = !isTrackFavorited(live, idx, trackRef);
-        commitTrackFavorite(itemId, idx, next, trackRef);
-        favBtn.classList.toggle('is-fav', next);
-        favBtn.setAttribute('aria-pressed', next ? 'true' : 'false');
-        favBtn.setAttribute('aria-label', next ? 'Remove from favorites' : 'Mark as favorite');
-        const starInner = favBtn.querySelector('.star-btn');
-        if (starInner) {
-          starInner.classList.toggle('lit', next);
-          /* Star-pop animation — same keyframe used everywhere else. */
-          starInner.classList.remove('star-pop');
-          void starInner.offsetWidth;
-          starInner.classList.add('star-pop');
-          setTimeout(() => starInner.classList.remove('star-pop'), 460);
-        }
-        /* v10.255: keep the favorite-ratio readout in sync after every toggle. */
-        refreshFavoriteRatio(overlay, itemId);
-      });
-    });
+  /* v10.397: previously this attached a click listener to each
+     `.mylist-album-shelf-track-fav` favorite button. The v10.397
+     redesign replaces that toggle with a 5-star rating widget whose
+     expand-toggle + per-star-click handlers are inlined via
+     onMylistAlbumTrackRateExpand / onMylistAlbumTrackRate on the
+     rendered markup, so this attachment pass is no longer needed.
+     Kept as a no-op so the existing call site below (overlay setup
+     in showAlbumShelfOverlay) stays valid. */
+  function attachTrackRatingHandlers(_overlay, _item) {
+    /* intentionally empty — see comment above */
   }
 
   /* v10.253 / v10.396: album-level rating widget between the hero and

@@ -2602,11 +2602,20 @@ function renderCard(item, isDraggable) {
     && !isGamesWishlistCard
     && typeof hasScreenListTrackerBreakdownForItem === 'function'
     && hasScreenListTrackerBreakdownForItem(item);
+  /* v10.397: music titles render as a plain span — no per-title click
+     handler. Previously the title was a `.media-title-profile-btn` that
+     opened the Full Page Media Review (via openLibraryMediaProfile),
+     which conflicted with the user's mental model that the music card
+     should route to the tracklist page. Title click now naturally
+     bubbles up to the card's `handleMyListCardReviewSurfaceClick`,
+     which (also in v10.397) opens the album shelf page for music. */
   const gameTitleMarkup = isGameCard
     ? `<button class="card-title-profile-btn game-title-profile-btn" type="button" data-library-item-id="${itemIdAttr}" data-library-section="${itemSectionAttr}" onclick="${isCompetitiveGameCard ? `event.stopPropagation();openMyListGameProfilePage('${itemIdAttr}')` : (canOpenTrackerBreakdown ? `openTrackerStatsPage(event,'${itemIdAttr}')` : `openGameMediaProfileFromLibrary(event,'${itemIdAttr}','${itemSectionAttr}')`)}">${escHtml(displayTitle)}</button>`
-    : canOpenProfile
-      ? `<button class="card-title-profile-btn media-title-profile-btn" type="button" data-library-item-id="${itemIdAttr}" data-library-section="${itemSectionAttr}" onclick="openLibraryMediaProfile(event,'${itemIdAttr}','${itemSectionAttr}')">${escHtml(displayTitle)}</button>`
-      : `<span>${escHtml(displayTitle)}</span>`;
+    : activeSection === 'music'
+      ? `<span>${escHtml(displayTitle)}</span>`
+      : canOpenProfile
+        ? `<button class="card-title-profile-btn media-title-profile-btn" type="button" data-library-item-id="${itemIdAttr}" data-library-section="${itemSectionAttr}" onclick="openLibraryMediaProfile(event,'${itemIdAttr}','${itemSectionAttr}')">${escHtml(displayTitle)}</button>`
+        : `<span>${escHtml(displayTitle)}</span>`;
   const coverProfileAttrs = canOpenProfile ? `data-library-item-id="${itemIdAttr}" data-library-section="${itemSectionAttr}" role="button" tabindex="0" aria-label="Open ${escAttr(displayTitle)} profile"` : '';
   const coverProfileClass = canOpenProfile ? ' card-cover-profile-btn' : '';
   if (activeTab === 'planned' && isScreenListMovieTvAnimeSection(activeSection)) queueMyListUpcomingReleaseDateHydration(item, activeSection);
@@ -2879,25 +2888,16 @@ function isMyListGameProfileExcludedTarget(target = null) {
   ].join(','));
 }
 
-/* v10.250: tapping the album COVER on a my-list music card opens the rich
-   Deezer-hydrated Album Profile (full-page slide-in with cover, artist, year,
-   release date, genre, runtime, tracklist). Distinct from the card body
-   tap, which still opens the Full Page Review. */
+/* v10.250 / v10.397: tapping the album COVER on a my-list music card
+   used to open the Deezer-hydrated Album Profile (a separate full-page
+   slide-in). Per v10.397 spec the entire music card — cover, title,
+   blank space — now routes to ONE destination: the album shelf page
+   (My List Full Page Album Details, opened via openMyListAlbumPage).
+   That page already shows the same hero hydration the Deezer profile
+   provided plus the editable tracklist + per-track rating widget. */
 window.openMyListMusicCoverClick = function(itemId) {
   try {
-    const list = Array.isArray(data?.music) ? data.music : [];
-    const item = list.find(it => String(it?.id || '') === String(itemId));
-    if (!item) return;
-    if (typeof window.openMusicAlbumProfile !== 'function') return;
-    window.openMusicAlbumProfile({
-      id: item.deezerId || item.mbid || '',
-      mbid: item.mbid || '',
-      deezerId: item.deezerId || '',
-      title: item.title || '',
-      artist: item.artist || '',
-      year: item.year || (item.releaseDate ? String(item.releaseDate).slice(0, 4) : ''),
-      poster: item.cover || ''
-    });
+    if (typeof openMyListAlbumPage === 'function') openMyListAlbumPage(itemId);
   } catch (e) { console.warn('openMyListMusicCoverClick failed:', e); }
 };
 
@@ -2912,6 +2912,18 @@ function handleMyListCardReviewSurfaceClick(event = null, itemId = '', section =
       openMyListGameProfilePage(itemId);
       return;
     }
+  }
+  /* v10.397: music card surface routes to the album shelf page (My List
+     Full Page Album Details) instead of the Full Page Media Review.
+     Tapping the cover, the title text, or the blank space all converge
+     here, mirroring the dedicated `Tracklist` button on the action row.
+     The action-row buttons (Tracklist, Comments, +) still
+     stopPropagation themselves, so their dedicated behaviors win. */
+  if (cleanSection === 'music' && !isMyListReviewExcludedTarget(event.target)) {
+    event.preventDefault?.();
+    event.stopPropagation?.();
+    if (typeof openMyListAlbumPage === 'function') openMyListAlbumPage(itemId);
+    return;
   }
   if (isMyListReviewExcludedTarget(event.target)) return;
   event.preventDefault?.();
