@@ -1,1 +1,0 @@
-{"default":{"identifier":"default","description":"Default Shelfd desktop window capability. No remote Tauri API access is granted.","local":true,"windows":["main"],"permissions":["core:default"]}}

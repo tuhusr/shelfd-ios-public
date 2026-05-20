@@ -4,3 +4,10 @@ node_modules/
 *.log
 .wrangler/
 dist/
+
+# Local-only working dirs — never track these.
+# v10.391: untracked the historical version snapshots and recorded video
+# clips so the repo stops bloating with multi-GB local archives.
+z VERSIONS/
+zz VERSIONS/
+video examples/
