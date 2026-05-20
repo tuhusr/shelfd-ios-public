@@ -4853,6 +4853,13 @@ export class VisitorCounter {
 
 const APNS_BUNDLE_ID = "com.myshelfd.app";
 const APNS_HOST = "https://api.push.apple.com";
+/* v10.391: APNs sandbox host. TestFlight + App Store builds use the
+   production host; Xcode-installed development builds yield tokens that
+   ONLY work against the sandbox host. We try production first (the
+   common case) and fall back to sandbox if APNs returns BadDeviceToken.
+   Successful host is then persisted on the token entry so subsequent
+   sends skip the wrong host straight away. */
+const APNS_SANDBOX_HOST = "https://api.sandbox.push.apple.com";
 /* In-memory JWT cache. Survives between requests on the same Worker isolate.
    Worth: Apple rate-limits JWT generation; one fresh JWT per ~50 min suffices. */
 let _apnsJwtCache = { jwt: "", expiresAtMs: 0 };
@@ -4957,43 +4964,81 @@ async function runPushSendEndpoint(request, env, ctx) {
     ...data
   });
 
-  /* Fire one POST per device token. iOS rate limit is generous so parallel
-     dispatch is fine. We collect outcomes for the response. */
-  const results = await Promise.all(tokens.map(async (entry) => {
+  /* v10.391: per-token send with sandbox-host fallback. The first attempt
+     uses the host hinted by the stored entry (defaults to production). If
+     APNs answers BadDeviceToken on prod, the token is probably from a
+     development build — retry once against sandbox. If the retry succeeds,
+     remember `apnsHost: "sandbox"` on the entry so subsequent sends skip
+     production entirely for that device. */
+  async function sendOne(token, bundle, host) {
+    const res = await fetch(`${host}/3/device/${token}`, {
+      method: "POST",
+      headers: {
+        "authorization": `bearer ${jwt}`,
+        "apns-topic": bundle,
+        "apns-push-type": "alert",
+        "apns-priority": "10",
+        "content-type": "application/json"
+      },
+      body: apnsPayload
+    });
+    const status = res.status;
+    let reason = "";
+    if (status !== 200) {
+      try { const rj = await res.json(); reason = String(rj && rj.reason || ""); } catch (_) {}
+    }
+    return { status, reason };
+  }
+
+  /* Fire one send per device token. Parallelizable, but each may make TWO
+     network hops if production rejects with BadDeviceToken. */
+  const results = await Promise.all(tokens.map(async (entry, idx) => {
     const token = String(entry && entry.token || "").trim();
-    if (!token) return { ok: false, reason: "empty-token" };
+    if (!token) return { idx, ok: false, reason: "empty-token" };
     const bundle = String(entry && entry.appBundleId || APNS_BUNDLE_ID).trim() || APNS_BUNDLE_ID;
+    const preferred = String(entry && entry.apnsHost || "").trim().toLowerCase();
+    const firstHost = preferred === "sandbox" ? APNS_SANDBOX_HOST : APNS_HOST;
     try {
-      const res = await fetch(`${APNS_HOST}/3/device/${token}`, {
-        method: "POST",
-        headers: {
-          "authorization": `bearer ${jwt}`,
-          "apns-topic": bundle,
-          "apns-push-type": "alert",
-          "apns-priority": "10",
-          "content-type": "application/json"
-        },
-        body: apnsPayload
-      });
-      const status = res.status;
-      let reason = "";
-      if (status !== 200) {
-        try { const rj = await res.json(); reason = String(rj && rj.reason || ""); } catch (_) {}
+      let res = await sendOne(token, bundle, firstHost);
+      let usedHost = firstHost === APNS_SANDBOX_HOST ? "sandbox" : "prod";
+      /* Only fall back when prod returned BadDeviceToken — that's the
+         classic "this is actually a sandbox token" signal. */
+      if (res.status !== 200 && firstHost === APNS_HOST && res.reason === "BadDeviceToken") {
+        const retry = await sendOne(token, bundle, APNS_SANDBOX_HOST);
+        if (retry.status === 200) {
+          res = retry;
+          usedHost = "sandbox";
+        } else {
+          res = retry; // surface the sandbox response too if both failed
+        }
       }
-      return { ok: status === 200, status, reason, tokenTail: token.slice(-6) };
+      return {
+        idx,
+        ok: res.status === 200,
+        status: res.status,
+        reason: res.reason,
+        host: usedHost,
+        tokenTail: token.slice(-6)
+      };
     } catch (e) {
-      return { ok: false, reason: "fetch-failed", error: String(e && e.message || e) };
+      return { idx, ok: false, reason: "fetch-failed", error: String(e && e.message || e) };
     }
   }));
 
-  /* If APNs reports a permanent failure for a token (Unregistered, BadDeviceToken),
-     prune it from KV so we stop wasting bandwidth on dead tokens. */
+  /* Permanently-dead tokens get pruned. Tokens that succeeded on sandbox
+     get their `apnsHost` stamped so we go straight to sandbox next time. */
   const deadReasons = new Set(["Unregistered", "BadDeviceToken", "DeviceTokenNotForTopic"]);
+  let mutated = false;
   const survivors = tokens.filter((entry, idx) => {
     const r = results[idx] && results[idx].reason;
-    return !(r && deadReasons.has(r));
+    if (r && deadReasons.has(r)) { mutated = true; return false; }
+    if (results[idx] && results[idx].ok && results[idx].host === "sandbox" && entry.apnsHost !== "sandbox") {
+      entry.apnsHost = "sandbox";
+      mutated = true;
+    }
+    return true;
   });
-  if (survivors.length !== tokens.length) {
+  if (mutated) {
     try {
       await kv.put(`tokens:${recipientUid}`, JSON.stringify(survivors));
     } catch (_) {}
@@ -5055,6 +5100,10 @@ async function runPushDiagnoseEndpoint(request, env) {
           tokenLength: String((entry && entry.token) || "").length,
           platform: entry && entry.platform,
           appBundleId: entry && entry.appBundleId,
+          /* v10.391: surfaces which APNs host has worked for this token
+             (prod / sandbox). Empty = no successful send yet → next send
+             will try prod first, fall back to sandbox on BadDeviceToken. */
+          apnsHost: entry && entry.apnsHost,
           registeredAtMs: entry && entry.registeredAtMs,
           ageMinutes: entry && entry.registeredAtMs
             ? Math.round((Date.now() - Number(entry.registeredAtMs)) / 60000)
