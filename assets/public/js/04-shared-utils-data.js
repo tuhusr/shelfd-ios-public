@@ -542,6 +542,11 @@ function getRatingPreferencesForProfile(profile = null) {
 }
 
 function getRatingPreferenceForSection(section = '', profile = null) {
+  /* v10.393: music is always 5-star with half-step ratings, regardless of
+     the user's media rating preference. Mirrors the Musicboard convention.
+     Every downstream consumer (step count, format, star markup, popup
+     buttons) flows through this single function, so one return is enough. */
+  if (section === 'music') return 'five';
   const prefs = getRatingPreferencesForProfile(profile);
   return prefs[getRatingPreferenceKeyForSection(section)] || 'ten';
 }

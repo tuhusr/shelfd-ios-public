@@ -2485,10 +2485,19 @@ function renderCard(item, isDraggable) {
             <div class="rating-label">Rating</div>
             ${renderMyListCardOverallRating(item, activeSection)}
           </div>`;
-  const inlineOverallRatingHtml = shouldShiftTvShowRatingLayout ? '' : overallRatingHtml;
+  /* v10.393: music cards put the rating at the BOTTOM-LEFT of the card,
+     aligned with the album-cover left edge — mirrors the Musicboard
+     layout. Implemented via the same shift pattern already used for
+     watching/paused TV shows: empty `inline` slot, populated bottom-left
+     slot. CSS in 01-mylists-cards-episodes.css positions
+     `.music-bottom-rating-slot` flush-left in the action row. */
+  const isMusicSection = activeSection === 'music';
+  const inlineOverallRatingHtml = (shouldShiftTvShowRatingLayout || isMusicSection) ? '' : overallRatingHtml;
   const bottomLeftOverallRatingHtml = shouldShiftTvShowRatingLayout
     ? `<div class="tv-show-bottom-rating-slot">${overallRatingHtml}</div>`
-    : '';
+    : (isMusicSection
+        ? `<div class="music-bottom-rating-slot">${overallRatingHtml}</div>`
+        : '');
   const showCommentButton = !shouldHideMyListCommentButton(activeSection, item);
   const gamesWishlistMetadataHtml = renderGamesWishlistMetadataHtml(item, activeSection, activeTab);
 

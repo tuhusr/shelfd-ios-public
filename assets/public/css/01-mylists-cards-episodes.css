@@ -418,9 +418,35 @@
     padding-top: 6px !important;
     padding-bottom: 6px !important;
   }
-  /* v10.241 / v10.243: 120×120 px cover on the my-lists music card (was 100). */
+  /* v10.241 / v10.243: 120×120 px cover on the my-lists music card (was 100).
+     v10.393: bumped DOWN 18px (120 -> 102) per Musicboard mimic spec —
+     square art reads tighter against the title/artist/rating column. */
   #mylist-view .card[data-library-section="music"] .card-cover.card-cover-music {
-    width: 120px !important;
+    width: 102px !important;
+  }
+  /* v10.393: music section places the overall rating at the bottom-left
+     of the card, aligned with the album cover's left edge. The action row
+     defaults to a 146/104px left padding to clear the poster column for
+     movies/TV/games; for music we pull that back to match the header's
+     12px so the rating sits directly under the poster. The `margin-right:
+     auto` on the slot itself pushes the comments + tracklist buttons to
+     the far right. */
+  #mylist-view .card[data-library-section="music"] .card-action-row {
+    padding-left: 12px !important;
+  }
+  #mylist-view .card[data-library-section="music"] .music-bottom-rating-slot {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-right: auto;
+    overflow: visible;
+  }
+  #mylist-view .card[data-library-section="music"] .music-bottom-rating-slot .rating-area {
+    margin: 0;
+  }
+  #mylist-view .card[data-library-section="music"] .music-bottom-rating-slot .stars[data-prefix="overall"] {
+    width: auto;
+    max-width: none;
+    overflow: visible;
   }
   /* v10.261: music tab order — Planned → In Rotation → Listened. The
      static HTML order is Watching · Planned · Watched, so we use CSS flex
