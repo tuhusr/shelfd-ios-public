@@ -448,40 +448,80 @@
     max-width: none;
     overflow: visible;
   }
-  /* v10.394: defeat the 17-auth-flow-setup.css `width: 16px / 8px !important`
-     box rules that compress stars to a slot narrower than the ★ glyph's
-     natural width, causing adjacent stars to visually overlap. Inside the
-     music-bottom-rating-slot we use a higher-specificity selector chain
-     (#mylist-view .card[data-library-section="music"] .music-bottom-rating-slot ...)
-     to override at: full star 22px box / 22px font / 26px height,
-     half-step 11px box. The half-step text-indent / overflow trick in
-     01-mylists-cards-episodes.css line 1216-1222 already keys off the
-     `--star-size` variable, so re-bumping it to 22px keeps the left/right
-     glyph positioning correct without us having to override text-indent
-     manually. */
-  #mylist-view .card[data-library-section="music"] .music-bottom-rating-slot .stars[data-prefix="overall"] {
-    --star-size: 22px !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 0 !important;
+  /* v10.395: dedicated music rating widget. v10.394's specificity-based
+     override lost to a `:not(:first-of-type)` pseudo-class in
+     17-auth-flow-setup.css (their (1,7,0) beat our (1,6,0)). Switching
+     strategy: NEW class names that don't share with .star-btn so no
+     global rule can touch them. Self-contained, no specificity fight.
+
+     Geometry: 10 half-step buttons composing 5 stars, 11px wide each
+     (= 22px per full star = 110px for all five). Glyph drawn at 22px
+     font, naturally ~22px wide; left-half shows the left half of the
+     glyph via overflow:hidden + text-align:left, right-half shows the
+     right half via text-indent:-11px shifting the same glyph leftward
+     out of the box. */
+  .music-rating {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+            user-select: none;
   }
-  #mylist-view .card[data-library-section="music"] .music-bottom-rating-slot .stars[data-prefix="overall"] .star-btn {
-    width: 22px !important;
-    min-width: 22px !important;
-    height: 26px !important;
-    font-size: 22px !important;
-    line-height: 1 !important;
+  .music-rating-half {
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    width: 10px;
+    min-width: 10px;
+    height: 24px;
+    line-height: 1;
+    font-size: 20px;
+    font-family: inherit;
+    color: #443d60;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    transition: color 150ms ease, transform 150ms ease;
+    -webkit-tap-highlight-color: transparent;
   }
-  #mylist-view .card[data-library-section="music"] .music-bottom-rating-slot .stars.rating-scale-five[data-prefix="overall"] .star-btn.half-step {
-    width: 11px !important;
-    min-width: 11px !important;
-    height: 26px !important;
-    font-size: 22px !important;
+  .music-rating-half.music-rating-half-left {
+    text-align: left;
+    text-indent: 0;
+    justify-content: flex-start;
   }
-  #mylist-view .card[data-library-section="music"] .music-bottom-rating-slot .stars[data-prefix="overall"] .star-label {
-    font-size: 14px !important;
-    margin-left: 8px !important;
-    line-height: 1 !important;
+  .music-rating-half.music-rating-half-right {
+    text-align: left;
+    text-indent: -10px;
+    justify-content: flex-start;
+  }
+  .music-rating-half.lit,
+  .music-rating-half.lit-hover {
+    color: #F5B301;
+  }
+  .music-rating-half:hover {
+    transform: scale(1.18);
+  }
+  .music-rating-half:active {
+    transform: scale(0.95);
+  }
+  /* Reuses the global star-pop keyframe defined in this same file
+     around line 1198; same brightness/scale flare the .star-btn family
+     gets on click. */
+  .music-rating-half.star-pop {
+    animation: star-pop 0.42s ease-out;
+  }
+  .music-rating-value {
+    margin-left: 8px;
+    color: #ffffff;
+    font: 700 14px/1 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
   }
   /* v10.261: music tab order — Planned → In Rotation → Listened. The
      static HTML order is Watching · Planned · Watched, so we use CSS flex

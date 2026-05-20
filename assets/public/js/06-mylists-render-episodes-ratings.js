@@ -656,7 +656,146 @@ function renderStars(rating, itemId, prefix, size, sectionOverride = '') {
 }
 
 function renderMyListCardOverallRating(item = {}, section = activeSection) {
+  /* v10.395: music uses a clean-slate, self-contained widget that does NOT
+     share any class names with the global .star-btn rules. Earlier attempts
+     (v10.393, v10.394) tried to override the global compact `width: 16px /
+     8px !important` styles in 17-auth-flow-setup.css, but those rules use
+     `:not(:first-of-type)` which gave them a specificity edge our prefix
+     could not beat. Cleanest fix: bypass the shared infrastructure with
+     dedicated `.music-rating` markup that's invisible to any other CSS. */
+  if (section === 'music') {
+    return renderMyListMusicCardOverallRating(item);
+  }
   return renderStars(Number(item?.rating || 0), item?.id || '', 'overall', 16, section);
+}
+
+/* v10.395: dedicated music rating widget — Musicboard-style 5-star bar
+   with half-step granularity (10 invisible half-step buttons, each
+   rendering one half of a glyph via the same text-indent trick the
+   shared widget uses). All interaction wiring (click, hover preview,
+   touch scrub, pop animation) is kept parallel to the shared
+   .star-btn family but uses entirely new class names so we never
+   collide with global !important rules.
+
+   Save path reuses the shared `rate(itemId, prefix, score)` so item
+   updates / activity / save() debounce all flow through the same
+   pipeline as every other section. */
+function renderMyListMusicCardOverallRating(item = {}) {
+  const rating = Number(item?.rating || 0);
+  const itemId = item?.id || '';
+  const interactive = !viewingUser;
+  const escapedItemId = (typeof escAttr === 'function') ? escAttr(itemId) : String(itemId);
+  const touchAttrs = interactive
+    ? ' ontouchstart="musicRatingTouchStart(event)"' +
+      ' ontouchmove="musicRatingTouchMove(event)"' +
+      ' ontouchend="musicRatingTouchEnd(event)"' +
+      ' ontouchcancel="musicRatingTouchEnd(event)"'
+    : '';
+  let html = `<div class="music-rating" data-item-id="${escapedItemId}" data-prefix="overall" data-section="music"${touchAttrs}>`;
+  for (let star = 1; star <= 5; star++) {
+    const leftVal = star * 2 - 1;
+    const rightVal = star * 2;
+    const leftLit = leftVal <= rating ? ' lit' : '';
+    const rightLit = rightVal <= rating ? ' lit' : '';
+    if (interactive) {
+      html += `<button type="button" class="music-rating-half music-rating-half-left${leftLit}" data-star="${leftVal}"`
+        + ` onclick="event.stopPropagation();rate('${escapedItemId}','overall',${leftVal})"`
+        + ` onmouseenter="musicRatingHover(this,${leftVal})" onmouseleave="musicRatingUnhover(this,${rating})">★</button>`;
+      html += `<button type="button" class="music-rating-half music-rating-half-right${rightLit}" data-star="${rightVal}"`
+        + ` onclick="event.stopPropagation();rate('${escapedItemId}','overall',${rightVal})"`
+        + ` onmouseenter="musicRatingHover(this,${rightVal})" onmouseleave="musicRatingUnhover(this,${rating})">★</button>`;
+    } else {
+      html += `<span class="music-rating-half music-rating-half-left${leftLit}">★</span>`;
+      html += `<span class="music-rating-half music-rating-half-right${rightLit}">★</span>`;
+    }
+  }
+  if (rating > 0) {
+    const display = rating / 2;
+    const label = Number.isInteger(display) ? String(display) : display.toFixed(1);
+    html += `<span class="music-rating-value">${label}</span>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+/* v10.395: hover preview — paint .lit-hover on every half-step up to and
+   including the hovered one. Mirrors hoverStars() behavior. */
+function musicRatingHover(target, score) {
+  const c = target && target.parentElement;
+  if (!c) return;
+  const halves = c.querySelectorAll('.music-rating-half');
+  halves.forEach((btn, i) => {
+    if (i + 1 <= score) btn.classList.add('lit-hover');
+    else btn.classList.remove('lit-hover');
+  });
+}
+function musicRatingUnhover(target, currentRating) {
+  const c = target && target.parentElement;
+  if (!c) return;
+  c.querySelectorAll('.music-rating-half').forEach(btn => btn.classList.remove('lit-hover'));
+}
+
+/* v10.395: horizontal touch-scrub — parallels starsTouchStart/Move/End. */
+function musicRatingTouchStart(e) {
+  const c = e.currentTarget;
+  if (!e.touches || !e.touches[0]) return;
+  c.dataset.touchStartX = String(e.touches[0].clientX);
+  c.dataset.touchStartY = String(e.touches[0].clientY);
+  c.dataset.scrubVal = '0';
+  c.dataset.scrubbing = 'false';
+}
+function musicRatingTouchMove(e) {
+  const c = e.currentTarget;
+  const touch = e.touches && e.touches[0];
+  if (!touch) return;
+  const dx = Math.abs(touch.clientX - parseFloat(c.dataset.touchStartX || 0));
+  const dy = Math.abs(touch.clientY - parseFloat(c.dataset.touchStartY || 0));
+  if (c.dataset.scrubbing !== 'true') {
+    if (dx < 10 || dy > dx) return;
+  }
+  c.dataset.scrubbing = 'true';
+  e.preventDefault();
+  const halves = Array.from(c.querySelectorAll('.music-rating-half'));
+  let val = 0;
+  halves.forEach((btn, i) => {
+    if (touch.clientX >= btn.getBoundingClientRect().left) val = i + 1;
+  });
+  if (val >= 1) {
+    c.dataset.scrubVal = String(val);
+    halves.forEach((b, i) => {
+      if (i + 1 <= val) b.classList.add('lit-hover');
+      else b.classList.remove('lit-hover');
+    });
+    let label = c.querySelector('.music-rating-value');
+    if (!label) {
+      label = document.createElement('span');
+      label.className = 'music-rating-value';
+      c.appendChild(label);
+    }
+    const display = val / 2;
+    label.textContent = Number.isInteger(display) ? String(display) : display.toFixed(1);
+  }
+}
+function musicRatingTouchEnd(e) {
+  const c = e.currentTarget;
+  if (c.dataset.scrubbing !== 'true') return;
+  const val = parseInt(c.dataset.scrubVal || '0', 10);
+  c.dataset.scrubVal = '0';
+  c.dataset.scrubbing = 'false';
+  c.querySelectorAll('.music-rating-half').forEach(b => b.classList.remove('lit-hover'));
+  if (val > 0) {
+    e.preventDefault();
+    rate(c.dataset.itemId, c.dataset.prefix, val);
+  }
+}
+
+/* Expose for inline handler resolution. */
+if (typeof window !== 'undefined') {
+  window.musicRatingHover = musicRatingHover;
+  window.musicRatingUnhover = musicRatingUnhover;
+  window.musicRatingTouchStart = musicRatingTouchStart;
+  window.musicRatingTouchMove = musicRatingTouchMove;
+  window.musicRatingTouchEnd = musicRatingTouchEnd;
 }
 
 
@@ -8206,10 +8345,16 @@ function playRatingAnimation(itemId, prefix) {
   const peakFilter = `drop-shadow(0 0 ${glow}px rgba(${glowR},${glowG},${glowB},${glowAlpha}))`;
 
   requestAnimationFrame(() => {
-    const containers = document.querySelectorAll('.stars');
+    /* v10.395: also pick up music-rating containers so the music widget
+       gets the same pop / glow / label flare on click. The match key is
+       still data-item-id + data-prefix on the container. Inside each
+       container the lit children selector is widened to include
+       .music-rating-half.lit, and the label selector is widened to
+       include .music-rating-value. */
+    const containers = document.querySelectorAll('.stars, .music-rating');
     containers.forEach(c => {
       if (c.dataset.itemId !== itemId || c.dataset.prefix !== prefix) return;
-      const lit = [...c.querySelectorAll('.star-btn.lit')];
+      const lit = [...c.querySelectorAll('.star-btn.lit, .music-rating-half.lit')];
 
       // CSS class animation — reliable on all browsers including mobile/PWA
       lit.forEach((star, i) => {
@@ -8218,7 +8363,7 @@ function playRatingAnimation(itemId, prefix) {
         setTimeout(() => star.classList.add('star-pop'), i * stagger);
         setTimeout(() => star.classList.remove('star-pop'), i * stagger + 500);
       });
-      const label = c.querySelector('.star-label');
+      const label = c.querySelector('.star-label, .music-rating-value');
       if (label) {
         label.classList.remove('label-pop');
         void label.offsetWidth;
