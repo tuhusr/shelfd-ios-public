@@ -726,6 +726,39 @@ function resolveShowSection(item, fallbackSection = "shows") {
   return detectAnimeFromMetadata(item) ? 'anime' : 'shows';
 }
 
+function extractAnimeMalIdFromUrl(value = '') {
+  const clean = String(value || '').trim();
+  const match = clean.match(/myanimelist\.net\/anime\/(\d+)/i) || clean.match(/\/anime\/(\d+)(?:[/?#]|$)/i);
+  return match ? String(match[1]) : '';
+}
+
+function getAnimeMalIdFromItem(item = {}) {
+  if (!item || typeof item !== 'object') return '';
+  const direct = item.malId || item.mal_id || item.__mal_id || item.animeMalId || item.external_ids?.mal_id || '';
+  if (direct && Number(direct) > 0) return String(Number(direct));
+  const sourceId = String(item.sourceId || '').trim();
+  if (String(item.source || '').toLowerCase() === 'myanimelist' && /^\d+$/.test(sourceId)) return sourceId;
+  return extractAnimeMalIdFromUrl(item.malUrl || item.jikanUrl || item.url || item.sourceUrl || '');
+}
+
+function normalizeAnimeIdentityFieldsForStorage(item = {}) {
+  const next = item && typeof item === 'object' ? { ...item } : {};
+  const malId = getAnimeMalIdFromItem(next);
+  if (malId) {
+    next.malId = malId;
+    next.mal_id = malId;
+    next.animeIdentityKey = `mal:${malId}`;
+    const existingMalUrl = /myanimelist\.net\/anime\//i.test(String(next.malUrl || next.url || ''))
+      ? (next.malUrl || next.url)
+      : '';
+    next.malUrl = existingMalUrl || `https://myanimelist.net/anime/${malId}`;
+    next.jikanUrl = next.jikanUrl || next.malUrl;
+    if (!next.url || /myanimelist\.net\/anime\//i.test(String(next.url))) next.url = next.malUrl;
+    if (!next.source) next.source = 'myanimelist';
+  }
+  return next;
+}
+
 
 function normalizeScreenListGameDetailHoursValue(value) {
   const raw = String(value ?? '').trim();
@@ -799,6 +832,7 @@ function normalizeListEntry(item, fallbackSection) {
     next.mediaCategory = resolvedSection;
     next.librarySection = resolvedSection;
     next.isAnime = resolvedSection === 'anime';
+    if (resolvedSection === 'anime') next = normalizeAnimeIdentityFieldsForStorage(next);
     if (Array.isArray(next.episodes)) {
       next.episodes = next.episodes.map((ep, idx) => {
         if (ep && !ep.id) {
@@ -967,12 +1001,78 @@ function readOwnLocalBackup(excludeData = null) {
   return null;
 }
 
+/* v10.387: schema-v2 split — each section now lives in its own subdoc at
+   watchlist/{uid}/sections/{section} (shape: { data: '<JSON>', updatedAt }).
+   The parent watchlist/{uid} doc becomes a tiny coordination doc:
+   { updatedAt, schemaVersion: 2 }. Live listeners keep watching the parent
+   for an updatedAt heartbeat and fan out via loadWatchlistDataForUid() in
+   their callbacks. Legacy single-doc reads still work via fallback so
+   un-migrated friends remain visible. */
+const WATCHLIST_SECTION_DOC_NAMES = ['shows', 'movies', 'anime', 'games', 'manga', 'books', 'music'];
+
+function getWatchlistSectionDocRef(uid, section) {
+  if (typeof db === 'undefined' || !db || !uid || !section) return null;
+  try {
+    return db.collection('watchlist').doc(uid).collection('sections').doc(section);
+  } catch (_) {
+    return null;
+  }
+}
+
+function parseWatchlistSectionDocJson(raw) {
+  if (typeof raw !== 'string' || !raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+/* Fan-out reader. Reads parent + every requested section doc in parallel,
+   then picks the best source per section:
+     1. section doc data (post-migration users)
+     2. parent doc's legacy JSON field (un-migrated users)
+     3. empty array
+   Returns a normalized list-data object — same shape as parseOwnFirestoreData. */
+async function loadWatchlistDataForUid(uid, options = {}) {
+  const sections = Array.isArray(options.sections) && options.sections.length
+    ? options.sections
+    : WATCHLIST_SECTION_DOC_NAMES;
+  const empty = getEmptyListData();
+  if (typeof db === 'undefined' || !db || !uid) return empty;
+  const parentRef = db.collection('watchlist').doc(uid);
+  const parentSnapPromise = options.parentSnap
+    ? Promise.resolve(options.parentSnap)
+    : parentRef.get().catch(() => null);
+  const sectionSnapPromises = sections.map(section =>
+    parentRef.collection('sections').doc(section).get().catch(() => null)
+  );
+  const [parentSnap, ...sectionSnaps] = await Promise.all([parentSnapPromise, ...sectionSnapPromises]);
+  const parentData = (parentSnap && parentSnap.exists ? parentSnap.data() : null) || {};
+  const merged = {};
+  sections.forEach((section, idx) => {
+    const snap = sectionSnaps[idx];
+    let json = '';
+    if (snap && snap.exists) {
+      const d = snap.data() || {};
+      if (typeof d.data === 'string') json = d.data;
+    }
+    if (!json && typeof parentData[section] === 'string') {
+      json = parentData[section];
+    }
+    merged[section] = parseWatchlistSectionDocJson(json);
+  });
+  WATCHLIST_SECTION_DOC_NAMES.forEach(section => {
+    if (!Array.isArray(merged[section])) merged[section] = [];
+  });
+  return normalizeListData(merged);
+}
+
 function getOwnDataFirestorePayload(safeData) {
-  /* v10.237: persist the music section to Firestore. Previously the payload
-     enumerated only 6 sections — albums added via the universal search were
-     stored in-memory and to localStorage, but the Firestore write skipped
-     them, so reopening the app (which restores from Firestore as the source
-     of truth) wiped them. */
+  /* v10.237 / v10.387: kept for size-estimation only. Real writes now go to
+     per-section subdocs via persistOwnDataToFirestore(); this single-doc
+     shape no longer hits Firestore directly. */
   return {
     shows: JSON.stringify(safeData.shows),
     movies: JSON.stringify(safeData.movies),
@@ -1032,9 +1132,11 @@ async function loadWatchlistDataFromDocRef(docRef, fallbackData = null) {
     : (ownDataCache ? cloneListData(ownDataCache) : cloneListData(data));
   if (!docRef) return fallback;
   try {
-    const snap = await docRef.get();
-    if (!snap.exists) return getEmptyListData();
-    return parseOwnFirestoreData(snap.data() || {});
+    /* v10.387: defer to the section-aware fan-out reader. The docRef.id is
+       the uid; that's all loadWatchlistDataForUid needs. Works for both own
+       (DOC_REF) and friend (db.collection('watchlist').doc(uid)) refs. */
+    const uid = docRef.id;
+    return await loadWatchlistDataForUid(uid);
   } catch(e) {
     console.error("Watchlist reload failed:", e);
     return fallback;
@@ -1046,12 +1148,36 @@ async function persistOwnDataToFirestore(safeData, options = {}) {
     if (options.verify) throw new Error("No library document is available for saving.");
     return;
   }
+  /* v10.387: schema-v2 split. Each section is written to its own subdoc at
+     watchlist/{uid}/sections/{section} — fully escapes the 1 MiB cap on the
+     parent doc. After all section writes succeed, we shrink the parent to a
+     coordination heartbeat ({ updatedAt, schemaVersion: 2 }) and delete the
+     legacy heavy fields via FieldValue.delete(). Parent write goes LAST so
+     that if any section write fails, we never strip the legacy fallback. */
   try {
-    const payload = getOwnDataFirestorePayload(safeData);
-    await DOC_REF.set(payload, { merge: true });
+    const sectionWrites = WATCHLIST_SECTION_DOC_NAMES.map(section => {
+      const ref = DOC_REF.collection('sections').doc(section);
+      const arr = Array.isArray(safeData[section]) ? safeData[section] : [];
+      return ref.set({
+        data: JSON.stringify(arr),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+    await Promise.all(sectionWrites);
+
+    const parentUpdate = {
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      schemaVersion: 2
+    };
+    WATCHLIST_SECTION_DOC_NAMES.forEach(field => {
+      parentUpdate[field] = firebase.firestore.FieldValue.delete();
+    });
+    await DOC_REF.set(parentUpdate, { merge: true });
+
     if (typeof window !== 'undefined') {
       window.__lastOwnDataSaveDebug = {
         ok: true,
+        schemaVersion: 2,
         sizeBytes: getOwnDataFirestorePayloadSizeBytes(safeData),
         itemCount: listDataItemCount(safeData),
         gamesCount: Array.isArray(safeData?.games) ? safeData.games.length : 0,
@@ -1079,7 +1205,9 @@ async function persistOwnDataToFirestore(safeData, options = {}) {
 
 async function verifyOwnDataDirectWrite(expectedData) {
   if (!DOC_REF) throw new Error("No library document is available for saving.");
-  const storedData = await loadWatchlistDataFromDocRef(DOC_REF);
+  /* v10.387: verification re-reads via the fan-out path so it sees what was
+     just written to the section subdocs. */
+  const storedData = await loadWatchlistDataForUid(DOC_REF.id);
   if (listDataItemCount(storedData) < listDataItemCount(expectedData)) {
     throw new Error("Library save verification did not match the imported library.");
   }

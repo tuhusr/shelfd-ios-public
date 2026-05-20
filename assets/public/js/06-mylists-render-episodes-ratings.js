@@ -649,10 +649,14 @@ function render() {
   scheduleMyListPosterPreload('mylist-render');
 }
 
-function renderStars(rating, itemId, prefix, size) {
+function renderStars(rating, itemId, prefix, size, sectionOverride = '') {
   size = size || 14;
-  const section = activeSection;
+  const section = sectionOverride || activeSection;
   return buildRatingStarsMarkup(rating, itemId, prefix, size, section, !viewingUser);
+}
+
+function renderMyListCardOverallRating(item = {}, section = activeSection) {
+  return renderStars(Number(item?.rating || 0), item?.id || '', 'overall', 16, section);
 }
 
 
@@ -776,6 +780,20 @@ function getScreenListGameById(id = '') {
     getScreenListGameStableKey(entry) === key
   );
   return { item: index >= 0 ? data.games[index] : null, index };
+}
+
+function findMyListGameProfileItem(id = '') {
+  const key = String(id || '').trim();
+  if (!key) return { item: null, index: -1, source: null };
+  const own = getScreenListGameById(key);
+  if (own.item) return { ...own, source: data };
+  const source = typeof getVisibleListData === 'function' ? getVisibleListData() : data;
+  const list = Array.isArray(source?.games) ? source.games : [];
+  const index = list.findIndex(entry =>
+    String(entry?.id || '') === key ||
+    getScreenListGameStableKey(entry) === key
+  );
+  return { item: index >= 0 ? list[index] : null, index, source };
 }
 
 function getGameDetailsDraftValues(id = '', item = {}) {
@@ -1031,6 +1049,8 @@ function renderGameDetailsPanel(item = {}) {
           </button>
           <div id="game-platform-options-${escAttr(id)}" class="game-platform-options${menuOpen ? ' open' : ''}" data-game-details-id="${escAttr(id)}">
             ${renderGamePlatformOptionButtons(id, platform)}
+            </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1048,6 +1068,140 @@ function renderGameDetailsPanel(item = {}) {
     </div>
   </div>`;
 }
+
+function isMyListCompetitiveGameItem(item = {}) {
+  return activeSection === 'games' && String(item?.status || '').toLowerCase() === 'competitive';
+}
+
+function getMyListGameProfileStatValue(item = {}, keys = [], fallback = 'X') {
+  for (const key of keys) {
+    const value = key.split('.').reduce((acc, part) => acc && acc[part], item);
+    const text = String(value ?? '').trim();
+    if (text) return text;
+  }
+  return fallback;
+}
+
+function getMyListGameProfileStats(item = {}) {
+  const stats = item?.competitiveStats && typeof item.competitiveStats === 'object' ? item.competitiveStats : {};
+  const account = item?.trackerAccount && typeof item.trackerAccount === 'object' ? item.trackerAccount : {};
+  return {
+    currentRank: getMyListGameProfileStatValue({ ...item, competitiveStats: stats, trackerAccount: account }, ['competitiveStats.currentRank', 'currentRank', 'trackerCurrentRank'], 'Add'),
+    peakRank: getMyListGameProfileStatValue({ ...item, competitiveStats: stats, trackerAccount: account }, ['competitiveStats.peakRank', 'peakRank', 'trackerPeakRank'], 'Add'),
+    lifetimeKd: getMyListGameProfileStatValue({ ...item, competitiveStats: stats, trackerAccount: account }, ['competitiveStats.lifetimeKd', 'competitiveStats.kd', 'lifetimeKd', 'gameLifetimeKd', 'trackerKd'], 'Add'),
+    seasonKd: getMyListGameProfileStatValue({ ...item, competitiveStats: stats, trackerAccount: account }, ['competitiveStats.seasonKd', 'seasonKd', 'gameSeasonKd'], 'Add'),
+    trackerUrl: getMyListGameProfileStatValue({ ...item, competitiveStats: stats, trackerAccount: account }, ['competitiveStats.sourceUrl', 'trackerStatsUrl', 'trackerUrl', 'gameTrackerUrl', 'gameStatsUrl', 'statsUrl'], ''),
+    highlightsUrl: getMyListGameProfileStatValue(item, ['highlightsUrl', 'gameHighlightsUrl', 'highlightUrl', 'clipsUrl'], '')
+  };
+}
+
+function getMyListGameProfileGenreText(value = '') {
+  if (Array.isArray(value)) return value.filter(Boolean).map(v => String(v).trim()).filter(Boolean).slice(0, 3).join(', ') || 'Competitive';
+  const text = String(value || '').trim();
+  return text || 'Competitive';
+}
+
+function closeMyListGameProfilePage(options = {}) {
+  const overlay = document.getElementById('mylist-game-profile-page');
+  if (!overlay) {
+    document.body.classList.remove('mylist-game-profile-open');
+    return;
+  }
+  overlay.classList.remove('is-open');
+  document.body.classList.remove('mylist-game-profile-open');
+  setTimeout(() => {
+    try { overlay.remove(); } catch (_) {}
+  }, options.instant ? 0 : 320);
+}
+window.closeMyListGameProfilePage = closeMyListGameProfilePage;
+
+function openMyListGameProfileEdit(event = null, itemId = '') {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  if (viewingUser) return;
+  const key = String(itemId || '').trim();
+  if (!key) return;
+  if (typeof window.openTrackerLinkModal === 'function') {
+    window.openTrackerLinkModal({ itemId: key });
+    return;
+  }
+  if (typeof showToast === 'function') showToast('Edit tools are still loading');
+}
+window.openMyListGameProfileEdit = openMyListGameProfileEdit;
+
+function openMyListGameProfilePage(itemId = '') {
+  const key = String(itemId || '').trim();
+  if (!key) return;
+  const { item } = findMyListGameProfileItem(key);
+  if (!item) return;
+  closeMyListGameProfilePage({ instant: true });
+  const details = getScreenListGameDetailValuesFromItem(item);
+  const stats = getMyListGameProfileStats(item);
+  const title = item.title || item.name || 'Untitled';
+  const year = item.year || item.releaseYear || item.released?.slice?.(0, 4) || '';
+  const poster = typeof getScreenListDisplayGameCover === 'function'
+    ? getScreenListDisplayGameCover(item)
+    : (item.cover || item.backgroundImage || item.image || '');
+  const genre = getMyListGameProfileGenreText(item.genre || item.genres || item.gameGenre || '');
+  const platform = details.platform || item.platform || item.gamePlatform || 'X';
+  const hours = details.hours ? `${details.hours}h` : 'X';
+  const trackerHref = stats.trackerUrl || details.tracker || '';
+  const highlightsHref = stats.highlightsUrl || '';
+  const overlay = document.createElement('div');
+  overlay.id = 'mylist-game-profile-page';
+  overlay.className = 'mylist-game-profile-page';
+  overlay.dataset.gameProfileItemId = key;
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', `${title} game profile`);
+  overlay.innerHTML = `
+    <div class="mylist-game-profile-shell">
+      <header class="mylist-game-profile-topbar">
+        <button class="mylist-game-profile-back" type="button" onclick="closeMyListGameProfilePage()" aria-label="Back">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18 9 12l6-6"></path></svg>
+        </button>
+        <span>Game Profile</span>
+        ${!viewingUser ? `<button class="mylist-game-profile-edit" type="button" onclick="openMyListGameProfileEdit(event,'${escAttr(key)}')">Edit</button>` : '<span></span>'}
+      </header>
+      <main class="mylist-game-profile-scroll">
+        <section class="mylist-game-profile-summary">
+          <div class="mylist-game-profile-identity">
+            <div class="mylist-game-profile-kicker">Competitive</div>
+            <h1>${escHtml(title)}</h1>
+            <div class="mylist-game-profile-meta-row">
+              ${year ? `<span>${escHtml(String(year).slice(0, 4))}</span>` : ''}
+            </div>
+          </div>
+          <div class="mylist-game-profile-cover${poster ? '' : ' no-img'}" ${poster ? `style="background-image:url('${escAttr(poster)}')"` : ''}>${poster ? '' : escHtml(title.slice(0, 1).toUpperCase() || 'G')}</div>
+          <div class="mylist-game-profile-facts">
+            <div><span>Platform</span><strong>${escHtml(platform)}</strong></div>
+            <div><span>Hours played</span><strong>${escHtml(hours)}</strong></div>
+            <div><span>Genre</span><strong>${escHtml(genre)}</strong></div>
+          </div>
+        </section>
+        <section class="mylist-game-profile-panel" aria-label="Competitive stats">
+          <div class="mylist-game-profile-panel-head">
+            <span>Competitive Status</span>
+          </div>
+          <div class="mylist-game-profile-stat-grid">
+            <div class="mylist-game-profile-stat"><span>Peak Rank</span><strong>${escHtml(stats.peakRank)}</strong></div>
+            <div class="mylist-game-profile-stat"><span>Current Rank</span><strong>${escHtml(stats.currentRank)}</strong></div>
+            <div class="mylist-game-profile-stat"><span>Lifetime KD</span><strong>${escHtml(stats.lifetimeKd)}</strong></div>
+            <div class="mylist-game-profile-stat"><span>Season KD</span><strong>${escHtml(stats.seasonKd)}</strong></div>
+          </div>
+        </section>
+        <section class="mylist-game-profile-links" aria-label="Links">
+          ${trackerHref ? `<a class="mylist-game-profile-link-row" href="${escAttr(trackerHref)}" target="_blank" rel="noopener"><span>Tracker.gg</span><strong>Open</strong></a>` : `<div class="mylist-game-profile-link-row is-disabled"><span>Tracker.gg</span><strong>Not linked</strong></div>`}
+          ${highlightsHref ? `<a class="mylist-game-profile-link-row" href="${escAttr(highlightsHref)}" target="_blank" rel="noopener"><span>Highlights</span><strong>Open</strong></a>` : `<div class="mylist-game-profile-link-row is-disabled"><span>Highlights</span><strong>Not linked</strong></div>`}
+        </section>
+      </main>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.body.classList.add('mylist-game-profile-open');
+  requestAnimationFrame(() => overlay.classList.add('is-open'));
+}
+window.openMyListGameProfilePage = openMyListGameProfilePage;
 
 function syncGameDetailsPanelDomState(id = '') {
   const key = String(id || '').trim();
@@ -1554,10 +1708,31 @@ function normalizeMyListTmdbNextEpisodeMetadata(details = {}) {
     details?.nextEpisodeAirDate ||
     ''
   ).trim();
-  if (!airDate) return null;
-  return {
+  /* v10.389: also extract the soonest UPCOMING season premiere from the
+     seasons[] array on the same /tv/{id} response. This lets us surface
+     "New season airing M/D" on cards whose show is between seasons (no
+     next_episode_to_air yet) AND lets us upgrade a season-premiere episode
+     to a "NEW SEASON OUT" label when next_episode_to_air.episode_number is
+     1 and matches the season's air_date. Season 0 (Specials) is skipped. */
+  const seasons = Array.isArray(details?.seasons) ? details.seasons : [];
+  const todayStart = getScreenListTodayStart();
+  let nextSeason = null;
+  for (const s of seasons) {
+    const num = Number(s?.season_number || 0);
+    if (num < 1) continue;
+    const sDate = String(s?.air_date || '').trim();
+    if (!sDate) continue;
+    const parsed = parseScreenListDateOnly(sDate);
+    if (!parsed || parsed.getTime() < todayStart) continue;
+    if (!nextSeason || parsed.getTime() < parseScreenListDateOnly(nextSeason.airDate).getTime()) {
+      nextSeason = { airDate: sDate, seasonNumber: num, name: String(s?.name || '') };
+    }
+  }
+  /* Nothing to return at all? Bail. The caller treats null as "no update". */
+  if (!airDate && !nextSeason) return null;
+  const result = {
     airDate,
-    episode: {
+    episode: ep ? {
       id: ep?.id || '',
       name: ep?.name || '',
       air_date: airDate,
@@ -1566,8 +1741,12 @@ function normalizeMyListTmdbNextEpisodeMetadata(details = {}) {
       seasonNum: ep?.season_number || ep?.seasonNumber || '',
       episode_number: ep?.episode_number || ep?.episodeNumber || '',
       epNum: ep?.episode_number || ep?.episodeNumber || ''
-    }
+    } : null,
+    nextSeasonAirDate: nextSeason?.airDate || '',
+    nextSeasonNumber: nextSeason?.seasonNumber || 0,
+    nextSeasonName: nextSeason?.name || ''
   };
+  return result;
 }
 
 function getMyListNextEpisodeAirDate(item = {}) {
@@ -1592,19 +1771,79 @@ function getMyListNextEpisodeAirDate(item = {}) {
   return datedEpisodes[0] || '';
 }
 
+/* v10.389: read the cached next-season air date the same way we read the
+   episode air date — first the canonical field we persist, then any
+   alternates we might receive from imports. */
+function getMyListNextSeasonAirDate(item = {}) {
+  const candidates = [
+    item?.nextSeasonAirDate,
+    item?.next_season_to_air?.air_date,
+    item?.next_season_to_air?.airDate,
+    item?.nextSeason?.airDate,
+    item?.nextSeason?.air_date
+  ];
+  for (const candidate of candidates) {
+    const value = String(candidate || '').trim();
+    if (value) return value;
+  }
+  return '';
+}
+
+function getMyListNextSeasonNumber(item = {}) {
+  const candidates = [
+    item?.nextSeasonNumber,
+    item?.next_season_to_air?.season_number,
+    item?.next_season_to_air?.seasonNumber,
+    item?.nextSeason?.seasonNumber,
+    item?.nextSeason?.season_number
+  ];
+  for (const candidate of candidates) {
+    const value = Number(candidate || 0);
+    if (value >= 1) return value;
+  }
+  return 0;
+}
+
+/* v10.389: extended to recognize season premieres.
+   Priority:
+     1. next_episode_to_air whose date is today/future:
+        - If it's a season premiere (episode_number === 1 AND its date matches
+          the known next-season air date), label as season-level.
+        - Otherwise label as episode-level (legacy behavior).
+     2. No upcoming episode but a future season premiere is known:
+        - Label as season-level ("New season airing M/D" / "NEW SEASON OUT").
+     3. Nothing. */
 function getMyListNextEpisodeLabel(item = {}, section = activeSection) {
   if (section !== 'shows' && section !== 'anime') return '';
-  const airDate = getMyListNextEpisodeAirDate(item);
-  if (!isScreenListDateTodayOrFuture(airDate)) return '';
-  if (isScreenListDateToday(airDate)) return 'NEW EPISODE OUT';
-  const labelDate = formatMyListNextEpisodeDate(airDate);
-  return labelDate ? `Next episode airing ${labelDate}` : '';
+  const epDate = getMyListNextEpisodeAirDate(item);
+  const seasonDate = getMyListNextSeasonAirDate(item);
+  const epNumber = Number(item?.next_episode_to_air?.episode_number || item?.next_episode_to_air?.epNum || 0);
+  const isSeasonPremiereEpisode = epNumber === 1 && !!seasonDate && epDate === seasonDate;
+  if (isScreenListDateTodayOrFuture(epDate)) {
+    if (isScreenListDateToday(epDate)) {
+      return isSeasonPremiereEpisode ? 'NEW SEASON OUT' : 'NEW EPISODE OUT';
+    }
+    const labelDate = formatMyListNextEpisodeDate(epDate);
+    if (!labelDate) return '';
+    return isSeasonPremiereEpisode
+      ? `New season airing ${labelDate}`
+      : `Next episode airing ${labelDate}`;
+  }
+  /* Episode date missing or in the past — fall back to season-level data
+     for shows that are between seasons. */
+  if (isScreenListDateTodayOrFuture(seasonDate)) {
+    if (isScreenListDateToday(seasonDate)) return 'NEW SEASON OUT';
+    const labelDate = formatMyListNextEpisodeDate(seasonDate);
+    return labelDate ? `New season airing ${labelDate}` : '';
+  }
+  return '';
 }
 
 function renderMyListNextEpisodeHtml(item = {}, section = activeSection) {
   const label = getMyListNextEpisodeLabel(item, section);
   if (!label) return '';
-  const isNew = label === 'NEW EPISODE OUT';
+  /* v10.389: glow on both today-states. */
+  const isNew = label === 'NEW EPISODE OUT' || label === 'NEW SEASON OUT';
   return `<div class="card-next-episode${isNew ? ' is-new' : ''}">${escHtml(label)}</div>`;
 }
 
@@ -1968,19 +2207,37 @@ async function fetchMyListNextEpisodeMetadata(item = {}, section = activeSection
 }
 
 function setMyListNextEpisodeMetadata(item = {}, metadata = null) {
-  if (!item || !metadata?.airDate) return false;
+  if (!item || !metadata) return false;
+  let changed = false;
+  /* v10.389: episode block is now optional — show may be between seasons
+     so the response carries only season info. */
   const airDate = String(metadata.airDate || '').trim();
-  const episode = metadata.episode || {};
-  const previous = String(item.nextEpisodeAirDate || item.next_episode_to_air?.air_date || '').trim();
-  item.nextEpisodeAirDate = airDate;
-  item.next_episode_to_air = {
-    ...(item.next_episode_to_air || {}),
-    ...episode,
-    air_date: airDate,
-    airDate
-  };
+  if (airDate) {
+    const episode = metadata.episode || {};
+    const previous = String(item.nextEpisodeAirDate || item.next_episode_to_air?.air_date || '').trim();
+    item.nextEpisodeAirDate = airDate;
+    item.next_episode_to_air = {
+      ...(item.next_episode_to_air || {}),
+      ...episode,
+      air_date: airDate,
+      airDate
+    };
+    if (previous !== airDate) changed = true;
+  }
+  /* v10.389: persist next-season premiere info so we can render
+     "New season airing M/D" without hitting TMDB again. */
+  if (typeof metadata.nextSeasonAirDate === 'string') {
+    const nextSeasonDate = String(metadata.nextSeasonAirDate || '').trim();
+    const previousSeasonDate = String(item.nextSeasonAirDate || '').trim();
+    const previousSeasonNumber = Number(item.nextSeasonNumber || 0);
+    const nextSeasonNumber = Number(metadata.nextSeasonNumber || 0);
+    if (nextSeasonDate !== previousSeasonDate || nextSeasonNumber !== previousSeasonNumber) changed = true;
+    item.nextSeasonAirDate = nextSeasonDate;
+    item.nextSeasonNumber = nextSeasonNumber;
+    item.nextSeasonName = String(metadata.nextSeasonName || '');
+  }
   item.nextEpisodeHydratedAt = new Date().toISOString();
-  return previous !== airDate;
+  return changed;
 }
 
 function updateMyListNextEpisodeElement(item = {}, section = activeSection) {
@@ -1991,14 +2248,23 @@ function updateMyListNextEpisodeElement(item = {}, section = activeSection) {
   if (!card) return;
   const existing = card.querySelector('.card-next-episode');
   const html = renderMyListNextEpisodeActionHtml(item, section, activeTab);
+  const inlineSlot = card.querySelector('.tv-show-next-episode-slot');
   if (!html) {
     if (existing) existing.remove();
+    if (inlineSlot) inlineSlot.classList.remove('has-next-episode');
     return;
   }
   const tmp = document.createElement('div');
   tmp.innerHTML = html;
   const node = tmp.firstElementChild;
   if (!node) return;
+  if (inlineSlot) {
+    inlineSlot.innerHTML = '';
+    inlineSlot.appendChild(node);
+    inlineSlot.classList.add('has-next-episode');
+    card.querySelector('.card-action-row')?.classList.remove('has-next-episode');
+    return;
+  }
   if (existing) {
     existing.replaceWith(node);
     return;
@@ -2013,8 +2279,12 @@ function updateMyListNextEpisodeElement(item = {}, section = activeSection) {
 
 function queueMyListNextEpisodeHydration(item = {}, section = activeSection) {
   if (section !== 'shows' && section !== 'anime') return;
-  const known = getMyListNextEpisodeAirDate(item);
-  if (known) {
+  /* v10.389: treat either a known future episode date OR a known future
+     season premiere as "already hydrated" so between-season shows don't
+     re-fetch on every render. */
+  const knownEp = getMyListNextEpisodeAirDate(item);
+  const knownSeason = getMyListNextSeasonAirDate(item);
+  if ((knownEp && isScreenListDateTodayOrFuture(knownEp)) || (knownSeason && isScreenListDateTodayOrFuture(knownSeason))) {
     updateMyListNextEpisodeElement(item, section);
     return;
   }
@@ -2025,7 +2295,8 @@ function queueMyListNextEpisodeHydration(item = {}, section = activeSection) {
   setTimeout(async () => {
     try {
       const metadata = await fetchMyListNextEpisodeMetadata(item, section);
-      if (metadata?.airDate) {
+      /* v10.389: accept either episode-level OR season-level data. */
+      if (metadata && (metadata.airDate || metadata.nextSeasonAirDate)) {
         const changed = setMyListNextEpisodeMetadata(item, metadata);
         updateMyListNextEpisodeElement(item, section);
         if (changed && currentUser && !viewingUser) save();
@@ -2150,23 +2421,39 @@ function renderCard(item, isDraggable) {
   const displayTitle = getDisplayTitleForItem(item, activeSection) || item.title || '';
   if (activeSection === 'anime') {
     queueAnimeTitleVariantHydration(item, activeSection);
+    if (typeof queueAnimeCanonicalIdentityHydration === 'function') queueAnimeCanonicalIdentityHydration(item, activeSection);
     queueMissingMalPosterHydration(item, activeSection);
   }
   if (activeSection === 'shows' || activeSection === 'anime') queueMyListNextEpisodeHydration(item, activeSection);
   const canOpenProfile = canOpenLibraryMediaProfile(activeSection);
   const isGamesWishlistCard = isGamesWishlistStatusCard(item, activeSection, activeTab);
+  const isCompetitiveGameCard = isGameCard && !isGamesWishlistCard && String(item?.status || '').toLowerCase() === 'competitive';
+  const isGamePlayingOrBacklogCard = isGameCard
+    && !isGamesWishlistCard
+    && !isCompetitiveGameCard
+    && (activeTab === 'watching' || activeTab === 'planned');
+  const shouldTrimGameActivityMetadata = isGameCard
+    && !isGamesWishlistCard
+    && !isCompetitiveGameCard
+    && ['watching', 'planned', 'watched'].includes(String(activeTab || item?.status || '').toLowerCase());
   const isWatchedShowProgressCard = type === "show"
     && String(item?.status || '').trim() === 'watched'
     && (activeSection === 'shows' || activeSection === 'anime');
   const isInlineProgressPercentCard = type === "show"
     && (activeSection === 'shows' || activeSection === 'anime')
     && ['watching', 'paused'].includes(String(item?.status || '').trim());
+  const shouldShiftTvShowRatingLayout = activeSection === 'shows'
+    && ['watching', 'paused'].includes(String(item?.status || '').trim());
+  const shouldHideMyListCardOverallRating = (
+      activeTab === 'planned' && (activeSection === 'movies' || activeSection === 'shows' || activeSection === 'anime')
+    )
+    || (activeSection === 'games' && (activeTab === 'planned' || activeTab === 'wishlist'));
   const canOpenTrackerBreakdown = isGameCard
     && !isGamesWishlistCard
     && typeof hasScreenListTrackerBreakdownForItem === 'function'
     && hasScreenListTrackerBreakdownForItem(item);
   const gameTitleMarkup = isGameCard
-    ? `<button class="card-title-profile-btn game-title-profile-btn" type="button" data-library-item-id="${itemIdAttr}" data-library-section="${itemSectionAttr}" onclick="${canOpenTrackerBreakdown ? `openTrackerStatsPage(event,'${itemIdAttr}')` : `openGameMediaProfileFromLibrary(event,'${itemIdAttr}','${itemSectionAttr}')`}">${escHtml(displayTitle)}</button>`
+    ? `<button class="card-title-profile-btn game-title-profile-btn" type="button" data-library-item-id="${itemIdAttr}" data-library-section="${itemSectionAttr}" onclick="${isCompetitiveGameCard ? `event.stopPropagation();openMyListGameProfilePage('${itemIdAttr}')` : (canOpenTrackerBreakdown ? `openTrackerStatsPage(event,'${itemIdAttr}')` : `openGameMediaProfileFromLibrary(event,'${itemIdAttr}','${itemSectionAttr}')`)}">${escHtml(displayTitle)}</button>`
     : canOpenProfile
       ? `<button class="card-title-profile-btn media-title-profile-btn" type="button" data-library-item-id="${itemIdAttr}" data-library-section="${itemSectionAttr}" onclick="openLibraryMediaProfile(event,'${itemIdAttr}','${itemSectionAttr}')">${escHtml(displayTitle)}</button>`
       : `<span>${escHtml(displayTitle)}</span>`;
@@ -2190,6 +2477,18 @@ function renderCard(item, isDraggable) {
     ? `<div class="games-wishlist-card-priority">${renderWatchlistPriorityControl(item, activeSection)}</div>`
     : '';
   const nextEpisodeActionHtml = renderMyListNextEpisodeActionHtml(item, activeSection, activeTab);
+  const nextEpisodeActionRowHtml = shouldShiftTvShowRatingLayout ? '' : nextEpisodeActionHtml;
+  const tvShowNextEpisodeInlineHtml = shouldShiftTvShowRatingLayout
+    ? `<div class="tv-show-next-episode-slot${nextEpisodeActionHtml ? ' has-next-episode' : ''}">${nextEpisodeActionHtml}</div>`
+    : '';
+  const overallRatingHtml = shouldHideMyListCardOverallRating ? '' : `<div class="rating-area">
+            <div class="rating-label">Rating</div>
+            ${renderMyListCardOverallRating(item, activeSection)}
+          </div>`;
+  const inlineOverallRatingHtml = shouldShiftTvShowRatingLayout ? '' : overallRatingHtml;
+  const bottomLeftOverallRatingHtml = shouldShiftTvShowRatingLayout
+    ? `<div class="tv-show-bottom-rating-slot">${overallRatingHtml}</div>`
+    : '';
   const showCommentButton = !shouldHideMyListCommentButton(activeSection, item);
   const gamesWishlistMetadataHtml = renderGamesWishlistMetadataHtml(item, activeSection, activeTab);
 
@@ -2226,25 +2525,10 @@ function renderCard(item, isDraggable) {
   );
   if (hasFullEpisodeRows) {
     episodeToggleButton = `
-      <button type="button" class="ep-toggle-bar card-footer-btn" onclick="toggleEpisodes('${item.id}')">
+      <button type="button" class="ep-toggle-bar card-footer-btn" onclick="event.stopPropagation();openMyListEpisodePage('${item.id}')">
         <span id="ep-label-${item.id}">Episodes</span>
-        <span class="ep-arrow" id="ep-arrow-${item.id}">&#9662;</span>
+        <span class="ep-arrow" id="ep-arrow-${item.id}">&#8250;</span>
       </button>
-    `;
-    /* v10.69: lazy-hydrate the episode dropdown.
-       For closed dropdowns (the common case across a long list), the inner
-       content is left EMPTY at render time. Only the lightweight `.ep-list`
-       shell exists. On first `toggleEpisodes(id)` open, the inner is hydrated
-       via `buildEpisodeListInnerHtml(item)` — see toggleEpisodes below.
-       For dropdowns that ARE currently open (`openStates['ep-' + id]` truthy),
-       hydrate immediately so the post-render `setEpisodesExpanded(...)` restore
-       block at L585+ measures a real scrollHeight. Saves hundreds to thousands
-       of hidden episode-row DOM nodes per render on large libraries. */
-    const _isEpOpenAlready = !!openStates['ep-' + item.id];
-    episodeSection = `
-      <div class="ep-list" id="ep-list-${item.id}"${_isEpOpenAlready ? '' : ' data-ep-pending="1"'}>
-        <div class="ep-list-inner">${_isEpOpenAlready ? buildEpisodeListInnerHtml(item) : ''}</div>
-      </div>
     `;
   }
 
@@ -2259,7 +2543,7 @@ function renderCard(item, isDraggable) {
   const gameStatsHtml = isGameCard && !isGamesWishlistCard ? `<div class="game-card-stats-inline">
     <div class="game-card-stat-row"><span class="game-card-stat-label">Hours played:</span><span class="game-card-stat-val">${escHtml(gameStatHours)}</span></div>
     <div class="game-card-stat-row"><span class="game-card-stat-label">Platform:</span><span class="game-card-stat-val">${escHtml(gameStatPlatform)}</span></div>
-    <div class="game-card-stat-row"><span class="game-card-stat-label">Tracker/Stats:</span>${gameStatTracker ? `<a class="game-card-tracker-icon-link" href="${escAttr(gameStatTracker)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" aria-label="Open Tracker/Stats">${getScreenListGameTrackerIconSvg()}</a>` : '<span class="game-card-stat-val">—</span>'}</div>
+    ${shouldTrimGameActivityMetadata ? '' : `<div class="game-card-stat-row"><span class="game-card-stat-label">Tracker/Stats:</span>${gameStatTracker ? `<a class="game-card-tracker-icon-link" href="${escAttr(gameStatTracker)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" aria-label="Open Tracker/Stats">${getScreenListGameTrackerIconSvg()}</a>` : '<span class="game-card-stat-val">—</span>'}</div>`}
   </div>` : '';
 
   // v318: game cards get inline comment dropdown; other cards navigate to comments page
@@ -2279,7 +2563,7 @@ function renderCard(item, isDraggable) {
     ? `draggable="true" ondragstart="onCardDragStart(event,'${item.id}')" ondragover="onCardDragOver(event)" ondragleave="onCardDragLeave(event)" ondrop="onCardDrop(event,'${item.id}')"`
     : '';
   return `
-    <div class="card ${type === "show" ? "show-card" : ""}${isGameCard ? " game-library-card" : ""}${isGamesWishlistCard ? " games-wishlist-card" : ""} ${viewingUser ? "friend-view-card" : ""}${isDraggable ? ' card-draggable' : ''}" id="card-${item.id}" data-mylist-review-card data-library-item-id="${itemIdAttr}" data-library-section="${itemSectionAttr}" onclick="handleMyListCardReviewSurfaceClick(event,'${itemIdAttr}','${itemSectionAttr}')" ${dragAttrs}>
+    <div class="card ${type === "show" ? "show-card" : ""}${isGameCard ? " game-library-card" : ""}${isGamesWishlistCard ? " games-wishlist-card" : ""}${isGamePlayingOrBacklogCard ? " game-playing-backlog-compact-card" : ""}${shouldShiftTvShowRatingLayout ? " tv-show-progress-rating-shift-card" : ""} ${viewingUser ? "friend-view-card" : ""}${isDraggable ? ' card-draggable' : ''}" id="card-${item.id}" data-mylist-review-card data-library-item-id="${itemIdAttr}" data-library-section="${itemSectionAttr}" onclick="handleMyListCardReviewSurfaceClick(event,'${itemIdAttr}','${itemSectionAttr}')" ${dragAttrs}>
       <div class="card-header">
         <div class="${coverClass}${coverProfileClass}" style="${coverStyle}" ${coverPosterAttr} ${coverProfileAttrs}${activeSection === 'music' ? ` onclick="event.stopPropagation();openMyListMusicCoverClick('${itemIdAttr}')"` : ''}>
           ${!cardCoverSrc ? (isGameCard ? `<span>${SCREENLIST_GAME_COVER_PLACEHOLDER_TEXT}</span>` : emoji) : ''}
@@ -2306,7 +2590,7 @@ function renderCard(item, isDraggable) {
               || activeSection === 'music')
               && item.year) ? `<div class="card-year mylist-watchlist-year">${escHtml(String(item.year).slice(0, 4))}</div>` : ''}
           ${(activeSection === 'music' && item.artist) ? `<div class="card-artist">${escHtml(String(item.artist))}</div>` : ''}
-          ${activeTab === 'planned' && isScreenListMovieTvAnimeSection(activeSection) ? '' : (!isGamesWishlistCard && (!shouldHideMyListCardGenre(activeSection, item) && item.genre) ? `<div class="card-genre">${escHtml(isScreenListWatchedMediaCard(activeSection, item) ? formatMyListGenreList(item.genre, 2) : item.genre)}</div>` : '')}
+          ${activeTab === 'planned' && isScreenListMovieTvAnimeSection(activeSection) ? '' : (!shouldTrimGameActivityMetadata && !isGamesWishlistCard && (!shouldHideMyListCardGenre(activeSection, item) && item.genre) ? `<div class="card-genre">${escHtml(isScreenListWatchedMediaCard(activeSection, item) ? formatMyListGenreList(item.genre, 2) : item.genre)}</div>` : '')}
           ${gamesWishlistMetadataHtml}
           ${renderMyListWatchListMetadataHtml(item, activeSection, activeTab)}
           ${!viewingUser ? `<div class="status-pills status-pills-selector-wrap" id="status-pills-${item.id}">${statusSelectorHtml}</div>` : ''}
@@ -2332,10 +2616,8 @@ function renderCard(item, isDraggable) {
               <div class="progress-bar"><div class="progress-fill" id="progress-fill-${item.id}" style="width:${progress}%"></div></div>
             </div>
           `) : ''}
-          ${item.status !== 'planned' && !isGamesWishlistCard ? `<div class="rating-area">
-            <div class="rating-label">Rating</div>
-            ${renderStars(item.rating || 0, item.id, 'overall', 16)}
-          </div>` : ''}
+          ${tvShowNextEpisodeInlineHtml}
+          ${inlineOverallRatingHtml}
           <!-- v10.69: stable slot wrapper around the card comment so partial
                updates from saveCardCommentFromComposer / deleteCardComment can
                swap just this region's innerHTML instead of triggering a full
@@ -2344,8 +2626,9 @@ function renderCard(item, isDraggable) {
           ${gamesWishlistPriorityHtml}
         </div>
       </div>
-      <div class="card-action-row${bottomExternalBadgeHtml ? ' has-bottom-export' : ''}${watchlistPriorityHtml ? ' has-watch-priority' : ''}${nextEpisodeActionHtml ? ' has-next-episode' : ''}">
-        ${nextEpisodeActionHtml}
+      ${!isGamePlayingOrBacklogCard ? `<div class="card-action-row${bottomExternalBadgeHtml ? ' has-bottom-export' : ''}${watchlistPriorityHtml ? ' has-watch-priority' : ''}${nextEpisodeActionRowHtml ? ' has-next-episode' : ''}">
+        ${bottomLeftOverallRatingHtml}
+        ${nextEpisodeActionRowHtml}
         ${bottomExternalBadgeHtml ? `<div class="mylist-card-bottom-export">${bottomExternalBadgeHtml}</div>` : ''}
         ${watchlistPriorityHtml}
         <div class="card-footer-actions">
@@ -2360,12 +2643,13 @@ function renderCard(item, isDraggable) {
           ${activeSection === 'music' ? `<button class="card-tracklist-btn" type="button" onclick="event.stopPropagation();openMyListAlbumPage('${itemIdAttr}')" aria-label="Open album tracklist">Tracklist</button>` : ''}
           ${buildCardCommentAddBtnHtml(item)}
         </div>
-      </div>
+      </div>` : ''}
       ${gameCommentDropHtml}
-      ${isGameCard && !isGamesWishlistCard ? renderGameDetailsPanel(item) : ''}
+      ${isGameCard && !isGamesWishlistCard && !isCompetitiveGameCard && !isGamePlayingOrBacklogCard ? renderGameDetailsPanel(item) : ''}
       ${item.shelfdActivityNote ? `<div class="card-activity-note" data-card-activity-note>${escHtml(item.shelfdActivityNote)}</div>` : ''}
       ${episodeSection}
-      ${isGameCard && !isGamesWishlistCard && !viewingUser && !screenlistGameDetailsEditState[gameDetailsKey] ? `<button class="game-card-edit-btn" type="button" onclick="event.stopPropagation();openGameDetailsEdit('${gameDetailsKey}')" aria-label="Edit game details">${getScreenListGamePencilSvg()}</button>` : ''}
+      ${isCompetitiveGameCard ? `<button class="game-card-more-btn" type="button" onclick="event.stopPropagation();openMyListGameProfilePage('${itemIdAttr}')" aria-label="Open game profile">More</button>` : ''}
+      ${isGameCard && !isGamesWishlistCard && !isCompetitiveGameCard && !isGamePlayingOrBacklogCard && !viewingUser && !screenlistGameDetailsEditState[gameDetailsKey] ? `<button class="game-card-edit-btn" type="button" onclick="event.stopPropagation();openGameDetailsEdit('${gameDetailsKey}')" aria-label="Edit game details">${getScreenListGamePencilSvg()}</button>` : ''}
     </div>
   `;
 }
@@ -2403,6 +2687,39 @@ function isMyListReviewExcludedTarget(target = null) {
   ].join(','));
 }
 
+function isMyListGameProfileExcludedTarget(target = null) {
+  if (!target?.closest) return false;
+  return !!target.closest([
+    'button',
+    'a',
+    'input',
+    'select',
+    'textarea',
+    'label',
+    '[contenteditable="true"]',
+    '[role="button"]',
+    '.card-cover-profile-btn',
+    '.rating-area',
+    '.stars',
+    '.status-pills',
+    '.game-status-selector',
+    '.game-details-panel',
+    '.game-card-comment-drop',
+    '.ep-toggle-bar',
+    '.ep-list',
+    '.comments-btn',
+    '.card-comment-add-btn',
+    '.card-comment-body--owner',
+    '.watch-together-card-control',
+    '.watch-together-card-btn',
+    '.mylist-card-bottom-export',
+    '.watchlist-priority-slot',
+    '.tracker-card-strip',
+    '.game-card-edit-btn',
+    '.game-card-more-btn'
+  ].join(','));
+}
+
 /* v10.250: tapping the album COVER on a my-list music card opens the rich
    Deezer-hydrated Album Profile (full-page slide-in with cover, artist, year,
    release date, genre, runtime, tracklist). Distinct from the card body
@@ -2426,7 +2743,18 @@ window.openMyListMusicCoverClick = function(itemId) {
 };
 
 function handleMyListCardReviewSurfaceClick(event = null, itemId = '', section = activeSection) {
-  if (!event || isMyListReviewExcludedTarget(event.target)) return;
+  if (!event) return;
+  const cleanSection = String(section || activeSection || '').trim();
+  if (cleanSection === 'games' && !isMyListGameProfileExcludedTarget(event.target)) {
+    const { item } = findMyListGameProfileItem(itemId);
+    if (isMyListCompetitiveGameItem(item)) {
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      openMyListGameProfilePage(itemId);
+      return;
+    }
+  }
+  if (isMyListReviewExcludedTarget(event.target)) return;
   event.preventDefault?.();
   event.stopPropagation?.();
   openFullPageMediaReview(itemId, section);
@@ -2486,6 +2814,23 @@ function getMyListReviewShareText() {
   return [title, dateLine].filter(Boolean).join(' - ');
 }
 
+async function shareMyListMediaReview(event = null) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const text = getMyListReviewShareText();
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: text || 'Shelfd review', text, url: window.location.href });
+      return;
+    }
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(`${text}${text ? '\n' : ''}${window.location.href}`);
+      if (typeof showToast === 'function') showToast('Review link copied');
+    }
+  } catch (_) {}
+}
+window.shareMyListMediaReview = shareMyListMediaReview;
+
 function getMyListReviewText(item = {}) {
   return String(
     item?.reviewText ||
@@ -2506,9 +2851,29 @@ function renderMyListReviewTracklistToggle(item = {}) {
   if (tracks.length === 0) return '';
   const favs = Array.isArray(item.trackFavorites) ? item.trackFavorites : [];
   /* v10.253: backward compat — legacy trackRatings > 0 still counts as a
-     favorite so users don't lose pre-existing data. */
+     favorite so users don't lose pre-existing data.
+     v10.330: prefer the stable trackFavoritesByKey map written by the
+     album shelf page (27-music-album-shelf-page.js). Falls back to the
+     legacy array+ratings shapes so older Firestore docs still render. */
   const legacyRatings = Array.isArray(item.trackRatings) ? item.trackRatings : [];
+  const byKey = item && typeof item.trackFavoritesByKey === 'object' && item.trackFavoritesByKey !== null
+    ? item.trackFavoritesByKey
+    : null;
+  const stableKey = (track, idx) => {
+    if (!track || typeof track !== 'object') return `idx:${idx}`;
+    const dzId = String(track.deezerId || track.id || '').trim();
+    if (dzId) return `dz:${dzId}`;
+    const num = String(track.number || (idx + 1)).trim();
+    const ttl = String(track.title || '').trim().toLowerCase();
+    if (ttl) return `t:${num}::${ttl}`;
+    return `idx:${idx}`;
+  };
   const isFav = (idx) => {
+    if (byKey) {
+      const key = stableKey(tracks[idx], idx);
+      if (byKey[key] === true) return true;
+      if (byKey[key] === false) return false;
+    }
     if (favs[idx] === true) return true;
     if (favs[idx] === false) return false;
     return Number(legacyRatings[idx] || 0) > 0;
@@ -2553,6 +2918,7 @@ function openMyListMediaReviewActions(event = null) {
   event?.stopPropagation?.();
   const overlay = document.getElementById('mylist-media-review-page');
   if (!overlay) return;
+  if (overlay.dataset.reviewIsOwner !== 'true') return;
   overlay.classList.add('actions-open');
 }
 window.openMyListMediaReviewActions = openMyListMediaReviewActions;
@@ -2569,20 +2935,14 @@ async function handleMyListMediaReviewAction(action = '', event = null) {
   event?.preventDefault?.();
   event?.stopPropagation?.();
   const cleanAction = String(action || '').trim().toLowerCase();
+  const overlay = document.getElementById('mylist-media-review-page');
+  if (overlay?.dataset?.reviewIsOwner !== 'true' && cleanAction !== 'share' && cleanAction !== 'done') return;
   if (cleanAction === 'done') {
     closeMyListMediaReviewActions(event);
     return;
   }
   if (cleanAction === 'share') {
-    const text = getMyListReviewShareText();
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: text || 'Shelfd review', text, url: window.location.href });
-      } else if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(`${text}${text ? '\n' : ''}${window.location.href}`);
-        if (typeof showToast === 'function') showToast('Review link copied');
-      }
-    } catch (e) {}
+    await shareMyListMediaReview(event);
     closeMyListMediaReviewActions(event);
     return;
   }
@@ -2592,7 +2952,6 @@ async function handleMyListMediaReviewAction(action = '', event = null) {
      into the FPReview from somewhere outside that section. */
   if (cleanAction === 'edit') {
     closeMyListMediaReviewActions(event);
-    const overlay = document.getElementById('mylist-media-review-page');
     const itemId = overlay?.dataset?.reviewItemId || '';
     const section = overlay?.dataset?.reviewSection || '';
     closeFullPageMediaReview();
@@ -2610,17 +2969,379 @@ async function handleMyListMediaReviewAction(action = '', event = null) {
 }
 window.handleMyListMediaReviewAction = handleMyListMediaReviewAction;
 
-function openMyListMediaReviewReply(event = null) {
+function getMyListReviewInlineReplyAuthor() {
+  const profile = (typeof usersMap === 'object' && currentUser?.uid && usersMap[currentUser.uid]) || userProfile || currentUser || {};
+  const name = profile?.name || profile?.customName || currentUser?.displayName || currentUser?.email || 'User';
+  const photo = profile?.photo || profile?.customPhoto || currentUser?.photoURL || '';
+  return { name, photo };
+}
+
+function getMyListReviewReplyStableId(reply = {}, index = 0) {
+  return String(reply.id || reply.replyId || `reply-${reply.uid || 'user'}-${reply.timestamp || index}-${index}`).trim();
+}
+
+function getMyListReviewReplyParentId(reply = {}) {
+  return String(reply.parentReplyId || reply.parentCommentId || reply.replyToId || '').trim();
+}
+
+function formatMyListReviewReplyTime(value = 0) {
+  if (typeof relativeTime === 'function') return relativeTime(value);
+  const ms = Number(value || 0);
+  if (!ms) return '';
+  try {
+    return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(ms));
+  } catch (_) { return ''; }
+}
+
+function renderMyListMediaReviewReplies(replies = []) {
+  const normalized = [...(Array.isArray(replies) ? replies : [])]
+    .sort((a, b) => Number(a?.timestamp || 0) - Number(b?.timestamp || 0))
+    .map((reply, index) => ({ ...reply, id: getMyListReviewReplyStableId(reply, index) }));
+  if (!normalized.length) return '<div class="mylist-media-review-replies-empty">No replies yet.</div>';
+  const byId = new Map(normalized.map(reply => [String(reply.id || ''), reply]));
+  const childrenByParent = new Map();
+  const roots = [];
+  normalized.forEach(reply => {
+    const parentId = getMyListReviewReplyParentId(reply);
+    if (parentId && parentId !== reply.id && byId.has(parentId)) {
+      if (!childrenByParent.has(parentId)) childrenByParent.set(parentId, []);
+      childrenByParent.get(parentId).push(reply);
+    } else {
+      roots.push(reply);
+    }
+  });
+  const renderReplyNode = (reply, depth = 0, isLast = false) => {
+    const profile = (typeof usersMap === 'object' && usersMap?.[reply.uid]) || {};
+    const name = profile?.name || profile?.customName || reply.name || 'User';
+    const photo = profile?.photo || profile?.customPhoto || reply.photo || '';
+    const fallback = getMyListReviewFallbackAvatar(name);
+    const time = formatMyListReviewReplyTime(reply.timestamp);
+    const childReplies = childrenByParent.get(reply.id) || [];
+    const depthValue = Math.min(3, Math.max(0, Number(depth || 0)));
+    return `
+      <article class="mylist-media-review-reply-item${depthValue ? ' is-child-reply' : ''}" data-review-reply-id="${escAttr(reply.id)}" style="--review-reply-depth:${depthValue}">
+        <div class="mylist-media-review-reply-avatar">
+          <img src="${escAttr(photo || fallback)}" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${escAttr(fallback)}'">
+          ${!isLast || childReplies.length ? '<span class="mylist-media-review-reply-line" aria-hidden="true"></span>' : ''}
+        </div>
+        <div class="mylist-media-review-reply-bubble">
+          <div class="mylist-media-review-reply-meta">
+            <strong>${renderDisplayNameHTML(profile.uid ? profile : { name }, name, '')}</strong>
+            ${time ? `<span>${escHtml(time)}</span>` : ''}
+          </div>
+          <div class="mylist-media-review-reply-text">${escHtml(reply.text || '')}</div>
+          <button class="mylist-media-review-reply-inline" type="button" onclick="openMyListMediaReviewReply(event,'${escAttr(reply.id)}','${escAttr(name)}')">Reply</button>
+          ${childReplies.length ? `<div class="mylist-media-review-reply-children">${childReplies.map((child, childIndex) => renderReplyNode(child, depthValue + 1, childIndex === childReplies.length - 1)).join('')}</div>` : ''}
+        </div>
+      </article>
+    `;
+  };
+  return roots.map((reply, index) => renderReplyNode(reply, 0, index === roots.length - 1)).join('');
+}
+
+function getMyListReviewFallbackInteractionDocId(overlay = document.getElementById('mylist-media-review-page')) {
+  const ownerUid = String(overlay?.dataset?.reviewOwnerUid || '').trim();
+  const section = String(overlay?.dataset?.reviewSection || '').trim();
+  const itemId = String(overlay?.dataset?.reviewItemId || '').trim();
+  const raw = [ownerUid, section, itemId].filter(Boolean).join('|') || String(overlay?.dataset?.reviewTitle || 'review');
+  const hash = typeof screenlistStableHash === 'function'
+    ? screenlistStableHash(raw)
+    : raw.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').slice(0, 80);
+  const stableId = `review-${hash}`;
+  return typeof getActivityInteractionMetaDocId === 'function'
+    ? getActivityInteractionMetaDocId(stableId)
+    : `activity-interaction-${stableId}`;
+}
+
+function getMyListReviewTargetItem(overlay = document.getElementById('mylist-media-review-page')) {
+  const section = String(overlay?.dataset?.reviewSection || '').trim();
+  const itemId = String(overlay?.dataset?.reviewItemId || '').trim();
+  if (!section || !itemId) return null;
+  const record = findMyListReviewItem(itemId, section);
+  return record?.item || null;
+}
+
+async function resolveMyListMediaReviewReplyTarget(options = {}) {
+  const overlay = document.getElementById('mylist-media-review-page');
+  if (!overlay || typeof db === 'undefined') return null;
+  const existingDocId = String(overlay.dataset.reviewReplyDocId || '').trim();
+  const existingCollection = String(overlay.dataset.reviewReplyCollection || '').trim();
+  if (existingDocId && existingCollection) {
+    const shouldTryOwnerFeedPost = options.createLinkedIfOwner
+      && overlay.dataset.reviewIsOwner === 'true'
+      && !String(overlay.dataset.reviewActivityId || '').trim()
+      && existingCollection === 'meta';
+    if (!shouldTryOwnerFeedPost) {
+      return {
+        id: existingDocId,
+        collection: existingCollection,
+        ref: db.collection(existingCollection).doc(existingDocId),
+        cardId: overlay.dataset.reviewActivityId || overlay.dataset.reviewInteractionId || existingDocId,
+        activity: {
+          id: overlay.dataset.reviewActivityId || overlay.dataset.reviewInteractionId || existingDocId,
+          uid: overlay.dataset.reviewOwnerUid || '',
+          replies: []
+        }
+      };
+    }
+    delete overlay.dataset.reviewReplyDocId;
+    delete overlay.dataset.reviewReplyCollection;
+    delete overlay.dataset.reviewInteractionId;
+  }
+
+  let activityId = String(overlay.dataset.reviewActivityId || '').trim();
+  if (!activityId && options.createLinkedIfOwner && overlay.dataset.reviewIsOwner === 'true') {
+    const item = getMyListReviewTargetItem(overlay);
+    if (item && getMyListReviewText(item) && typeof createLinkedMediaReviewFeedPost === 'function') {
+      try {
+        activityId = await createLinkedMediaReviewFeedPost(item, overlay.dataset.reviewSection || '');
+        if (activityId) {
+          item.reviewActivityId = activityId;
+          overlay.dataset.reviewActivityId = activityId;
+          try { save(); } catch (_) {}
+        }
+      } catch (_) {}
+    }
+  }
+  if (activityId && typeof resolveActivityInteractionTarget === 'function') {
+    const target = await resolveActivityInteractionTarget(activityId);
+    if (target?.ref) {
+      overlay.dataset.reviewReplyDocId = target.interactionDocId || target.id;
+      overlay.dataset.reviewReplyCollection = target.collection || 'feed';
+      overlay.dataset.reviewInteractionId = target.cardId || target.id || activityId;
+      return target;
+    }
+  }
+
+  const fallbackId = getMyListReviewFallbackInteractionDocId(overlay);
+  overlay.dataset.reviewReplyDocId = fallbackId;
+  overlay.dataset.reviewReplyCollection = 'meta';
+  overlay.dataset.reviewInteractionId = fallbackId;
+  return {
+    id: fallbackId,
+    collection: 'meta',
+    ref: db.collection('meta').doc(fallbackId),
+    cardId: fallbackId,
+    activity: {
+      id: fallbackId,
+      uid: overlay.dataset.reviewOwnerUid || '',
+      type: 'media-review',
+      replies: []
+    }
+  };
+}
+
+async function loadMyListMediaReviewReplies() {
+  const overlay = document.getElementById('mylist-media-review-page');
+  const list = overlay?.querySelector('[data-review-replies-list]');
+  if (!overlay || !list) return;
+  list.innerHTML = '<div class="mylist-media-review-replies-empty">Loading replies...</div>';
+  try {
+    const target = await resolveMyListMediaReviewReplyTarget({ createLinkedIfOwner: false });
+    if (!target?.ref) {
+      list.innerHTML = '<div class="mylist-media-review-replies-empty">No replies yet.</div>';
+      return;
+    }
+    const snap = await target.ref.get();
+    if (!snap.exists
+        && target.collection === 'meta'
+        && overlay.dataset.reviewIsOwner === 'true'
+        && !String(overlay.dataset.reviewActivityId || '').trim()) {
+      delete overlay.dataset.reviewReplyDocId;
+      delete overlay.dataset.reviewReplyCollection;
+      delete overlay.dataset.reviewInteractionId;
+    }
+    const data = snap.exists ? (snap.data() || {}) : {};
+    const replies = Array.isArray(data.replies) ? data.replies : [];
+    list.innerHTML = renderMyListMediaReviewReplies(replies);
+    const countEl = overlay.querySelector('[data-review-reply-count]');
+    if (countEl) countEl.textContent = replies.length ? String(replies.length) : '';
+    updateActivityReplyCountBadge(target.cardId || target.id, replies.length);
+  } catch (error) {
+    console.warn('Review inline replies failed to load:', error);
+    list.innerHTML = '<div class="mylist-media-review-replies-empty">Could not load replies.</div>';
+  }
+}
+
+function closeMyListMediaReviewReplyComposer(event = null) {
   event?.preventDefault?.();
   event?.stopPropagation?.();
-  // v10.220: route the FPReview reply button to the activity post's reply
-  // page so the reply count stays in sync with the activity card.
   const overlay = document.getElementById('mylist-media-review-page');
-  const activityId = overlay?.dataset?.reviewActivityId || '';
-  if (activityId && typeof openActivityReplyPage === 'function') {
-    try { openActivityReplyPage(activityId); return; } catch (_) {}
+  const composer = overlay?.querySelector('[data-review-reply-composer]');
+  const input = overlay?.querySelector('[data-review-reply-input]');
+  const btn = overlay?.querySelector('[data-review-reply-post]');
+  const context = overlay?.querySelector('[data-review-reply-context]');
+  if (input) {
+    input.value = '';
+    input.style.height = '';
+    input.placeholder = 'Write a reply...';
   }
-  if (typeof showToast === 'function') showToast('Reply coming soon');
+  if (btn) btn.disabled = true;
+  if (context) {
+    context.hidden = true;
+    const name = context.querySelector('[data-review-reply-context-name]');
+    if (name) name.textContent = '';
+  }
+  if (composer) {
+    delete composer.dataset.parentReplyId;
+    delete composer.dataset.parentReplyName;
+    composer.hidden = true;
+    const home = overlay?.querySelector('[data-review-reply-composer-home]');
+    if (home) home.appendChild(composer);
+  }
+  overlay?.classList.remove('reply-composer-open');
+}
+window.closeMyListMediaReviewReplyComposer = closeMyListMediaReviewReplyComposer;
+
+async function submitMyListMediaReviewReply(event = null) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return false;
+  const overlay = document.getElementById('mylist-media-review-page');
+  const input = overlay?.querySelector('[data-review-reply-input]');
+  const btn = overlay?.querySelector('[data-review-reply-post]');
+  const composer = overlay?.querySelector('[data-review-reply-composer]');
+  if (!overlay || !input || !btn || !currentUser) return false;
+  const text = String(input.value || '').trim();
+  if (!text) return false;
+  btn.disabled = true;
+  btn.textContent = 'Posting...';
+  try {
+    const replyId = crypto.randomUUID ? crypto.randomUUID() : `reply-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const author = getMyListReviewInlineReplyAuthor();
+    const parentReplyId = String(composer?.dataset?.parentReplyId || '').trim();
+    const parentReplyName = String(composer?.dataset?.parentReplyName || '').trim();
+    const reply = {
+      id: replyId,
+      uid: currentUser.uid,
+      name: author.name,
+      photo: author.photo,
+      text,
+      timestamp: Date.now()
+    };
+    if (parentReplyId) {
+      reply.parentReplyId = parentReplyId;
+      if (parentReplyName) reply.parentReplyName = parentReplyName;
+    }
+    const target = await resolveMyListMediaReviewReplyTarget({ createLinkedIfOwner: true });
+    if (!target?.ref) throw new Error('No review reply target');
+    await target.ref.set({ replies: firebase.firestore.FieldValue.arrayUnion(reply) }, { merge: true });
+    const snap = await target.ref.get();
+    const latest = snap.exists ? (snap.data() || {}) : {};
+    const replies = Array.isArray(latest.replies) ? latest.replies : [reply];
+    const activity = {
+      ...(target.activity || {}),
+      ...latest,
+      id: target.cardId || target.id,
+      activityId: target.cardId || target.id,
+      originalActivityId: target.cardId || target.id,
+      interactionDocId: target.id,
+      uid: overlay.dataset.reviewOwnerUid || target.activity?.uid || '',
+      replies,
+      _collection: target.collection
+    };
+    const list = overlay.querySelector('[data-review-replies-list]');
+    if (list) list.innerHTML = renderMyListMediaReviewReplies(replies);
+    const countEl = overlay.querySelector('[data-review-reply-count]');
+    if (countEl) countEl.textContent = replies.length ? String(replies.length) : '';
+    updateActivityReplyCountBadge(target.cardId || target.id, replies.length);
+    if (typeof refreshVisibleActivityInteractionCards === 'function') {
+      refreshVisibleActivityInteractionCards(target.cardId || target.id, activity);
+    }
+    const rawMemory = typeof friendActivityClickTargets !== 'undefined' ? friendActivityClickTargets[target.cardId || target.id] : null;
+    if (rawMemory) rawMemory.replies = replies;
+    const recipientUid = String(overlay.dataset.reviewOwnerUid || target.activity?.uid || '').trim();
+    if (typeof createActivityNotification === 'function' && recipientUid && recipientUid !== currentUser.uid) {
+      await createActivityNotification({
+        recipientUid,
+        type: 'activity_comment',
+        targetActivityId: target.cardId || target.id,
+        targetKind: target.collection === 'feed' ? 'feed' : 'activity',
+        targetCollection: target.collection,
+        targetCommentId: replyId,
+        parentCommentId: parentReplyId || '',
+        activity,
+        textSnippet: text
+      });
+    }
+    input.value = '';
+    input.style.height = '';
+    input.placeholder = 'Write a reply...';
+    btn.textContent = 'Post';
+    btn.disabled = true;
+    const context = overlay.querySelector('[data-review-reply-context]');
+    if (context) context.hidden = true;
+    if (composer) {
+      delete composer.dataset.parentReplyId;
+      delete composer.dataset.parentReplyName;
+    }
+    const home = overlay.querySelector('[data-review-reply-composer-home]');
+    if (composer && home) home.appendChild(composer);
+    composer?.setAttribute('hidden', '');
+    overlay.classList.remove('reply-composer-open');
+    return false;
+  } catch (error) {
+    console.error('Review inline reply failed:', error);
+    btn.disabled = false;
+    btn.textContent = 'Post';
+    if (typeof showToast === 'function') showToast('Could not post reply');
+    return false;
+  }
+}
+window.submitMyListMediaReviewReply = submitMyListMediaReviewReply;
+
+function attachMyListMediaReviewReplyComposer(overlay) {
+  const input = overlay?.querySelector('[data-review-reply-input]');
+  const btn = overlay?.querySelector('[data-review-reply-post]');
+  if (!input || !btn) return;
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+    btn.disabled = !String(input.value || '').trim();
+  });
+  input.addEventListener('keydown', event => {
+    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') submitMyListMediaReviewReply(event);
+  });
+}
+
+function openMyListMediaReviewReply(event = null, parentReplyId = '', parentReplyName = '') {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const overlay = document.getElementById('mylist-media-review-page');
+  const composer = overlay?.querySelector('[data-review-reply-composer]');
+  const input = overlay?.querySelector('[data-review-reply-input]');
+  if (!composer || !input) return;
+  const cleanParentId = String(parentReplyId || '').trim();
+  const cleanParentName = String(parentReplyName || '').trim();
+  const context = composer.querySelector('[data-review-reply-context]');
+  if (cleanParentId) {
+    composer.dataset.parentReplyId = cleanParentId;
+    composer.dataset.parentReplyName = cleanParentName;
+    input.placeholder = cleanParentName ? `Reply to ${cleanParentName}...` : 'Write a reply...';
+    if (context) {
+      const name = context.querySelector('[data-review-reply-context-name]');
+      if (name) name.textContent = cleanParentName || 'comment';
+      context.hidden = false;
+    }
+    const parentArticle = overlay?.querySelector(`[data-review-reply-id="${CSS.escape(cleanParentId)}"]`);
+    const bubble = parentArticle?.querySelector(':scope > .mylist-media-review-reply-bubble');
+    if (bubble) bubble.appendChild(composer);
+  } else {
+    delete composer.dataset.parentReplyId;
+    delete composer.dataset.parentReplyName;
+    input.placeholder = 'Write a reply...';
+    if (context) context.hidden = true;
+    const home = overlay?.querySelector('[data-review-reply-composer-home]');
+    if (home) home.appendChild(composer);
+  }
+  composer.hidden = false;
+  overlay.classList.add('reply-composer-open');
+  window.requestAnimationFrame(() => {
+    try { composer.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (_) {}
+    setTimeout(() => {
+      try { input.focus({ preventScroll: true }); } catch (_) { try { input.focus(); } catch (e) {} }
+    }, 80);
+  });
 }
 window.openMyListMediaReviewReply = openMyListMediaReviewReply;
 
@@ -2677,7 +3398,8 @@ function synthesizeMediaReviewRecordFromActivity(needle = '', section = '') {
     author,
     posterOverride: synthItem.cover || '',
     reviewTextOverride: '',
-    reviewActivityId: synthItem.reviewActivityId || ''
+    reviewActivityId: synthItem.reviewActivityId || '',
+    ownerUid: activity.uid || ''
   };
 }
 
@@ -2717,7 +3439,8 @@ function synthesizeMediaReviewRecordFromFeed(needle = '', section = '') {
     author,
     posterOverride: item.cover || '',
     reviewTextOverride: item.reviewText || '',
-    reviewActivityId: post.postId || ''
+    reviewActivityId: post.postId || '',
+    ownerUid: post.uid || ''
   };
 }
 
@@ -2745,13 +3468,24 @@ function openFullPageMediaReview(itemId = '', section = activeSection) {
   const reviewText = record.reviewTextOverride || getMyListReviewText(item);
   const dateLine = getMyListReviewDateLine(item, record.section);
   const reviewActivityId = record.reviewActivityId || item.reviewActivityId || '';
+  const ownerUid = String(record.ownerUid || (viewingUser ? viewingUser.uid : currentUser?.uid) || '').trim();
+  const isOwnerReview = !!(currentUser?.uid && ownerUid && String(currentUser.uid) === ownerUid);
+  const topRightActionHtml = isOwnerReview
+    ? `<button class="mylist-media-review-menu" type="button" onclick="openMyListMediaReviewActions(event)" aria-label="Review options">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+        </button>`
+    : `<button class="mylist-media-review-menu mylist-media-review-share-top" type="button" onclick="shareMyListMediaReview(event)" aria-label="Share review">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 16V3"/><path d="m7 8 5-5 5 5"/></svg>
+        </button>`;
   const overlay = document.createElement('div');
   overlay.id = 'mylist-media-review-page';
-  overlay.className = 'mylist-media-review-page' + (record.section === 'music' ? ' is-music-review' : '');
+  overlay.className = 'mylist-media-review-page' + (record.section === 'music' ? ' is-music-review' : '') + (isOwnerReview ? ' is-owner-review' : ' is-viewed-user-review');
   overlay.dataset.reviewTitle = title;
   overlay.dataset.reviewDate = dateLine;
   overlay.dataset.reviewItemId = item.id || '';
   overlay.dataset.reviewSection = record.section || '';
+  overlay.dataset.reviewOwnerUid = ownerUid;
+  overlay.dataset.reviewIsOwner = isOwnerReview ? 'true' : 'false';
   if (reviewActivityId) overlay.dataset.reviewActivityId = reviewActivityId;
   overlay.setAttribute('role', 'dialog');
   overlay.setAttribute('aria-modal', 'true');
@@ -2763,9 +3497,7 @@ function openFullPageMediaReview(itemId = '', section = activeSection) {
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
         </button>
         <span>Review</span>
-        <button class="mylist-media-review-menu" type="button" onclick="openMyListMediaReviewActions(event)" aria-label="Review options">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
-        </button>
+        ${topRightActionHtml}
       </header>
       <main class="mylist-media-review-content">
         <section class="mylist-media-review-hero">
@@ -2788,10 +3520,27 @@ function openFullPageMediaReview(itemId = '', section = activeSection) {
         <section class="mylist-media-review-body">
           ${reviewText ? `<p>${escHtml(reviewText)}</p>` : ''}
           <button class="mylist-media-review-reply" type="button" onclick="openMyListMediaReviewReply(event)">Reply</button>
+          <section class="mylist-media-review-replies" aria-label="Replies">
+            <div data-review-reply-composer-home>
+              <form class="mylist-media-review-reply-composer" data-review-reply-composer hidden onsubmit="return submitMyListMediaReviewReply(event)">
+                <div class="mylist-media-review-reply-context" data-review-reply-context hidden>
+                  <span>Replying to <strong data-review-reply-context-name></strong></span>
+                  <button type="button" onclick="closeMyListMediaReviewReplyComposer(event)" aria-label="Cancel specific reply">&times;</button>
+                </div>
+                <textarea class="mylist-media-review-reply-input" data-review-reply-input rows="1" maxlength="600" placeholder="Write a reply..."></textarea>
+                <div class="mylist-media-review-reply-actions">
+                  <button class="mylist-media-review-reply-cancel" type="button" onclick="closeMyListMediaReviewReplyComposer(event)">Cancel</button>
+                  <button class="mylist-media-review-reply-post" type="submit" data-review-reply-post disabled>Post</button>
+                </div>
+              </form>
+            </div>
+            <div class="mylist-media-review-replies-head"><span>Replies</span><span data-review-reply-count></span></div>
+            <div class="mylist-media-review-replies-list" data-review-replies-list></div>
+          </section>
         </section>
       </main>
     </div>
-    <button class="mylist-media-review-action-backdrop" type="button" onclick="closeMyListMediaReviewActions(event)" aria-label="Close review options"></button>
+    ${isOwnerReview ? `<button class="mylist-media-review-action-backdrop" type="button" onclick="closeMyListMediaReviewActions(event)" aria-label="Close review options"></button>
     <section class="mylist-media-review-action-sheet" role="dialog" aria-modal="true" aria-label="Review options">
       <div class="mylist-media-review-action-meta">
         <strong>${escHtml(title)}</strong>
@@ -2803,12 +3552,14 @@ function openFullPageMediaReview(itemId = '', section = activeSection) {
         <button class="mylist-media-review-action" type="button" onclick="handleMyListMediaReviewAction('share',event)">Share</button>
         <button class="mylist-media-review-action done" type="button" onclick="handleMyListMediaReviewAction('done',event)">Done</button>
       </div>
-    </section>
+    </section>` : ''}
   `;
   document.body.appendChild(overlay);
   document.body.classList.add('mylist-media-review-open');
   document.addEventListener('keydown', handleFullPageMediaReviewKeydown);
   requestAnimationFrame(() => overlay.classList.add('is-open'));
+  attachMyListMediaReviewReplyComposer(overlay);
+  loadMyListMediaReviewReplies();
 
   /* v10.247: wire the tracklist dropdown for music albums. */
   try {
@@ -3232,7 +3983,7 @@ function renderEpisodeList(item) {
   }).join("");
 }
 
-function renderSingleEp(itemId, ep) {
+function renderSingleEp(itemId, ep, section = activeSection) {
   if (!ep.id) ep.id = itemId + '-ep-' + (ep.seasonNum ? ep.seasonNum + '-' : '') + (ep.epNum || ep.number || Math.random().toString(36).slice(2, 7));
   const r = ep.rating || 0;
   if (viewingUser) {
@@ -3244,7 +3995,7 @@ function renderSingleEp(itemId, ep) {
         <span class="ep-name">${ep.epNum || ep.number}${ep.title ? '. ' + escHtml(ep.title) : ''}</span>
       </div>
       <span class="ep-rating-btn ${r ? 'has-rating' : ''}" style="cursor:default;">
-        ★${r ? ' ' + formatRatingValueForSection(r, activeSection) : ''}
+        ★${r ? ' ' + formatRatingValueForSection(r, section) : ''}
       </span>
     </div>`;
   }
@@ -3256,9 +4007,459 @@ function renderSingleEp(itemId, ep) {
       <span class="ep-name">${ep.epNum || ep.number}${ep.title ? '. ' + escHtml(ep.title) : ''}</span>
     </div>
     <button type="button" class="ep-rating-btn ${r ? 'has-rating' : ''}" onclick="event.stopPropagation();openEpRating('${itemId}','${ep.id}')">
-      ★${r ? ' ' + formatRatingValueForSection(r, activeSection) : ''}
+      ★${r ? ' ' + formatRatingValueForSection(r, section) : ''}
     </button>
   </div>`;
+}
+
+const MYLIST_EPISODE_PAGE_OPEN_TRANSITION_MS = 450;
+const MYLIST_EPISODE_PAGE_CLOSE_TRANSITION_MS = MYLIST_EPISODE_PAGE_OPEN_TRANSITION_MS + 200;
+let myListEpisodePageState = null;
+let myListEpisodePageScrollY = 0;
+let myListEpisodePageExpandedSeasonRating = '';
+
+function getMyListEpisodePageItem(sectionHint = '') {
+  const state = myListEpisodePageState || {};
+  const section = sectionHint || state.section || activeSection;
+  const itemId = state.itemId || '';
+  if (!section || !itemId) return null;
+  const items = Array.isArray(data?.[section]) ? data[section] : [];
+  return items.find(entry => entry && String(entry.id || '') === String(itemId)) || null;
+}
+
+function getMyListEpisodeInteractionContext(itemId = '', sectionHint = '') {
+  const key = String(itemId || '').trim();
+  if (!key) return { item: null, index: -1, section: '', items: null, isEpisodePage: false };
+  const pageSection = String(myListEpisodePageState?.section || '').trim();
+  if (isMyListEpisodePageOpen(key) && pageSection) {
+    const items = Array.isArray(data?.[pageSection]) ? data[pageSection] : [];
+    const index = items.findIndex(entry => entry && String(entry.id || '') === key);
+    if (index >= 0) return { item: items[index], index, section: pageSection, items, isEpisodePage: true };
+  }
+  const record = findOwnLibraryItemRecord(key, sectionHint || activeSection);
+  return {
+    item: record.item,
+    index: record.index,
+    section: record.section || sectionHint || activeSection,
+    items: record.items,
+    isEpisodePage: false
+  };
+}
+
+function persistMyListEpisodeEdit(item = null, section = activeSection, options = {}) {
+  if (!item || viewingUser) return;
+  const shouldMarkEdited = options.markEdited !== false;
+  if (shouldMarkEdited) {
+    if (typeof markOwnItemLastEdited === 'function') markOwnItemLastEdited(item, section);
+    else touchItem(item);
+  }
+  if (isMyListEpisodePageOpen(item.id) && typeof persistOwnListDataImmediate === 'function') {
+    persistOwnListDataImmediate().catch(err => {
+      console.warn('[shelfd] immediate Full Page Show Details save failed; falling back to debounced save', err);
+      save();
+    });
+    return;
+  }
+  save();
+}
+
+function isMyListEpisodePageOpen(itemId = '') {
+  const overlay = document.getElementById('mylist-episode-page-overlay');
+  if (!overlay || !myListEpisodePageState?.itemId) return false;
+  if (!itemId) return true;
+  return String(myListEpisodePageState.itemId) === String(itemId);
+}
+
+function clearMyListInlineEpisodeState(itemId = '') {
+  if (!itemId) return;
+  const list = document.getElementById(`ep-list-${itemId}`);
+  const arrow = document.getElementById(`ep-arrow-${itemId}`);
+  if (list) {
+    list.classList.remove('open');
+    list.style.height = '0px';
+  }
+  if (arrow) arrow.classList.remove('open');
+  delete openStates[`ep-${itemId}`];
+  Object.keys(openStates).forEach(key => {
+    if (key.startsWith(`s-${itemId}-`)) delete openStates[key];
+  });
+}
+
+function getMyListEpisodeStatusConfig(item = {}, section = activeSection) {
+  const configs = getMyListStatusButtonConfigs(section);
+  return configs.find(entry => entry.status === item.status) || configs[0] || { status: item.status || '', label: item.status || 'Status' };
+}
+
+function getMyListEpisodePagePoster(item = {}, section = activeSection) {
+  return getMyListPosterUrlForItem(item, section);
+}
+
+function renderMyListEpisodePageStatusMarkup(item = {}, section = activeSection) {
+  const config = getMyListEpisodeStatusConfig(item, section);
+  const statusClass = config.status ? `${config.status}-active` : '';
+  return `<div class="mylist-episode-page-status" data-episode-page-status-item="${escAttr(item.id)}">
+    <span class="status-pill mylist-episode-page-status-pill ${statusClass}" data-status-item-id="${escAttr(item.id)}" data-status="${escAttr(config.status || '')}">${escHtml(config.label || 'Status')}</span>
+  </div>`;
+}
+
+function buildMyListEpisodePageActions(item = {}) {
+  if (viewingUser) return '';
+  const escapedId = escAttr(String(item.id || ''));
+  return `
+    <div class="mylist-episode-page-actions">
+      <div class="mylist-episode-page-actions-main">
+        <button type="button" class="btn-secondary btn-sm" data-mylist-action="mark-all-eps" data-mylist-item-id="${escapedId}" data-mylist-mark-value="true" onclick="markAllEps('${escapedId}',true)">Mark All Watched</button>
+        <button type="button" class="btn-secondary btn-sm" data-mylist-action="mark-all-eps" data-mylist-item-id="${escapedId}" data-mylist-mark-value="false" onclick="markAllEps('${escapedId}',false)">Clear All</button>
+      </div>
+    </div>
+  `;
+}
+
+function collapseMyListEpisodePageSeasonRatings() {
+  myListEpisodePageExpandedSeasonRating = '';
+  document.querySelectorAll('.mylist-episode-page-season-rating-control.is-expanded').forEach(control => {
+    control.classList.remove('is-expanded');
+    const chip = control.querySelector('.mylist-episode-page-season-rating-chip');
+    const stars = control.querySelector('.mylist-episode-page-season-rating-stars');
+    if (chip) chip.setAttribute('aria-expanded', 'false');
+    if (stars) stars.setAttribute('aria-hidden', 'true');
+  });
+}
+
+function toggleMyListEpisodePageSeasonRating(itemId = '', seasonNum = '', event = null) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  if (viewingUser) return;
+  const key = `${String(itemId || '')}:${String(seasonNum || '')}`;
+  const control = document.querySelector(`.mylist-episode-page-season-rating-control[data-rating-key="${CSS.escape(key)}"]`);
+  if (!control) return;
+  const wasExpanded = control.classList.contains('is-expanded');
+  collapseMyListEpisodePageSeasonRatings();
+  if (wasExpanded) return;
+  myListEpisodePageExpandedSeasonRating = key;
+  control.classList.add('is-expanded');
+  const chip = control.querySelector('.mylist-episode-page-season-rating-chip');
+  const stars = control.querySelector('.mylist-episode-page-season-rating-stars');
+  if (chip) chip.setAttribute('aria-expanded', 'true');
+  if (stars) stars.setAttribute('aria-hidden', 'false');
+}
+
+function rateMyListEpisodePageSeasonRating(itemId = '', seasonNum = '', score = 0, event = null) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  if (viewingUser) return;
+  collapseMyListEpisodePageSeasonRatings();
+  rate(itemId, `season:${seasonNum}`, Number(score || 0));
+}
+
+function handleMyListEpisodePageSeasonRatingOutsideClick(event) {
+  if (!isMyListEpisodePageOpen() || !myListEpisodePageExpandedSeasonRating) return;
+  if (event?.target?.closest?.('.mylist-episode-page-season-rating-control')) return;
+  collapseMyListEpisodePageSeasonRatings();
+}
+
+if (typeof window !== 'undefined' && !window.__shelfdEpisodePageSeasonRatingClickBound) {
+  window.__shelfdEpisodePageSeasonRatingClickBound = true;
+  document.addEventListener('click', handleMyListEpisodePageSeasonRatingOutsideClick, true);
+}
+
+function renderEpisodePageSeasonRatingControl(item = {}, seasonNum = '', rating = 0, section = activeSection) {
+  const itemId = String(item.id || '');
+  const sNum = String(seasonNum || '');
+  const value = Number(rating || 0);
+  const label = formatRatingValueForSection(value, section, false, '0');
+  const key = `${itemId}:${sNum}`;
+  const readonly = viewingUser || !currentUser;
+  if (readonly) {
+    return `<span class="mylist-episode-page-season-rating-chip is-readonly" aria-label="Season ${escAttr(sNum)} rating ${escAttr(label)}"><span aria-hidden="true">&#9733;</span><span>${escHtml(label)}</span></span>`;
+  }
+  const stars = Array.from({ length: 10 }, (_, index) => {
+    const score = index + 1;
+    const lit = score <= value ? ' lit' : '';
+    return `<button type="button" class="mylist-episode-page-season-rating-star${lit}" aria-label="Rate season ${escAttr(sNum)} ${score} out of 10" onclick="rateMyListEpisodePageSeasonRating('${escAttr(itemId)}','${escAttr(sNum)}',${score},event)">&#9733;</button>`;
+  }).join('');
+  return `
+    <div class="mylist-episode-page-season-rating-control${myListEpisodePageExpandedSeasonRating === key ? ' is-expanded' : ''}" data-rating-key="${escAttr(key)}">
+      <div class="mylist-episode-page-season-rating-stars" aria-hidden="${myListEpisodePageExpandedSeasonRating === key ? 'false' : 'true'}">
+        ${stars}
+      </div>
+      <button type="button" class="mylist-episode-page-season-rating-chip" aria-label="Season ${escAttr(sNum)} rating ${escAttr(label)}" aria-expanded="${myListEpisodePageExpandedSeasonRating === key ? 'true' : 'false'}" onclick="toggleMyListEpisodePageSeasonRating('${escAttr(itemId)}','${escAttr(sNum)}',event)">
+        <span aria-hidden="true">&#9733;</span>
+        <span>${escHtml(label)}</span>
+      </button>
+    </div>
+  `;
+}
+
+function renderEpisodePageSeasonList(item = {}) {
+  const eps = getRenderableEpisodes(item);
+  if (!eps.length) {
+    return '<div class="mylist-episode-page-empty">No episode data available.</div>';
+  }
+  const section = myListEpisodePageState?.section || item.librarySection || item.mediaCategory || activeSection;
+  const seasons = {};
+  eps.forEach(ep => {
+    const s = Number(ep?.seasonNum || 1) || 1;
+    if (!seasons[s]) seasons[s] = [];
+    seasons[s].push(ep);
+  });
+  return Object.keys(seasons).sort((a, b) => Number(b) - Number(a)).map(sNum => {
+    const sEps = seasons[sNum];
+    const sWatched = sEps.filter(ep => ep && ep.watched).length;
+    const seasonName = getSeasonDisplayNameForEpisodes(item, sNum, sEps);
+    const seasonPoster = getSeasonPosterForEpisodes(item, sNum, sEps);
+    const seasonYear = getSeasonYearForEpisodes(item, sNum);
+    const seasonRating = Number(item?.seasonRatings?.[sNum] || 0);
+    return `
+      <section class="season-block mylist-episode-page-season-block">
+        <div class="season-header mylist-episode-page-season-header" role="button" tabindex="0" onclick="toggleSeason('${escAttr(item.id)}',${escAttr(sNum)})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSeason('${escAttr(item.id)}',${escAttr(sNum)})}">
+          <div class="season-poster mylist-episode-page-season-poster${seasonPoster ? '' : ' season-poster-empty'}" data-season-poster-item="${escAttr(item.id)}" data-season-poster-num="${escAttr(sNum)}" ${seasonPoster ? `style="background-image:url(&quot;${escAttr(seasonPoster)}&quot;)"` : ''} aria-hidden="true"></div>
+          <div class="season-header-left mylist-episode-page-season-copy">
+            <div class="season-title-line mylist-episode-page-season-title-line">
+              <span class="season-title">Season ${escHtml(String(sNum))}${seasonName ? `: ${escHtml(seasonName)}` : ''}</span>
+              ${seasonYear ? `<span class="season-year">${escHtml(seasonYear)}</span>` : ''}
+            </div>
+            <div class="mylist-episode-page-season-meta">
+              <span class="mylist-episode-page-season-count">${escHtml(String(sEps.length))} episodes</span>
+              <span class="season-progress" id="season-progress-${escAttr(item.id)}-${escAttr(sNum)}">${escHtml(String(sWatched))}/${escHtml(String(sEps.length))} watched</span>
+            </div>
+          </div>
+          <div class="season-header-right mylist-episode-page-season-controls">
+            <div class="mylist-episode-page-season-controls-top">
+            ${!viewingUser ? `<button type="button" class="edit-ep-link season-mark-btn" data-mylist-action="mark-season-eps" data-mylist-item-id="${escAttr(item.id)}" data-mylist-season-num="${escAttr(sNum)}" data-mylist-mark-value="${sWatched < sEps.length}" onclick="event.stopPropagation();markSeasonEps('${escAttr(item.id)}',${escAttr(sNum)},${sWatched < sEps.length})">${sWatched < sEps.length ? 'Mark all' : 'Clear all'}</button>` : ''}
+            <span class="season-arrow" id="s-arrow-${escAttr(item.id)}-${escAttr(sNum)}">▼</span>
+            </div>
+            <div class="mylist-episode-page-season-rating-slot" onclick="event.stopPropagation()">
+              ${renderEpisodePageSeasonRatingControl(item, sNum, seasonRating, section)}
+            </div>
+          </div>
+        </div>
+        <div class="season-body mylist-episode-page-season-body" id="s-eps-${escAttr(item.id)}-${escAttr(sNum)}" style="display:none;height:0px;" aria-hidden="true">
+          <div class="season-eps mylist-episode-page-season-eps">
+            ${sEps.map(ep => renderSingleEp(item.id, ep, section)).join('')}
+          </div>
+        </div>
+      </section>
+    `;
+  }).join('');
+}
+
+function renderMyListEpisodePageSummary(item = {}, section = activeSection) {
+  const poster = getMyListEpisodePagePoster(item, section);
+  const displayTitle = getDisplayTitleForItem(item, section) || item.title || 'Untitled';
+  const progress = getCompactEpisodeStats(item);
+  const showPercent = Number(progress.total || 0) > 0;
+  return `
+    <section class="mylist-episode-page-summary">
+      <div class="mylist-episode-page-summary-poster${poster ? '' : ' no-img'}" ${poster ? `style="background-image:url('${escAttr(poster)}')"` : ''} ${poster ? `data-poster="${escAttr(poster)}"` : ''} aria-hidden="true"></div>
+      <div class="mylist-episode-page-summary-main">
+        <div class="mylist-episode-page-title">${escHtml(displayTitle)}</div>
+        ${renderMyListEpisodePageStatusMarkup(item, section)}
+        <div class="progress-area mylist-episode-page-progress-area">
+          <div class="progress-meta mylist-episode-page-progress-meta">
+            <span id="progress-count-${escAttr(item.id)}">${escHtml(String(progress.watched))}/${escHtml(String(progress.total))} episodes</span>
+          </div>
+          <div class="progress-bar-row mylist-episode-page-progress-row">
+            <div class="progress-bar"><div class="progress-fill" id="progress-fill-${escAttr(item.id)}" style="width:${progress.percent}%"></div></div>
+            <span class="progress-percent-inline" id="progress-percent-${escAttr(item.id)}"${showPercent ? '' : ' hidden'}>${showPercent ? `${Math.round(progress.percent)}%` : ''}</span>
+          </div>
+        </div>
+        <div class="rating-area mylist-episode-page-rating-area">
+          <div class="rating-label">Rating</div>
+          ${renderStars(item.rating || 0, item.id, 'overall', 16, section)}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderMyListEpisodePageHtml(item = {}, section = activeSection) {
+  return `
+    <div class="mylist-episode-page-shell" data-episode-page-item="${escAttr(item.id)}" data-episode-page-section="${escAttr(section)}">
+      <div class="mylist-episode-page-topbar">
+        <button type="button" class="mylist-episode-page-back" onclick="closeMyListEpisodePage()" aria-label="Back to My Lists">
+          <svg class="mylist-episode-page-back-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 4.5 3.5 10 9 15.5"></path>
+            <path d="M16.5 10H4"></path>
+          </svg>
+          <span>Back</span>
+        </button>
+      </div>
+      <div class="mylist-episode-page-scroll">
+        ${renderMyListEpisodePageSummary(item, section)}
+        ${buildMyListEpisodePageActions(item)}
+        <section class="mylist-episode-page-seasons">
+          <div class="ep-list open mylist-episode-page-list" id="ep-list-${escAttr(item.id)}">
+            <div class="ep-list-inner">
+              <div class="ep-scroll mylist-episode-page-season-list">
+                ${renderEpisodePageSeasonList(item)}
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  `;
+}
+
+function ensureMyListEpisodePageOverlay() {
+  let overlay = document.getElementById('mylist-episode-page-overlay');
+  if (overlay) return overlay;
+  overlay = document.createElement('div');
+  overlay.id = 'mylist-episode-page-overlay';
+  overlay.className = 'mylist-episode-page-overlay';
+  overlay.innerHTML = '<div class="mylist-episode-page-surface"></div>';
+  document.body.appendChild(overlay);
+  return overlay;
+}
+
+function lockMyListEpisodePageScroll() {
+  if (document.body.classList.contains('mylist-episode-page-open')) return;
+  myListEpisodePageScrollY = window.scrollY || window.pageYOffset || 0;
+  document.documentElement.classList.add('mylist-episode-page-open');
+  document.body.classList.add('mylist-episode-page-open');
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${myListEpisodePageScrollY}px`;
+  document.body.style.left = '0';
+  document.body.style.right = '0';
+  document.body.style.width = '100%';
+  document.body.style.overflow = 'hidden';
+}
+
+function unlockMyListEpisodePageScroll() {
+  if (!document.body.classList.contains('mylist-episode-page-open')) return;
+  const state = myListEpisodePageState || {};
+  const storedY = myListEpisodePageScrollY || Math.abs(parseInt(document.body.style.top || '0', 10)) || 0;
+  document.documentElement.classList.remove('mylist-episode-page-open');
+  document.body.classList.remove('mylist-episode-page-open');
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.left = '';
+  document.body.style.right = '';
+  document.body.style.width = '';
+  document.body.style.overflow = '';
+  window.scrollTo(0, storedY);
+  if (state.originItemId) {
+    requestAnimationFrame(() => {
+      const card = document.getElementById(`card-${state.originItemId}`);
+      if (!card || typeof state.originCardTop !== 'number') return;
+      const delta = card.getBoundingClientRect().top - state.originCardTop;
+      if (Math.abs(delta) < 4) return;
+      window.scrollTo({ top: Math.max(0, window.scrollY + delta), behavior: 'auto' });
+    });
+  }
+  myListEpisodePageScrollY = 0;
+}
+
+function restoreMyListEpisodePageSeasonState(itemId = '') {
+  Object.keys(openStates).forEach(key => {
+    if (!openStates[key] || !key.startsWith(`s-${itemId}-`)) return;
+    const body = document.getElementById(`s-eps-${key.slice(2)}`);
+    const arrow = document.getElementById(`s-arrow-${key.slice(2)}`);
+    const block = body?.closest('.season-block');
+    if (body) {
+      body.style.display = 'block';
+      body.style.height = 'auto';
+      body.style.opacity = '1';
+      body.style.transform = 'none';
+      body.setAttribute('aria-hidden', 'false');
+    }
+    if (block) block.classList.add('is-open');
+    if (arrow) arrow.classList.add('open');
+  });
+}
+
+function rerenderMyListEpisodePage(options = {}) {
+  if (!isMyListEpisodePageOpen()) return;
+  const item = getMyListEpisodePageItem();
+  const overlay = document.getElementById('mylist-episode-page-overlay');
+  const surface = overlay?.querySelector('.mylist-episode-page-surface');
+  if (!overlay || !surface || !item) return;
+  const scrollEl = overlay.querySelector('.mylist-episode-page-scroll');
+  const scrollTop = options.preserveScroll === false ? 0 : (scrollEl?.scrollTop || 0);
+  surface.innerHTML = renderMyListEpisodePageHtml(item, myListEpisodePageState.section || activeSection);
+  restoreMyListEpisodePageSeasonState(item.id);
+  const nextScrollEl = overlay.querySelector('.mylist-episode-page-scroll');
+  if (nextScrollEl) nextScrollEl.scrollTop = scrollTop;
+  hydrateMissingSeasonPosters(item.id, myListEpisodePageState.section || activeSection);
+}
+
+function updateMyListEpisodePageStatusUI(item = {}, section = activeSection) {
+  if (!item?.id) return;
+  const config = getMyListEpisodeStatusConfig(item, section);
+  document.querySelectorAll(`.mylist-episode-page-status-pill[data-status-item-id="${CSS.escape(String(item.id))}"]`).forEach(node => {
+    node.textContent = config.label || 'Status';
+    node.dataset.status = config.status || '';
+    ['live-active', 'competitive-active', 'watching-active', 'planned-active', 'watched-active', 'paused-active', 'dropped-active', 'wishlist-active']
+      .forEach(cls => node.classList.remove(cls));
+    if (config.status) node.classList.add(`${config.status}-active`);
+  });
+}
+
+function getEpisodeInteractionScrollContainer(itemId = '') {
+  if (isMyListEpisodePageOpen(itemId)) {
+    return document.querySelector('#mylist-episode-page-overlay .mylist-episode-page-scroll');
+  }
+  return document.querySelector(`#ep-list-${itemId} .ep-scroll`);
+}
+
+function openMyListEpisodePage(itemId = '', sectionHint = activeSection) {
+  const section = sectionHint || activeSection;
+  if (!(section === 'shows' || section === 'anime')) return;
+  const item = (data?.[section] || []).find(entry => entry && String(entry.id || '') === String(itemId));
+  if (!item) return;
+  closeEpRating();
+  collapseMyListEpisodePageSeasonRatings();
+  clearMyListInlineEpisodeState(itemId);
+  const originCard = document.getElementById(`card-${itemId}`);
+  myListEpisodePageState = {
+    itemId: String(itemId),
+    section,
+    originItemId: String(itemId),
+    originCardTop: originCard ? originCard.getBoundingClientRect().top : null
+  };
+  const overlay = ensureMyListEpisodePageOverlay();
+  const surface = overlay.querySelector('.mylist-episode-page-surface');
+  if (!surface) return;
+  overlay.classList.remove('is-closing');
+  overlay.style.setProperty('--mylist-episode-page-motion-ms', `${MYLIST_EPISODE_PAGE_OPEN_TRANSITION_MS}ms`);
+  surface.innerHTML = renderMyListEpisodePageHtml(item, section);
+  lockMyListEpisodePageScroll();
+  hydrateMissingSeasonPosters(itemId, section);
+  if (section === 'anime' && item && (item.malId || item.mal_id)) {
+    hydrateAnimeEpisodeTitlesFromJikan(item);
+  }
+  requestAnimationFrame(() => overlay.classList.add('is-open'));
+}
+
+function closeMyListEpisodePage() {
+  const overlay = document.getElementById('mylist-episode-page-overlay');
+  collapseMyListEpisodePageSeasonRatings();
+  closeEpRating();
+  if (!overlay) {
+    myListEpisodePageState = null;
+    unlockMyListEpisodePageScroll();
+    return;
+  }
+  const itemId = String(myListEpisodePageState?.itemId || '');
+  overlay.classList.add('is-closing');
+  overlay.style.setProperty('--mylist-episode-page-motion-ms', `${MYLIST_EPISODE_PAGE_CLOSE_TRANSITION_MS}ms`);
+  overlay.classList.remove('is-open');
+  window.setTimeout(() => {
+    overlay.remove();
+    if (itemId) {
+      delete openStates[`ep-${itemId}`];
+      Object.keys(openStates).forEach(key => {
+        if (key.startsWith(`s-${itemId}-`)) delete openStates[key];
+      });
+    }
+    unlockMyListEpisodePageScroll();
+    myListEpisodePageState = null;
+  }, MYLIST_EPISODE_PAGE_CLOSE_TRANSITION_MS);
 }
 
 // Episode rating popup
@@ -3287,10 +4488,13 @@ function buildPopupRatingButtons(currentRating, itemId, epId, section) {
 }
 
 function openEpRating(itemId, epId) {
+  if (viewingUser) return;
   closeEpRating();
   const row = document.getElementById('ep-row-' + epId);
   if (!row) return;
-  const item = data[activeSection].find(i => i.id === itemId);
+  const context = getMyListEpisodeInteractionContext(itemId);
+  const item = context.item;
+  const section = context.section || activeSection;
   const ep = item ? (item.episodes || []).find(e => e.id === epId) : null;
   const currentRating = ep ? (ep.rating || 0) : 0;
   const popup = document.createElement('div');
@@ -3299,8 +4503,8 @@ function openEpRating(itemId, epId) {
   popup.dataset.itemId = itemId;
   popup.dataset.epId = epId;
   popup.dataset.hovered = '0';
-  popup.dataset.section = activeSection;
-  let html = buildPopupRatingButtons(currentRating, itemId, epId, activeSection);
+  popup.dataset.section = section;
+  let html = buildPopupRatingButtons(currentRating, itemId, epId, section);
   if (currentRating > 0) {
     html += `<button style="background:none;border:none;color:#7a6f99;font-size:11px;cursor:pointer;margin-left:4px;" onclick="event.stopPropagation();rateEpPopup('${itemId}','${epId}',0)">✕</button>`;
   }
@@ -3337,7 +4541,10 @@ function closeEpRating() {
 }
 
 function rateEpPopup(itemId, epId, score) {
-  const item = data[activeSection].find(i => i.id === itemId);
+  if (viewingUser) return;
+  const context = getMyListEpisodeInteractionContext(itemId);
+  const item = context.item;
+  const section = context.section || activeSection;
   if (!item) return;
   // v451: materialise synthetic anime episodes so a star rating sticks.
   if (typeof hydrateAnimeEpisodesIfSynthetic === 'function') hydrateAnimeEpisodesIfSynthetic(item);
@@ -3353,9 +4560,16 @@ function rateEpPopup(itemId, epId, score) {
       item.lastEpisodeRatingAt = new Date().toISOString();
       item.lastEpisodeRatingEpId = String(epId || '');
     }
-    if (typeof markOwnItemLastEdited === 'function') markOwnItemLastEdited(item, activeSection);
     closeEpRating();
-    save(); render();
+    persistMyListEpisodeEdit(item, section);
+    if (isMyListEpisodePageOpen(itemId)) rerenderMyListEpisodePage();
+    else render();
+    const row = document.getElementById('ep-row-' + epId);
+    const btn = row ? row.querySelector('.ep-rating-btn') : null;
+    if (btn) {
+      btn.classList.toggle('has-rating', Number(ep.rating || 0) > 0);
+      btn.innerHTML = `&#9733;${Number(ep.rating || 0) > 0 ? ` ${formatRatingValueForSection(ep.rating, section)}` : ''}`;
+    }
   });
   // Confirmation animation on the episode's rating button — single shadow, GPU-friendly
   if (score > 0) {
@@ -3460,11 +4674,95 @@ function shelfdExitSeasonFocusMode(itemId) {
   });
 }
 
+function scrollMyListEpisodePageSeasonIntoView(itemId = '', sNum = '', behavior = 'smooth') {
+  const overlay = document.getElementById('mylist-episode-page-overlay');
+  const scrollEl = overlay?.querySelector('.mylist-episode-page-scroll');
+  const body = document.getElementById('s-eps-' + itemId + '-' + sNum);
+  const block = body?.closest('.season-block');
+  if (!overlay || !scrollEl || !block) return;
+  const scrollRect = scrollEl.getBoundingClientRect();
+  const blockRect = block.getBoundingClientRect();
+  const topInset = 10;
+  const bottomInset = 18;
+  const visibleHeight = Math.max(120, scrollEl.clientHeight - topInset - bottomInset);
+  const blockHeight = block.offsetHeight || blockRect.height || 0;
+  let target;
+  if (blockHeight <= visibleHeight) {
+    const blockBottom = blockRect.bottom - scrollRect.top;
+    const neededBottom = blockBottom - (scrollEl.clientHeight - bottomInset);
+    const neededTop = blockRect.top - scrollRect.top - topInset;
+    target = scrollEl.scrollTop + (neededBottom > 1 ? neededBottom : neededTop);
+  } else {
+    target = scrollEl.scrollTop + (blockRect.top - scrollRect.top) - topInset;
+  }
+  const maxTop = Math.max(0, scrollEl.scrollHeight - scrollEl.clientHeight);
+  target = Math.max(0, Math.min(maxTop, target));
+  if (Math.abs(target - scrollEl.scrollTop) < 2) return;
+  if (behavior === 'auto' || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+    scrollEl.scrollTop = target;
+    return;
+  }
+  scrollEl.scrollTo({ top: target, behavior });
+}
+
 function toggleSeason(itemId, sNum) {
   const el = document.getElementById('s-eps-' + itemId + '-' + sNum);
   const arrow = document.getElementById('s-arrow-' + itemId + '-' + sNum);
   if (!el) return;
+  const isEpisodePage = !!el.closest('#mylist-episode-page-overlay');
   const open = el.style.display !== 'none';
+
+  if (isEpisodePage) {
+    const block = el.closest('.season-block');
+    if (!open) {
+      el.style.display = 'block';
+      const contentHeight = el.scrollHeight;
+      el.style.overflow = 'hidden';
+      el.style.height = '0px';
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(-8px)';
+      el.setAttribute('aria-hidden', 'false');
+      if (arrow) arrow.classList.add('open');
+      if (block) block.classList.add('is-open');
+      openStates['s-' + itemId + '-' + sNum] = true;
+      requestAnimationFrame(() => {
+        el.style.height = `${contentHeight}px`;
+        el.style.opacity = '1';
+        el.style.transform = 'translateY(0)';
+        requestAnimationFrame(() => scrollMyListEpisodePageSeasonIntoView(itemId, sNum, 'smooth'));
+      });
+      const onOpenEnd = (event) => {
+        if (event.propertyName !== 'height') return;
+        el.removeEventListener('transitionend', onOpenEnd);
+        if (!openStates['s-' + itemId + '-' + sNum]) return;
+        el.style.height = 'auto';
+        el.style.overflow = '';
+        scrollMyListEpisodePageSeasonIntoView(itemId, sNum, 'smooth');
+      };
+      el.addEventListener('transitionend', onOpenEnd);
+      return;
+    }
+    const startHeight = el.scrollHeight;
+    el.style.height = `${startHeight}px`;
+    el.style.overflow = 'hidden';
+    void el.offsetHeight;
+    el.style.height = '0px';
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(-8px)';
+    el.setAttribute('aria-hidden', 'true');
+    if (arrow) arrow.classList.remove('open');
+    if (block) block.classList.remove('is-open');
+    openStates['s-' + itemId + '-' + sNum] = false;
+    const onCloseEnd = (event) => {
+      if (event.propertyName !== 'height') return;
+      el.removeEventListener('transitionend', onCloseEnd);
+      if (openStates['s-' + itemId + '-' + sNum]) return;
+      el.style.display = 'none';
+      el.style.overflow = '';
+    };
+    el.addEventListener('transitionend', onCloseEnd);
+    return;
+  }
 
   if (!open) {
     // ── Opening ───────────────────────────────────────────────────────────────
@@ -3503,23 +4801,32 @@ function toggleSeason(itemId, sNum) {
 }
 
 function markSeasonEps(itemId, sNum, val) {
-  const item = data[activeSection].find(i => i.id === itemId);
+  if (viewingUser) return;
+  const context = getMyListEpisodeInteractionContext(itemId);
+  const item = context.item;
+  const section = context.section || activeSection;
   if (!item) return;
   preserveViewport(() => {
     preserveEpisodeScroll(itemId, () => {
       const affectedEpisodes = item.episodes.filter(e => e.seasonNum === sNum);
       item.episodes.forEach(e => { if (e.seasonNum === sNum) e.watched = val; });
       if (val) {
-        markEpisodeWatchActivity(item, activeSection, { count: affectedEpisodes.length, label: `season ${sNum} watched` });
+        markEpisodeWatchActivity(item, section, { count: affectedEpisodes.length, label: `season ${sNum} watched` });
         // v553: a fully-marked season triggers the season-finished signal
-        maybeMarkScreenListSeasonFinished(item, activeSection, sNum);
+        maybeMarkScreenListSeasonFinished(item, section, sNum);
       }
       const statusChangedNow = applyScreenListEpisodeStatusOrDefer(item);
-      if (typeof markOwnItemLastEdited === 'function') markOwnItemLastEdited(item, activeSection);
-      else touchItem(item);
-      save();
+      persistMyListEpisodeEdit(item, section);
       if (statusChangedNow && !itemMatchesCurrentView(item)) {
+        item.episodes.forEach(ep => {
+          if (ep.seasonNum === sNum) updateEpisodeRowState(ep);
+        });
+        updateCardProgressUI(item);
+        updateSeasonProgressUI(item, sNum);
+        updateSeasonActionLabelUI(item, sNum);
+        updateStatusPillsUI(item);
         render();
+        if (isMyListEpisodePageOpen(itemId)) rerenderMyListEpisodePage();
         return;
       }
       item.episodes.forEach(ep => {
@@ -4054,10 +5361,12 @@ function renderGameMediaProfileAddButton(rawgId, details) {
   const title = getGameTitleValue(details);
   const poster = getGameMediaImage(details);
   const added = isDuplicateTitle(title, 'games');
-  const label = added ? getDiscoverLibraryButtonText(title, 'games') : '+ Add to Library';
   const identityKey = details?.gameIdentityKey || details?.shelfdGameIdentityLock?.key || '';
   const discoverId = String(rawgId || getGameRawgIdValue(details) || identityKey || (details?.igdbId ? `igdb:${details.igdbId}` : '') || '');
-  return `<button class="discover-media-add-floating${added ? ' added' : ''}" type="button" data-discover-type="game" data-discover-id="${escAttr(discoverId)}" data-discover-section="games" data-discover-title="${escAttr(title)}" data-discover-poster="${escAttr(poster)}" data-game-identity-key="${escAttr(identityKey || discoverId)}" ${added ? `title="Manage this game in your library"` : ''}>${escHtml(label)}</button>`;
+  const checkSvg = `<svg class="discover-media-add-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4 4 10-10"/></svg>`;
+  const plusSvg = `<svg class="discover-media-add-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>`;
+  const labelHtml = added ? checkSvg : plusSvg;
+  return `<button class="discover-media-add-floating${added ? ' added' : ''}" type="button" data-discover-type="game" data-discover-id="${escAttr(discoverId)}" data-discover-section="games" data-discover-title="${escAttr(title)}" data-discover-poster="${escAttr(poster)}" data-game-identity-key="${escAttr(identityKey || discoverId)}" aria-label="${added ? 'Manage this game in your library' : 'Add this game to your library'}" ${added ? `title="Manage this game in your library"` : ''}>${labelHtml}</button>`;
 }
 
 function renderGameMediaProfileShell(seed, rawgId = '') {
@@ -4760,6 +6069,119 @@ function openGameMediaProfileFromLibrary(event, itemId, sectionOverride = 'games
   openGameMediaProfile(event, rawgId, item);
 }
 
+function getMyListAnimeMalId(item = {}) {
+  if (typeof getScreenListAnimeMalId === 'function') return getScreenListAnimeMalId(item);
+  if (typeof getAnimeMalIdFromItem === 'function') return getAnimeMalIdFromItem(item);
+  const direct = item?.malId || item?.mal_id || item?.__mal_id || item?.external_ids?.mal_id || '';
+  if (direct && Number(direct) > 0) return String(Number(direct));
+  const url = String(item?.malUrl || item?.jikanUrl || item?.url || item?.sourceUrl || '').trim();
+  const match = url.match(/myanimelist\.net\/anime\/(\d+)/i);
+  return match ? match[1] : '';
+}
+
+function buildLibraryAnimeJikanSeed(item = {}, malId = '') {
+  const id = String(malId || getMyListAnimeMalId(item) || '').trim();
+  const title = getDisplayTitleForItem(item, 'anime') || item.title || item.name || '';
+  return {
+    ...item,
+    id: id ? `mal:${id}` : item.id,
+    title,
+    name: title,
+    poster: item.cover || item.poster || '',
+    poster_path: item.cover || item.poster || '',
+    backdrop_path: item.cover || item.poster || '',
+    first_air_date: item.year ? `${item.year}-01-01` : '',
+    release_date: item.year ? `${item.year}-01-01` : '',
+    mediaCategory: 'anime',
+    librarySection: 'anime',
+    isAnime: true,
+    __jikan: !!id,
+    __mal_id: id,
+    malId: id || item.malId || '',
+    mal_id: id || item.mal_id || '',
+    libraryItemId: item.id,
+    librarySource: viewingUser ? 'friend' : 'own'
+  };
+}
+
+function repairLibraryAnimeItemFromJikanProfile(seed = {}, details = {}) {
+  const itemId = String(seed.libraryItemId || '').trim();
+  if (!itemId || !details) return false;
+  const source = seed.librarySource === 'friend' ? friendViewData : data;
+  const list = source && Array.isArray(source.anime) ? source.anime : [];
+  const item = list.find(entry => entry && String(entry.id) === itemId);
+  if (!item) return false;
+  const before = JSON.stringify(item);
+  const fill = (key, value) => {
+    if (value === undefined || value === null || value === '' || (Array.isArray(value) && !value.length)) return;
+    if (item[key] === undefined || item[key] === null || item[key] === '' || (Array.isArray(item[key]) && !item[key].length)) item[key] = value;
+  };
+  const malId = getMyListAnimeMalId(details) || getMyListAnimeMalId(seed);
+  fill('malId', malId);
+  fill('mal_id', malId);
+  fill('animeIdentityKey', malId ? `mal:${malId}` : '');
+  fill('malUrl', details.malUrl || details.url || (malId ? `https://myanimelist.net/anime/${malId}` : ''));
+  fill('jikanUrl', details.jikanUrl || details.malUrl || details.url || '');
+  fill('url', details.url || details.malUrl || '');
+  fill('cover', getDiscoverMediaPoster(details) || seed.poster || '');
+  fill('genre', (details.genres || []).map(g => g.name).filter(Boolean).join(', '));
+  fill('genreNames', (details.genres || []).map(g => g.name).filter(Boolean));
+  fill('year', String(details.year || details.first_air_date || '').slice(0, 4));
+  fill('source', 'myanimelist');
+  fill('mediaCategory', 'anime');
+  fill('librarySection', 'anime');
+  fill('originalTitle', details.title_japanese || details.original_name || details.original_title || '');
+  fill('originalLanguage', 'ja');
+  fill('originCountries', ['JP']);
+  fill('animeType', details.animeType || details.type || '');
+  fill('titleVariants', details.titleVariants || {
+    english: details.title_english || details.englishTitle || details.title || details.name || item.title || '',
+    romaji: details.romajiTitle || details.title || details.name || item.title || '',
+    japanese: details.title_japanese || details.japaneseTitle || ''
+  });
+  fill('englishTitle', details.title_english || details.englishTitle || details.titleVariants?.english || '');
+  fill('romajiTitle', details.romajiTitle || details.titleVariants?.romaji || details.title || details.name || '');
+  fill('japaneseTitle', details.title_japanese || details.japaneseTitle || details.titleVariants?.japanese || '');
+  fill('totalEpisodes', Number(details.number_of_episodes || details.totalEpisodes || 0) || '');
+  fill('totalEps', Number(details.number_of_episodes || details.totalEps || 0) || '');
+  fill('malMembers', details.malMembers || '');
+  fill('malFavorites', details.malFavorites || '');
+  fill('malScoredBy', details.malScoredBy || '');
+  fill('malRank', details.malRank || '');
+  fill('malPopularity', details.malPopularity || '');
+  fill('animeSeasonRelationCount', details.animeSeasonRelationCount || 0);
+  fill('animeSeasonGrouping', details.animeSeasonGrouping || 'separate');
+  fill('animeSeasonGroupingReliable', details.animeSeasonGroupingReliable === true);
+  item.isAnime = true;
+  const changed = JSON.stringify(item) !== before;
+  if (changed && source === data && currentUser && !viewingUser) {
+    writeOwnDataDirect(data).catch(error => console.warn('Anime profile repair save failed:', error));
+  }
+  return changed;
+}
+window.repairLibraryAnimeItemFromJikanProfile = repairLibraryAnimeItemFromJikanProfile;
+
+async function hydrateLibraryAnimeIdentityForProfile(item = {}) {
+  if (!item || typeof item !== 'object') return '';
+  let malId = getMyListAnimeMalId(item);
+  if (malId) return malId;
+  if (!window.JikanAnime?.animeByIdentity) return '';
+  const j = await window.JikanAnime.animeByIdentity(item);
+  if (!j?.mal_id) return '';
+  if (typeof applyJikanCanonicalAnimeFields === 'function') {
+    applyJikanCanonicalAnimeFields(item, j);
+  } else {
+    item.malId = String(j.mal_id);
+    item.mal_id = String(j.mal_id);
+    item.malUrl = j.url || `https://myanimelist.net/anime/${j.mal_id}`;
+    item.source = item.source || 'myanimelist';
+  }
+  if (!viewingUser && currentUser) {
+    try { await writeOwnDataDirect(data); } catch (error) { console.warn('Anime identity hydration save failed:', error); }
+  }
+  return String(j.mal_id);
+}
+
 async function openLibraryMediaProfile(event, itemId, sectionOverride = '') {
   event?.preventDefault?.();
   event?.stopPropagation?.();
@@ -4773,6 +6195,17 @@ async function openLibraryMediaProfile(event, itemId, sectionOverride = '') {
 
   const type = section === 'movies' ? 'movie' : 'tv';
   let tmdbId = String(item.tmdbId || item.tmdb_id || '').trim();
+  if (section === 'anime') {
+    let malId = getMyListAnimeMalId(item);
+    if (!malId) {
+      try { malId = await hydrateLibraryAnimeIdentityForProfile(item); }
+      catch (error) { console.warn('Anime profile identity hydration failed:', error); }
+    }
+    if (malId && typeof window.openJikanAnimeProfile === 'function') {
+      setDiscoverMediaProfileSeed('tv', `mal:${malId}`, buildLibraryAnimeJikanSeed(item, malId));
+      return window.openJikanAnimeProfile(event, malId);
+    }
+  }
 
   if (!tmdbId && item.title) {
     try {
@@ -6185,6 +7618,7 @@ function applyMyListStatusChange(id, status, rating = null, sectionHint = '') {
   }
   save();
   render();
+  if (isMyListEpisodePageOpen(id)) rerenderMyListEpisodePage();
   return item;
 }
 
@@ -6404,6 +7838,7 @@ function updateSeasonRatingUI(item = {}, seasonNum = '', section = activeSection
 
   const seasonBody = document.getElementById(`s-eps-${item.id}-${seasonNum}`);
   const seasonBlock = seasonBody ? seasonBody.closest('.season-block') : null;
+  if (seasonBlock?.closest('#mylist-episode-page-overlay')) return;
   const headerLeft = seasonBlock ? seasonBlock.querySelector('.season-header-left') : null;
   if (!headerLeft) return;
   let chip = headerLeft.querySelector('.season-rating-chip');
@@ -6510,14 +7945,43 @@ function _shelfdMarkRatingEdit(item, section) {
   }
 }
 
+function normalizeShelfRatingValue(value) {
+  const n = Number(value || 0);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.max(0, Math.min(10, n));
+}
+
+function captureShelfRatingChange(item = {}, section = activeSection, change = {}) {
+  if (!item || typeof item !== 'object') return;
+  const now = new Date().toISOString();
+  item.shelfdLastRatingChangeAt = now;
+  item.shelfdLastRatingChange = {
+    section: String(section || ''),
+    prefix: String(change.prefix || ''),
+    kind: String(change.kind || ''),
+    previousRating: normalizeShelfRatingValue(change.previousRating),
+    rating: normalizeShelfRatingValue(change.rating),
+    cleared: change.cleared === true,
+    changedAt: now
+  };
+  if (change.seasonNum !== undefined && change.seasonNum !== null && String(change.seasonNum).trim()) {
+    item.shelfdLastRatingChange.seasonNum = String(change.seasonNum);
+  }
+  if (change.episodeId !== undefined && change.episodeId !== null && String(change.episodeId).trim()) {
+    item.shelfdLastRatingChange.episodeId = String(change.episodeId);
+  }
+}
+
 function rate(itemId, prefix, score) {
   // Debounce: ignore identical rate within 350ms (prevents touch+click double-fire from toggling off)
+  score = normalizeShelfRatingValue(score);
+  if (!score) return;
   const key = itemId + '|' + prefix + '|' + score;
   const now = Date.now();
   if (_lastRate.key === key && now - _lastRate.time < 350) return;
   _lastRate = { key, time: now };
 
-  const record = findOwnLibraryItemRecord(itemId, activeSection);
+  const record = getMyListEpisodeInteractionContext(itemId, activeSection);
   const item = record.item;
   if (!item) return;
   const section = record.section || activeSection;
@@ -6529,18 +7993,18 @@ function rate(itemId, prefix, score) {
   let inlineSeasonRatingNum = '';
 
   if (prefix === "overall") {
-    item.rating = item.rating === score ? 0 : score;
+    item.rating = prevOverallRating === score ? 0 : score;
   } else if (prefix.startsWith("season:")) {
     const sNum = parseInt(prefix.slice(7));
     if (!item.seasonRatings) item.seasonRatings = {};
     prevSeasonRating = Number(item.seasonRatings[sNum] || 0);
-    item.seasonRatings[sNum] = (item.seasonRatings[sNum] === score) ? 0 : score;
+    item.seasonRatings[sNum] = (prevSeasonRating === score) ? 0 : score;
     inlineSeasonRatingNum = String(sNum);
   } else if (prefix.startsWith("ep:")) {
     const epId = prefix.slice(3);
     const ep = (item.episodes || []).find(e => e.id === epId);
     prevEpisodeRating = ep ? Number(ep.rating || 0) : 0;
-    if (ep) ep.rating = ep.rating === score ? 0 : score;
+    if (ep) ep.rating = prevEpisodeRating === score ? 0 : score;
     /* v557: track the most recent episode rating on the item so the
        activity feed's merged "watched + rated" card shows
        "EP rated ★ {value}" rather than the show's rating. Mirrors the
@@ -6564,6 +8028,32 @@ function rate(itemId, prefix, score) {
   const isExistingEpisodeRatingChange = prefix.startsWith("ep:") && prevEpisodeRating > 0 && prevEpisodeRating !== newEpisodeRating;
   const shouldEmitPublicRatingActivity = isFirstTimeRating || isFirstTimeSeasonRating || isFirstTimeEpisodeRating;
   const shouldKeepRatingChangePrivate = isRatingEdit || isExistingSeasonRatingChange || isExistingEpisodeRatingChange;
+  const ratingKind = prefix === 'overall' ? 'overall' : prefix.startsWith('season:') ? 'season' : prefix.startsWith('ep:') ? 'episode' : '';
+  const previousRating = prefix === 'overall'
+    ? prevOverallRating
+    : prefix.startsWith('season:')
+      ? prevSeasonRating
+      : prefix.startsWith('ep:')
+        ? prevEpisodeRating
+        : 0;
+  const newRating = prefix === 'overall'
+    ? newOverallRating
+    : prefix.startsWith('season:')
+      ? newSeasonRating
+      : prefix.startsWith('ep:')
+        ? newEpisodeRating
+        : 0;
+  if (previousRating !== newRating) {
+    captureShelfRatingChange(item, section, {
+      prefix,
+      kind: ratingKind,
+      previousRating,
+      rating: newRating,
+      cleared: previousRating > 0 && newRating === 0,
+      seasonNum: seasonRatingKey,
+      episodeId: episodeRatingKey
+    });
+  }
 
   if (isFirstTimeRating) {
     item.lastShowRatingAt = new Date().toISOString();
@@ -6576,6 +8066,12 @@ function rate(itemId, prefix, score) {
     item.lastEpisodeRatingValue = Number(ep?.rating || 0);
     item.lastEpisodeRatingAt = new Date().toISOString();
     item.lastEpisodeRatingEpId = String(episodeRatingKey || '');
+  }
+  if (prefix.startsWith("season:") && newSeasonRating === 0 && String(item.lastSeasonRatingNum || '') === String(seasonRatingKey || '')) {
+    item.lastSeasonRatingValue = 0;
+  }
+  if (prefix.startsWith("ep:") && newEpisodeRating === 0 && String(item.lastEpisodeRatingEpId || '') === String(episodeRatingKey || '')) {
+    item.lastEpisodeRatingValue = 0;
   }
 
   if (shouldEmitPublicRatingActivity) {
@@ -6592,7 +8088,7 @@ function rate(itemId, prefix, score) {
     else touchItem(item);
   }
 
-  save();
+  persistMyListEpisodeEdit(item, section, { markEdited: false });
   /* v10.69: partial DOM update for overall + season + episode rating instead
      of a full grid render. Season already had `updateSeasonRatingUI`; we now
      do the same for the title's overall stars. Episode rating (prefix `ep:`)
@@ -6602,8 +8098,10 @@ function rate(itemId, prefix, score) {
      real render() the card resorts correctly under Last-Edited sort. */
   if (inlineSeasonRatingNum) {
     updateSeasonRatingUI(item, inlineSeasonRatingNum, section);
+    if (isMyListEpisodePageOpen(itemId)) rerenderMyListEpisodePage();
   } else if (prefix === 'overall') {
     updateOverallRatingUI(item, section);
+    if (isMyListEpisodePageOpen(itemId)) rerenderMyListEpisodePage();
   } else if (prefix.startsWith('ep:')) {
     // The episode rating is rendered inside the (possibly-closed) episode list.
     // If the list is currently open and hydrated, the star row will repaint on
@@ -6612,7 +8110,7 @@ function rate(itemId, prefix, score) {
   } else {
     render();
   }
-  if (score > 0) playRatingAnimation(itemId, prefix);
+  if (newRating > 0) playRatingAnimation(itemId, prefix);
 
   // v442: defer the "Rating updated privately" toast until AFTER the star animation
   // finishes. The toast was previously appended synchronously, which forced a paint
@@ -6670,7 +8168,7 @@ function shelfdPostRatingEditUpdate() {
 
 function playRatingAnimation(itemId, prefix) {
   // Look up the actual score from the data so animation intensity matches
-  const record = findOwnLibraryItemRecord(itemId, activeSection);
+  const record = getMyListEpisodeInteractionContext(itemId, activeSection);
   const item = record.item;
   if (!item) return;
   let score = 0;
@@ -6954,7 +8452,7 @@ function syncScreenListEpisodeProgressFields(item = {}) {
 
 function isScreenListEpisodeEditorOpen(itemId = '') {
   const list = document.getElementById('ep-list-' + itemId);
-  return !!(list && list.classList.contains('open'));
+  return !!(list && list.classList.contains('open') && !list.closest('#mylist-episode-page-overlay'));
 }
 
 function applyScreenListEpisodeStatusOrDefer(item = {}, section = activeSection) {
@@ -6992,6 +8490,10 @@ function flushScreenListDeferredEpisodeStatus(itemId = '', section = activeSecti
 }
 
 function toggleEpisodes(id) {
+  if (activeSection === 'shows' || activeSection === 'anime') {
+    openMyListEpisodePage(id);
+    return;
+  }
   const list = document.getElementById('ep-list-' + id);
   const arrow = document.getElementById('ep-arrow-' + id);
   const label = document.getElementById('ep-label-' + id);
@@ -7060,11 +8562,11 @@ function toggleEpisodes(id) {
 }
 
 function preserveEpisodeScroll(itemId, action) {
-  const scrollEl = document.querySelector(`#ep-list-${itemId} .ep-scroll`);
+  const scrollEl = getEpisodeInteractionScrollContainer(itemId);
   const scrollTop = scrollEl ? scrollEl.scrollTop : 0;
   action();
   requestAnimationFrame(() => {
-    const nextScrollEl = document.querySelector(`#ep-list-${itemId} .ep-scroll`);
+    const nextScrollEl = getEpisodeInteractionScrollContainer(itemId);
     if (nextScrollEl) nextScrollEl.scrollTop = scrollTop;
   });
 }
@@ -7106,16 +8608,20 @@ function updateEpisodeRowState(ep) {
 
 function updateCardProgressUI(item) {
   const progress = getEpisodeProgress(item);
-  const countEl = document.getElementById('progress-count-' + item.id);
-  const percentEl = document.getElementById('progress-percent-' + item.id);
-  const fillEl = document.getElementById('progress-fill-' + item.id);
-  if (countEl) countEl.textContent = `${progress.watched}/${progress.total} episodes`;
-  if (percentEl) {
+  const countId = `progress-count-${item.id}`;
+  const percentId = `progress-percent-${item.id}`;
+  const fillId = `progress-fill-${item.id}`;
+  document.querySelectorAll(`[id="${CSS.escape(countId)}"]`).forEach(node => {
+    node.textContent = `${progress.watched}/${progress.total} episodes`;
+  });
+  document.querySelectorAll(`[id="${CSS.escape(percentId)}"]`).forEach(node => {
     const showPercent = Number(progress.total || 0) > 0;
-    percentEl.textContent = showPercent ? `${progress.percent}%` : '';
-    percentEl.hidden = !showPercent;
-  }
-  if (fillEl) fillEl.style.width = `${progress.percent}%`;
+    node.textContent = showPercent ? `${progress.percent}%` : '';
+    node.hidden = !showPercent;
+  });
+  document.querySelectorAll(`[id="${CSS.escape(fillId)}"]`).forEach(node => {
+    node.style.width = `${progress.percent}%`;
+  });
 }
 
 function updateSeasonProgressUI(item, seasonNum) {
@@ -7124,7 +8630,9 @@ function updateSeasonProgressUI(item, seasonNum) {
   const seasonProgressEl = document.getElementById(`season-progress-${item.id}-${seasonNum}`);
   if (!seasonProgressEl) return;
   const watched = seasonEpisodes.filter(e => e.watched).length;
-  seasonProgressEl.textContent = `(${watched}/${seasonEpisodes.length})`;
+  seasonProgressEl.textContent = seasonProgressEl.closest('#mylist-episode-page-overlay')
+    ? `${watched}/${seasonEpisodes.length} watched`
+    : `(${watched}/${seasonEpisodes.length})`;
 }
 
 function updateStatusPillsUI(item) {
@@ -7135,6 +8643,7 @@ function updateStatusPillsUI(item) {
       .forEach(cls => btn.classList.remove(cls));
     if (isActive) btn.classList.add(`${item.status}-active`);
   });
+  updateMyListEpisodePageStatusUI(item, item.librarySection || item.mediaCategory || activeSection);
 }
 
 function updateSeasonActionLabelUI(item, seasonNum) {
@@ -7171,6 +8680,7 @@ function animateEpisodeWatchSweep(epId) {
   requestAnimationFrame(() => {
     const row = document.getElementById('ep-row-' + epId);
     if (!row) return;
+    const isEpisodePage = !!row.closest('#mylist-episode-page-overlay');
     row.classList.remove('episode-watch-enter');
     row.classList.remove('episode-watch-sweep');
     row.classList.remove('episode-watch-impact');
@@ -7188,18 +8698,30 @@ function animateEpisodeWatchSweep(epId) {
 
     spawnEpisodeBurst(row);
 
-    const fillAnim = fillLayer.animate([
-      { clipPath: 'inset(0 99% 0 0 round 4px)' },
-      { clipPath: 'inset(0 84% 0 0 round 4px)', offset: 0.16 },
-      { clipPath: 'inset(0 66% 0 0 round 4px)', offset: 0.32 },
-      { clipPath: 'inset(0 48% 0 0 round 4px)', offset: 0.48 },
-      { clipPath: 'inset(0 29% 0 0 round 4px)', offset: 0.64 },
-      { clipPath: 'inset(0 12% 0 0 round 4px)', offset: 0.8 },
-      { clipPath: 'inset(0 3% 0 0 round 4px)', offset: 0.92 },
-      { clipPath: 'inset(0 0 0 0 round 4px)' }
-    ], {
-      duration: 1120,
-      easing: 'linear',
+    const fillFrames = isEpisodePage
+      ? [
+          { clipPath: 'inset(0 99% 0 0 round 4px)' },
+          { clipPath: 'inset(0 90% 0 0 round 4px)', offset: 0.14 },
+          { clipPath: 'inset(0 74% 0 0 round 4px)', offset: 0.3 },
+          { clipPath: 'inset(0 55% 0 0 round 4px)', offset: 0.48 },
+          { clipPath: 'inset(0 34% 0 0 round 4px)', offset: 0.66 },
+          { clipPath: 'inset(0 16% 0 0 round 4px)', offset: 0.82 },
+          { clipPath: 'inset(0 4% 0 0 round 4px)', offset: 0.94 },
+          { clipPath: 'inset(0 0 0 0 round 4px)' }
+        ]
+      : [
+          { clipPath: 'inset(0 99% 0 0 round 4px)' },
+          { clipPath: 'inset(0 84% 0 0 round 4px)', offset: 0.16 },
+          { clipPath: 'inset(0 66% 0 0 round 4px)', offset: 0.32 },
+          { clipPath: 'inset(0 48% 0 0 round 4px)', offset: 0.48 },
+          { clipPath: 'inset(0 29% 0 0 round 4px)', offset: 0.64 },
+          { clipPath: 'inset(0 12% 0 0 round 4px)', offset: 0.8 },
+          { clipPath: 'inset(0 3% 0 0 round 4px)', offset: 0.92 },
+          { clipPath: 'inset(0 0 0 0 round 4px)' }
+        ];
+    const fillAnim = fillLayer.animate(fillFrames, {
+      duration: isEpisodePage ? 1280 : 1120,
+      easing: isEpisodePage ? 'cubic-bezier(0.2, 0.82, 0.2, 1)' : 'linear',
       fill: 'forwards'
     });
 
@@ -7256,7 +8778,10 @@ function maybeMarkScreenListSeasonFinished(item, section, seasonNum) {
 }
 
 function toggleEp(itemId, epId) {
-  const item = data[activeSection].find(i => i.id === itemId);
+  if (viewingUser) return;
+  const context = getMyListEpisodeInteractionContext(itemId);
+  const item = context.item;
+  const section = context.section || activeSection;
   if (!item) return;
   // v451: anime synthetic episodes need to be materialised before per-episode
   // state can be saved.
@@ -7269,22 +8794,25 @@ function toggleEp(itemId, epId) {
     ep.watched = !ep.watched;
     becameWatched = ep.watched;
     if (becameWatched) {
-      markEpisodeWatchActivity(item, activeSection, {
+      markEpisodeWatchActivity(item, section, {
         count: 1,
         label: ep.title || ep.name || 'episode watched',
         epNum: ep.epNum || ep.number || ep.episodeNumber || '',
         season: ep.seasonNum || ''
       });
       // v553: also check if this episode just completed its season
-      maybeMarkScreenListSeasonFinished(item, activeSection, ep.seasonNum);
+      maybeMarkScreenListSeasonFinished(item, section, ep.seasonNum);
     }
     const statusChangedNow = applyScreenListEpisodeStatusOrDefer(item);
-    if (typeof markOwnItemLastEdited === 'function') markOwnItemLastEdited(item, activeSection);
-    else touchItem(item);
-    save();
+    persistMyListEpisodeEdit(item, section);
     if (becameWatched) invalidateActivityFeedAfterLibraryMutation();
     if (statusChangedNow && !itemMatchesCurrentView(item)) {
+      updateEpisodeRowState(ep);
+      updateCardProgressUI(item);
+      updateSeasonProgressUI(item, ep.seasonNum);
+      updateStatusPillsUI(item);
       render();
+      if (isMyListEpisodePageOpen(itemId)) rerenderMyListEpisodePage();
       return;
     }
     updateEpisodeRowState(ep);
@@ -7296,7 +8824,10 @@ function toggleEp(itemId, epId) {
 }
 
 function markAllEps(id, val) {
-  const item = data[activeSection].find(i => i.id === id);
+  if (viewingUser) return;
+  const context = getMyListEpisodeInteractionContext(id);
+  const item = context.item;
+  const section = context.section || activeSection;
   if (!item) return;
   // v451: materialise synthetic anime episodes so the per-episode flags persist.
   if (typeof hydrateAnimeEpisodesIfSynthetic === 'function') hydrateAnimeEpisodesIfSynthetic(item);
@@ -7305,19 +8836,25 @@ function markAllEps(id, val) {
       const affectedEpisodes = item.episodes.length;
       item.episodes.forEach(e => e.watched = val);
       if (val) {
-        markEpisodeWatchActivity(item, activeSection, { count: affectedEpisodes, label: 'all episodes watched' });
+        markEpisodeWatchActivity(item, section, { count: affectedEpisodes, label: 'all episodes watched' });
         // v553: mark each season finished
         new Set(item.episodes.map(ep => ep.seasonNum).filter(Boolean)).forEach(sn => {
-          maybeMarkScreenListSeasonFinished(item, activeSection, sn);
+          maybeMarkScreenListSeasonFinished(item, section, sn);
         });
       }
       const statusChangedNow = applyScreenListEpisodeStatusOrDefer(item);
-      if (typeof markOwnItemLastEdited === 'function') markOwnItemLastEdited(item, activeSection);
-      else touchItem(item);
-      save();
+      persistMyListEpisodeEdit(item, section);
       if (val) invalidateActivityFeedAfterLibraryMutation();
       if (statusChangedNow && !itemMatchesCurrentView(item)) {
+        item.episodes.forEach(updateEpisodeRowState);
+        updateCardProgressUI(item);
+        new Set(item.episodes.map(ep => ep.seasonNum).filter(Boolean)).forEach(seasonNum => {
+          updateSeasonProgressUI(item, seasonNum);
+          updateSeasonActionLabelUI(item, seasonNum);
+        });
+        updateStatusPillsUI(item);
         render();
+        if (isMyListEpisodePageOpen(id)) rerenderMyListEpisodePage();
         return;
       }
       item.episodes.forEach(updateEpisodeRowState);
@@ -7332,18 +8869,25 @@ function markAllEps(id, val) {
 }
 
 function showEditEp(id) {
-  const item = data[activeSection].find(i => i.id === id);
+  if (viewingUser) return;
+  const context = getMyListEpisodeInteractionContext(id);
+  const item = context.item;
   if (!item) return;
+  const cancelAction = isMyListEpisodePageOpen(id) ? `rerenderMyListEpisodePage()` : `render()`;
+  const currentCount = Math.max(1, Number(item.totalEpisodes || item.totalEps || item.episodes?.length || 1));
   const el = document.getElementById('edit-ep-' + id);
   el.innerHTML = `
-    <input type="number" min="1" value="${item.episodes.length}" style="width:60px;padding:4px 8px;font-size:12px;background:#0c0a1d;border:1px solid #2a2248;border-radius:4px;color:#e8e3f3;outline:none;" id="ep-count-inp-${id}">
+    <input type="number" min="1" value="${currentCount}" style="width:60px;padding:4px 8px;font-size:12px;background:#0c0a1d;border:1px solid #2a2248;border-radius:4px;color:#e8e3f3;outline:none;" id="ep-count-inp-${id}">
     <button class="btn-primary btn-sm" onclick="saveEpCount('${id}')">Save</button>
-    <button class="btn-secondary btn-sm" onclick="render()">Cancel</button>
+    <button class="btn-secondary btn-sm" onclick="${cancelAction}">Cancel</button>
   `;
 }
 
 function saveEpCount(id) {
-  const item = data[activeSection].find(i => i.id === id);
+  if (viewingUser) return;
+  const context = getMyListEpisodeInteractionContext(id);
+  const item = context.item;
+  const section = context.section || activeSection;
   if (!item) return;
   const count = Math.max(1, parseInt(document.getElementById('ep-count-inp-' + id).value) || 1);
   const curr = item.episodes;
@@ -7356,7 +8900,9 @@ function saveEpCount(id) {
       item.episodes = curr.slice(0, count);
     }
     item.totalEpisodes = count;
-    save(); render();
+    persistMyListEpisodeEdit(item, section);
+    render();
+    if (isMyListEpisodePageOpen(id)) rerenderMyListEpisodePage();
   });
 }
 
@@ -7439,7 +8985,7 @@ function buildCardCommentAddBtnHtml(item) {
   // text. Without this, items the friend rated-only had no viewer entry
   // point into the FPReview.
   if (hasReview || viewingUser) {
-    return '<button class="card-review-layers-btn" type="button" onclick="event.stopPropagation();openFullPageMediaReview(\'' + itemIdAttr + '\',\'' + sectionAttr + '\')" aria-label="Open full page review" title="Open full page review"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/></svg></button>';
+    return '<button class="card-review-layers-btn" type="button" onclick="event.stopPropagation();openFullPageMediaReview(\'' + itemIdAttr + '\',\'' + sectionAttr + '\')" aria-label="Open full page review" title="Open full page review"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.25 5.25h11.5A2.25 2.25 0 0 1 20 7.5v6A2.25 2.25 0 0 1 17.75 15.75H10.9L7.25 18.75v-3H6.25A2.25 2.25 0 0 1 4 13.5v-6a2.25 2.25 0 0 1 2.25-2.25Z"/><path d="M8 9.25h8"/><path d="M8 12.25h5.5"/></svg></button>';
   }
   // No review yet AND owner viewing their own list — show the legacy +
   // button (which opens the I-Watched composer for watched/played sections).

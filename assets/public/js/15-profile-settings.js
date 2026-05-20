@@ -3004,18 +3004,13 @@ function openPreviewUserProfile(uid) {
 
 async function loadPublicProfileListData(uid, options = {}) {
   try {
-    const snap = await db.collection('watchlist').doc(uid).get();
-    if (!snap.exists) return getEmptyListData();
-    const d = snap.data();
-    const loaded = {
-      shows: d.shows ? JSON.parse(d.shows) : [],
-      movies: d.movies ? JSON.parse(d.movies) : [],
-      anime: d.anime ? JSON.parse(d.anime) : [],
-      games: d.games ? JSON.parse(d.games) : [],
-      manga: d.manga ? JSON.parse(d.manga) : [],
-      books: d.books ? JSON.parse(d.books) : []
-    };
-    return await autoSortAnimeBuckets(normalizeListData(loaded), false);
+    /* v10.387: section-aware fan-out replaces the legacy single-doc read.
+       Reads shows/movies/anime/games/manga/books (music excluded to match
+       prior behavior). */
+    const listData = await loadWatchlistDataForUid(uid, {
+      sections: ['shows', 'movies', 'anime', 'games', 'manga', 'books']
+    });
+    return await autoSortAnimeBuckets(normalizeListData(listData), false);
   } catch(e) {
     if (!options.suppressError) console.error('Failed to load profile list data:', e);
     return getEmptyListData();

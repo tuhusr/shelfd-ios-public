@@ -12,6 +12,8 @@
   let movieDuelVisibleTierActiveId = '';
   let movieDuelVisibleTierMediaKey = duelMediaKey;
   let movieDuelTierVisibleCounts = {};
+  let movieDuelTierDragState = null;
+  let movieDuelTierDragSuppressClickUntil = 0;
   const movieDuelTierListCache = {};
   const movieDuelTierListSaveQueues = {};
   const MOVIE_DUEL_TIER_STORAGE_PREFIX = 'shelfd-tier-list-cache-v1';
@@ -19,6 +21,8 @@
   const TIER_ROW_INITIAL_LIMIT = 12;
   const TIER_ROW_LOAD_STEP = 12;
   const S_TIER_CAP = 5;
+  const TIER_LONG_PRESS_MS = 260;
+  const TIER_LONG_PRESS_MOVE_TOLERANCE = 8;
   const DUEL_SWAP_MS = 240;
   const MOVIE_DUEL_BASE_CLOSE_MS = 180;
   const MOVIE_DUEL_TIER_TRANSITION_MS = 450;
@@ -67,10 +71,23 @@
       tierTitle: 'Video Game Tier List',
       emptyLabel: 'played, live, or competitive games',
       filterItem: item => ['watched', 'played', 'live', 'competitive'].includes(String(item?.status || '').toLowerCase())
+    },
+    music: {
+      key: 'music',
+      label: 'Album',
+      plural: 'Music',
+      lower: 'album',
+      sourceSection: 'music',
+      profileKey: 'musicRatingTierList',
+      tierTitle: 'Music Tier List',
+      emptyLabel: 'rated albums',
+      /* Music section stores completed/rated items with status='watched'
+         per v10.238 — same convention used by movies/shows/anime. */
+      filterItem: item => item?.status === 'watched'
     }
   };
 
-  const MEDIA_ORDER = ['movies', 'shows', 'anime', 'games'];
+  const MEDIA_ORDER = ['movies', 'shows', 'anime', 'games', 'music'];
   duelMediaKey = getDefaultDuelMediaKey();
   movieDuelVisibleTierMediaKey = duelMediaKey;
 
@@ -1020,7 +1037,7 @@
     const entryId = cleanText(entry.id || '');
     const clickable = !!entryId && !isMovieDuelReadOnly();
     return `
-      <button type="button" class="movie-duel-tier-poster${clickable ? ' is-clickable' : ''}" title="${attr(title)}" ${clickable ? `onclick="startMovieRatingDuelFromTierList('${attr(entryId)}')"` : 'disabled'} aria-label="${attr(`Play tier list game for ${title}`)}">
+      <button type="button" class="movie-duel-tier-poster${clickable ? ' is-clickable' : ''}" data-movie-duel-tier-poster data-movie-duel-tier-entry-id="${attr(entryId)}" title="${attr(title)}" ${clickable ? `onclick="startMovieRatingDuelFromTierList('${attr(entryId)}')"` : 'disabled'} aria-label="${attr(`Play tier list game for ${title}`)}">
         ${poster ? `<img src="${attr(poster)}" alt="${attr(title)}" loading="lazy" decoding="async" fetchpriority="low">` : `<span>${html(title.charAt(0).toUpperCase() || '?')}</span>`}
       </button>
     `;
@@ -1052,7 +1069,7 @@
           const visibleEntries = activeEntry ? [...firstEntries, activeEntry] : firstEntries;
           const hasMore = visibleCount < entries.length;
           return `
-            <section class="movie-duel-tier-row movie-duel-tier-${attr(tier.key.toLowerCase())}">
+            <section class="movie-duel-tier-row movie-duel-tier-${attr(tier.key.toLowerCase())}" data-movie-duel-tier-key="${attr(tier.key)}">
               <div class="movie-duel-tier-label">
                 <strong>${html(tier.key)}</strong>
                 <span>${tier.meta}</span>
@@ -1060,7 +1077,7 @@
               <div class="movie-duel-tier-scroll-wrap" data-movie-duel-tier-row="${attr(tier.key)}">
                 <div class="movie-duel-tier-scroll" data-movie-duel-tier-scroll="${attr(tier.key)}" aria-label="${attr(tier.label)}">
                 ${visibleEntries.length ? visibleEntries.map(entry => `
-                  <div class="movie-duel-tier-item${cleanText(entry.id) === cleanActiveId ? ' is-new' : ''}">
+                  <div class="movie-duel-tier-item${cleanText(entry.id) === cleanActiveId ? ' is-new' : ''}" data-movie-duel-tier-item="${attr(cleanText(entry.id || ''))}" data-movie-duel-tier-key="${attr(tier.key)}">
                     ${renderTierPoster(entry)}
                   </div>
                 `).join('') : `<div class="movie-duel-tier-empty">No titles yet</div>`}
@@ -1085,6 +1102,275 @@
     if (!board) return;
     board.outerHTML = renderMovieDuelTierList(normalized, movieDuelVisibleTierActiveId, { mediaKey: movieDuelVisibleTierMediaKey, preserveVisibleCounts: true });
   }
+
+  function getMovieDuelTierScrollFromPoint(clientX = 0, clientY = 0) {
+    const direct = document.elementFromPoint(clientX, clientY)?.closest?.('[data-movie-duel-tier-scroll]');
+    if (direct) return direct;
+    const rows = Array.from(document.querySelectorAll('#movie-rating-duel-overlay [data-movie-duel-tier-scroll]'));
+    if (!rows.length) return null;
+    let best = null;
+    let bestDistance = Infinity;
+    rows.forEach(row => {
+      const rect = row.getBoundingClientRect();
+      const yDistance = clientY < rect.top ? rect.top - clientY : (clientY > rect.bottom ? clientY - rect.bottom : 0);
+      const xDistance = clientX < rect.left ? rect.left - clientX : (clientX > rect.right ? clientX - rect.right : 0);
+      const distance = yDistance * 2 + xDistance;
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = row;
+      }
+    });
+    return best;
+  }
+
+  function placeMovieDuelTierDragPlaceholder(scrollEl, clientX = 0) {
+    if (!movieDuelTierDragState?.placeholder || !scrollEl) return;
+    const placeholder = movieDuelTierDragState.placeholder;
+    const empty = scrollEl.querySelector('.movie-duel-tier-empty');
+    const items = Array.from(scrollEl.querySelectorAll('.movie-duel-tier-item'))
+      .filter(item => item !== placeholder && !item.classList.contains('is-drag-source'));
+    let beforeNode = null;
+    for (const item of items) {
+      const rect = item.getBoundingClientRect();
+      if (clientX < rect.left + rect.width / 2) {
+        beforeNode = item;
+        break;
+      }
+    }
+    if (empty) empty.classList.add('is-hidden-by-drag');
+    if (beforeNode) scrollEl.insertBefore(placeholder, beforeNode);
+    else {
+      const loadMore = scrollEl.querySelector('.movie-duel-tier-load-more');
+      scrollEl.insertBefore(placeholder, loadMore || empty || null);
+    }
+    movieDuelTierDragState.targetTierKey = cleanText(scrollEl.dataset.movieDuelTierScroll || '').toUpperCase();
+  }
+
+  function autoScrollMovieDuelTierRow(scrollEl, clientX = 0) {
+    if (!scrollEl) return;
+    const rect = scrollEl.getBoundingClientRect();
+    const edge = 46;
+    let delta = 0;
+    if (clientX < rect.left + edge) delta = -12;
+    else if (clientX > rect.right - edge) delta = 12;
+    if (delta) scrollEl.scrollLeft += delta;
+  }
+
+  function setMovieDuelTierGhostPosition(clientX = 0, clientY = 0) {
+    const state = movieDuelTierDragState;
+    if (!state?.ghost) return;
+    state.lastX = clientX;
+    state.lastY = clientY;
+    if (state.raf) return;
+    state.raf = requestAnimationFrame(() => {
+      state.raf = 0;
+      const x = state.lastX - state.offsetX;
+      const y = state.lastY - state.offsetY;
+      state.ghost.style.transform = `translate3d(${x}px, ${y}px, 0) scale(1.045)`;
+    });
+  }
+
+  function startMovieDuelTierLongPressDrag(event) {
+    const state = movieDuelTierDragState;
+    if (!state || state.dragging || isMovieDuelReadOnly()) return;
+    const itemEl = state.itemEl;
+    const posterEl = state.posterEl;
+    const rect = itemEl.getBoundingClientRect();
+    state.dragging = true;
+    state.offsetX = state.startX - rect.left;
+    state.offsetY = state.startY - rect.top;
+    movieDuelTierDragSuppressClickUntil = Date.now() + 900;
+    const placeholder = document.createElement('div');
+    placeholder.className = 'movie-duel-tier-item movie-duel-tier-drag-placeholder';
+    placeholder.dataset.movieDuelTierItem = state.entryId;
+    placeholder.dataset.movieDuelTierKey = state.tierKey;
+    placeholder.style.width = `${rect.width}px`;
+    placeholder.style.height = `${rect.height}px`;
+    itemEl.parentNode.insertBefore(placeholder, itemEl.nextSibling);
+    const ghost = itemEl.cloneNode(true);
+    ghost.classList.remove('is-new');
+    ghost.classList.add('movie-duel-tier-drag-ghost');
+    ghost.style.width = `${rect.width}px`;
+    ghost.style.height = `${rect.height}px`;
+    ghost.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0) scale(1.045)`;
+    document.body.appendChild(ghost);
+    itemEl.classList.add('is-drag-source');
+    posterEl.classList.add('is-dragging-source');
+    document.body.classList.add('movie-duel-tier-dragging');
+    const scrollEl = itemEl.closest('[data-movie-duel-tier-scroll]');
+    if (scrollEl) placeMovieDuelTierDragPlaceholder(scrollEl, state.startX);
+    state.placeholder = placeholder;
+    state.ghost = ghost;
+    setMovieDuelTierGhostPosition(state.startX, state.startY);
+    if (navigator.vibrate) {
+      try { navigator.vibrate(8); } catch (_) {}
+    }
+    event?.preventDefault?.();
+  }
+
+  function cancelMovieDuelTierDrag() {
+    const state = movieDuelTierDragState;
+    if (!state) return;
+    window.clearTimeout(state.timer);
+    if (state.raf) cancelAnimationFrame(state.raf);
+    state.itemEl?.classList.remove('is-drag-source');
+    state.posterEl?.classList.remove('is-dragging-source');
+    state.placeholder?.remove();
+    state.ghost?.remove();
+    document.querySelectorAll('.movie-duel-tier-empty.is-hidden-by-drag').forEach(node => node.classList.remove('is-hidden-by-drag'));
+    document.body.classList.remove('movie-duel-tier-dragging');
+    movieDuelTierDragState = null;
+  }
+
+  function getMovieDuelTierPlaceholderIndex(targetTierKey = '', rowOverride = null) {
+    const state = movieDuelTierDragState;
+    const placeholder = state?.placeholder;
+    if (!placeholder || !targetTierKey) return 0;
+    const scrollEl = placeholder.closest('[data-movie-duel-tier-scroll]');
+    if (!scrollEl) return 0;
+    const before = [];
+    Array.from(scrollEl.children).some(child => {
+      if (child === placeholder) return true;
+      if (child.classList?.contains('movie-duel-tier-item') && !child.classList.contains('is-drag-source')) {
+        const id = cleanText(child.dataset.movieDuelTierItem || '');
+        if (id) before.push(id);
+      }
+      return false;
+    });
+    const row = Array.isArray(rowOverride)
+      ? rowOverride
+      : (Array.isArray(movieDuelVisibleTierList?.[targetTierKey]) ? movieDuelVisibleTierList[targetTierKey] : []);
+    if (!before.length) return 0;
+    const lastId = before[before.length - 1];
+    const index = row.findIndex(entry => cleanText(entry?.id || '') === lastId);
+    return index >= 0 ? index + 1 : before.length;
+  }
+
+  function commitMovieDuelTierDrop() {
+    const state = movieDuelTierDragState;
+    if (!state?.dragging) {
+      cancelMovieDuelTierDrag();
+      return;
+    }
+    const mediaKey = movieDuelVisibleTierMediaKey || duelMediaKey;
+    const targetTierKey = cleanText(state.targetTierKey || state.tierKey).toUpperCase();
+    const sourceTierKey = cleanText(state.tierKey || '').toUpperCase();
+    const entryId = cleanText(state.entryId || '');
+    const tierList = normalizeSavedTierList(movieDuelVisibleTierList, mediaKey);
+    let movedEntry = null;
+    TIER_ROWS.forEach(tier => {
+      const row = Array.isArray(tierList[tier.key]) ? tierList[tier.key] : [];
+      const index = row.findIndex(entry => cleanText(entry?.id || '') === entryId);
+      if (index >= 0) {
+        movedEntry = row.splice(index, 1)[0];
+      }
+    });
+    if (!movedEntry || !targetTierKey || !tierList[targetTierKey]) {
+      cancelMovieDuelTierDrag();
+      return;
+    }
+    const targetIndex = Math.max(0, Math.min(getMovieDuelTierPlaceholderIndex(targetTierKey, tierList[targetTierKey]), tierList[targetTierKey].length));
+    movedEntry = {
+      ...movedEntry,
+      tier: targetTierKey,
+      rating: getTierDisplayRating(targetTierKey, movedEntry.rating),
+      updatedAt: new Date().toISOString()
+    };
+    tierList[targetTierKey].splice(targetIndex, 0, movedEntry);
+    movieDuelVisibleTierList = normalizeSavedTierList(tierList, mediaKey);
+    movieDuelTierVisibleCounts[targetTierKey] = Math.max(Number(movieDuelTierVisibleCounts[targetTierKey] || TIER_ROW_INITIAL_LIMIT), targetIndex + 1);
+    if (sourceTierKey) {
+      movieDuelTierVisibleCounts[sourceTierKey] = Math.max(Number(movieDuelTierVisibleCounts[sourceTierKey] || TIER_ROW_INITIAL_LIMIT), TIER_ROW_INITIAL_LIMIT);
+    }
+    cancelMovieDuelTierDrag();
+    const board = document.querySelector('#movie-rating-duel-overlay .movie-duel-tier-board');
+    if (board) {
+      board.outerHTML = renderMovieDuelTierList(movieDuelVisibleTierList, entryId, { mediaKey, preserveVisibleCounts: true });
+    }
+    saveTierList(mediaKey, movieDuelVisibleTierList).catch(error => {
+      console.warn('Tier list reorder save failed:', error);
+      if (typeof showToast === 'function') showToast('Could not save tier order');
+    });
+  }
+
+  function onMovieDuelTierPointerDown(event) {
+    if (movieDuelTierDragState || isMovieDuelReadOnly()) return;
+    if (event.button !== undefined && event.button !== 0) return;
+    const posterEl = event.target?.closest?.('[data-movie-duel-tier-poster]');
+    const itemEl = posterEl?.closest?.('.movie-duel-tier-item');
+    const scrollEl = itemEl?.closest?.('[data-movie-duel-tier-scroll]');
+    const overlay = posterEl?.closest?.('#movie-rating-duel-overlay.has-tier-list-page');
+    if (!posterEl || !itemEl || !scrollEl || !overlay) return;
+    const entryId = cleanText(itemEl.dataset.movieDuelTierItem || posterEl.dataset.movieDuelTierEntryId || '');
+    const tierKey = cleanText(itemEl.dataset.movieDuelTierKey || scrollEl.dataset.movieDuelTierScroll || '').toUpperCase();
+    if (!entryId || !tierKey) return;
+    movieDuelTierDragState = {
+      pointerId: event.pointerId,
+      posterEl,
+      itemEl,
+      entryId,
+      tierKey,
+      targetTierKey: tierKey,
+      startX: event.clientX,
+      startY: event.clientY,
+      lastX: event.clientX,
+      lastY: event.clientY,
+      dragging: false,
+      timer: window.setTimeout(() => startMovieDuelTierLongPressDrag(event), TIER_LONG_PRESS_MS)
+    };
+  }
+
+  function onMovieDuelTierPointerMove(event) {
+    const state = movieDuelTierDragState;
+    if (!state || (state.pointerId !== undefined && event.pointerId !== state.pointerId)) return;
+    const dx = event.clientX - state.startX;
+    const dy = event.clientY - state.startY;
+    if (!state.dragging) {
+      if (Math.hypot(dx, dy) > TIER_LONG_PRESS_MOVE_TOLERANCE) cancelMovieDuelTierDrag();
+      return;
+    }
+    event.preventDefault();
+    const scrollEl = getMovieDuelTierScrollFromPoint(event.clientX, event.clientY);
+    if (scrollEl) {
+      placeMovieDuelTierDragPlaceholder(scrollEl, event.clientX);
+      autoScrollMovieDuelTierRow(scrollEl, event.clientX);
+    }
+    setMovieDuelTierGhostPosition(event.clientX, event.clientY);
+  }
+
+  function onMovieDuelTierPointerUp(event) {
+    const state = movieDuelTierDragState;
+    if (!state || (state.pointerId !== undefined && event.pointerId !== state.pointerId)) return;
+    window.clearTimeout(state.timer);
+    if (state.dragging) {
+      event.preventDefault();
+      commitMovieDuelTierDrop();
+      return;
+    }
+    movieDuelTierDragState = null;
+  }
+
+  function onMovieDuelTierClickCapture(event) {
+    if (Date.now() > movieDuelTierDragSuppressClickUntil) return;
+    if (!event.target?.closest?.('[data-movie-duel-tier-poster]')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation?.();
+  }
+
+  function onMovieDuelTierContextMenu(event) {
+    if (!event.target?.closest?.('[data-movie-duel-tier-poster]')) return;
+    if (movieDuelTierDragState?.dragging || movieDuelTierDragState) {
+      event.preventDefault();
+    }
+  }
+
+  document.addEventListener('pointerdown', onMovieDuelTierPointerDown, true);
+  document.addEventListener('pointermove', onMovieDuelTierPointerMove, { capture: true, passive: false });
+  document.addEventListener('pointerup', onMovieDuelTierPointerUp, true);
+  document.addEventListener('pointercancel', cancelMovieDuelTierDrag, true);
+  document.addEventListener('click', onMovieDuelTierClickCapture, true);
+  document.addEventListener('contextmenu', onMovieDuelTierContextMenu, true);
 
   function getMovieDuelRecapCopy(listRating = 0, tierRating = 0) {
     const listScore = Math.max(1, clampRating(listRating || 0));
@@ -1207,9 +1493,6 @@
         <div>
           <div class="movie-duel-kicker">${readOnly ? 'Friend Tier List' : 'Saved Tier List'}</div>
           <h2>${html(config.tierTitle)}</h2>
-          <p>${readOnly
-            ? `${html(viewingName)}'s tier list is read-only. Swap categories at the top to view movies, TV shows, anime, or video games.`
-            : 'Swap categories at the top. Tap any poster to start the game from its current spot. Each tier list is saved separately and does not change My Lists ratings.'}</p>
         </div>
         <button type="button" class="movie-duel-close" onclick="closeMovieRatingDuel()" aria-label="Close">&times;</button>
       </div>
@@ -1354,6 +1637,7 @@
   function closeMovieRatingDuel() {
     const overlay = document.getElementById('movie-rating-duel-overlay');
     window.clearTimeout(duelSwapTimer);
+    cancelMovieDuelTierDrag();
     duelState = null;
     duelReadOnlyUser = null;
     if (!overlay) {

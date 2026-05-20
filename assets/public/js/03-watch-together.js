@@ -902,14 +902,16 @@ async function calculateWatchTogetherAverageRating(uids = [], item = {}, section
   const cacheKey = `${section}|${seed.mediaKey}|${seed.titleKey}|${uids.slice().sort().join(',')}`;
   if (watchTogetherAverageCache[cacheKey]) return watchTogetherAverageCache[cacheKey];
   try {
-    const docs = await Promise.all(uids.map(uid => db.collection('watchlist').doc(uid).get().catch(() => null)));
+    /* v10.387: only the requested section is needed; fan-out one section
+       at a time per uid via loadWatchlistDataForUid. */
+    const listDatas = await Promise.all(uids.map(uid =>
+      loadWatchlistDataForUid(uid, { sections: [section] }).catch(() => null)
+    ));
     const ratings = [];
-    docs.forEach(doc => {
-      if (!doc || !doc.exists) return;
-      const d = doc.data() || {};
-      let list = [];
-      try { list = d[section] ? JSON.parse(d[section]) : []; } catch (e) { list = []; }
-      const match = (Array.isArray(list) ? list : []).find(row => {
+    listDatas.forEach(listData => {
+      if (!listData) return;
+      const list = Array.isArray(listData[section]) ? listData[section] : [];
+      const match = list.find(row => {
         const rowSeed = buildWatchTogetherItemSeed(row, section);
         return (seed.mediaKey && rowSeed.mediaKey && seed.mediaKey === rowSeed.mediaKey) || (seed.titleKey && seed.titleKey === rowSeed.titleKey);
       });

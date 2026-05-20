@@ -16,6 +16,11 @@
 
 (function initMyListAlbumShelfPageModule() {
   const OVERLAY_ID = 'mylist-album-shelf-page';
+  const PUBLIC_ALBUM_SHARE_COLLECTION = 'publicAlbumShares';
+  let albumFavoriteCacheUid = '';
+  let albumFavoriteLoadPromise = null;
+  let sharedAlbumRouteOpening = false;
+  let sharedAlbumRouteActive = false;
 
   function escAttr(s) {
     return String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -38,6 +43,209 @@
     }
     if (year && month) return `${year}-${month}`;
     return year || '';
+  }
+
+  function readGlobal(name) {
+    try {
+      // eslint-disable-next-line no-new-func
+      return new Function('try { return typeof ' + name + ' !== "undefined" ? ' + name + ' : undefined; } catch (_) { return undefined; }')();
+    } catch (_) { return undefined; }
+  }
+
+  function getCurrentUser() {
+    return readGlobal('currentUser') || (typeof firebase !== 'undefined' && firebase.auth ? firebase.auth().currentUser : null);
+  }
+
+  function getFirestoreDb() {
+    return readGlobal('db') || (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
+  }
+
+  function sanitizeAlbumKey(value) {
+    const cleaned = String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 96);
+    return cleaned || 'album';
+  }
+
+  function getAlbumStableKey(item = {}) {
+    const deezer = String(item.deezerId || item.albumDeezerId || '').trim();
+    if (deezer) return sanitizeAlbumKey('deezer-' + deezer);
+    const mbid = String(item.mbid || item.musicBrainzId || '').trim();
+    if (mbid) return sanitizeAlbumKey('mbid-' + mbid);
+    const id = String(item.id || item.albumId || '').trim();
+    if (id) return sanitizeAlbumKey('id-' + id);
+    return sanitizeAlbumKey('title-' + [item.title, item.artist, item.releaseDate || item.year].filter(Boolean).join('-'));
+  }
+
+  function getAlbumShareDocId(ownerUid, albumKey) {
+    return sanitizeAlbumKey(ownerUid) + '__' + sanitizeAlbumKey(albumKey);
+  }
+
+  function getAlbumOwnerUid(options = {}) {
+    const user = getCurrentUser();
+    return String(options.ownerUid || user?.uid || '').trim();
+  }
+
+  function getAlbumCover(item = {}) {
+    return String(item.cover || item.image || item.poster || item.albumCover || '').trim();
+  }
+
+  function getAlbumTrackSnapshot(item = {}) {
+    const tracks = Array.isArray(item.tracks) ? item.tracks : [];
+    return tracks.map((track, idx) => ({
+      id: String(track?.deezerId || track?.id || '').trim(),
+      deezerId: String(track?.deezerId || track?.id || '').trim(),
+      number: Number(track?.number || idx + 1) || (idx + 1),
+      title: String(track?.title || 'Untitled').trim(),
+      duration: Number(track?.duration || track?.durationMs || track?.length || 0) || 0,
+      length: Number(track?.length || track?.durationMs || track?.duration || 0) || 0,
+      explicit: !!track?.explicit
+    }));
+  }
+
+  function buildPublicAlbumSnapshot(item = {}, ownerUid = '', albumKey = getAlbumStableKey(item)) {
+    return {
+      type: 'album',
+      ownerUid,
+      albumKey,
+      id: String(item.id || '').trim(),
+      albumId: String(item.albumId || item.id || '').trim(),
+      deezerId: String(item.deezerId || item.albumDeezerId || '').trim(),
+      mbid: String(item.mbid || item.musicBrainzId || '').trim(),
+      title: String(item.title || 'Untitled').trim(),
+      artist: String(item.artist || '').trim(),
+      cover: getAlbumCover(item),
+      year: String(item.year || (item.releaseDate ? String(item.releaseDate).slice(0, 4) : '') || '').trim(),
+      genre: String(item.genre || '').trim(),
+      releaseDate: String(item.releaseDate || '').trim(),
+      label: String(item.label || '').trim(),
+      tracks: getAlbumTrackSnapshot(item),
+      updatedAt: (typeof firebase !== 'undefined' && firebase.firestore?.FieldValue?.serverTimestamp)
+        ? firebase.firestore.FieldValue.serverTimestamp()
+        : Date.now()
+    };
+  }
+
+  function normalizePublicAlbumItem(raw = {}) {
+    if (!raw || typeof raw !== 'object') return null;
+    return {
+      id: String(raw.id || raw.albumId || raw.albumKey || '').trim() || getAlbumStableKey(raw),
+      albumId: String(raw.albumId || raw.id || '').trim(),
+      deezerId: String(raw.deezerId || '').trim(),
+      mbid: String(raw.mbid || '').trim(),
+      title: String(raw.title || 'Untitled').trim(),
+      artist: String(raw.artist || '').trim(),
+      cover: getAlbumCover(raw),
+      year: String(raw.year || '').trim(),
+      genre: String(raw.genre || '').trim(),
+      releaseDate: String(raw.releaseDate || '').trim(),
+      label: String(raw.label || '').trim(),
+      tracks: getAlbumTrackSnapshot(raw)
+    };
+  }
+
+  async function ensureFavoriteAlbumsLoaded(force = false) {
+    const user = getCurrentUser();
+    const uid = String(user?.uid || '').trim();
+    if (!uid) {
+      window.shelfdFavoriteAlbums = {};
+      albumFavoriteCacheUid = '';
+      return {};
+    }
+    if (!window.shelfdFavoriteAlbums || typeof window.shelfdFavoriteAlbums !== 'object') {
+      window.shelfdFavoriteAlbums = {};
+    }
+    if (!force && albumFavoriteCacheUid === uid) return window.shelfdFavoriteAlbums;
+    if (albumFavoriteLoadPromise) return albumFavoriteLoadPromise;
+    albumFavoriteLoadPromise = (async () => {
+      try {
+        const dbRef = getFirestoreDb();
+        if (!dbRef) return window.shelfdFavoriteAlbums || {};
+        const snap = await dbRef.collection('users').doc(uid).get();
+        const doc = snap.exists ? (snap.data() || {}) : {};
+        window.shelfdFavoriteAlbums = (doc.favoriteAlbums && typeof doc.favoriteAlbums === 'object') ? { ...doc.favoriteAlbums } : {};
+        albumFavoriteCacheUid = uid;
+        return window.shelfdFavoriteAlbums;
+      } catch (e) {
+        console.warn('Loading favoriteAlbums failed:', e);
+        return window.shelfdFavoriteAlbums || {};
+      } finally {
+        albumFavoriteLoadPromise = null;
+      }
+    })();
+    return albumFavoriteLoadPromise;
+  }
+
+  function buildFavoriteAlbumPayload(item = {}) {
+    const user = getCurrentUser();
+    const key = getAlbumStableKey(item);
+    const now = Date.now();
+    return {
+      type: 'album',
+      id: key,
+      albumKey: key,
+      albumId: String(item.albumId || item.id || '').trim(),
+      deezerId: String(item.deezerId || item.albumDeezerId || '').trim(),
+      mbid: String(item.mbid || item.musicBrainzId || '').trim(),
+      title: String(item.title || 'Untitled').trim(),
+      artist: String(item.artist || '').trim(),
+      cover: getAlbumCover(item),
+      userUid: String(user?.uid || '').trim(),
+      uid: String(user?.uid || '').trim(),
+      savedAt: now,
+      favoritedAt: now
+    };
+  }
+
+  function isAlbumFavorited(item = {}) {
+    const key = getAlbumStableKey(item);
+    const map = window.shelfdFavoriteAlbums && typeof window.shelfdFavoriteAlbums === 'object' ? window.shelfdFavoriteAlbums : {};
+    return !!map[key];
+  }
+
+  async function toggleAlbumFavorite(item = {}) {
+    const user = getCurrentUser();
+    const dbRef = getFirestoreDb();
+    if (!user?.uid || !dbRef) {
+      callGlobalFn('showToast', 'Sign in to favorite albums');
+      return false;
+    }
+    const map = await ensureFavoriteAlbumsLoaded();
+    const key = getAlbumStableKey(item);
+    const nextFav = !map[key];
+    if (nextFav) map[key] = buildFavoriteAlbumPayload(item);
+    else delete map[key];
+    window.shelfdFavoriteAlbums = { ...map };
+    const fieldPath = `favoriteAlbums.${key}`;
+    try {
+      const update = nextFav
+        ? { [fieldPath]: map[key] }
+        : { [fieldPath]: firebase.firestore.FieldValue.delete() };
+      await dbRef.collection('users').doc(user.uid).update(update);
+    } catch (e) {
+      try {
+        const merge = nextFav
+          ? { favoriteAlbums: { [key]: map[key] } }
+          : { favoriteAlbums: { [key]: firebase.firestore.FieldValue.delete() } };
+        await dbRef.collection('users').doc(user.uid).set(merge, { merge: true });
+      } catch (err) {
+        console.warn('Album favorite toggle failed:', err);
+        await ensureFavoriteAlbumsLoaded(true);
+        callGlobalFn('showToast', 'Could not update album favorite');
+      }
+    }
+    return nextFav;
+  }
+
+  function heartIconSvg() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 21s-7.5-4.35-9.6-9.05C.9 8.55 2.65 5 6.2 5c2.05 0 3.5 1.15 4.3 2.35C11.3 6.15 12.75 5 14.8 5c3.55 0 5.3 3.55 3.8 6.95C19.5 16.65 12 21 12 21Z"/></svg>';
+  }
+
+  function shareIconSvg() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 16V3"/><path d="m7 8 5-5 5 5"/></svg>';
   }
 
   /* v10.258: pull release_date + label from Deezer for items that don't have
@@ -132,20 +340,23 @@
       document.body.classList.remove('mylist-album-shelf-open');
       return;
     }
+    const wasSharedRoute = overlay.dataset.sharedAlbumRoute === 'true';
     if (opts.instant) {
       try { overlay.remove(); } catch (_) {}
       document.body.classList.remove('mylist-album-shelf-open');
+      if (wasSharedRoute) finishSharedAlbumRouteAfterClose();
       return;
     }
     overlay.classList.remove('is-open');
     setTimeout(() => {
       try { overlay.remove(); } catch (_) {}
       document.body.classList.remove('mylist-album-shelf-open');
+      if (wasSharedRoute) finishSharedAlbumRouteAfterClose();
     }, 320);
   }
   window.closeMyListAlbumPage = closeMyListAlbumPage;
 
-  function findMusicItem(itemId) {
+  function findMusicItemRecord(itemId) {
     /* v10.292: try friend's data first when viewing someone else's MyList
        (so viewers can OPEN the tracklist). Fall back to own data, which is
        the canonical source for any write paths (rating, fav-track stars).
@@ -153,18 +364,51 @@
     const friendData = resolveFriendLibraryData();
     if (friendData && Array.isArray(friendData.music)) {
       const fromFriend = friendData.music.find(it => String(it?.id || '') === String(itemId));
-      if (fromFriend) return fromFriend;
+      if (fromFriend) return { item: fromFriend, readOnly: true, source: 'friend', ownerUid: String(readGlobal('viewingUser')?.uid || '') };
     }
     const data = resolveLibraryData();
     if (!data || !Array.isArray(data.music)) return null;
-    return data.music.find(it => String(it?.id || '') === String(itemId)) || null;
+    const own = data.music.find(it => String(it?.id || '') === String(itemId)) || null;
+    return own ? { item: own, readOnly: false, source: 'own', ownerUid: String(getCurrentUser()?.uid || '') } : null;
+  }
+
+  function findMusicItem(itemId) {
+    return findMusicItemRecord(itemId)?.item || null;
+  }
+
+  /* v10.330: stable per-track key. Array-index keying (the v10.253 model)
+     loses favorites if the tracks array ever changes order or length on
+     reload — pick the strongest stable identifier available, then
+     normalized number+title, then idx as the last resort so legacy
+     entries still resolve. */
+  function getStableTrackKey(track, idx) {
+    if (!track || typeof track !== 'object') return `idx:${idx}`;
+    const dzId = String(track.deezerId || track.id || '').trim();
+    if (dzId) return `dz:${dzId}`;
+    const num = String(track.number || (idx + 1)).trim();
+    const title = String(track.title || '').trim().toLowerCase();
+    if (title) return `t:${num}::${title}`;
+    return `idx:${idx}`;
   }
 
   /* v10.253: track rows now use a simple FAVORITE star (boolean) instead of
      a 10-star rating. Single tap toggles "this is one of my favorites on the
      album" on/off. Backward compat: any legacy item.trackRatings[i] > 0 is
-     treated as favorited so users don't lose pre-existing data. */
-  function isTrackFavorited(item, idx) {
+     treated as favorited so users don't lose pre-existing data.
+     v10.330: prefer the stable trackFavoritesByKey map so favorites survive
+     tracklist re-orders / re-hydrations. Falls back to the legacy
+     trackFavorites array, then to trackRatings — both old shapes still
+     load correctly from existing Firestore docs. */
+  function isTrackFavorited(item, idx, track = null) {
+    const byKey = item && typeof item.trackFavoritesByKey === 'object' && item.trackFavoritesByKey !== null
+      ? item.trackFavoritesByKey
+      : null;
+    if (byKey) {
+      const trackRef = track || (Array.isArray(item?.tracks) ? item.tracks[idx] : null);
+      const key = getStableTrackKey(trackRef, idx);
+      if (byKey[key] === true) return true;
+      if (byKey[key] === false) return false;
+    }
     const favs = Array.isArray(item?.trackFavorites) ? item.trackFavorites : [];
     if (favs[idx] === true) return true;
     if (favs[idx] === false) return false;
@@ -180,10 +424,11 @@
     const total = tracks.length;
     if (total === 0) return { count: 0, total: 0, percent: 0 };
     let count = 0;
-    for (let i = 0; i < total; i++) if (isTrackFavorited(item, i)) count++;
+    for (let i = 0; i < total; i++) if (isTrackFavorited(item, i, tracks[i])) count++;
     return { count, total, percent: Math.round((count / total) * 100) };
   }
-  function renderTracksHtml(item) {
+  function renderTracksHtml(item, options = {}) {
+    const readOnly = !!options.readOnly;
     const tracks = Array.isArray(item?.tracks) ? item.tracks : [];
     if (!tracks.length) {
       return '<li class="mylist-album-shelf-track-empty">No tracks listed for this album.</li>';
@@ -191,12 +436,12 @@
     return tracks.map((t, idx) => {
       const num = String(t.number || idx + 1);
       const title = escHtml(t.title || 'Untitled');
-      const fav = isTrackFavorited(item, idx);
+      const fav = isTrackFavorited(item, idx, t);
       return `
         <li class="mylist-album-shelf-track" data-album-track-index="${idx}">
           <span class="mylist-album-shelf-track-num">${escHtml(num)}</span>
           <span class="mylist-album-shelf-track-title">${title}</span>
-          <button type="button" class="mylist-album-shelf-track-fav${fav ? ' is-fav' : ''}" data-album-track-fav aria-pressed="${fav ? 'true' : 'false'}" aria-label="${fav ? 'Remove from favorites' : 'Mark as favorite'}">
+          <button type="button" class="mylist-album-shelf-track-fav${fav ? ' is-fav' : ''}" data-album-track-fav aria-pressed="${fav ? 'true' : 'false'}" aria-label="${fav ? 'Remove from favorites' : 'Mark as favorite'}"${readOnly ? ' disabled aria-disabled="true"' : ''}>
             <span class="star-btn${fav ? ' lit' : ''}" aria-hidden="true">&#9733;</span>
           </button>
         </li>
@@ -216,14 +461,37 @@
   }
   /* v10.253: per-track favorite toggle (boolean) replaces the 10-star rating.
      Single tap sets/clears `item.trackFavorites[idx]`. Legacy trackRatings
-     entries are preserved but ignored for new writes. */
-  function commitTrackFavorite(itemId, trackIdx, isFav) {
+     entries are preserved but ignored for new writes.
+     v10.330: write the favorite under a STABLE per-track key into
+     `live.trackFavoritesByKey` so it survives any tracklist re-ordering.
+     Also mirror to the legacy `trackFavorites[idx]` array so any other
+     reader of the old shape stays correct. Use the immediate (non-debounced)
+     save path so an iOS app-close less than 500ms after a tap can't kill
+     the Firestore write — the previous code relied on `callGlobalFn('save')`
+     which queues a 500ms debounce. */
+  function commitTrackFavorite(itemId, trackIdx, isFav, track = null) {
     const live = getLiveMusicItem(itemId);
     if (!live) return;
+    const trackRef = track || (Array.isArray(live.tracks) ? live.tracks[trackIdx] : null);
+    const key = getStableTrackKey(trackRef, trackIdx);
+    if (!live.trackFavoritesByKey || typeof live.trackFavoritesByKey !== 'object') {
+      live.trackFavoritesByKey = {};
+    }
+    live.trackFavoritesByKey[key] = !!isFav;
     if (!Array.isArray(live.trackFavorites)) live.trackFavorites = [];
     live.trackFavorites[trackIdx] = !!isFav;
-    callGlobalFn('save');
     callGlobalFn('markOwnItemLastEdited', live, 'music');
+    /* Force the Firestore write immediately. If persistOwnListDataImmediate
+       is unavailable for any reason (older bundle, error), fall back to the
+       debounced save. */
+    if (typeof window !== 'undefined' && typeof window.persistOwnListDataImmediate === 'function') {
+      window.persistOwnListDataImmediate().catch(err => {
+        console.warn('[track-fav] immediate save failed, fell back to debounced:', err);
+        callGlobalFn('save');
+      });
+    } else {
+      callGlobalFn('save');
+    }
   }
 
   function attachTrackRatingHandlers(overlay, item) {
@@ -236,8 +504,9 @@
         e.stopPropagation();
         const live = getLiveMusicItem(itemId);
         if (!live) return;
-        const next = !isTrackFavorited(live, idx);
-        commitTrackFavorite(itemId, idx, next);
+        const trackRef = Array.isArray(live.tracks) ? live.tracks[idx] : null;
+        const next = !isTrackFavorited(live, idx, trackRef);
+        commitTrackFavorite(itemId, idx, next, trackRef);
         favBtn.classList.toggle('is-fav', next);
         favBtn.setAttribute('aria-pressed', next ? 'true' : 'false');
         favBtn.setAttribute('aria-label', next ? 'Remove from favorites' : 'Mark as favorite');
@@ -274,7 +543,6 @@
         <div class="mylist-album-shelf-rating-label">Your rating</div>
         <div class="stars mylist-album-shelf-rating-stars" style="--star-size:26px;" data-album-rating-stars>${stars.join('')}</div>
         <div class="mylist-album-shelf-fav-ratio" data-album-fav-ratio>
-          <span class="mylist-album-shelf-fav-ratio-icon" aria-hidden="true">&#9733;</span>
           <span data-album-fav-ratio-text>${ratio.total === 0 ? '—' : `${ratio.percent}%`}</span>
         </div>
       </section>
@@ -501,14 +769,204 @@
     overlay.addEventListener('touchcancel', onUp, { passive: true });
   }
 
-  window.openMyListAlbumPage = function(itemId) {
-    const item = findMusicItem(itemId);
+  function parseScreenListAlbumRoute(urlLike = window.location) {
+    const pathname = typeof urlLike === 'string' ? new URL(urlLike, window.location.origin).pathname : urlLike.pathname;
+    const hash = typeof urlLike === 'string' ? new URL(urlLike, window.location.origin).hash : (urlLike.hash || '');
+    const pathMatch = String(pathname || '').match(/^\/album\/([^/?#]+)\/([^/?#]+)/i);
+    const hashMatch = String(hash || '').match(/^#album\/([^/?#]+)\/([^/?#]+)/i);
+    const match = pathMatch || hashMatch;
+    if (!match) return null;
+    return {
+      ownerUid: decodeURIComponent(match[1] || '').trim(),
+      albumKey: decodeURIComponent(match[2] || '').trim()
+    };
+  }
+
+  function prepareSharedAlbumRouteView() {
+    if (typeof window.prepareSharedMediaRouteView === 'function') {
+      window.prepareSharedMediaRouteView();
+      return;
+    }
+    const login = document.getElementById('login-screen');
+    const app = document.getElementById('app-container');
+    if (login) login.style.display = 'none';
+    if (app) app.style.display = 'block';
+  }
+
+  async function loadPublicAlbumShare(ownerUid, albumKey) {
+    const dbRef = getFirestoreDb();
+    if (!dbRef || !ownerUid || !albumKey) return null;
+    const docId = getAlbumShareDocId(ownerUid, albumKey);
+    const snap = await dbRef.collection(PUBLIC_ALBUM_SHARE_COLLECTION).doc(docId).get();
+    if (!snap.exists) return null;
+    return normalizePublicAlbumItem(snap.data() || {});
+  }
+
+  async function openSharedAlbumRoute(route = parseScreenListAlbumRoute()) {
+    if (!route?.ownerUid || !route?.albumKey || sharedAlbumRouteOpening) return false;
+    sharedAlbumRouteOpening = true;
+    sharedAlbumRouteActive = false;
+    prepareSharedAlbumRouteView();
+    try {
+      const item = await loadPublicAlbumShare(route.ownerUid, route.albumKey);
+      if (!item) throw new Error('Shared album not found');
+      openAlbumShelfPage(item, {
+        readOnly: true,
+        ownerUid: route.ownerUid,
+        albumKey: route.albumKey,
+        sharedRoute: true
+      });
+      sharedAlbumRouteActive = true;
+      return true;
+    } catch (e) {
+      console.error('Shared album route failed:', e);
+      callGlobalFn('showToast', 'Could not open shared album');
+      if (!getCurrentUser() && typeof window.showLandingPage === 'function') window.showLandingPage();
+      return false;
+    } finally {
+      sharedAlbumRouteOpening = false;
+    }
+  }
+
+  function finishSharedAlbumRouteAfterClose() {
+    if (!sharedAlbumRouteActive) return;
+    sharedAlbumRouteActive = false;
+    if (window.location.pathname.startsWith('/album/') || window.location.hash.startsWith('#album/')) {
+      try { history.replaceState(null, '', window.location.origin + '/'); } catch (_) {}
+    }
+    if (!getCurrentUser() && typeof window.showLandingPage === 'function') window.showLandingPage();
+  }
+
+  function buildAlbumShareUrl(item = {}, options = {}) {
+    const ownerUid = getAlbumOwnerUid(options);
+    const albumKey = options.albumKey || getAlbumStableKey(item);
+    const url = new URL(`/album/${encodeURIComponent(ownerUid)}/${encodeURIComponent(albumKey)}`, window.location.origin);
+    const title = String(item.title || '').trim();
+    const artist = String(item.artist || '').trim();
+    const cover = getAlbumCover(item);
+    if (title) url.searchParams.set('title', title);
+    if (artist) url.searchParams.set('artist', artist);
+    if (/^https?:\/\//i.test(cover)) url.searchParams.set('poster', cover);
+    return url.toString();
+  }
+
+  async function ensurePublicAlbumShare(item = {}, options = {}) {
+    const user = getCurrentUser();
+    const dbRef = getFirestoreDb();
+    const ownerUid = getAlbumOwnerUid(options);
+    const albumKey = options.albumKey || getAlbumStableKey(item);
+    if (!user?.uid || user.uid !== ownerUid || !dbRef) return false;
+    const docId = getAlbumShareDocId(ownerUid, albumKey);
+    const payload = buildPublicAlbumSnapshot(item, ownerUid, albumKey);
+    await dbRef.collection(PUBLIC_ALBUM_SHARE_COLLECTION).doc(docId).set(payload, { merge: true });
+    return true;
+  }
+
+  async function copyTextToClipboard(text = '') {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (_) {}
+    const input = document.createElement('input');
+    input.value = text;
+    input.setAttribute('readonly', '');
+    input.style.position = 'fixed';
+    input.style.opacity = '0';
+    input.style.pointerEvents = 'none';
+    document.body.appendChild(input);
+    input.select();
+    let copied = false;
+    try { copied = document.execCommand('copy'); } catch (_) { copied = false; }
+    input.remove();
+    return copied;
+  }
+
+  async function shareAlbum(item = {}, options = {}) {
+    const shareUrl = buildAlbumShareUrl(item, options);
+    let prepared = false;
+    try { prepared = await ensurePublicAlbumShare(item, options); }
+    catch (e) { console.warn('Public album share snapshot failed:', e); }
+    const title = String(item.title || 'Album').trim();
+    const artist = String(item.artist || '').trim();
+    const shareData = {
+      title: artist ? `${title} by ${artist} on Shelfd` : `${title} on Shelfd`,
+      text: artist ? `Check out ${title} by ${artist} on Shelfd.` : `Check out ${title} on Shelfd.`,
+      url: shareUrl
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        callGlobalFn('showToast', prepared ? 'Album share opened' : 'Album link opened');
+        return;
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+    }
+    const copied = await copyTextToClipboard(shareUrl);
+    callGlobalFn('showToast', copied ? (prepared ? 'Album link copied' : 'Album link copied') : 'Could not copy album link');
+  }
+
+  function updateAlbumFavoriteButton(btn, item = {}) {
+    if (!btn) return;
+    const isFav = isAlbumFavorited(item);
+    btn.classList.toggle('is-favorited', isFav);
+    btn.setAttribute('aria-pressed', isFav ? 'true' : 'false');
+    btn.setAttribute('aria-label', isFav ? 'Unfavorite album' : 'Favorite album');
+  }
+
+  function renderAlbumTopbarActions(item = {}, options = {}) {
+    const readOnly = !!options.readOnly;
+    const fav = !readOnly && getCurrentUser()
+      ? `<button type="button" class="music-artist-profile-fav mylist-album-shelf-fav${isAlbumFavorited(item) ? ' is-favorited' : ''}" data-album-shelf-fav aria-pressed="${isAlbumFavorited(item) ? 'true' : 'false'}" aria-label="${isAlbumFavorited(item) ? 'Unfavorite album' : 'Favorite album'}">${heartIconSvg()}</button>`
+      : '';
+    return `
+      <div class="mylist-album-shelf-actions">
+        <button type="button" class="mylist-album-shelf-action mylist-album-shelf-share" data-album-shelf-share aria-label="Share album">${shareIconSvg()}</button>
+        ${fav}
+      </div>
+    `;
+  }
+
+  function attachAlbumActionHandlers(overlay, item = {}, options = {}) {
+    const actionOptions = {
+      ...options,
+      ownerUid: getAlbumOwnerUid(options),
+      albumKey: options.albumKey || getAlbumStableKey(item)
+    };
+    const shareBtn = overlay.querySelector('[data-album-shelf-share]');
+    if (shareBtn) shareBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      shareAlbum(item, actionOptions);
+    });
+
+    const favBtn = overlay.querySelector('[data-album-shelf-fav]');
+    if (favBtn) {
+      ensureFavoriteAlbumsLoaded().then(() => updateAlbumFavoriteButton(favBtn, item));
+      favBtn.addEventListener('click', async e => {
+        e.stopPropagation();
+        await toggleAlbumFavorite(item);
+        updateAlbumFavoriteButton(favBtn, item);
+        const svg = favBtn.querySelector('svg');
+        if (svg) {
+          svg.style.transform = 'scale(1.25)';
+          setTimeout(() => { svg.style.transform = ''; }, 180);
+        }
+      });
+    }
+  }
+
+  function openAlbumShelfPage(item, options = {}) {
     if (!item) {
       callGlobalFn('showToast', 'Album not found in your library');
       return;
     }
     closeMyListAlbumPage({ instant: true });
 
+    const readOnly = !!options.readOnly;
+    const ownerUid = getAlbumOwnerUid(options);
+    const albumKey = options.albumKey || getAlbumStableKey(item);
     const title = item.title || 'Untitled';
     const artist = item.artist || '';
     const cover = item.cover || '';
@@ -517,7 +975,10 @@
 
     const overlay = document.createElement('section');
     overlay.id = OVERLAY_ID;
-    overlay.className = 'mylist-album-shelf-page';
+    overlay.className = `mylist-album-shelf-page${readOnly ? ' is-read-only' : ''}`;
+    overlay.dataset.albumKey = albumKey;
+    overlay.dataset.ownerUid = ownerUid;
+    if (options.sharedRoute) overlay.dataset.sharedAlbumRoute = 'true';
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-label', `${title} tracklist`);
@@ -528,7 +989,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
           <span class="mylist-album-shelf-title-bar">Album</span>
-          <span class="mylist-album-shelf-topbar-spacer" aria-hidden="true"></span>
+          ${renderAlbumTopbarActions(item, { ...options, readOnly, ownerUid, albumKey })}
         </header>
         <main class="mylist-album-shelf-content">
           <div class="mylist-album-shelf-hero">
@@ -539,11 +1000,11 @@
             ${artist ? `<button type="button" class="mylist-album-shelf-album-artist" data-album-shelf-artist>${escHtml(artist)}</button>` : ''}
             ${(year || genre) ? `<div class="mylist-album-shelf-album-meta">${[year, genre].filter(Boolean).map(escHtml).join(' &middot; ')}</div>` : ''}
           </div>
-          ${renderAlbumRatingHtml(item)}
+          ${readOnly ? '' : renderAlbumRatingHtml(item)}
           <section class="mylist-album-shelf-tracks">
             <div class="mylist-album-shelf-tracks-heading">Tracks</div>
             <ol class="mylist-album-shelf-track-list" data-album-track-list>
-              ${renderTracksHtml(item)}
+              ${renderTracksHtml(item, { readOnly })}
             </ol>
           </section>
           <footer class="mylist-album-shelf-album-footer" data-album-footer>
@@ -565,6 +1026,7 @@
 
     const backBtn = overlay.querySelector('[data-album-shelf-back]');
     if (backBtn) backBtn.addEventListener('click', () => closeMyListAlbumPage());
+    attachAlbumActionHandlers(overlay, item, { ...options, readOnly, ownerUid, albumKey });
 
     /* v10.257: tap the artist name → open the Music Artist Profile page.
        Uses the stored artistDeezerId when present; otherwise searches Deezer
@@ -574,7 +1036,7 @@
       artistBtn.addEventListener('click', async e => {
         e.stopPropagation();
         if (typeof window.openMusicArtistProfile !== 'function') return;
-        const live = getLiveMusicItem(item.id);
+        const live = readOnly ? null : getLiveMusicItem(item.id);
         const known = String(live?.artistDeezerId || '').trim();
         if (known) {
           try {
@@ -607,8 +1069,10 @@
       });
     }
 
-    attachTrackRatingHandlers(overlay, item);
-    attachAlbumRatingHandlers(overlay, item.id);
+    if (!readOnly) {
+      attachTrackRatingHandlers(overlay, item);
+      attachAlbumRatingHandlers(overlay, item.id);
+    }
     attachSwipeBackHandlers(overlay);
 
     /* v10.256: async enrichment — for any track that doesn't already show a
@@ -616,8 +1080,10 @@
        fetch the full track to pull `contributors` and append the feature
        string to the title. Updates persist via save() so future opens skip
        this enrichment. */
-    enrichTrackFeatures(overlay, item.id);
-    backfillReleaseAndLabel(overlay, item.id);
+    if (!readOnly) {
+      enrichTrackFeatures(overlay, item.id);
+      backfillReleaseAndLabel(overlay, item.id);
+    }
 
     function onKey(e) {
       if (e.key === 'Escape') {
@@ -626,5 +1092,38 @@
       }
     }
     document.addEventListener('keydown', onKey);
+  }
+
+  window.openMyListAlbumPage = function(itemId) {
+    const record = findMusicItemRecord(itemId);
+    if (!record?.item) {
+      callGlobalFn('showToast', 'Album not found in your library');
+      return;
+    }
+    openAlbumShelfPage(record.item, {
+      readOnly: !!record.readOnly,
+      ownerUid: record.ownerUid,
+      albumKey: getAlbumStableKey(record.item)
+    });
   };
+
+  window.parseScreenListAlbumRoute = parseScreenListAlbumRoute;
+  window.openSharedAlbumRoute = openSharedAlbumRoute;
+  window.finishSharedAlbumRouteAfterClose = finishSharedAlbumRouteAfterClose;
+  window.shelfdLoadFavoriteAlbums = ensureFavoriteAlbumsLoaded;
+  window.shelfdIsFavoriteAlbum = isAlbumFavorited;
+  window.shelfdToggleFavoriteAlbum = toggleAlbumFavorite;
+
+  function bootSharedAlbumRoute() {
+    const route = parseScreenListAlbumRoute();
+    if (!route) return;
+    openSharedAlbumRoute(route);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootSharedAlbumRoute, { once: true });
+  } else {
+    setTimeout(bootSharedAlbumRoute, 0);
+  }
+  window.addEventListener('popstate', bootSharedAlbumRoute);
 })();

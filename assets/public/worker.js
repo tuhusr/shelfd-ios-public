@@ -1972,11 +1972,43 @@ function isMediaSharePath(url) {
   return /^\/media\/(movie|tv|anime|game)\/[^/]+\/?$/i.test(url.pathname);
 }
 
+function isAlbumSharePath(url) {
+  return /^\/album\/[^/]+\/[^/]+\/?$/i.test(url.pathname);
+}
+
 async function serveMediaShareHtml(request, env, url) {
   const title = url.searchParams.get("title") || "Shelfd";
   const poster = url.searchParams.get("poster") || "";
   const shareTitle = title ? `${title} on Shelfd` : "Shelfd";
   const shareDescription = title ? `Check out ${title} on Shelfd.` : "Track your shows, movies, anime, and games.";
+  const image = /^https?:\/\//i.test(poster) ? poster : new URL("/og-image-v216.png", url.origin).toString();
+  const indexUrl = new URL("/index.html", url.origin);
+  const assetResponse = await env.ASSETS.fetch(new Request(indexUrl.toString(), { method: "GET" }));
+  let html = await assetResponse.text();
+  if (!html || html.length < 100) html = `<!DOCTYPE html><html><head><title>${escapeHtmlMeta(shareTitle)}</title></head><body></body></html>`;
+  html = html.replace(/<title>[^<]*<\/title>/i, `<title>${escapeHtmlMeta(shareTitle)}</title>`);
+  html = replaceMetaTag(html, "property", "og:title", shareTitle);
+  html = replaceMetaTag(html, "property", "og:description", shareDescription);
+  html = replaceMetaTag(html, "property", "og:url", url.toString());
+  html = removeMetaTag(html, "property", "og:image:width");
+  html = removeMetaTag(html, "property", "og:image:height");
+  html = replaceMetaTag(html, "property", "og:image", image);
+  html = replaceMetaTag(html, "property", "og:image:alt", shareTitle);
+  html = replaceMetaTag(html, "name", "twitter:title", shareTitle);
+  html = replaceMetaTag(html, "name", "twitter:description", shareDescription);
+  html = replaceMetaTag(html, "name", "twitter:image", image);
+  return new Response(html, {
+    status: 200,
+    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store, no-cache, must-revalidate, max-age=0" }
+  });
+}
+
+async function serveAlbumShareHtml(request, env, url) {
+  const title = url.searchParams.get("title") || "Album";
+  const artist = url.searchParams.get("artist") || "";
+  const poster = url.searchParams.get("poster") || "";
+  const shareTitle = artist ? `${title} by ${artist} on Shelfd` : `${title} on Shelfd`;
+  const shareDescription = artist ? `Check out ${title} by ${artist} on Shelfd.` : `Check out ${title} on Shelfd.`;
   const image = /^https?:\/\//i.test(poster) ? poster : new URL("/og-image-v216.png", url.origin).toString();
   const indexUrl = new URL("/index.html", url.origin);
   const assetResponse = await env.ASSETS.fetch(new Request(indexUrl.toString(), { method: "GET" }));
@@ -3553,6 +3585,9 @@ export default {
 
     if (isMediaSharePath(url) && isHtmlNavigationRequest(request, url)) {
       return serveMediaShareHtml(request, env, url);
+    }
+    if (isAlbumSharePath(url) && isHtmlNavigationRequest(request, url)) {
+      return serveAlbumShareHtml(request, env, url);
     }
 
     if ((url.pathname === "/api/ai/import-match" || url.pathname === "/api/deepseek/import-match") && request.method === "POST") {

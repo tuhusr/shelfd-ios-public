@@ -28,7 +28,8 @@
       "/api/*",
       "/profile-card/*",
       "/profile-card-og.svg",
-      "/media/*"
+      "/media/*",
+      "/album/*"
     ]
   },
   "ai": {

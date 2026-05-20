@@ -2598,11 +2598,43 @@ function isMediaSharePath(url) {
   return /^\/media\/(movie|tv|anime|game)\/[^/]+\/?$/i.test(url.pathname);
 }
 
+function isAlbumSharePath(url) {
+  return /^\/album\/[^/]+\/[^/]+\/?$/i.test(url.pathname);
+}
+
 async function serveMediaShareHtml(request, env, url) {
   const title = url.searchParams.get("title") || "Shelfd";
   const poster = url.searchParams.get("poster") || "";
   const shareTitle = title ? `${title} on Shelfd` : "Shelfd";
   const shareDescription = title ? `Check out ${title} on Shelfd.` : "Track your shows, movies, anime, and games.";
+  const image = /^https?:\/\//i.test(poster) ? poster : new URL("/og-image-v216.png", url.origin).toString();
+  const indexUrl = new URL("/index.html", url.origin);
+  const assetResponse = await env.ASSETS.fetch(new Request(indexUrl.toString(), { method: "GET" }));
+  let html = await assetResponse.text();
+  if (!html || html.length < 100) html = `<!DOCTYPE html><html><head><title>${escapeHtmlMeta(shareTitle)}</title></head><body></body></html>`;
+  html = html.replace(/<title>[^<]*<\/title>/i, `<title>${escapeHtmlMeta(shareTitle)}</title>`);
+  html = replaceMetaTag(html, "property", "og:title", shareTitle);
+  html = replaceMetaTag(html, "property", "og:description", shareDescription);
+  html = replaceMetaTag(html, "property", "og:url", url.toString());
+  html = removeMetaTag(html, "property", "og:image:width");
+  html = removeMetaTag(html, "property", "og:image:height");
+  html = replaceMetaTag(html, "property", "og:image", image);
+  html = replaceMetaTag(html, "property", "og:image:alt", shareTitle);
+  html = replaceMetaTag(html, "name", "twitter:title", shareTitle);
+  html = replaceMetaTag(html, "name", "twitter:description", shareDescription);
+  html = replaceMetaTag(html, "name", "twitter:image", image);
+  return new Response(html, {
+    status: 200,
+    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store, no-cache, must-revalidate, max-age=0" }
+  });
+}
+
+async function serveAlbumShareHtml(request, env, url) {
+  const title = url.searchParams.get("title") || "Album";
+  const artist = url.searchParams.get("artist") || "";
+  const poster = url.searchParams.get("poster") || "";
+  const shareTitle = artist ? `${title} by ${artist} on Shelfd` : `${title} on Shelfd`;
+  const shareDescription = artist ? `Check out ${title} by ${artist} on Shelfd.` : `Check out ${title} on Shelfd.`;
   const image = /^https?:\/\//i.test(poster) ? poster : new URL("/og-image-v216.png", url.origin).toString();
   const indexUrl = new URL("/index.html", url.origin);
   const assetResponse = await env.ASSETS.fetch(new Request(indexUrl.toString(), { method: "GET" }));
@@ -4580,6 +4612,9 @@ export default {
     if (isMediaSharePath(url) && isHtmlNavigationRequest(request, url)) {
       return serveMediaShareHtml(request, env, url);
     }
+    if (isAlbumSharePath(url) && isHtmlNavigationRequest(request, url)) {
+      return serveAlbumShareHtml(request, env, url);
+    }
 
     if ((url.pathname === "/api/ai/import-match" || url.pathname === "/api/deepseek/import-match") && request.method === "POST") {
       return runScreenListAi(request, env, ctx);
@@ -4652,6 +4687,15 @@ export default {
     }
     if (url.pathname === "/api/push/send") {
       return runPushSendEndpoint(request, env, ctx);
+    }
+    /* v10.318: push diagnostics — used by Safari Web Inspector to surface
+       which link in the pipeline (KV, secrets, stored token, JWT, APNs) is
+       actually broken on a given device. */
+    if (url.pathname === "/api/push/diagnose") {
+      return runPushDiagnoseEndpoint(request, env);
+    }
+    if (url.pathname === "/api/push/test") {
+      return runPushTestEndpoint(request, env, ctx);
     }
 
     if (url.pathname === "/api/rank/media") {
@@ -4957,6 +5001,114 @@ async function runPushSendEndpoint(request, env, ctx) {
 
   const delivered = results.filter(r => r.ok).length;
   return _jsonOK({ ok: true, delivered, total: tokens.length, results });
+}
+
+/* ============================================================================
+   v10.318 — Push diagnostics
+   ----------------------------------------------------------------------------
+   /api/push/diagnose?uid=...  Returns full pipeline state so we can tell
+                               from Safari Web Inspector which link is broken:
+                                 - is PUSH_TOKENS_KV bound?
+                                 - are APNs secrets set?
+                                 - how many tokens are stored for this uid?
+                                 - can we sign a JWT right now?
+                               Token values are never returned in full — only
+                               the last 6 chars, so the response is safe to
+                               paste into a bug report.
+
+   /api/push/test              POST { uid } sends a real APNs push to all
+                               tokens registered for that uid, with verbose
+                               per-token results (status, reason, tokenTail).
+                               This is the fastest way to confirm the
+                               server-side half end-to-end.
+   ============================================================================ */
+async function runPushDiagnoseEndpoint(request, env) {
+  const url = new URL(request.url);
+  const uid = String(url.searchParams.get("uid") || "").trim();
+
+  const kvBound = !!env.PUSH_TOKENS_KV;
+  const apnsKeyP8Present = !!(env.APNS_KEY_P8 && String(env.APNS_KEY_P8).trim().length > 0);
+  const apnsKeyIdPresent = !!(env.APNS_KEY_ID && String(env.APNS_KEY_ID).trim().length > 0);
+  const appleTeamIdPresent = !!(env.APPLE_TEAM_ID && String(env.APPLE_TEAM_ID).trim().length > 0);
+  const apnsConfigured = kvBound && apnsKeyP8Present && apnsKeyIdPresent && appleTeamIdPresent;
+
+  let jwtSignable = false;
+  let jwtError = "";
+  if (apnsKeyP8Present && apnsKeyIdPresent && appleTeamIdPresent) {
+    try {
+      const jwt = await getApnsJwt(env);
+      jwtSignable = !!jwt && jwt.split(".").length === 3;
+    } catch (e) {
+      jwtError = String(e && e.message ? e.message : e);
+    }
+  }
+
+  let tokenSummaries = [];
+  let kvReadError = "";
+  if (kvBound && uid) {
+    try {
+      const raw = await env.PUSH_TOKENS_KV.get(`tokens:${uid}`);
+      const list = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(list)) {
+        tokenSummaries = list.map((entry) => ({
+          tokenTail: String((entry && entry.token) || "").slice(-6),
+          tokenLength: String((entry && entry.token) || "").length,
+          platform: entry && entry.platform,
+          appBundleId: entry && entry.appBundleId,
+          registeredAtMs: entry && entry.registeredAtMs,
+          ageMinutes: entry && entry.registeredAtMs
+            ? Math.round((Date.now() - Number(entry.registeredAtMs)) / 60000)
+            : null
+        }));
+      }
+    } catch (e) {
+      kvReadError = String(e && e.message ? e.message : e);
+    }
+  }
+
+  return _jsonOK({
+    ok: true,
+    version: "v10.318",
+    uid: uid || "(not provided)",
+    pipeline: {
+      kvBound,
+      apnsKeyP8Present,
+      apnsKeyIdPresent,
+      appleTeamIdPresent,
+      apnsConfigured,
+      jwtSignable,
+      jwtError: jwtError || undefined,
+      kvReadError: kvReadError || undefined,
+      tokenCount: tokenSummaries.length,
+      tokens: tokenSummaries
+    },
+    hints: {
+      ifKvUnbound: "Set wrangler.jsonc kv_namespaces.PUSH_TOKENS_KV.id and redeploy.",
+      ifSecretsMissing: "Run: npx wrangler secret put APNS_KEY_P8 / APNS_KEY_ID / APPLE_TEAM_ID",
+      ifTokenCountZero: "iOS never returned a device token. Check: (1) AppDelegate.swift forwards didRegisterForRemoteNotifications to Capacitor, (2) Push Notifications capability added in Xcode, (3) aps-environment in App.entitlements, (4) iOS Settings -> Shelfd -> Notifications enabled, (5) re-archived after capability changes.",
+      ifJwtNotSignable: "APNS_KEY_P8 is malformed. Re-paste the full .p8 file contents including the BEGIN/END lines."
+    }
+  });
+}
+
+async function runPushTestEndpoint(request, env, ctx) {
+  if (request.method !== "POST") return _jsonOK({ ok: false, error: "method-not-allowed" }, 405);
+  const body = await _readJsonBody(request);
+  const uid = String(body.uid || "").trim();
+  if (!uid) return _jsonOK({ ok: false, error: "missing-uid" }, 400);
+
+  /* Reuse the production send path so any bug there shows up here too. */
+  const proxied = new Request(new URL("/api/push/send", request.url).toString(), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      recipientUid: uid,
+      title: "Shelfd test push",
+      body: "If you see this, APNs delivery works.",
+      data: { test: true, sentAtMs: Date.now() }
+    })
+  });
+  return runPushSendEndpoint(proxied, env, ctx);
 }
 
 /* ---------- APNs JWT signing (ES256 / P-256 / SHA-256) ---------- */

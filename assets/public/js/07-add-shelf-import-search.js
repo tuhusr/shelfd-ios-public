@@ -285,6 +285,98 @@ function fetchRawgProxy(path, params = {}) {
 const JIKAN_API_BASE = "https://api.jikan.moe/v4";
 const animeTitleVariantCache = new Map();
 const animeTitleHydrationInFlight = new Set();
+const animeCanonicalHydrationInFlight = new Set();
+
+function getScreenListAnimeMalId(item = {}) {
+  if (typeof getAnimeMalIdFromItem === 'function') return getAnimeMalIdFromItem(item);
+  const direct = item?.malId || item?.mal_id || item?.__mal_id || item?.external_ids?.mal_id || '';
+  if (direct && Number(direct) > 0) return String(Number(direct));
+  const url = String(item?.malUrl || item?.jikanUrl || item?.url || item?.sourceUrl || '').trim();
+  const match = url.match(/myanimelist\.net\/anime\/(\d+)/i);
+  return match ? match[1] : '';
+}
+
+function fillAnimeField(target = {}, key = '', value = '', overwrite = false) {
+  if (!target || !key) return false;
+  const hasValue = Array.isArray(target[key]) ? target[key].length > 0 : (target[key] !== undefined && target[key] !== null && target[key] !== '');
+  const incomingHasValue = Array.isArray(value) ? value.length > 0 : (value !== undefined && value !== null && value !== '');
+  if (!incomingHasValue || (hasValue && !overwrite)) return false;
+  target[key] = value;
+  return true;
+}
+
+function applyJikanCanonicalAnimeFields(target = {}, j = {}, options = {}) {
+  if (!target || !j) return false;
+  const overwrite = options.overwrite === true;
+  let changed = false;
+  const malId = String(j.mal_id || getScreenListAnimeMalId(j) || '').trim();
+  const titleRows = Array.isArray(j.titles) ? j.titles : [];
+  const titleByType = type => titleRows.find(row => String(row?.type || '').toLowerCase() === type)?.title || '';
+  const title = j.title_english || j.title || j.title_japanese || target.title || target.name || '';
+  const romaji = j.title || titleByType('default') || titleByType('romaji') || target.romajiTitle || title;
+  const japanese = j.title_japanese || titleByType('japanese') || target.japaneseTitle || '';
+  const cover = j.images?.jpg?.large_image_url || j.images?.jpg?.image_url || j.images?.webp?.large_image_url || j.images?.webp?.image_url || '';
+  const genreNames = []
+    .concat((j.genres || []).map(g => g.name))
+    .concat((j.themes || []).map(g => g.name))
+    .concat((j.demographics || []).map(g => g.name))
+    .filter(Boolean);
+  const year = String(j.year || (j.aired?.from || '').slice(0, 4) || '');
+  if (malId) {
+    changed = fillAnimeField(target, 'malId', malId, overwrite) || changed;
+    changed = fillAnimeField(target, 'mal_id', malId, overwrite) || changed;
+    changed = fillAnimeField(target, 'animeIdentityKey', `mal:${malId}`, overwrite) || changed;
+    changed = fillAnimeField(target, 'sourceId', malId, overwrite) || changed;
+  }
+  const malUrl = j.url || (malId ? `https://myanimelist.net/anime/${malId}` : '');
+  changed = fillAnimeField(target, 'malUrl', malUrl, overwrite) || changed;
+  changed = fillAnimeField(target, 'jikanUrl', malUrl, overwrite) || changed;
+  changed = fillAnimeField(target, 'url', malUrl, overwrite) || changed;
+  changed = fillAnimeField(target, 'title', title, overwrite) || changed;
+  changed = fillAnimeField(target, 'name', title, overwrite) || changed;
+  changed = fillAnimeField(target, 'cover', cover, overwrite) || changed;
+  changed = fillAnimeField(target, 'poster', cover, overwrite) || changed;
+  changed = fillAnimeField(target, 'image', cover, overwrite) || changed;
+  changed = fillAnimeField(target, 'genreNames', genreNames, overwrite) || changed;
+  changed = fillAnimeField(target, 'genre', genreNames.join(', '), overwrite) || changed;
+  changed = fillAnimeField(target, 'year', year, overwrite) || changed;
+  changed = fillAnimeField(target, 'source', 'myanimelist', overwrite) || changed;
+  changed = fillAnimeField(target, 'mediaCategory', 'anime', overwrite) || changed;
+  changed = fillAnimeField(target, 'librarySection', 'anime', overwrite) || changed;
+  changed = fillAnimeField(target, 'originalTitle', japanese || j.title || '', overwrite) || changed;
+  changed = fillAnimeField(target, 'originalLanguage', 'ja', overwrite) || changed;
+  changed = fillAnimeField(target, 'originCountries', ['JP'], overwrite) || changed;
+  changed = fillAnimeField(target, 'animeType', j.type || '', overwrite) || changed;
+  changed = fillAnimeField(target, 'type', j.type || '', overwrite) || changed;
+  const variants = normalizeAnimeTitleVariants({
+    english: j.title_english || title,
+    romaji,
+    japanese
+  }, title);
+  changed = fillAnimeField(target, 'titleVariants', variants, overwrite) || changed;
+  changed = fillAnimeField(target, 'englishTitle', variants.english, overwrite) || changed;
+  changed = fillAnimeField(target, 'romajiTitle', variants.romaji, overwrite) || changed;
+  changed = fillAnimeField(target, 'japaneseTitle', variants.japanese, overwrite) || changed;
+  const totalEps = Number(j.episodes || 0);
+  if (totalEps) {
+    changed = fillAnimeField(target, 'totalEpisodes', totalEps, overwrite) || changed;
+    changed = fillAnimeField(target, 'totalEps', totalEps, overwrite) || changed;
+  }
+  if (Number(j.members || 0) > 0) changed = fillAnimeField(target, 'malMembers', Number(j.members), overwrite) || changed;
+  if (Number(j.favorites || 0) > 0) changed = fillAnimeField(target, 'malFavorites', Number(j.favorites), overwrite) || changed;
+  if (Number(j.scored_by || 0) > 0) changed = fillAnimeField(target, 'malScoredBy', Number(j.scored_by), overwrite) || changed;
+  if (Number(j.score || 0) > 0) changed = fillAnimeField(target, 'malScore', Number(j.score), overwrite) || changed;
+  if (Number(j.rank || 0) > 0) changed = fillAnimeField(target, 'malRank', Number(j.rank), overwrite) || changed;
+  if (Number(j.popularity || 0) > 0) changed = fillAnimeField(target, 'malPopularity', Number(j.popularity), overwrite) || changed;
+  const grouping = window.JikanAnime?.getSeasonGrouping ? window.JikanAnime.getSeasonGrouping(j) : null;
+  if (grouping) {
+    changed = fillAnimeField(target, 'animeSeasonRelationCount', grouping.count, overwrite) || changed;
+    changed = fillAnimeField(target, 'animeSeasonGrouping', grouping.mode, overwrite) || changed;
+    changed = fillAnimeField(target, 'animeSeasonGroupingReliable', grouping.reliable, overwrite) || changed;
+  }
+  target.isAnime = true;
+  return changed;
+}
 
 async function fetchAnimeTitleVariantsFromJikan(query = '') {
   const cleanQuery = String(query || '').trim();
@@ -317,7 +409,15 @@ async function fetchAnimeTitleVariantsFromJikan(query = '') {
       score: Number(hit.score || 0),
       malId: Number(hit.mal_id || 0),
       rank: Number(hit.rank || 0),
-      popularity: Number(hit.popularity || 0)
+      popularity: Number(hit.popularity || 0),
+      url: hit.url || '',
+      title: hit.title || '',
+      titleEnglish: hit.title_english || '',
+      titleJapanese: hit.title_japanese || '',
+      type: hit.type || '',
+      episodes: Number(hit.episodes || 0),
+      year: Number(hit.year || 0) || Number((hit.aired?.from || '').slice(0, 4)) || 0,
+      image: hit.images?.jpg?.large_image_url || hit.images?.jpg?.image_url || ''
     };
     animeTitleVariantCache.set(cacheKey, result);
     return result;
@@ -357,6 +457,20 @@ async function hydrateAnimeTitleVariants(target = {}) {
     if (Number(jikanVariants.rank) > 0) target.malRank = Number(jikanVariants.rank);
     if (Number(jikanVariants.popularity) > 0) target.malPopularity = Number(jikanVariants.popularity);
   }
+  if (jikanVariants && Number(jikanVariants.malId) > 0) {
+    target.malId = target.malId || String(jikanVariants.malId);
+    target.mal_id = target.mal_id || String(jikanVariants.malId);
+    target.animeIdentityKey = target.animeIdentityKey || `mal:${jikanVariants.malId}`;
+    target.malUrl = target.malUrl || jikanVariants.url || `https://myanimelist.net/anime/${jikanVariants.malId}`;
+    target.jikanUrl = target.jikanUrl || target.malUrl;
+    if (!target.url || /myanimelist\.net\/anime\//i.test(String(target.url))) target.url = target.malUrl;
+    target.source = target.source || 'myanimelist';
+    if (Number(jikanVariants.episodes) > 0 && !Number(target.totalEpisodes || target.totalEps || 0)) {
+      target.totalEpisodes = Number(jikanVariants.episodes);
+      target.totalEps = Number(jikanVariants.episodes);
+    }
+    if (jikanVariants.type && !target.animeType) target.animeType = jikanVariants.type;
+  }
   return target;
 }
 
@@ -375,6 +489,31 @@ function queueAnimeTitleVariantHydration(item, section = 'anime') {
       render();
     }
   }).catch(() => animeTitleHydrationInFlight.delete(key));
+}
+
+function animeNeedsCanonicalIdentityHydration(item = {}) {
+  if (!item || typeof item !== 'object') return false;
+  if (getScreenListAnimeMalId(item) && item.malUrl && item.titleVariants?.romaji && (item.cover || item.totalEpisodes || item.totalEps)) return false;
+  return true;
+}
+
+function queueAnimeCanonicalIdentityHydration(item, section = 'anime') {
+  if (!item || section !== 'anime' || isViewingOtherProfile?.()) return;
+  if (!animeNeedsCanonicalIdentityHydration(item)) return;
+  const key = `${item.id || item.title || ''}:${getScreenListAnimeMalId(item) || ''}`;
+  if (!key || animeCanonicalHydrationInFlight.has(key)) return;
+  if (!window.JikanAnime?.animeByIdentity) return;
+  animeCanonicalHydrationInFlight.add(key);
+  window.JikanAnime.animeByIdentity(item).then(j => {
+    if (j && applyJikanCanonicalAnimeFields(item, j)) {
+      if (!viewingUser && activeSection === section) {
+        save();
+        render();
+      }
+    }
+  }).catch(error => {
+    console.warn('Anime canonical identity hydration failed:', error);
+  }).finally(() => animeCanonicalHydrationInFlight.delete(key));
 }
 
 function formatAnimeSeasonTitle(baseTitle = '', season = {}) {
@@ -435,10 +574,9 @@ function buildAnimeSeasonLibraryItem(base = {}, season = {}, status = 'watching'
 }
 
 function shouldSplitAnimeSeasons(source = {}) {
-  // Anime TV titles should stay as one library card.
-  // Keep season metadata attached for nested season/episode rendering,
-  // but do not split seasons into separate library entries.
-  return false;
+  const count = Number(source.animeSeasonRelationCount || source.seasons || source.animeSeasonItems?.length || 0);
+  if (!count) return false;
+  return count <= 5 && source.animeSeasonGrouping !== 'parent';
 }
 
 function buildAnimeSeasonItemsForLibrary(source = {}, status = 'watching', rating = 0) {
@@ -495,6 +633,33 @@ function isAnimeSeasonSplitEntry(entry = {}, source = {}) {
 function removeAnimeSeasonSplitEntries(list = [], source = {}) {
   const items = Array.isArray(list) ? list : [];
   return items.filter(entry => !isAnimeSeasonSplitEntry(entry, source));
+}
+
+function getAnimeCanonicalSaveFields(source = {}) {
+  const malId = getScreenListAnimeMalId(source);
+  const malUrl = source.malUrl || source.jikanUrl || source.url || (malId ? `https://myanimelist.net/anime/${malId}` : '');
+  return {
+    malId,
+    mal_id: malId,
+    animeIdentityKey: malId ? `mal:${malId}` : (source.animeIdentityKey || ''),
+    malUrl,
+    jikanUrl: source.jikanUrl || malUrl,
+    url: malUrl || source.url || '',
+    sourceId: source.sourceId || malId || '',
+    source: source.source || (malId ? 'myanimelist' : ''),
+    animeType: source.animeType || source.type || '',
+    title_english: source.title_english || source.englishTitle || source.titleVariants?.english || '',
+    title_japanese: source.title_japanese || source.japaneseTitle || source.titleVariants?.japanese || '',
+    malMembers: source.malMembers || '',
+    malFavorites: source.malFavorites || '',
+    malScoredBy: source.malScoredBy || '',
+    malScore: source.malScore || source.score || '',
+    malRank: source.malRank || '',
+    malPopularity: source.malPopularity || '',
+    animeSeasonRelationCount: source.animeSeasonRelationCount || 0,
+    animeSeasonGrouping: source.animeSeasonGrouping || 'separate',
+    animeSeasonGroupingReliable: source.animeSeasonGroupingReliable === true
+  };
 }
 
 async function postAiImportMatch(endpoint, payload) {
@@ -1714,6 +1879,7 @@ async function selectJikanAnime(malId) {
       romajiTitle: j.title || title,
       japaneseTitle: j.title_japanese || ''
     };
+    applyJikanCanonicalAnimeFields(selectedTmdb, j, { overwrite: true });
 
     /* Episode count from Jikan. Synthesize episode rows for the tracker. */
     const totalEps = Number(j.episodes || 0);
@@ -2034,14 +2200,8 @@ function closeModal() {
   removeAddShelfSearchFlashMessage();
   unlockAddShelfModalBackgroundScroll();
 }
-function isDuplicateTitle(title, section, excludeId = null) {
-  const normalized = (title || '').trim().toLowerCase();
-  if (!normalized) return false;
-  return (data[section] || []).some(item =>
-    item &&
-    item.id !== excludeId &&
-    (item.title || '').trim().toLowerCase() === normalized
-  );
+function isDuplicateTitle(itemOrTitle, section, excludeId = null) {
+  return isDuplicateTitleInList(itemOrTitle, section, data, excludeId);
 }
 
 
@@ -2056,9 +2216,15 @@ function getDuplicateTitleKeys(itemOrTitle = {}) {
   return new Set(values.map(value => String(value || '').trim().toLowerCase()).filter(Boolean));
 }
 
-function isDuplicateTitleInList(title, section, sourceData, excludeId = null) {
-  const titleKeys = getDuplicateTitleKeys(title);
-  if (!titleKeys.size || !sourceData || !Array.isArray(sourceData[section])) return false;
+function isDuplicateTitleInList(itemOrTitle, section, sourceData, excludeId = null) {
+  if (!sourceData || !Array.isArray(sourceData[section])) return false;
+  const wantedMalId = typeof itemOrTitle === 'object' ? getScreenListAnimeMalId(itemOrTitle) : '';
+  if (section === 'anime' && wantedMalId) {
+    const malMatch = sourceData[section].some(item => item && item.id !== excludeId && getScreenListAnimeMalId(item) === wantedMalId);
+    if (malMatch) return true;
+  }
+  const titleKeys = getDuplicateTitleKeys(itemOrTitle);
+  if (!titleKeys.size) return false;
   return sourceData[section].some(item => {
     if (!item || item.id === excludeId) return false;
     const existingKeys = getDuplicateTitleKeys(item);
@@ -2068,9 +2234,9 @@ function isDuplicateTitleInList(title, section, sourceData, excludeId = null) {
 
 function findDuplicateImportItemInList(item = {}, entry = {}, section, sourceData, excludeId = null) {
   if (!sourceData || !Array.isArray(sourceData[section])) return null;
-  const malId = String(item.malId || entry.malId || '').trim();
+  const malId = getScreenListAnimeMalId(item) || getScreenListAnimeMalId(entry);
   if (malId) {
-    const malMatch = sourceData[section].find(existing => existing && existing.id !== excludeId && String(existing.malId || '').trim() === malId);
+    const malMatch = sourceData[section].find(existing => existing && existing.id !== excludeId && getScreenListAnimeMalId(existing) === malId);
     if (malMatch) return malMatch;
   }
   const titleKeys = getDuplicateTitleKeys(item);
@@ -2099,6 +2265,14 @@ function repairDuplicateImportItem(existing = {}, incoming = {}, entry = {}, sec
 
   fill('cover', incoming.cover || entry.cover || '');
   fill('malId', incoming.malId || entry.malId || '');
+  fill('mal_id', incoming.mal_id || incoming.malId || entry.malId || '');
+  fill('animeIdentityKey', incoming.animeIdentityKey || (incoming.malId || entry.malId ? `mal:${incoming.malId || entry.malId}` : ''));
+  fill('malUrl', incoming.malUrl || incoming.url || '');
+  fill('jikanUrl', incoming.jikanUrl || incoming.malUrl || incoming.url || '');
+  fill('url', incoming.url || incoming.malUrl || '');
+  fill('animeType', incoming.animeType || incoming.type || '');
+  fill('title_english', incoming.title_english || incoming.englishTitle || '');
+  fill('title_japanese', incoming.title_japanese || incoming.japaneseTitle || '');
   fill('genre', incoming.genre || '');
   fill('genreNames', incoming.genreNames || []);
   fill('year', incoming.year || '');
@@ -2389,7 +2563,7 @@ async function submitModal(status, rating = 0, itemOverride = null) {
   const removedSplitAnimeEntries = isAnimeSeriesAdd && cleanedAnimeList.length !== targetData[targetSection].length;
   if (isAnimeSeriesAdd) targetData[targetSection] = cleanedAnimeList;
 
-  if (isDuplicateTitleInList(selectedItem.title, targetSection, targetData)) {
+  if (isDuplicateTitleInList(selectedItem, targetSection, targetData)) {
     if (removedSplitAnimeEntries) {
       await writeOwnDataDirect(targetData);
       render();
@@ -2432,6 +2606,16 @@ async function submitModal(status, rating = 0, itemOverride = null) {
     nextEpisodeAirDate: selectedItem.nextEpisodeAirDate || '',
     next_episode_to_air: selectedItem.next_episode_to_air || null,
   };
+  if (targetSection === 'anime') {
+    Object.assign(item, getAnimeCanonicalSaveFields(selectedItem));
+    item.mediaCategory = 'anime';
+    item.librarySection = 'anime';
+    item.isAnime = true;
+    if (Number(selectedItem.totalEps || selectedItem.totalEpisodes || 0) && !Number(item.totalEpisodes || 0)) {
+      item.totalEpisodes = Number(selectedItem.totalEpisodes || selectedItem.totalEps || 0);
+      item.totalEps = Number(selectedItem.totalEps || selectedItem.totalEpisodes || 0);
+    }
+  }
   if (targetSection === 'games') {
     item.name = item.title;
     item.sourceId = selectedItem.sourceId || '';

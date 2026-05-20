@@ -141,6 +141,91 @@
     return json?.data || null;
   }
 
+  function normalizeAnimeLookupText(value = '') {
+    return String(value || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[’']/g, '')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  }
+
+  function getJikanMalIdFromValue(source = {}) {
+    if (!source || typeof source !== 'object') return '';
+    if (typeof window.getAnimeMalIdFromItem === 'function') return window.getAnimeMalIdFromItem(source);
+    const direct = source.malId || source.mal_id || source.__mal_id || source.external_ids?.mal_id || '';
+    if (direct && Number(direct) > 0) return String(Number(direct));
+    const url = String(source.malUrl || source.jikanUrl || source.url || source.sourceUrl || '');
+    const match = url.match(/myanimelist\.net\/anime\/(\d+)/i);
+    return match ? match[1] : '';
+  }
+
+  function getJikanTitleCandidates(source = {}) {
+    const titles = [
+      source.title,
+      source.name,
+      source.englishTitle,
+      source.title_english,
+      source.romajiTitle,
+      source.title_japanese,
+      source.originalTitle,
+      source.original_name,
+      source.original_title,
+      source.titleVariants?.english,
+      source.titleVariants?.romaji,
+      source.titleVariants?.japanese
+    ];
+    const seen = new Set();
+    return titles
+      .map(value => String(value || '').trim())
+      .filter(value => {
+        const key = normalizeAnimeLookupText(value);
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  }
+
+  function getJikanYear(source = {}) {
+    return String(source.year || source.malYear || source.aired?.from || source.first_air_date || source.release_date || '').slice(0, 4);
+  }
+
+  function isExactJikanTitleMatch(hit = {}, wantedTitle = '') {
+    const wanted = normalizeAnimeLookupText(wantedTitle);
+    if (!wanted) return false;
+    const titles = [hit.title, hit.title_english, hit.title_japanese]
+      .concat((Array.isArray(hit.titles) ? hit.titles : []).map(row => row?.title))
+      .map(normalizeAnimeLookupText)
+      .filter(Boolean);
+    return titles.includes(wanted);
+  }
+
+  function pickBestJikanIdentitySearchHit(results = [], source = {}) {
+    const titles = getJikanTitleCandidates(source);
+    const wantedYear = getJikanYear(source);
+    const exact = (Array.isArray(results) ? results : []).filter(hit => titles.some(title => isExactJikanTitleMatch(hit, title)));
+    if (!exact.length) return null;
+    if (wantedYear) {
+      const yearMatch = exact.find(hit => String(hit.year || hit.aired?.from || '').slice(0, 4) === wantedYear);
+      if (yearMatch) return yearMatch;
+    }
+    return exact[0];
+  }
+
+  async function jikanAnimeByIdentity(source = {}) {
+    const malId = getJikanMalIdFromValue(source);
+    if (malId) return jikanAnimeFull(malId);
+    const titles = getJikanTitleCandidates(source);
+    if (!titles.length) return null;
+    for (const title of titles.slice(0, 4)) {
+      const results = await jikanSearchAnime(title, 8);
+      const hit = pickBestJikanIdentitySearchHit(results, source);
+      if (hit?.mal_id) return jikanAnimeFull(hit.mal_id);
+    }
+    return null;
+  }
+
   async function jikanAnimeCharacters(malId, limit = 12) {
     const id = String(malId || '').trim();
     if (!id) return [];
@@ -226,6 +311,40 @@
     return out;
   }
 
+  function countJikanSeasonRelationEntries(j) {
+    const relationNames = new Set(['prequel', 'sequel']);
+    const relatedIds = new Set();
+    (Array.isArray(j?.relations) ? j.relations : []).forEach(rel => {
+      const relation = String(rel?.relation || '').trim().toLowerCase();
+      if (!relationNames.has(relation)) return;
+      (Array.isArray(rel?.entry) ? rel.entry : []).forEach(entry => {
+        if (entry?.type && String(entry.type).toLowerCase() !== 'anime') return;
+        const id = Number(entry?.mal_id || 0);
+        if (id) relatedIds.add(id);
+      });
+    });
+    if (Number(j?.mal_id || 0)) relatedIds.add(Number(j.mal_id));
+    return relatedIds.size || 0;
+  }
+
+  function getJikanSeasonGrouping(j) {
+    const count = countJikanSeasonRelationEntries(j);
+    const episodeCount = Number(j?.episodes || 0);
+    const startYear = Number(String(j?.aired?.from || j?.year || '').slice(0, 4)) || 0;
+    const currentYear = new Date().getFullYear();
+    const isLongRunningOngoing = /currently\s+airing/i.test(String(j?.status || ''))
+      && startYear > 0
+      && currentYear - startYear >= 5;
+    if (!count && isLongRunningOngoing) {
+      return { count: Math.max(6, currentYear - startYear + 1), mode: 'parent', reliable: false };
+    }
+    if (!count && episodeCount > 150) {
+      return { count: Math.ceil(episodeCount / 24), mode: 'parent', reliable: false };
+    }
+    if (!count) return { count: 0, mode: 'separate', reliable: false };
+    return { count, mode: count > 5 ? 'parent' : 'separate', reliable: true };
+  }
+
   function mapJikanItemToTmdbShape(j) {
     if (!j) return null;
     const malId = Number(j.mal_id);
@@ -238,6 +357,14 @@
       title: title,
       original_name: j.title_japanese || j.title || '',
       original_title: j.title_japanese || j.title || '',
+      title_english: j.title_english || '',
+      title_japanese: j.title_japanese || '',
+      url: j.url || (malId ? `https://myanimelist.net/anime/${malId}` : ''),
+      malUrl: j.url || (malId ? `https://myanimelist.net/anime/${malId}` : ''),
+      jikanUrl: j.url || (malId ? `https://myanimelist.net/anime/${malId}` : ''),
+      malId: String(malId),
+      mal_id: String(malId),
+      animeIdentityKey: `mal:${malId}`,
       overview: String(j.synopsis || '').replace(/\s+\[Written by[^\]]+\]\s*$/i, '').trim(),
       poster_path: poster,                  /* full https URL — tmdbPoster patched to pass through */
       backdrop_path: pickJikanBackdrop(j),  /* full https URL */
@@ -255,6 +382,7 @@
       number_of_seasons: 1,
       status: j.status || '',
       type: j.type || 'TV',
+      animeType: j.type || 'TV',
       __jikan: true,
       __mal_id: malId,
       __jikanRaw: j
@@ -367,6 +495,7 @@
     }));
 
     /* Tagline — Jikan doesn't expose this; leave blank. */
+    const seasonGrouping = getJikanSeasonGrouping(j);
     return {
       ...base,
       tagline: '',
@@ -378,6 +507,11 @@
       number_of_seasons: 1,
       status: j.status || '',
       type: j.type || 'TV',
+      animeType: j.type || 'TV',
+      animeSeasonRelationCount: seasonGrouping.count,
+      animeSeasonGrouping: seasonGrouping.mode,
+      animeSeasonGroupingReliable: seasonGrouping.reliable,
+      relations: Array.isArray(j?.relations) ? j.relations : [],
       production_companies: studios,
       networks: producers,
       created_by,
@@ -412,11 +546,13 @@
     seasonNow: jikanSeasonNow,
     seasonUpcoming: jikanSeasonUpcoming,
     animeFull: jikanAnimeFull,
+    animeByIdentity: jikanAnimeByIdentity,
     animeCharacters: jikanAnimeCharacters,
     animeRecommendations: jikanAnimeRecommendations,
     animeEpisodes: jikanAnimeEpisodes,
     mapItem: mapJikanItemToTmdbShape,
     mapFullDetails: mapJikanFullToTmdbDetails,
+    getSeasonGrouping: getJikanSeasonGrouping,
     /* Cache helpers (mainly for debugging) */
     _cache: cache,
     _clearCache: () => cache.clear()

@@ -84,11 +84,10 @@ function getAllDiscoverGrids() {
 }
 
 function getDiscoverExpandButton(grid) {
-  return grid ? document.querySelector(`.discover-expand-btn[data-discover-target="${grid.id}"]`) : null;
+  return null;
 }
 
 function hideDiscoverExpandButtons() {
-  document.querySelectorAll('.discover-expand-btn').forEach(btn => btn.style.display = 'none');
 }
 
 function renderDiscoverLoading() {

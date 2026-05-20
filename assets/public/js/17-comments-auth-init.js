@@ -774,6 +774,7 @@ function markScreenListAppReadyForSplash() {
 // Auth state listener
 auth.onAuthStateChanged(async (user) => {
   const mediaRoute = parseScreenListMediaRoute();
+  const albumRoute = typeof parseScreenListAlbumRoute === 'function' ? parseScreenListAlbumRoute() : null;
   const profileRoute = typeof parseScreenListProfileRoute === 'function' ? parseScreenListProfileRoute() : null;
   if (user) {
     if (typeof setShelfdGuestBrowsing === 'function') setShelfdGuestBrowsing(false, { persist: false });
@@ -794,7 +795,7 @@ auth.onAuthStateChanged(async (user) => {
     currentUser = user;
     DOC_REF = db.collection("watchlist").doc(user.uid);
     exitPreviewMode();
-    if (mediaRoute || profileRoute?.uid) {
+    if (mediaRoute || albumRoute || profileRoute?.uid) {
       prepareSharedMediaRouteView();
     } else {
       document.getElementById("login-screen").style.display = "none";
@@ -835,6 +836,11 @@ auth.onAuthStateChanged(async (user) => {
     }
     if (mediaRoute) {
       await openSharedMediaProfileRoute(mediaRoute);
+      markScreenListAppReadyForSplash();
+      return;
+    }
+    if (albumRoute && typeof openSharedAlbumRoute === 'function') {
+      await openSharedAlbumRoute(albumRoute);
       markScreenListAppReadyForSplash();
       return;
     }

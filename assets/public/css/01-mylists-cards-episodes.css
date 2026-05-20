@@ -505,10 +505,14 @@
     min-height: 56px;
     padding: max(12px, env(safe-area-inset-top, 0px)) 16px 10px;
     display: grid;
-    grid-template-columns: 40px minmax(0, 1fr) 40px;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
     align-items: center;
     border-bottom: 1px solid rgba(255,255,255,0.08);
     background: #0f0f12;
+  }
+  html.shelfd-capacitor-ios .mylist-album-shelf-topbar {
+    min-height: 46px;
+    padding: max(calc(env(safe-area-inset-top, 0px) - 18px), 10px) 14px 6px;
   }
   .mylist-album-shelf-back {
     width: 38px;
@@ -531,6 +535,39 @@
     font: 500 14px/1 'Sohne', 'DM Sans', sans-serif;
     color: #f8f4ff;
   }
+  .mylist-album-shelf-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    justify-self: end;
+  }
+  .mylist-album-shelf-action {
+    width: 38px;
+    height: 38px;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px;
+    background: rgba(255,255,255,0.05);
+    color: #f8f4ff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+  }
+  .mylist-album-shelf-action svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .mylist-album-shelf-action:active { transform: scale(0.94); }
+  .mylist-album-shelf-fav { flex-shrink: 0; }
   .mylist-album-shelf-content {
     flex: 1 1 auto;
     min-height: 0;
@@ -538,6 +575,9 @@
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
     padding: 24px 18px max(28px, calc(env(safe-area-inset-bottom, 0px) + 24px));
+  }
+  html.shelfd-capacitor-ios .mylist-album-shelf-content {
+    padding-top: 8px;
   }
   .mylist-album-shelf-hero {
     display: flex;
@@ -635,7 +675,9 @@
     -webkit-appearance: none;
     background: transparent;
     border: 0;
-    padding: 6px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -643,10 +685,10 @@
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: color 140ms ease, transform 120ms ease;
-    min-width: 32px;
+    min-width: 36px;
   }
   .mylist-album-shelf-track-fav .star-btn {
-    font-size: 22px;
+    font-size: 14px;
     color: inherit;
     pointer-events: none;
     transition: color 0.15s, transform 0.15s;
@@ -654,6 +696,11 @@
   .mylist-album-shelf-track-fav.is-fav { color: #f59e0b; }
   .mylist-album-shelf-track-fav.is-fav .star-btn { color: #f59e0b; }
   .mylist-album-shelf-track-fav:active { transform: scale(0.9); }
+  .mylist-album-shelf-track-fav:disabled {
+    cursor: default;
+    opacity: 0.55;
+    transform: none;
+  }
 
   /* v10.253: album-level rating widget — sits between hero and tracklist.
      Uses the standard Shelfd `.stars .star-btn` pattern. */
@@ -685,18 +732,13 @@
      the same `.mylist-album-shelf-rating` block so the section reads as one
      "your engagement" cluster. Lavender accent on the star, muted text. */
   .mylist-album-shelf-fav-ratio {
-    margin-top: 4px;
+    margin-top: 2px;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 0;
     color: rgba(216,208,233,0.72);
-    font: 500 12px/1.2 'Sohne', 'DM Sans', sans-serif;
-    letter-spacing: 0.02em;
-  }
-  .mylist-album-shelf-fav-ratio-icon {
-    color: #f59e0b;
-    font-size: 14px;
-    line-height: 1;
+    font: 600 13px/1.2 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: 0;
   }
   .mylist-album-shelf-track-empty {
     padding: 14px 0;
@@ -1186,6 +1228,112 @@
   #mylist-view .star-label { color: #ffffff !important; }
   .rating-area { margin-top: 6px; }
   .rating-label { font-size: 11px; color: #ffffff; margin-bottom: 2px; font-weight: 300; }
+  #cards-grid .card .rating-area {
+    margin-top: 7px;
+  }
+  #cards-grid .card .rating-area .rating-label {
+    display: none;
+  }
+  #cards-grid .card .rating-area .stars[data-prefix="overall"] {
+    --star-size: 22px !important;
+    width: auto;
+    max-width: 66px;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 0;
+    overflow: hidden;
+    vertical-align: middle;
+    transform-origin: left center;
+    transition:
+      max-width 260ms cubic-bezier(0.22, 1, 0.36, 1),
+      gap 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      padding 220ms ease,
+      transform 180ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #cards-grid .card .rating-area .stars[data-prefix="overall"]:active {
+    transform: scale(0.97);
+  }
+  #cards-grid .card .rating-area .stars[data-prefix="overall"] .star-btn {
+    flex: 0 0 auto;
+    width: 22px;
+    min-width: 22px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px !important;
+    line-height: 1;
+    transform-origin: center;
+  }
+  #cards-grid .card .rating-area .stars[data-prefix="overall"]:not(.is-expanded) .star-btn:not(:first-of-type) {
+    display: none;
+  }
+  /* v10.390: unify title-card rating star color to #F5B301. Two rules
+     drive this — the collapsed-state forced first star (here), and a
+     scoped `.star-btn.lit` override below. Both share the same value so
+     the collapsed badge and every expanded lit star match exactly. */
+  #cards-grid .card .rating-area .stars[data-prefix="overall"]:not(.is-expanded) .star-btn:first-of-type {
+    color: #F5B301 !important;
+  }
+  #cards-grid .card .rating-area .stars[data-prefix="overall"] .star-btn.lit {
+    color: #F5B301 !important;
+  }
+  #cards-grid .card .rating-area .stars[data-prefix="overall"] .star-label {
+    flex: 0 0 auto;
+    min-width: 18px;
+    margin-left: 1px;
+    color: #ffffff !important;
+    font: 800 18px/1 'Sohne', 'DM Sans', sans-serif !important;
+    letter-spacing: 0;
+  }
+  #cards-grid .card .rating-area .stars[data-prefix="overall"].is-expanded {
+    max-width: min(100%, 292px);
+    gap: 3px;
+    padding-right: 8px;
+    overflow: visible;
+    position: relative;
+    z-index: 6;
+  }
+  #cards-grid .card .rating-area .stars[data-prefix="overall"].is-expanded .star-btn {
+    display: inline-flex;
+  }
+  #cards-grid .card .rating-area .stars.rating-scale-five[data-prefix="overall"] {
+    max-width: 66px;
+  }
+  #cards-grid .card .rating-area .stars.rating-scale-five[data-prefix="overall"] .star-btn.half-step {
+    width: 13px;
+    min-width: 13px;
+    height: 28px;
+  }
+  #cards-grid .card .rating-area .stars.rating-scale-five[data-prefix="overall"]:not(.is-expanded) .star-btn:first-of-type {
+    width: 22px;
+    min-width: 22px;
+    overflow: visible;
+    text-indent: 0;
+    text-align: center;
+  }
+  #cards-grid .card .rating-area .stars.rating-scale-five[data-prefix="overall"].is-expanded {
+    max-width: min(100%, 204px);
+    gap: 0;
+  }
+  @media (max-width: 420px) {
+    #cards-grid .card .rating-area .stars[data-prefix="overall"].is-expanded {
+      max-width: min(100%, 260px);
+      gap: 1px;
+    }
+    #cards-grid .card .rating-area .stars[data-prefix="overall"].is-expanded .star-btn {
+      width: 20px;
+      min-width: 20px;
+      font-size: 20px !important;
+    }
+    #cards-grid .card .rating-area .stars.rating-scale-five[data-prefix="overall"].is-expanded .star-btn.half-step {
+      width: 11px;
+      min-width: 11px;
+    }
+  }
 
   body.mylist-media-review-open { overflow: hidden; }
   .mylist-media-review-page {
@@ -1261,6 +1409,15 @@
     width: 24px;
     height: 24px;
     fill: currentColor;
+  }
+  .mylist-media-review-share-top svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
   .mylist-media-review-content {
     flex: 1 1 auto;
@@ -1400,6 +1557,212 @@
   }
   .mylist-media-review-body > .mylist-media-review-reply:first-child {
     margin-top: 0;
+  }
+  .mylist-media-review-replies {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+  }
+  .mylist-media-review-reply-composer {
+    margin: 0 0 16px;
+    padding: 12px;
+    border: 1px solid rgba(196,181,253,0.16);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.035);
+  }
+  .mylist-media-review-reply-composer[hidden] {
+    display: none !important;
+  }
+  .mylist-media-review-reply-bubble > .mylist-media-review-reply-composer {
+    margin: 10px 0 2px;
+  }
+  .mylist-media-review-reply-context {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 0 0 9px;
+    color: rgba(216,208,233,0.66);
+    font: 500 12px/1.2 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: 0;
+  }
+  .mylist-media-review-reply-context[hidden] {
+    display: none !important;
+  }
+  .mylist-media-review-reply-context strong {
+    color: rgba(248,244,255,0.88);
+    font: 500 12px/1.2 'Sohne', 'DM Sans', sans-serif;
+  }
+  .mylist-media-review-reply-context button {
+    width: 26px;
+    height: 26px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.055);
+    color: rgba(248,244,255,0.78);
+    font: 500 18px/1 'Sohne', 'DM Sans', sans-serif;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0 2px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mylist-media-review-reply-input {
+    width: 100%;
+    min-height: 42px;
+    max-height: 120px;
+    resize: none;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: #f8f4ff;
+    font: 400 15px/1.35 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: 0;
+    padding: 0;
+    -webkit-appearance: none;
+  }
+  .mylist-media-review-page .mylist-media-review-reply-input { font-weight: 400 !important; }
+  .mylist-media-review-reply-input::placeholder { color: rgba(216,208,233,0.45); }
+  .mylist-media-review-reply-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .mylist-media-review-reply-cancel,
+  .mylist-media-review-reply-post {
+    min-height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    font: 500 13px/1 'Sohne', 'DM Sans', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mylist-media-review-reply-cancel {
+    border: 1px solid rgba(255,255,255,0.10);
+    background: transparent;
+    color: rgba(248,244,255,0.72);
+  }
+  .mylist-media-review-reply-post {
+    border: 1px solid rgba(196,181,253,0.34);
+    background: rgba(196,181,253,0.16);
+    color: #f8f4ff;
+  }
+  .mylist-media-review-reply-post:disabled {
+    opacity: 0.45;
+  }
+  .mylist-media-review-replies-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
+    color: rgba(248,244,255,0.82);
+    font: 500 13px/1.2 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: 0;
+  }
+  .mylist-media-review-replies-head [data-review-reply-count] {
+    color: rgba(216,208,233,0.52);
+    font-size: 12px;
+  }
+  .mylist-media-review-replies-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .mylist-media-review-replies-empty {
+    color: rgba(216,208,233,0.48);
+    font: 400 13px/1.35 'Sohne', 'DM Sans', sans-serif;
+    padding: 4px 0 2px;
+  }
+  .mylist-media-review-page .mylist-media-review-replies-empty { font-weight: 400 !important; }
+  .mylist-media-review-reply-item {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 10px;
+    padding: 0 0 16px;
+    margin-left: calc(var(--review-reply-depth, 0) * 18px);
+  }
+  .mylist-media-review-reply-item.is-child-reply {
+    padding-top: 10px;
+    padding-bottom: 0;
+  }
+  .mylist-media-review-reply-avatar {
+    position: relative;
+    display: flex;
+    justify-content: center;
+  }
+  .mylist-media-review-reply-avatar img {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    object-fit: cover;
+    background: #1c1535;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.08);
+    z-index: 1;
+  }
+  .mylist-media-review-reply-line {
+    position: absolute;
+    top: 36px;
+    bottom: -14px;
+    width: 1px;
+    background: rgba(196,181,253,0.18);
+  }
+  .mylist-media-review-reply-bubble {
+    min-width: 0;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.055);
+  }
+  .mylist-media-review-reply-item:last-child {
+    padding-bottom: 0;
+  }
+  .mylist-media-review-reply-item:last-child .mylist-media-review-reply-bubble {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+  .mylist-media-review-reply-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    min-width: 0;
+    margin-bottom: 4px;
+  }
+  .mylist-media-review-reply-meta strong {
+    color: #f8f4ff;
+    font: 500 13px/1.2 'Sohne', 'DM Sans', sans-serif;
+    min-width: 0;
+  }
+  .mylist-media-review-reply-meta span {
+    color: rgba(216,208,233,0.48);
+    font: 500 11px/1.2 'Sohne', 'DM Sans', sans-serif;
+    flex-shrink: 0;
+  }
+  .mylist-media-review-reply-text {
+    color: rgba(248,244,255,0.88);
+    font: 400 14px/1.45 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .mylist-media-review-page .mylist-media-review-reply-text { font-weight: 400 !important; }
+  .mylist-media-review-reply-inline {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: rgba(196,181,253,0.76);
+    font: 500 12px/1 'Sohne', 'DM Sans', sans-serif;
+    margin: 8px 0 0;
+    padding: 6px 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mylist-media-review-reply-inline:active {
+    color: #f8f4ff;
+    transform: scale(0.97);
+  }
+  .mylist-media-review-reply-children {
+    margin-top: 2px;
   }
   .mylist-media-review-action-backdrop {
     position: fixed;
@@ -2506,6 +2869,36 @@
   opacity: 1;
 }
 .game-card-edit-btn:hover { color: #ffffff; opacity: 1; }
+.game-card-more-btn {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  min-width: 54px;
+  height: 30px;
+  padding: 0 13px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.075);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 12px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 10px 22px rgba(0,0,0,0.24);
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.game-card-more-btn:active {
+  transform: scale(0.94);
+  background: rgba(255,255,255,0.13);
+  border-color: rgba(255,255,255,0.18);
+}
+.game-card-more-btn:hover {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.18);
+}
 /* v314: expandable single-pill pop-out status selector (all card types) */
 .game-status-pills-wrap, .status-pills-selector-wrap { margin-top: 6px; }
 .game-status-selector {
@@ -2718,6 +3111,1040 @@ body.light-mode .game-card-tracker-icon-link:hover { color: #241640; }
 .tracker-stats-grid .tracker-stat-cell strong { font-size: 22px; line-height: 1.05; }
 .tracker-stats-grid .tracker-rank-badge { --tracker-rank-sprite-w: 34px; --tracker-rank-sprite-h: 28px; gap: 7px; min-height: 34px; padding: 4px 10px 4px 6px; }
 .tracker-stats-grid .tracker-rank-code { font-size: 15px; }
+body.mylist-game-profile-open { overflow: hidden; }
+.mylist-game-profile-page {
+  position: fixed;
+  inset: 0;
+  z-index: 7600;
+  background: #202020;
+  color: #f8f4ff;
+  font-family: 'Sohne', 'DM Sans', sans-serif;
+  transform: translate3d(100%, 0, 0);
+  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+  overflow: hidden;
+}
+.mylist-game-profile-page.is-open {
+  transform: translate3d(0, 0, 0);
+}
+.mylist-game-profile-shell {
+  height: 100dvh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background: #202020;
+}
+.mylist-game-profile-topbar {
+  flex: 0 0 auto;
+  min-height: 58px;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 22px 8px;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  align-items: center;
+}
+html.shelfd-capacitor-ios .mylist-game-profile-topbar {
+  padding-top: max(10px, calc(env(safe-area-inset-top, 0px) - 6px));
+}
+.mylist-game-profile-back,
+.mylist-game-profile-edit {
+  border: 0;
+  background: transparent;
+  color: #ffffff;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+.mylist-game-profile-back {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+.mylist-game-profile-back svg {
+  width: 34px;
+  height: 34px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.mylist-game-profile-edit {
+  justify-self: end;
+  min-height: 42px;
+  padding: 0 4px;
+  font: 800 17px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+}
+.mylist-game-profile-back:active,
+.mylist-game-profile-edit:active {
+  transform: scale(0.96);
+}
+.mylist-game-profile-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  padding: 20px 24px max(38px, calc(env(safe-area-inset-bottom, 0px) + 28px));
+}
+html.shelfd-capacitor-ios .mylist-game-profile-scroll {
+  padding-top: 12px;
+}
+.mylist-game-profile-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.mylist-game-profile-hero h1 {
+  max-width: min(100%, 620px);
+  margin: 0;
+  color: #ffffff;
+  font: 900 clamp(30px, 7.8vw, 46px)/0.98 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+.mylist-game-profile-year {
+  margin-top: 8px;
+  color: rgba(255,255,255,0.86);
+  font: 500 28px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+}
+.mylist-game-profile-cover {
+  width: min(48vw, 210px);
+  max-width: 220px;
+  aspect-ratio: 3 / 4;
+  margin-top: 28px;
+  background-size: cover;
+  background-position: center;
+  background-color: rgba(255,255,255,0.08);
+  display: grid;
+  place-items: center;
+  color: rgba(255,255,255,0.84);
+  font: 900 56px/1 'Sohne', 'DM Sans', sans-serif;
+  box-shadow: 0 18px 38px rgba(0,0,0,0.32);
+}
+.mylist-game-profile-cover.no-img {
+  background: linear-gradient(145deg, rgba(196,181,253,0.2), rgba(255,255,255,0.06));
+}
+.mylist-game-profile-facts {
+  width: min(100%, 330px);
+  margin-top: 16px;
+  text-align: left;
+  color: rgba(255,255,255,0.92);
+  font: 500 25px/1.42 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+}
+.mylist-game-profile-facts span {
+  color: #ffffff;
+}
+.mylist-game-profile-stat-grid {
+  width: min(100%, 720px);
+  margin: 42px auto 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  row-gap: 60px;
+  column-gap: 26px;
+}
+.mylist-game-profile-stat {
+  min-width: 0;
+  text-align: center;
+}
+.mylist-game-profile-stat span {
+  display: block;
+  color: #ffffff;
+  font: 900 22px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+.mylist-game-profile-stat strong {
+  display: block;
+  margin-top: 28px;
+  color: #ffffff;
+  font: 900 50px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+.mylist-game-profile-links {
+  width: min(100%, 720px);
+  margin: 74px auto 0;
+  padding-top: 38px;
+  border-top: 1px solid rgba(255,255,255,0.34);
+  display: flex;
+  flex-direction: column;
+  gap: 34px;
+  color: #ffffff;
+  font: 900 22px/1.2 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+}
+.mylist-game-profile-link-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.mylist-game-profile-link-row strong {
+  color: #ffffff;
+  font: inherit;
+  text-transform: uppercase;
+}
+.mylist-game-profile-link-row a,
+.mylist-game-profile-link-row span {
+  color: rgba(255,255,255,0.86);
+  font: 800 22px/1.2 'Sohne', 'DM Sans', sans-serif;
+  text-decoration: none;
+}
+body.light-mode .mylist-game-profile-page,
+body.light-mode .mylist-game-profile-shell {
+  background: #f7f5fe;
+  color: #171717;
+}
+body.light-mode .mylist-game-profile-back,
+body.light-mode .mylist-game-profile-edit,
+body.light-mode .mylist-game-profile-hero h1,
+body.light-mode .mylist-game-profile-facts,
+body.light-mode .mylist-game-profile-facts span,
+body.light-mode .mylist-game-profile-stat span,
+body.light-mode .mylist-game-profile-stat strong,
+body.light-mode .mylist-game-profile-links,
+body.light-mode .mylist-game-profile-link-row strong {
+  color: #171717;
+}
+body.light-mode .mylist-game-profile-year,
+body.light-mode .mylist-game-profile-link-row a,
+body.light-mode .mylist-game-profile-link-row span {
+  color: rgba(20,20,20,0.72);
+}
+body.light-mode .mylist-game-profile-links {
+  border-top-color: rgba(20,20,20,0.22);
+}
+body.light-mode .game-card-more-btn {
+  background: rgba(20,20,20,0.08);
+  border-color: rgba(20,20,20,0.12);
+  color: #171717;
+}
+@media (min-width: 720px) {
+  .mylist-game-profile-shell {
+    width: min(620px, 100%);
+    margin: 0 auto;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 24px 80px rgba(0,0,0,0.44);
+  }
+}
+@media (max-width: 430px) {
+  .mylist-game-profile-scroll {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  .mylist-game-profile-hero h1 {
+    font-size: clamp(28px, 8.8vw, 40px);
+  }
+  .mylist-game-profile-year {
+    font-size: 24px;
+  }
+  .mylist-game-profile-cover {
+    width: min(50vw, 184px);
+    margin-top: 24px;
+  }
+  .mylist-game-profile-facts {
+    width: min(100%, 300px);
+    font-size: 22px;
+  }
+  .mylist-game-profile-stat-grid {
+    row-gap: 54px;
+    column-gap: 18px;
+    margin-top: 40px;
+  }
+  .mylist-game-profile-stat span {
+    font-size: 18px;
+  }
+  .mylist-game-profile-stat strong {
+    margin-top: 24px;
+    font-size: 44px;
+  }
+  .mylist-game-profile-links {
+    margin-top: 70px;
+    padding-top: 34px;
+    gap: 30px;
+    font-size: 20px;
+  }
+  .mylist-game-profile-link-row a,
+  .mylist-game-profile-link-row span {
+    font-size: 20px;
+  }
+}
+/* v10.348: ShelfLine reimagining of the competitive game profile page. */
+.mylist-game-profile-page {
+  background: #0f0f12;
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.mylist-game-profile-shell {
+  overflow: hidden;
+  background: radial-gradient(circle at 50% -140px, rgba(124,58,237,0.16), transparent 360px), #0f0f12;
+}
+.mylist-game-profile-topbar {
+  min-height: 56px;
+  padding: max(12px, env(safe-area-inset-top, 0px)) 16px 10px;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  background: rgba(15,15,18,0.86);
+  backdrop-filter: blur(18px);
+}
+html.shelfd-capacitor-ios .mylist-game-profile-topbar {
+  padding-top: max(10px, calc(env(safe-area-inset-top, 0px) - 6px));
+}
+.mylist-game-profile-topbar > span {
+  text-align: center;
+  color: #f8f4ff;
+  font: 500 14px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+}
+.mylist-game-profile-back,
+.mylist-game-profile-edit {
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+}
+.mylist-game-profile-back {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  justify-content: center;
+}
+.mylist-game-profile-back svg {
+  width: 24px;
+  height: 24px;
+  stroke-width: 2.1;
+}
+.mylist-game-profile-edit {
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font: 650 13px/1 'Sohne', 'DM Sans', sans-serif;
+}
+.mylist-game-profile-scroll {
+  padding: 16px 14px max(34px, calc(env(safe-area-inset-bottom, 0px) + 24px));
+}
+html.shelfd-capacitor-ios .mylist-game-profile-scroll {
+  padding-top: 10px;
+}
+.mylist-game-profile-summary {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+  padding: 14px;
+  border: 1px solid rgba(196,181,253,0.11);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.026);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.035);
+}
+.mylist-game-profile-cover {
+  width: 100%;
+  max-width: none;
+  aspect-ratio: 3 / 4;
+  margin-top: 0;
+  border-radius: 10px;
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 18px 34px rgba(0,0,0,0.34);
+  overflow: hidden;
+  font-size: 46px;
+}
+.mylist-game-profile-cover.no-img {
+  background: linear-gradient(145deg, rgba(124,58,237,0.28), rgba(255,255,255,0.06));
+}
+.mylist-game-profile-identity {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.mylist-game-profile-kicker {
+  width: fit-content;
+  max-width: 100%;
+  min-height: 24px;
+  padding: 0 10px;
+  border: 1px solid rgba(196,181,253,0.18);
+  border-radius: 999px;
+  background: rgba(196,181,253,0.08);
+  color: #c4b5fd;
+  display: inline-flex;
+  align-items: center;
+  font: 700 10px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.mylist-game-profile-identity h1 {
+  max-width: 100%;
+  margin: 10px 0 0;
+  color: #ffffff;
+  font: 760 24px/1.05 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+.mylist-game-profile-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+}
+.mylist-game-profile-meta-row span {
+  min-height: 24px;
+  padding: 0 9px;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.035);
+  color: rgba(248,244,255,0.76);
+  display: inline-flex;
+  align-items: center;
+  font: 600 11px/1 'Sohne', 'DM Sans', sans-serif;
+}
+.mylist-game-profile-facts {
+  width: auto;
+  margin-top: auto;
+  padding-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  font: inherit;
+}
+.mylist-game-profile-facts div,
+.mylist-game-profile-stat,
+.mylist-game-profile-link-row {
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 12px;
+  background: rgba(5,5,10,0.38);
+}
+.mylist-game-profile-facts div {
+  min-width: 0;
+  padding: 9px 10px;
+}
+.mylist-game-profile-facts span,
+.mylist-game-profile-stat span,
+.mylist-game-profile-link-row span {
+  display: block;
+  color: rgba(216,208,233,0.56);
+  font: 700 10px/1.15 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.mylist-game-profile-facts strong {
+  display: block;
+  margin-top: 6px;
+  color: #f8f4ff;
+  font: 650 13px/1.15 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+.mylist-game-profile-panel {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid rgba(196,181,253,0.11);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.026);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.035);
+}
+.mylist-game-profile-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.mylist-game-profile-panel-head span {
+  color: #f8f4ff;
+  font: 700 13px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+}
+.mylist-game-profile-stat-grid {
+  width: auto;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.mylist-game-profile-stat {
+  min-width: 0;
+  min-height: 96px;
+  padding: 12px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.mylist-game-profile-stat strong {
+  display: block;
+  margin-top: 0;
+  color: #ffffff;
+  font: 800 26px/1.05 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+.mylist-game-profile-links {
+  width: auto;
+  margin: 14px 0 0;
+  padding-top: 0;
+  border-top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font: inherit;
+}
+.mylist-game-profile-link-row {
+  min-height: 48px;
+  padding: 0 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #f8f4ff;
+  text-decoration: none;
+}
+.mylist-game-profile-link-row strong {
+  flex: 0 0 auto;
+  color: #c4b5fd;
+  font: 700 12px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.mylist-game-profile-link-row.is-disabled {
+  opacity: 0.64;
+}
+.mylist-game-profile-link-row.is-disabled strong {
+  color: rgba(216,208,233,0.52);
+}
+body.light-mode .mylist-game-profile-topbar {
+  background: rgba(247,245,254,0.9);
+  border-bottom-color: rgba(20,20,20,0.08);
+}
+body.light-mode .mylist-game-profile-topbar > span,
+body.light-mode .mylist-game-profile-identity h1,
+body.light-mode .mylist-game-profile-panel-head span,
+body.light-mode .mylist-game-profile-stat strong,
+body.light-mode .mylist-game-profile-facts strong {
+  color: #171717;
+}
+body.light-mode .mylist-game-profile-summary,
+body.light-mode .mylist-game-profile-panel {
+  background: rgba(255,255,255,0.58);
+  border-color: rgba(124,58,237,0.14);
+}
+body.light-mode .mylist-game-profile-facts div,
+body.light-mode .mylist-game-profile-stat,
+body.light-mode .mylist-game-profile-link-row {
+  background: rgba(255,255,255,0.72);
+  border-color: rgba(124,58,237,0.14);
+}
+body.light-mode .mylist-game-profile-facts span,
+body.light-mode .mylist-game-profile-stat span,
+body.light-mode .mylist-game-profile-link-row span,
+body.light-mode .mylist-game-profile-meta-row span {
+  color: rgba(36,22,64,0.58);
+}
+body.light-mode .mylist-game-profile-kicker,
+body.light-mode .mylist-game-profile-link-row strong {
+  color: #6d28d9;
+}
+body.light-mode .mylist-game-profile-back,
+body.light-mode .mylist-game-profile-edit,
+body.light-mode .mylist-game-profile-meta-row span {
+  background: rgba(20,20,20,0.04);
+  border-color: rgba(20,20,20,0.10);
+}
+@media (min-width: 720px) {
+  .mylist-game-profile-scroll {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}
+@media (max-width: 430px) {
+  .mylist-game-profile-scroll {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  .mylist-game-profile-summary {
+    grid-template-columns: 106px minmax(0, 1fr);
+    gap: 12px;
+    padding: 12px;
+  }
+  .mylist-game-profile-identity h1 {
+    font-size: 22px;
+  }
+  .mylist-game-profile-facts {
+    grid-template-columns: 1fr;
+    font-size: inherit;
+  }
+  .mylist-game-profile-stat-grid {
+    margin-top: 0;
+    gap: 10px;
+  }
+  .mylist-game-profile-stat {
+    min-height: 88px;
+    padding: 11px;
+  }
+  .mylist-game-profile-stat span {
+    font-size: 10px;
+  }
+  .mylist-game-profile-stat strong {
+    margin-top: 0;
+    font-size: 23px;
+  }
+  .mylist-game-profile-links {
+    margin-top: 14px;
+    padding-top: 0;
+    gap: 10px;
+    font-size: inherit;
+  }
+  .mylist-game-profile-link-row span,
+  .mylist-game-profile-link-row strong {
+    font-size: 12px;
+  }
+}
+@media (max-width: 360px) {
+  .mylist-game-profile-summary {
+    grid-template-columns: 92px minmax(0, 1fr);
+  }
+  .mylist-game-profile-identity h1 {
+    font-size: 20px;
+  }
+  .mylist-game-profile-stat-grid {
+    gap: 8px;
+  }
+}
+/* v10.349: ShelfLine pass for game profiles — no rounded bubble cards. */
+.mylist-game-profile-scroll {
+  padding-left: 0;
+  padding-right: 0;
+}
+.mylist-game-profile-summary {
+  grid-template-columns: 94px minmax(0, 1fr);
+  gap: 16px;
+  padding: 18px 16px 20px;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  background: transparent;
+  box-shadow: none;
+}
+.mylist-game-profile-cover {
+  border-radius: 6px;
+  box-shadow: none;
+}
+.mylist-game-profile-kicker {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(216,208,233,0.58);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+.mylist-game-profile-identity h1 {
+  margin-top: 7px;
+  font-size: 23px;
+  font-weight: 720;
+}
+.mylist-game-profile-meta-row {
+  gap: 9px;
+  margin-top: 9px;
+}
+.mylist-game-profile-meta-row span {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(248,244,255,0.66);
+  font: 550 12px/1.15 'Sohne', 'DM Sans', sans-serif;
+}
+.mylist-game-profile-meta-row span + span::before {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  margin: 0 9px 2px 0;
+  border-radius: 999px;
+  background: rgba(216,208,233,0.36);
+}
+.mylist-game-profile-facts {
+  grid-template-columns: 1fr;
+  gap: 0;
+  margin-top: 12px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+}
+.mylist-game-profile-facts div {
+  min-height: 34px;
+  padding: 8px 0;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: transparent;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.mylist-game-profile-facts div:last-child {
+  border-bottom: 0;
+}
+.mylist-game-profile-facts span,
+.mylist-game-profile-stat span,
+.mylist-game-profile-link-row span {
+  color: rgba(216,208,233,0.52);
+  font-size: 10px;
+  letter-spacing: 0.10em;
+}
+.mylist-game-profile-facts strong {
+  margin-top: 0;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 620;
+}
+.mylist-game-profile-panel {
+  margin-top: 0;
+  padding: 16px;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  background: transparent;
+  box-shadow: none;
+}
+.mylist-game-profile-panel-head {
+  margin-bottom: 2px;
+}
+.mylist-game-profile-panel-head span {
+  color: rgba(248,244,255,0.86);
+  font-size: 13px;
+  font-weight: 650;
+}
+.mylist-game-profile-stat-grid {
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+.mylist-game-profile-stat {
+  min-height: 50px;
+  padding: 13px 0;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  background: transparent;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px;
+}
+.mylist-game-profile-stat:last-child {
+  border-bottom: 0;
+}
+.mylist-game-profile-stat strong {
+  flex: 0 1 auto;
+  min-width: 0;
+  text-align: right;
+  font-size: 18px;
+  font-weight: 720;
+}
+.mylist-game-profile-links {
+  margin-top: 0;
+  gap: 0;
+}
+.mylist-game-profile-link-row {
+  min-height: 52px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  background: transparent;
+}
+.mylist-game-profile-link-row strong {
+  font-size: 12px;
+  font-weight: 650;
+}
+body.light-mode .mylist-game-profile-summary,
+body.light-mode .mylist-game-profile-panel,
+body.light-mode .mylist-game-profile-facts div,
+body.light-mode .mylist-game-profile-stat,
+body.light-mode .mylist-game-profile-link-row {
+  background: transparent;
+  border-radius: 0;
+}
+body.light-mode .mylist-game-profile-summary,
+body.light-mode .mylist-game-profile-panel,
+body.light-mode .mylist-game-profile-link-row {
+  border-bottom-color: rgba(36,22,64,0.10);
+}
+body.light-mode .mylist-game-profile-facts,
+body.light-mode .mylist-game-profile-facts div,
+body.light-mode .mylist-game-profile-stat {
+  border-color: rgba(36,22,64,0.09);
+}
+body.light-mode .mylist-game-profile-meta-row span {
+  background: transparent;
+  border: 0;
+}
+@media (min-width: 720px) {
+  .mylist-game-profile-scroll {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+@media (max-width: 430px) {
+  .mylist-game-profile-scroll {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .mylist-game-profile-summary {
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 14px;
+    padding: 16px 14px 18px;
+  }
+  .mylist-game-profile-identity h1 {
+    font-size: 21px;
+  }
+  .mylist-game-profile-facts {
+    grid-template-columns: 1fr;
+  }
+  .mylist-game-profile-stat-grid {
+    gap: 0;
+  }
+  .mylist-game-profile-stat strong {
+    font-size: 17px;
+  }
+  .mylist-game-profile-link-row span,
+  .mylist-game-profile-link-row strong {
+    font-size: 12px;
+  }
+}
+@media (max-width: 360px) {
+  .mylist-game-profile-summary {
+    grid-template-columns: 78px minmax(0, 1fr);
+  }
+  .mylist-game-profile-identity h1 {
+    font-size: 19px;
+  }
+}
+/* v10.351: game profile keeps the user's draft hierarchy, rendered with ShelfLine. */
+html.shelfd-capacitor-ios .mylist-game-profile-topbar {
+  min-height: 44px;
+  padding-top: max(calc(env(safe-area-inset-top, 0px) - 24px), 6px);
+  padding-bottom: 4px;
+}
+.mylist-game-profile-topbar {
+  border-bottom-color: rgba(255,255,255,0.07);
+}
+.mylist-game-profile-scroll {
+  padding-top: 0;
+}
+html.shelfd-capacitor-ios .mylist-game-profile-scroll {
+  padding-top: 0;
+}
+.mylist-game-profile-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 18px 18px 24px;
+  text-align: center;
+}
+html.shelfd-capacitor-ios .mylist-game-profile-summary {
+  padding-top: 10px;
+}
+.mylist-game-profile-identity {
+  width: 100%;
+  align-items: center;
+  text-align: center;
+}
+.mylist-game-profile-kicker {
+  display: none;
+}
+.mylist-game-profile-identity h1 {
+  max-width: min(100%, 620px);
+  margin: 0;
+  color: #ffffff;
+  font: 820 clamp(30px, 8vw, 46px)/0.98 'Sohne', 'DM Sans', sans-serif;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+.mylist-game-profile-meta-row {
+  justify-content: center;
+  margin-top: 8px;
+  gap: 0;
+}
+.mylist-game-profile-meta-row span {
+  color: rgba(248,244,255,0.82);
+  font: 500 24px/1 'Sohne', 'DM Sans', sans-serif;
+}
+.mylist-game-profile-meta-row span + span::before {
+  display: none;
+}
+.mylist-game-profile-cover {
+  width: min(44vw, 188px);
+  max-width: 188px;
+  margin-top: 26px;
+  border-radius: 4px;
+}
+.mylist-game-profile-facts {
+  width: min(100%, 330px);
+  margin: 16px auto 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.mylist-game-profile-facts div {
+  min-height: 36px;
+  padding: 6px 0;
+  justify-content: flex-start;
+  gap: 9px;
+  text-align: left;
+}
+.mylist-game-profile-facts span {
+  min-width: auto;
+  color: rgba(216,208,233,0.68);
+  font: 600 22px/1.18 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.mylist-game-profile-facts span::after {
+  content: ":";
+}
+.mylist-game-profile-facts strong {
+  color: #f8f4ff;
+  font: 500 22px/1.18 'Sohne', 'DM Sans', sans-serif;
+  text-align: left;
+}
+.mylist-game-profile-panel {
+  padding: 28px 18px 22px;
+  border-bottom-color: rgba(255,255,255,0.08);
+}
+.mylist-game-profile-panel-head {
+  display: none;
+}
+.mylist-game-profile-stat-grid {
+  width: min(100%, 720px);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  row-gap: 42px;
+  column-gap: 22px;
+}
+.mylist-game-profile-stat {
+  min-height: 86px;
+  padding: 0;
+  border-bottom: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 18px;
+  text-align: center;
+}
+.mylist-game-profile-stat span {
+  color: #ffffff;
+  font: 800 18px/1.05 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.mylist-game-profile-stat strong {
+  color: #ffffff;
+  font: 820 42px/1 'Sohne', 'DM Sans', sans-serif;
+  text-align: center;
+}
+.mylist-game-profile-links {
+  margin-top: 0;
+  padding-top: 34px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.mylist-game-profile-link-row {
+  width: min(100%, 720px);
+  margin: 0 auto;
+  min-height: 58px;
+  padding: 0 18px;
+  justify-content: flex-start;
+  gap: 10px;
+  border-bottom-color: rgba(255,255,255,0.07);
+}
+.mylist-game-profile-link-row span {
+  color: #ffffff;
+  font: 800 21px/1.1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.02em;
+}
+.mylist-game-profile-link-row span::after {
+  content: ":";
+}
+.mylist-game-profile-link-row strong {
+  color: rgba(248,244,255,0.82);
+  font: 700 19px/1.1 'Sohne', 'DM Sans', sans-serif;
+}
+body.light-mode .mylist-game-profile-identity h1,
+body.light-mode .mylist-game-profile-stat span,
+body.light-mode .mylist-game-profile-stat strong,
+body.light-mode .mylist-game-profile-link-row span,
+body.light-mode .mylist-game-profile-facts strong {
+  color: #171717;
+}
+body.light-mode .mylist-game-profile-meta-row span,
+body.light-mode .mylist-game-profile-link-row strong {
+  color: rgba(20,20,20,0.72);
+}
+body.light-mode .mylist-game-profile-facts span {
+  color: rgba(36,22,64,0.62);
+}
+@media (max-width: 430px) {
+  .mylist-game-profile-summary {
+    padding: 14px 16px 22px;
+  }
+  html.shelfd-capacitor-ios .mylist-game-profile-summary {
+    padding-top: 8px;
+  }
+  .mylist-game-profile-identity h1 {
+    font-size: clamp(28px, 8vw, 36px);
+  }
+  .mylist-game-profile-meta-row span {
+    font-size: 22px;
+  }
+  .mylist-game-profile-cover {
+    width: min(44vw, 176px);
+    margin-top: 24px;
+  }
+  .mylist-game-profile-facts {
+    width: min(100%, 310px);
+  }
+  .mylist-game-profile-facts span,
+  .mylist-game-profile-facts strong {
+    font-size: 21px;
+  }
+  .mylist-game-profile-stat-grid {
+    row-gap: 38px;
+    column-gap: 16px;
+  }
+  .mylist-game-profile-stat span {
+    font-size: 16px;
+  }
+  .mylist-game-profile-stat strong {
+    font-size: 40px;
+  }
+  .mylist-game-profile-link-row span,
+  .mylist-game-profile-link-row strong {
+    font-size: 19px;
+  }
+}
+@media (max-width: 360px) {
+  .mylist-game-profile-cover {
+    width: min(42vw, 152px);
+  }
+  .mylist-game-profile-facts span,
+  .mylist-game-profile-facts strong {
+    font-size: 18px;
+  }
+  .mylist-game-profile-stat span {
+    font-size: 14px;
+  }
+  .mylist-game-profile-stat strong {
+    font-size: 34px;
+  }
+}
 body.light-mode .tracker-card-strip,
 body.light-mode .tracker-link-sheet,
 body.light-mode .tracker-stats-page { background: #f7f5fe; color: #171717; }
@@ -3196,6 +4623,7 @@ body.light-mode .game-platform-option:active {
   .game-details-inner { margin: 0 12px 10px; }
   .game-details-edit-grid { grid-template-columns: 1fr; }
   .game-card-edit-btn { right: 10px; bottom: 11px; }
+  .game-card-more-btn { right: 9px; bottom: 10px; min-width: 50px; height: 29px; padding: 0 12px; }
 }
 
 /* V296: ShelfLine action borders for My Lists card actions + edge-only status swipe support. */
@@ -4455,3 +5883,741 @@ button.card-comment-body,
   cursor: progress;
   box-shadow: none;
 }
+
+/* ============================================================================
+   v10.353 — Game profile page reskin to "Editorial Dark"
+   ----------------------------------------------------------------------------
+   Aligns the competitive game profile (opened from My Lists → Games →
+   Playing → Competitive → "More") with the Editorial Dark style guide
+   (feedback_design_style.md):
+     - Flat #0E0E0E surface, no radial gradient wash
+     - No backdrop-filter on topbar, no border-bottom seam
+     - No card chrome (borders + backgrounds) on any section
+     - Hairline dividers between rows instead of bordered boxes
+     - Pill chrome stripped from kicker, year meta, back button, edit button
+     - h1 not all-caps, tight tracking
+     - Lavender (#a78bfa) reserved for interactive cues (back arrow, edit text)
+     - iOS-style chevron disclosures on link rows
+     - Eyebrow labels above section content (small uppercase, muted)
+     - Big bold display values for stats
+   This block is placed last in the file so it wins on cascade order.
+   ============================================================================ */
+.mylist-game-profile-page,
+.mylist-game-profile-shell {
+  background: #0E0E0E !important;
+  background-image: none !important;
+}
+.mylist-game-profile-topbar {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+  padding: max(12px, env(safe-area-inset-top, 0px)) 18px 14px !important;
+}
+.mylist-game-profile-topbar > span {
+  font: 600 13px/1 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  color: rgba(255,255,255,0.55) !important;
+}
+.mylist-game-profile-back {
+  width: 38px !important;
+  height: 38px !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #a78bfa !important;
+  border-radius: 0 !important;
+  justify-content: flex-start !important;
+}
+.mylist-game-profile-back svg {
+  width: 22px !important;
+  height: 22px !important;
+  stroke-width: 2 !important;
+}
+.mylist-game-profile-back:active {
+  opacity: 0.7;
+  transform: none !important;
+}
+.mylist-game-profile-edit {
+  border: 0 !important;
+  background: transparent !important;
+  color: #a78bfa !important;
+  padding: 0 4px !important;
+  min-height: 38px !important;
+  border-radius: 0 !important;
+  font: 600 15px/1 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: 0 !important;
+}
+.mylist-game-profile-edit:active {
+  opacity: 0.7;
+  transform: none !important;
+}
+.mylist-game-profile-scroll {
+  padding: 8px 20px max(34px, calc(env(safe-area-inset-bottom, 0px) + 24px)) !important;
+}
+.mylist-game-profile-summary {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 14px 0 22px !important;
+  border-bottom: 1px solid rgba(255,255,255,0.07) !important;
+  grid-template-columns: 110px minmax(0, 1fr) !important;
+  gap: 16px !important;
+  align-items: start !important;
+}
+.mylist-game-profile-cover {
+  border-radius: 10px !important;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.4) !important;
+  background-color: #1a1a1a !important;
+}
+.mylist-game-profile-cover.no-img {
+  background: #1a1a1a !important;
+  color: rgba(255,255,255,0.4) !important;
+}
+.mylist-game-profile-kicker {
+  width: auto !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  color: rgba(255,255,255,0.55) !important;
+  font: 700 11px/1 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
+  display: block !important;
+}
+.mylist-game-profile-identity h1 {
+  margin: 8px 0 0 !important;
+  color: #ffffff !important;
+  font: 800 26px/1.1 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: -0.01em !important;
+  text-transform: none !important;
+}
+.mylist-game-profile-meta-row {
+  gap: 0 !important;
+  margin-top: 6px !important;
+}
+.mylist-game-profile-meta-row span {
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  color: rgba(255,255,255,0.55) !important;
+  font: 500 13px/1.4 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: 0 !important;
+}
+.mylist-game-profile-facts {
+  grid-column: 1 / -1 !important;
+  grid-template-columns: 1fr !important;
+  gap: 0 !important;
+  margin-top: 14px !important;
+  padding-top: 0 !important;
+}
+.mylist-game-profile-facts div {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 12px 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,0.07) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+}
+.mylist-game-profile-facts div:last-child {
+  border-bottom: 0 !important;
+}
+.mylist-game-profile-facts span {
+  color: rgba(255,255,255,0.55) !important;
+  font: 600 12px/1 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  margin-top: 0 !important;
+}
+.mylist-game-profile-facts strong {
+  margin-top: 0 !important;
+  color: #ffffff !important;
+  font: 600 15px/1.2 'Sohne', 'DM Sans', sans-serif !important;
+  text-align: right !important;
+}
+.mylist-game-profile-panel {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 22px 0 !important;
+  margin-top: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,0.07) !important;
+}
+.mylist-game-profile-panel-head {
+  margin-bottom: 18px !important;
+}
+.mylist-game-profile-panel-head span {
+  color: rgba(255,255,255,0.55) !important;
+  font: 700 11px/1 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
+}
+.mylist-game-profile-stat-grid {
+  gap: 22px 16px !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+.mylist-game-profile-stat {
+  border: 0 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  display: block !important;
+  text-align: left !important;
+}
+.mylist-game-profile-stat span {
+  color: rgba(255,255,255,0.55) !important;
+  font: 600 11px/1 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+}
+.mylist-game-profile-stat strong {
+  margin-top: 8px !important;
+  color: #ffffff !important;
+  font: 700 24px/1 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: -0.01em !important;
+  text-transform: none !important;
+}
+.mylist-game-profile-links {
+  margin: 0 !important;
+  padding: 12px 0 0 !important;
+  gap: 0 !important;
+  border-top: 0 !important;
+}
+.mylist-game-profile-link-row {
+  border: 0 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  padding: 16px 0 !important;
+  min-height: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,0.07) !important;
+  position: relative !important;
+  color: #ffffff !important;
+}
+.mylist-game-profile-link-row:last-child {
+  border-bottom: 0 !important;
+}
+.mylist-game-profile-link-row span {
+  color: #ffffff !important;
+  font: 600 15px/1.2 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+.mylist-game-profile-link-row strong {
+  color: rgba(255,255,255,0.55) !important;
+  font: 500 14px/1 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  padding-right: 22px !important;
+  position: relative !important;
+}
+a.mylist-game-profile-link-row strong::after {
+  content: '\203A';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-52%);
+  color: #a78bfa;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1;
+}
+.mylist-game-profile-link-row.is-disabled {
+  opacity: 1 !important;
+}
+.mylist-game-profile-link-row.is-disabled strong {
+  color: rgba(255,255,255,0.35) !important;
+}
+
+/* Light mode equivalents — same structure, flipped palette */
+body.light-mode .mylist-game-profile-page,
+body.light-mode .mylist-game-profile-shell {
+  background: #ffffff !important;
+  background-image: none !important;
+}
+body.light-mode .mylist-game-profile-topbar > span {
+  color: rgba(20,20,20,0.55) !important;
+}
+body.light-mode .mylist-game-profile-back,
+body.light-mode .mylist-game-profile-edit {
+  background: transparent !important;
+  border: 0 !important;
+  color: #6d28d9 !important;
+}
+body.light-mode .mylist-game-profile-summary,
+body.light-mode .mylist-game-profile-panel,
+body.light-mode .mylist-game-profile-facts div,
+body.light-mode .mylist-game-profile-link-row {
+  background: transparent !important;
+}
+body.light-mode .mylist-game-profile-summary,
+body.light-mode .mylist-game-profile-panel,
+body.light-mode .mylist-game-profile-facts div:not(:last-child),
+body.light-mode .mylist-game-profile-link-row:not(:last-child) {
+  border-bottom-color: rgba(20,20,20,0.08) !important;
+}
+body.light-mode .mylist-game-profile-cover {
+  background-color: #f3f0fa !important;
+}
+body.light-mode .mylist-game-profile-cover.no-img {
+  background: #f3f0fa !important;
+  color: rgba(20,20,20,0.4) !important;
+}
+body.light-mode .mylist-game-profile-kicker,
+body.light-mode .mylist-game-profile-meta-row span,
+body.light-mode .mylist-game-profile-facts span,
+body.light-mode .mylist-game-profile-stat span,
+body.light-mode .mylist-game-profile-panel-head span {
+  color: rgba(20,20,20,0.55) !important;
+  background: transparent !important;
+  border: 0 !important;
+}
+body.light-mode .mylist-game-profile-identity h1,
+body.light-mode .mylist-game-profile-facts strong,
+body.light-mode .mylist-game-profile-stat strong,
+body.light-mode .mylist-game-profile-link-row span {
+  color: #171717 !important;
+}
+body.light-mode .mylist-game-profile-link-row strong {
+  color: rgba(20,20,20,0.55) !important;
+}
+body.light-mode a.mylist-game-profile-link-row strong::after {
+  color: #6d28d9 !important;
+}
+body.light-mode .mylist-game-profile-link-row.is-disabled strong {
+  color: rgba(20,20,20,0.35) !important;
+}
+
+@media (max-width: 430px) {
+  .mylist-game-profile-summary {
+    grid-template-columns: 96px minmax(0, 1fr) !important;
+    gap: 14px !important;
+  }
+  .mylist-game-profile-identity h1 {
+    font-size: 23px !important;
+  }
+  .mylist-game-profile-stat strong {
+    font-size: 22px !important;
+  }
+}
+
+/* ============================================================================
+   v10.357 — Game profile FULL REDESIGN in Editorial Dark
+   ----------------------------------------------------------------------------
+   Layout rebuild (no JS changes; pure CSS restructure via flex/order):
+     - Cover MOVES to the top of the summary as the hero element, centered,
+       larger (190px → up to 240px on desktop), with editorial drop shadow.
+     - Identity (kicker / title / year) stacks UNDER the cover, centered.
+     - Facts (Platform / Hours / Genre) collapse into a single inline meta
+       strip with mid-dot separators under the title — like Letterboxd's
+       "year · runtime · director" line.
+     - Stats invert to figure-first: HUGE bold value on top, small uppercase
+       label below. Reads like Letterboxd / Apple Music stat figures.
+     - Section eyebrows (small uppercase muted) appear above each section
+       block. The Links section gets its own ::before "LINKS" eyebrow since
+       the markup doesn't include a header for it.
+     - Generous vertical rhythm. Larger display typography (clamp 28-36px
+       mobile, 42px desktop). Letter-spacing tightened on display, widened
+       on uppercase eyebrows.
+     - Hairline divider lines retained between sections for the editorial
+       rule-line feel.
+   No card chrome anywhere. Single lavender accent (#a78bfa) on interactive
+   cues only (back arrow, edit text, chevron disclosures).
+   ============================================================================ */
+
+/* Summary container becomes a centered vertical column instead of side-by-side */
+.mylist-game-profile-summary {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+  grid-template-columns: none !important;
+  gap: 16px !important;
+  padding: 24px 0 30px !important;
+  border-bottom: 1px solid rgba(255,255,255,0.07) !important;
+}
+
+/* Cover: hero of the page, top of stack */
+.mylist-game-profile-cover {
+  order: -1 !important;
+  width: min(190px, 52vw) !important;
+  max-width: 220px !important;
+  aspect-ratio: 3 / 4 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 16px 36px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.3) !important;
+  font-size: 56px !important;
+  margin: 0 !important;
+}
+
+/* Identity stack (kicker, h1, year) */
+.mylist-game-profile-identity {
+  order: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+  width: 100% !important;
+  max-width: 480px !important;
+  gap: 12px !important;
+}
+
+/* Eyebrow "Competitive" — sits above title */
+.mylist-game-profile-kicker {
+  margin: 0 !important;
+  color: rgba(255,255,255,0.48) !important;
+  font: 700 11px/1 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: 0.14em !important;
+  text-transform: uppercase !important;
+  display: block !important;
+}
+
+/* Big display title */
+.mylist-game-profile-identity h1 {
+  margin: 0 !important;
+  color: #ffffff !important;
+  font: 800 clamp(28px, 7.6vw, 36px)/1.05 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: -0.02em !important;
+  text-transform: none !important;
+  max-width: 100% !important;
+}
+
+/* Year — muted caption directly under title */
+.mylist-game-profile-meta-row {
+  gap: 0 !important;
+  margin: 0 !important;
+  justify-content: center !important;
+}
+.mylist-game-profile-meta-row span {
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  color: rgba(255,255,255,0.55) !important;
+  font: 500 14px/1.4 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: 0 !important;
+}
+
+/* Facts inline meta strip — under identity, mid-dot separators */
+.mylist-game-profile-facts {
+  order: 1 !important;
+  grid-column: auto !important;
+  width: 100% !important;
+  margin: -4px 0 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
+  justify-content: center !important;
+  align-items: baseline !important;
+  gap: 0 !important;
+}
+.mylist-game-profile-facts div {
+  border: 0 !important;
+  border-bottom: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: baseline !important;
+  gap: 0 !important;
+}
+.mylist-game-profile-facts span {
+  display: none !important;
+}
+.mylist-game-profile-facts div + div::before {
+  content: '·';
+  margin: 0 9px;
+  color: rgba(255,255,255,0.32);
+  font-weight: 500;
+}
+.mylist-game-profile-facts strong {
+  margin: 0 !important;
+  color: rgba(255,255,255,0.7) !important;
+  font: 500 14px/1.4 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: 0 !important;
+  text-align: center !important;
+}
+
+/* Competitive Status section */
+.mylist-game-profile-panel {
+  padding: 30px 0 !important;
+  margin-top: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,0.07) !important;
+}
+.mylist-game-profile-panel-head {
+  margin-bottom: 28px !important;
+}
+.mylist-game-profile-panel-head span {
+  color: rgba(255,255,255,0.48) !important;
+  font: 700 11px/1 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: 0.14em !important;
+  text-transform: uppercase !important;
+}
+
+/* Stat figures: VALUE first (big), label below (small uppercase) */
+.mylist-game-profile-stat-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 28px 24px !important;
+}
+.mylist-game-profile-stat {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 6px !important;
+}
+.mylist-game-profile-stat strong {
+  order: 0 !important;
+  margin: 0 !important;
+  color: #ffffff !important;
+  font: 800 clamp(28px, 8.4vw, 36px)/1 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: -0.02em !important;
+  text-transform: none !important;
+}
+.mylist-game-profile-stat span {
+  order: 1 !important;
+  color: rgba(255,255,255,0.48) !important;
+  font: 700 10px/1 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+}
+
+/* Links section */
+.mylist-game-profile-links {
+  padding: 24px 0 0 !important;
+  margin: 0 !important;
+  gap: 0 !important;
+  border-top: 0 !important;
+}
+.mylist-game-profile-links::before {
+  content: 'Links';
+  display: block;
+  color: rgba(255,255,255,0.48);
+  font: 700 11px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.mylist-game-profile-link-row {
+  padding: 18px 0 !important;
+}
+.mylist-game-profile-link-row span {
+  color: #ffffff !important;
+  font: 600 16px/1.2 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: 0 !important;
+}
+.mylist-game-profile-link-row strong {
+  color: rgba(255,255,255,0.55) !important;
+  font: 500 14px/1 'Sohne', 'DM Sans', sans-serif !important;
+}
+
+/* Light-mode equivalents */
+body.light-mode .mylist-game-profile-summary,
+body.light-mode .mylist-game-profile-panel {
+  border-bottom-color: rgba(20,20,20,0.08) !important;
+}
+body.light-mode .mylist-game-profile-kicker,
+body.light-mode .mylist-game-profile-meta-row span,
+body.light-mode .mylist-game-profile-facts strong,
+body.light-mode .mylist-game-profile-stat span,
+body.light-mode .mylist-game-profile-panel-head span,
+body.light-mode .mylist-game-profile-link-row strong,
+body.light-mode .mylist-game-profile-links::before {
+  color: rgba(20,20,20,0.5) !important;
+}
+body.light-mode .mylist-game-profile-facts div + div::before {
+  color: rgba(20,20,20,0.32) !important;
+}
+body.light-mode .mylist-game-profile-identity h1,
+body.light-mode .mylist-game-profile-stat strong,
+body.light-mode .mylist-game-profile-link-row span {
+  color: #171717 !important;
+}
+body.light-mode .mylist-game-profile-cover {
+  box-shadow: 0 16px 36px rgba(20,20,20,0.18), 0 2px 6px rgba(20,20,20,0.08) !important;
+}
+
+/* Desktop scale-up */
+@media (min-width: 720px) {
+  .mylist-game-profile-cover {
+    width: min(240px, 30vw) !important;
+    max-width: 260px !important;
+  }
+  .mylist-game-profile-identity h1 {
+    font-size: 42px !important;
+  }
+  .mylist-game-profile-stat strong {
+    font-size: 42px !important;
+  }
+  .mylist-game-profile-meta-row span,
+  .mylist-game-profile-facts strong {
+    font-size: 15px !important;
+  }
+}
+
+/* Very-narrow phones */
+@media (max-width: 380px) {
+  .mylist-game-profile-summary {
+    padding: 18px 0 24px !important;
+    gap: 14px !important;
+  }
+  .mylist-game-profile-cover {
+    width: min(168px, 56vw) !important;
+  }
+  .mylist-game-profile-identity h1 {
+    font-size: 26px !important;
+  }
+  .mylist-game-profile-stat strong {
+    font-size: 26px !important;
+  }
+}
+
+/* ============================================================================
+   v10.358 — Games sub-filter (Single Player / Live Games / Competitive)
+              reskin to Editorial Dark
+   ----------------------------------------------------------------------------
+   The pill-shaped tab card used radial+linear gradient, backdrop blur,
+   inset glow, drop shadow, and gradient pill chrome on the active state —
+   all heavy chrome that violates Editorial Dark.
+   New design mirrors the sub-tabs above it (Watching / Watchlist / Watched /
+   Paused):
+     - No container chrome — flat row, hairline divider underneath
+     - Inactive tabs: muted 13px text, no background
+     - Active tab: white text, thin lavender underline below
+     - Count badge: small lavender-tinted pill next to active label
+     - No transform, no box-shadow, no backdrop blur, no gradient pill
+   ============================================================================ */
+
+/* Container — strip ALL chrome, become a flat row with hairline beneath */
+.games-playing-subfilter-card,
+#mylist-view .games-playing-subfilter-card,
+body.light-mode #mylist-view .games-playing-subfilter-card,
+body.light-mode .games-playing-subfilter-card {
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  border-bottom: 1px solid rgba(255,255,255,0.07) !important;
+  justify-content: space-around !important;
+}
+
+.games-playing-subfilter {
+  margin: 0 0 18px !important;
+  padding: 0 !important;
+}
+
+/* Toggle button — flat text tab with bottom-border accent on active */
+.games-playing-toggle,
+#mylist-view .games-playing-toggle,
+body.light-mode #mylist-view .games-playing-toggle {
+  flex: 1 1 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  padding: 0 8px 12px !important;
+  min-height: 0 !important;
+  color: rgba(255,255,255,0.5) !important;
+  font: 600 11px/1 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: 0 !important;
+  transform: none !important;
+  box-shadow: none !important;
+  transition: color 160ms ease, border-color 160ms ease !important;
+}
+
+.games-playing-toggle span,
+#mylist-view .games-playing-toggle span {
+  font: inherit !important;
+  letter-spacing: 0 !important;
+}
+
+/* Active state — white text + thin lavender underline */
+.games-playing-toggle.active,
+#mylist-view .games-playing-toggle.active,
+body.light-mode #mylist-view .games-playing-toggle.active {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  background: transparent !important;
+  background-image: none !important;
+  border-bottom-color: #a78bfa !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Count badge — small lavender-tinted pill, only shown on active */
+.games-playing-toggle small,
+#mylist-view .games-playing-toggle small,
+body.light-mode #mylist-view .games-playing-toggle small {
+  display: none !important;
+  background: rgba(167,139,250,0.18) !important;
+  color: #c4b5fd !important;
+  border-radius: 999px !important;
+  min-width: 18px !important;
+  height: 18px !important;
+  padding: 0 6px !important;
+  margin-left: 7px !important;
+  font: 700 10px/1 'Sohne', 'DM Sans', sans-serif !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+.games-playing-toggle.active small {
+  display: inline-flex !important;
+}
+
+/* Inactive hover — subtle text brighten, no background */
+.games-playing-toggle:not(.active):hover {
+  color: rgba(255,255,255,0.8) !important;
+  background: transparent !important;
+}
+
+/* Tap state — no scale, no transform */
+.games-playing-toggle:active {
+  opacity: 0.78;
+  transform: none !important;
+}
+
+/* Light mode */
+body.light-mode .games-playing-subfilter-card,
+body.light-mode #mylist-view .games-playing-subfilter-card {
+  border-bottom-color: rgba(20,20,20,0.08) !important;
+}
+body.light-mode .games-playing-toggle,
+body.light-mode #mylist-view .games-playing-toggle {
+  color: rgba(20,20,20,0.5) !important;
+}
+body.light-mode .games-playing-toggle.active,
+body.light-mode #mylist-view .games-playing-toggle.active {
+  color: #171717 !important;
+  border-bottom-color: #6d28d9 !important;
+}
+body.light-mode .games-playing-toggle small,
+body.light-mode #mylist-view .games-playing-toggle small {
+  background: rgba(124,58,237,0.12) !important;
+  color: #6d28d9 !important;
+}
+
+/* Mobile fine-tune */
+@media (max-width: 430px) {
+  .games-playing-toggle,
+  #mylist-view .games-playing-toggle {
+    font-size: 11px !important;
+    padding: 0 6px 11px !important;
+  }
+}
+

@@ -1568,9 +1568,9 @@ async function fetchFriendWatchingDiscoverTitles(limit = DISCOVER_LIMIT) {
     await Promise.all(friends.map(async uid => {
       const friend = { ...(usersMap[uid] || {}), uid };
       try {
-        const snap = await db.collection('watchlist').doc(uid).get();
-        if (!snap.exists) return;
-        const listData = parseDiscoverFriendWatchlistDoc(snap.data() || {});
+        /* v10.387: section-aware fan-out replaces the legacy single-doc read.
+           Returns normalized list-data so we skip the parse step. */
+        const listData = await loadWatchlistDataForUid(uid, { sections: ['movies', 'shows', 'anime'] });
         ['movies', 'shows', 'anime'].forEach(section => {
           (listData[section] || []).forEach(item => addFriendWatchingCandidate(grouped, item, section, friend));
         });
@@ -3417,22 +3417,23 @@ async function loadDiscoverFriendSocialCache(force = false) {
 
     const rows = await Promise.all(friends.map(async uid => {
       try {
-        const [userSnap, listSnap] = await Promise.all([
+        /* v10.387: section-aware fan-out for friend data; user doc fetch
+           runs in parallel as before. */
+        const [userSnap, listData] = await Promise.all([
           db.collection('users').doc(uid).get(),
-          db.collection('watchlist').doc(uid).get()
+          loadWatchlistDataForUid(uid, { sections: ['shows', 'movies', 'anime', 'games'] })
         ]);
         const user = userSnap.exists ? userSnap.data() : usersMap[uid] || {};
         if (userSnap.exists) usersMap[uid] = { ...user, uid };
-        const list = listSnap.exists ? listSnap.data() : {};
         return {
           uid,
           name: user.name || 'Friend',
           photo: user.photo || '',
           listData: normalizeListData({
-            shows: parseDiscoverFriendListField(list.shows),
-            movies: parseDiscoverFriendListField(list.movies),
-            anime: parseDiscoverFriendListField(list.anime),
-            games: parseDiscoverFriendListField(list.games)
+            shows: listData.shows || [],
+            movies: listData.movies || [],
+            anime: listData.anime || [],
+            games: listData.games || []
           })
         };
       } catch(e) {
@@ -5020,7 +5021,8 @@ function renderDiscoverMediaProfileAddButton(type, id, details) {
   const title = getDiscoverMediaTitle(details, type);
   const section = getDiscoverMediaProfileSection(type, details);
   const poster = getDiscoverMediaPoster(details);
-  const added = isDuplicateTitle(title, section);
+  const duplicateProbe = section === 'anime' ? { ...(details || {}), title } : title;
+  const added = isDuplicateTitle(duplicateProbe, section);
   /* v10.123: FPMP add button shortened to a bare "+" when unadded.
      v10.125: added state shows just a "✓" instead of "Watched" /
      "Watchlist" / etc.
@@ -7628,6 +7630,9 @@ async function openJikanAnimeProfile(event, malId, transitionOrigin = null) {
       mergedDetails.isAnime = true;
       discoverMediaProfileCache.set(key, mergedDetails);
     }
+    if (typeof window.repairLibraryAnimeItemFromJikanProfile === 'function') {
+      window.repairLibraryAnimeItemFromJikanProfile(seed, mergedDetails);
+    }
     if (!document.getElementById('discover-media-profile')) return;
     activeDiscoverMediaProfileState = {
       view: 'title',
@@ -7917,6 +7922,10 @@ function renderDiscoverCategoryFilterCheck(isSelected = false) {
   return `<strong class="discover-category-filter-check" aria-hidden="true">${isSelected ? '✓' : ''}</strong>`;
 }
 
+function renderDiscoverCategoryFilterCloseButton(label = 'Close filter') {
+  return `<button class="discover-category-filter-done discover-category-filter-close-x" type="button" onclick="closeDiscoverCategoryFilterSheet()" aria-label="${escAttr(label)}">&times;</button>`;
+}
+
 function renderDiscoverCategoryMainFilterPanel() {
   const activeCount = getDiscoverCategoryFilterCount();
   const groupKeys = ['year', 'genre', 'country', 'language', 'service'];
@@ -7933,7 +7942,7 @@ function renderDiscoverCategoryMainFilterPanel() {
   return `<div class="discover-category-filter-panel discover-category-filter-panel-main" data-filter-panel="main">
     <div class="discover-category-filter-header discover-category-filter-header-flat">
       <div><div class="discover-category-filter-kicker">${discoverCategoryFullState?.mode === 'universal-search' ? 'Search' : 'View All'}</div><h3>Filter</h3></div>
-      <button class="discover-category-filter-done" type="button" onclick="closeDiscoverCategoryFilterSheet()">Done</button>
+      ${renderDiscoverCategoryFilterCloseButton()}
     </div>
     <div class="discover-category-filter-rule"></div>
     <div class="discover-category-filter-list">${rows}</div>
@@ -7972,7 +7981,7 @@ function renderDiscoverCategoryOptionFilterPanel(groupKey = '') {
     <div class="discover-category-filter-panel-top discover-category-filter-header-flat">
       <button class="discover-category-filter-back" type="button" onclick="openDiscoverCategoryFilterPanel('main', 'back')" aria-label="Back">←</button>
       <h3>${escHtml(group.pluralLabel || group.label)}</h3>
-      <button class="discover-category-filter-done" type="button" onclick="closeDiscoverCategoryFilterSheet()">Done</button>
+      ${renderDiscoverCategoryFilterCloseButton(`Close ${group.pluralLabel || group.label} filter`)}
     </div>
     <div class="discover-category-filter-rule"></div>
     <div class="discover-category-filter-list">${rows || '<div class="discover-category-filter-empty">No filters available.</div>'}</div>
@@ -7999,7 +8008,7 @@ function renderDiscoverCategoryYearFilterPanel(decadeStart = 2020) {
     <div class="discover-category-filter-panel-top discover-category-filter-header-flat">
       <button class="discover-category-filter-back" type="button" onclick="openDiscoverCategoryFilterPanel('year', 'back')" aria-label="Back">←</button>
       <h3>${escHtml(decade.label)}</h3>
-      <button class="discover-category-filter-done" type="button" onclick="closeDiscoverCategoryFilterSheet()">Done</button>
+      ${renderDiscoverCategoryFilterCloseButton(`Close ${decade.label} filter`)}
     </div>
     <div class="discover-category-filter-rule"></div>
     <button class="discover-category-filter-select-all${allAvailableSelected ? ' selected' : ''}" type="button" onclick="selectAllDiscoverCategoryDecadeYears('${escAttr(String(decade.start))}')">Select All</button>
@@ -8016,7 +8025,7 @@ function renderDiscoverCategorySimpleFilterSheet() {
   return `<div class="discover-category-filter-panel" data-filter-panel="simple">
     <div class="discover-category-filter-header discover-category-filter-header-flat">
       <div><div class="discover-category-filter-kicker">${discoverCategoryFullState?.mode === 'universal-search' ? 'Search' : 'View All'}</div><h3>Sort</h3></div>
-      <button class="discover-category-filter-done" type="button" onclick="closeDiscoverCategoryFilterSheet()">Done</button>
+      ${renderDiscoverCategoryFilterCloseButton('Close sort')}
     </div>
     <div class="discover-category-filter-rule"></div>
     <div class="discover-category-filter-list">${sortHtml}</div>
@@ -8320,7 +8329,7 @@ async function toggleDiscoverCategoryFilterOption(groupKey = '', value = '') {
   updateDiscoverUniversalSearchFilterButtonState();
   if (discoverCategoryFullState?.mode === 'universal-search') await loadDiscoverUniversalSearchFilteredItems(true);
   else await loadDiscoverFullFilteredItems(true);
-  restoreDiscoverCategoryFilterScroll(discoverCategoryFilterPanelKey, 'none');
+  closeDiscoverCategoryFilterSheet();
 }
 
 async function selectAllDiscoverCategoryDecadeYears(decadeStart = 2020) {
@@ -8339,7 +8348,7 @@ async function selectAllDiscoverCategoryDecadeYears(decadeStart = 2020) {
   updateDiscoverUniversalSearchFilterButtonState();
   if (discoverCategoryFullState?.mode === 'universal-search') await loadDiscoverUniversalSearchFilteredItems(true);
   else await loadDiscoverFullFilteredItems(true);
-  restoreDiscoverCategoryFilterScroll(discoverCategoryFilterPanelKey, 'none');
+  closeDiscoverCategoryFilterSheet();
 }
 
 async function clearDiscoverCategoryFilters() {
@@ -8361,17 +8370,23 @@ async function clearDiscoverCategoryFilters() {
 
 function setDiscoverFullCategorySortFromSheet(sortKey = 'default') {
   setDiscoverCategorySort(sortKey);
-  refreshDiscoverCategoryFilterSheet();
+  updateDiscoverCategoryFilterButtonState();
+  updateDiscoverUniversalSearchFilterButtonState();
+  closeDiscoverCategoryFilterSheet();
 }
 
 async function setDiscoverFullCategoryRangeFromSheet(range = 'week') {
   await setDiscoverFullNewReleaseRange(range);
-  refreshDiscoverCategoryFilterSheet();
+  updateDiscoverCategoryFilterButtonState();
+  updateDiscoverUniversalSearchFilterButtonState();
+  closeDiscoverCategoryFilterSheet();
 }
 
 async function setDiscoverFullCategoryCountryFromSheet(code = '') {
   await setDiscoverNewReleaseCountry(code);
-  refreshDiscoverCategoryFilterSheet();
+  updateDiscoverCategoryFilterButtonState();
+  updateDiscoverUniversalSearchFilterButtonState();
+  closeDiscoverCategoryFilterSheet();
 }
 
 function getDiscoverFilterSelectedGenreIds() {
@@ -9668,8 +9683,6 @@ function getDiscoverPreviewShowMoreStep(grid) {
 function setupDiscoverSectionLimit(grid) {
   if (!grid) return;
   const cards = Array.from(grid.querySelectorAll('.discover-card'));
-  const button = getDiscoverExpandButton(grid);
-  if (!button) return;
   const limit = getDiscoverPreviewVisibleCount(grid);
   let visibleCount = Number.parseInt(grid.dataset.visibleCount || '', 10);
   if (!Number.isFinite(visibleCount)) visibleCount = limit;
@@ -9679,40 +9692,6 @@ function setupDiscoverSectionLimit(grid) {
     card.classList.toggle('discover-hidden', index >= visibleCount);
   });
   // Bottom expand button removed — View All is accessible via the category header title link.
-  button.style.display = 'none';
-}
-
-function toggleDiscoverSection(gridId) {
-  if (gridId === 'discover-friends-watching-grid') {
-    openDiscoverFriendsWatchingPage();
-    return;
-  }
-  // v549: View all always navigates to the full category page when supported,
-  // matching the behavior of the section-title link.
-  if (typeof DISCOVER_FULL_CATEGORY_GRID_IDS !== 'undefined'
-    && Array.isArray(DISCOVER_FULL_CATEGORY_GRID_IDS)
-    && DISCOVER_FULL_CATEGORY_GRID_IDS.includes(gridId)) {
-    openDiscoverCategoryFullPage(gridId);
-    return;
-  }
-  if (isDiscoverGridCountryFilterableNewRelease(gridId)) {
-    openDiscoverCategoryFullPage(gridId);
-    return;
-  }
-  // Fallback: legacy inline expand for grids without a full-page view
-  const grid = document.getElementById(gridId);
-  if (!grid) return;
-  const limit = getDiscoverPreviewVisibleCount(grid);
-  const step = getDiscoverPreviewShowMoreStep(grid);
-  const cards = Array.from(grid.querySelectorAll('.discover-card'));
-  const current = Number.parseInt(grid.dataset.visibleCount || '', 10);
-  const visibleCount = Number.isFinite(current) ? current : limit;
-  const nextVisibleCount = visibleCount >= cards.length ? limit : visibleCount + step;
-  grid.dataset.visibleCount = String(nextVisibleCount);
-  setupDiscoverSectionLimit(grid);
-  if (nextVisibleCount === limit) {
-    grid.closest('.discover-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
 }
 
 function jumpToDiscoverSection(sectionId) {
@@ -10047,6 +10026,11 @@ function _buildSelectedTmdbFromSeasItem(item) {
     title, cover,
     genre: gnNames.join(', '), genreNames: gnNames, year,
     tmdbId: '', malId: String(item.mal_id || ''),
+    mal_id: String(item.mal_id || ''),
+    animeIdentityKey: item.mal_id ? `mal:${item.mal_id}` : '',
+    malUrl: item.url || (item.mal_id ? `https://myanimelist.net/anime/${item.mal_id}` : ''),
+    jikanUrl: item.url || (item.mal_id ? `https://myanimelist.net/anime/${item.mal_id}` : ''),
+    url: item.url || (item.mal_id ? `https://myanimelist.net/anime/${item.mal_id}` : ''),
     source: 'myanimelist',
     originalTitle: '', originalLanguage: 'ja', originCountries: ['JP'],
     mediaCategory: 'anime', librarySection: 'anime', isAnime: true,
@@ -10060,6 +10044,9 @@ function _buildSelectedTmdbFromSeasItem(item) {
     titleVariants: { english: title, romaji: item.title || title, japanese: '' },
     englishTitle: title, romajiTitle: item.title || title, japaneseTitle: ''
   };
+  if (typeof applyJikanCanonicalAnimeFields === 'function') {
+    applyJikanCanonicalAnimeFields(window.selectedTmdb, item, { overwrite: true });
+  }
   return true;
 }
 
@@ -10366,10 +10353,6 @@ window.animeSeasonalLoadMore = animeSeasonalLoadMore;
 function renderAnimeSeasonalCards(rawItems) {
   const grid = document.getElementById('anime-discover-seasonal-grid');
   if (!grid) return;
-
-  /* Hide the generic "Show more" expand button for this section. */
-  const oldBtn = document.querySelector('#anime-discover-seasonal-section .discover-expand-btn');
-  if (oldBtn) oldBtn.style.display = 'none';
 
   if (!rawItems || !rawItems.length) {
     grid.innerHTML = '<div class="discover-message">No anime found for this season / filter.</div>';

@@ -2397,6 +2397,7 @@ body.movie-rating-duel-open .mobile-bottom-nav {
 .movie-duel-tier-item {
   width: 70px;
   scroll-snap-align: start;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), opacity 140ms ease;
 }
 .movie-duel-tier-item.is-new .movie-duel-tier-poster {
   box-shadow: 0 0 0 2px rgba(196,181,253,0.9), 0 14px 28px rgba(139,92,246,0.26);
@@ -2413,6 +2414,9 @@ body.movie-rating-duel-open .mobile-bottom-nav {
   box-shadow: 0 12px 22px rgba(0,0,0,0.28);
   cursor: default;
   -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+  touch-action: manipulation;
 }
 .movie-duel-tier-poster.is-clickable {
   cursor: pointer;
@@ -2466,6 +2470,44 @@ body.movie-rating-duel-open .mobile-bottom-nav {
 }
 .movie-duel-tier-load-more:active {
   transform: scale(0.985);
+}
+.movie-duel-tier-dragging,
+.movie-duel-tier-dragging * {
+  cursor: grabbing !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+.movie-duel-tier-item.is-drag-source {
+  opacity: 0.18;
+  transform: scale(0.92);
+}
+.movie-duel-tier-poster.is-dragging-source {
+  pointer-events: none;
+}
+.movie-duel-tier-drag-placeholder {
+  width: 70px;
+  height: 106px;
+  border: 1px dashed rgba(196,181,253,0.66);
+  border-radius: 12px;
+  background: rgba(167,139,250,0.13);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04), 0 0 28px rgba(139,92,246,0.18);
+}
+.movie-duel-tier-drag-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 20000;
+  pointer-events: none;
+  opacity: 0.96;
+  filter: drop-shadow(0 18px 28px rgba(0,0,0,0.5));
+  will-change: transform;
+  transform-origin: top left;
+}
+.movie-duel-tier-drag-ghost .movie-duel-tier-poster {
+  box-shadow: 0 18px 34px rgba(0,0,0,0.42), 0 0 0 2px rgba(196,181,253,0.9);
+}
+.movie-duel-tier-empty.is-hidden-by-drag {
+  display: none;
 }
 
 @media (min-width: 720px) {
@@ -3003,6 +3045,542 @@ body.true-dark-mode #mylist-view .ep-name {
 #mylist-view .season-header {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+
+html.mylist-episode-page-open,
+body.mylist-episode-page-open {
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+}
+body.mylist-episode-page-open #mobile-bottom-nav,
+body.mylist-episode-page-open .mobile-bottom-nav {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.mylist-episode-page-overlay {
+  --mylist-episode-page-motion-ms: 450ms;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100svh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100svh;
+  max-height: 100dvh;
+  background: transparent;
+  z-index: 12000;
+  pointer-events: none;
+  overflow: hidden;
+}
+.mylist-episode-page-overlay.is-closing {
+  pointer-events: auto;
+}
+.mylist-episode-page-surface {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #0e0e0e;
+  transform: translate3d(0, 100%, 0);
+  opacity: 0.98;
+  transition:
+    transform var(--mylist-episode-page-motion-ms) cubic-bezier(0.22, 1, 0.36, 1),
+    opacity calc(var(--mylist-episode-page-motion-ms) - 190ms) ease;
+  will-change: transform, opacity;
+}
+.mylist-episode-page-overlay.is-open {
+  pointer-events: auto;
+}
+.mylist-episode-page-overlay.is-open .mylist-episode-page-surface {
+  transform: translate3d(0, 0, 0);
+  opacity: 1;
+}
+
+.mylist-episode-page-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  color: #f5f2ff;
+  font-family: 'Sohne', 'DM Sans', sans-serif;
+}
+.mylist-episode-page-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0;
+  padding:
+    max(calc(env(safe-area-inset-top, 0px) - 18px), 10px)
+    18px
+    8px;
+  flex: 0 0 auto;
+}
+html.shelfd-capacitor-native .mylist-episode-page-topbar {
+  padding-top: max(calc(env(safe-area-inset-top, 0px) - 24px), 8px);
+}
+.mylist-episode-page-back {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  color: #f5f2ff;
+  border-radius: 0;
+  min-height: 36px;
+  padding: 0;
+  font: 700 16px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: -0.02em;
+  -webkit-tap-highlight-color: transparent;
+}
+.mylist-episode-page-back-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
+.mylist-episode-page-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 0 18px calc(env(safe-area-inset-bottom, 0px) + 28px);
+}
+
+.mylist-episode-page-summary {
+  display: grid;
+  grid-template-columns: 152px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  margin-bottom: 18px;
+}
+.mylist-episode-page-summary-poster {
+  width: 152px;
+  aspect-ratio: 1400 / 2100;
+  border-radius: 3px;
+  background-size: cover;
+  background-position: center;
+  background-color: rgba(255,255,255,0.06);
+  box-shadow: 0 18px 32px rgba(0,0,0,0.28);
+}
+.mylist-episode-page-summary-poster.no-img {
+  background:
+    linear-gradient(135deg, rgba(167,139,250,0.24), rgba(88,28,135,0.32)),
+    #1a1525;
+}
+.mylist-episode-page-summary-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding-top: 2px;
+}
+.mylist-episode-page-title {
+  font-size: 24px;
+  line-height: 1.04;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: #fbf8ff;
+}
+.mylist-episode-page-status .status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+}
+.mylist-episode-page-progress-area {
+  margin-top: 2px;
+}
+.mylist-episode-page-progress-meta {
+  margin-bottom: 6px;
+}
+.mylist-episode-page-progress-row {
+  gap: 8px;
+}
+.mylist-episode-page-rating-area {
+  margin-top: 2px;
+}
+
+.mylist-episode-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px 12px;
+  margin: 0 0 18px;
+  padding: 0;
+}
+.mylist-episode-page-actions-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.mylist-episode-page-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mylist-episode-page-seasons {
+  min-height: 0;
+}
+.mylist-episode-page-list {
+  height: auto !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
+}
+.mylist-episode-page-list .ep-list-inner,
+.mylist-episode-page-list .ep-scroll,
+.mylist-episode-page-season-list {
+  overflow: visible !important;
+  max-height: none !important;
+  height: auto !important;
+}
+.mylist-episode-page-list .ep-list-inner {
+  padding: 0 !important;
+}
+
+.mylist-episode-page-season-block {
+  margin-bottom: 12px;
+  border: 1px solid rgba(196,181,253,0.12);
+  border-radius: 18px;
+  background: rgba(255,255,255,0.045);
+  overflow: hidden;
+  box-shadow: 0 18px 42px rgba(0,0,0,0.22);
+}
+.mylist-episode-page-season-header {
+  display: flex;
+  align-items: stretch;
+  gap: 18px;
+  padding: 16px;
+  background: rgba(255,255,255,0.03);
+  cursor: pointer;
+}
+.mylist-episode-page-season-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+.mylist-episode-page-season-title-line {
+  gap: 8px;
+}
+.mylist-episode-page-season-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.mylist-episode-page-season-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(245,242,255,0.82);
+}
+.mylist-episode-page-season-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  margin-left: auto;
+  align-self: stretch;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.mylist-episode-page-season-controls-top {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  width: 100%;
+}
+.mylist-episode-page-season-rating-slot {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  margin-top: auto;
+  position: relative;
+  z-index: 4;
+}
+.mylist-episode-page-season-rating-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 44px;
+}
+.mylist-episode-page-season-rating-chip {
+  appearance: none;
+  border: 1px solid rgba(251,191,36,0.24);
+  background: rgba(15,15,15,0.72);
+  color: #f8d973;
+  border-radius: 999px;
+  min-width: 44px;
+  min-height: 30px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-family: 'Sohne', 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transform: translateZ(0);
+  transition:
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 180ms ease,
+    background 180ms ease;
+}
+.mylist-episode-page-season-rating-chip:active {
+  transform: translateZ(0) scale(0.96);
+}
+.mylist-episode-page-season-rating-chip.is-readonly {
+  cursor: default;
+  color: rgba(248,217,115,0.78);
+  background: rgba(15,15,15,0.48);
+}
+.mylist-episode-page-season-rating-stars {
+  position: absolute;
+  right: calc(100% + 7px);
+  top: 50%;
+  transform: translate3d(10px, -50%, 0) scale(0.94);
+  transform-origin: right center;
+  opacity: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1px;
+  max-width: min(210px, calc(100vw - 112px));
+  padding: 3px 6px;
+  border: 1px solid rgba(251,191,36,0.16);
+  border-radius: 999px;
+  background: rgba(14,14,14,0.94);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.32);
+  will-change: transform, opacity;
+  transition:
+    transform 240ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 170ms ease;
+}
+.mylist-episode-page-season-rating-control.is-expanded .mylist-episode-page-season-rating-stars {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate3d(0, -50%, 0) scale(1);
+}
+.mylist-episode-page-season-rating-star {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: rgba(245,242,255,0.34);
+  width: 18px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transform: translateZ(0);
+  transition: color 130ms ease, transform 130ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.mylist-episode-page-season-rating-star.lit,
+.mylist-episode-page-season-rating-star:active {
+  color: #fbbf24;
+}
+.mylist-episode-page-season-rating-star:active {
+  transform: translateZ(0) scale(1.18);
+}
+.mylist-episode-page-season-poster {
+  width: 77px;
+  aspect-ratio: 2 / 3;
+  flex: 0 0 77px;
+  display: block;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: rgba(255,255,255,0.05);
+  border-radius: 3px !important;
+}
+.mylist-episode-page-season-poster.season-poster-empty {
+  background:
+    linear-gradient(135deg, rgba(167,139,250,0.2), rgba(255,255,255,0.03)),
+    rgba(255,255,255,0.035);
+}
+.mylist-episode-page-season-body {
+  display: none;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-8px);
+  will-change: height, opacity, transform;
+  transition:
+    height 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 260ms ease,
+    transform 380ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.mylist-episode-page-season-block.is-open .mylist-episode-page-season-body {
+  opacity: 1;
+  transform: translateY(0);
+}
+.mylist-episode-page-season-block .season-arrow {
+  transition: transform 380ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.mylist-episode-page-season-block.is-open .season-arrow {
+  transform: rotate(180deg);
+}
+.mylist-episode-page-season-eps {
+  padding: 0 10px 10px 10px;
+}
+.mylist-episode-page-season-eps .ep-row {
+  margin-bottom: 8px;
+}
+.mylist-episode-page-season-eps .ep-row:last-child {
+  margin-bottom: 0;
+}
+.mylist-episode-page-overlay .season-rating-chip,
+.mylist-episode-page-overlay .season-rating-bar,
+.mylist-episode-page-overlay .mylist-episode-page-edit-row {
+  display: none !important;
+}
+.mylist-episode-page-overlay .ep-row.watched-ep {
+  border-left-color: rgba(167, 139, 250, 0.72);
+  box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.14);
+}
+.mylist-episode-page-overlay .ep-row::before,
+.mylist-episode-page-overlay .episode-fill-layer {
+  background: rgba(167, 139, 250, 0.3);
+}
+.mylist-episode-page-overlay .ep-row::after {
+  background:
+    linear-gradient(90deg,
+      rgba(255,255,255,0) 0%,
+      rgba(242,234,255,0.2) 10%,
+      rgba(167,139,250,0.24) 24%,
+      rgba(167,139,250,0.12) 52%,
+      rgba(167,139,250,0.04) 78%,
+      rgba(167,139,250,0) 100%);
+  filter: blur(8px);
+}
+.mylist-episode-page-overlay .episode-burst {
+  display: none !important;
+}
+.mylist-episode-page-overlay .ep-row.episode-watch-sweep::after {
+  animation: episodeWatchSweep 1180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.mylist-episode-page-overlay .ep-row.episode-watch-glow {
+  animation: mylistEpisodeRowLavenderGlow 1180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.mylist-episode-page-overlay .ep-row.episode-watch-impact .ep-check {
+  animation: mylistEpisodeCheckLavenderPop 560ms cubic-bezier(0.175, 0.885, 0.32, 1.25) forwards;
+}
+.mylist-episode-page-overlay .ep-check.checked {
+  border-color: rgba(167, 139, 250, 0.84);
+  background: rgba(167, 139, 250, 0.3);
+  color: rgba(245, 242, 255, 0.98);
+  box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.1);
+}
+@keyframes mylistEpisodeCheckLavenderPop {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(167,139,250,0);
+    filter: brightness(1);
+  }
+  28% {
+    transform: scale(1.16);
+    box-shadow: 0 0 0 5px rgba(167,139,250,0.16);
+    filter: brightness(1.08);
+  }
+  60% {
+    transform: scale(1.06);
+    box-shadow: 0 0 0 9px rgba(167,139,250,0.06);
+    filter: brightness(1.03);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(167,139,250,0);
+    filter: brightness(1);
+  }
+}
+@keyframes mylistEpisodeRowLavenderGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(167,139,250,0), 0 0 0 rgba(167,139,250,0);
+  }
+  24% {
+    box-shadow: 0 0 0 1px rgba(196,181,253,0.16), 0 0 10px rgba(167,139,250,0.12);
+  }
+  58% {
+    box-shadow: 0 0 0 1px rgba(167,139,250,0.12), 0 0 14px rgba(167,139,250,0.16);
+  }
+  100% {
+    box-shadow: 0 0 0 1px rgba(167,139,250,0.14), 0 0 0 rgba(167,139,250,0);
+  }
+}
+.mylist-episode-page-empty {
+  padding: 18px 0 4px;
+  font-size: 14px;
+  color: rgba(245,242,255,0.58);
+}
+
+@media (max-width: 430px) {
+  .mylist-episode-page-topbar {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  .mylist-episode-page-scroll {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  .mylist-episode-page-summary {
+    grid-template-columns: 142px minmax(0, 1fr);
+    gap: 12px;
+  }
+  .mylist-episode-page-summary-poster {
+    width: 142px;
+  }
+  .mylist-episode-page-title {
+    font-size: 21px;
+  }
+  .mylist-episode-page-season-poster {
+    width: 77px;
+    flex-basis: 77px;
+  }
+  .mylist-episode-page-season-rating-stars {
+    right: calc(100% + 5px);
+    gap: 0;
+    padding-left: 5px;
+    padding-right: 5px;
+    max-width: min(190px, calc(100vw - 104px));
+  }
+  .mylist-episode-page-season-rating-star {
+    width: 16px;
+    font-size: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mylist-episode-page-surface,
+  .mylist-episode-page-season-body,
+  .mylist-episode-page-season-block.is-open .season-arrow,
+  .mylist-episode-page-season-rating-chip,
+  .mylist-episode-page-season-rating-stars,
+  .mylist-episode-page-season-rating-star {
+    transition: none !important;
+  }
 }
 
 

@@ -237,9 +237,14 @@ async function addDiscoveryTitle(type, tmdbId, btn, status = 'planned', original
     btn.textContent = 'Adding...';
   }
   try {
+    const isJikanAnimeAdd = String(type || '').toLowerCase() === 'anime'
+      || /^mal:/i.test(String(tmdbId || ''))
+      || (btn?.dataset?.discoverSection === 'anime' && !/^\d+$/.test(String(tmdbId || '')));
     const builtItems = type === 'game'
       ? [await buildRawgLibraryItem(tmdbId, status, rating)]
-      : await buildTmdbLibraryItems(type, tmdbId, status, rating);
+      : isJikanAnimeAdd
+        ? [await buildJikanAnimeLibraryItem(String(tmdbId || '').replace(/^mal:/i, ''), status, rating)]
+        : await buildTmdbLibraryItems(type, tmdbId, status, rating);
     const item = builtItems[0];
     if (type === 'game') {
       if (typeof traceShelfdGameIdentity === 'function') traceShelfdGameIdentity('7 game object passed to My Lists save', item, { tmdbId, status, rating });
@@ -265,7 +270,7 @@ async function addDiscoveryTitle(type, tmdbId, btn, status = 'planned', original
         : (ownDataCache ? cloneListData(ownDataCache) : await loadOwnDataFromFirestore());
       targetData[section] = Array.isArray(targetData[section]) ? targetData[section] : [];
       if (section === 'anime' && item?.tmdbId) targetData[section] = removeAnimeSeasonSplitEntries(targetData[section], item);
-      const newItems = builtItems.filter(entry => !isDuplicateTitleInList(entry.title, section, targetData));
+      const newItems = builtItems.filter(entry => !isDuplicateTitleInList(entry, section, targetData));
       if (!newItems.length) {
         showToast("this title is already added to your library silly!");
         markDiscoverButtonAdded(btn);
@@ -300,7 +305,7 @@ async function addDiscoveryTitle(type, tmdbId, btn, status = 'planned', original
 
     data[section] = Array.isArray(data[section]) ? data[section] : [];
     if (section === 'anime' && item?.tmdbId) data[section] = removeAnimeSeasonSplitEntries(data[section], item);
-    const newItems = builtItems.filter(entry => !isDuplicateTitle(entry.title, section));
+    const newItems = builtItems.filter(entry => !isDuplicateTitle(entry, section));
     if (!newItems.length) {
       showToast("this title is already added to your library silly!");
       markDiscoverButtonAdded(btn);
@@ -677,6 +682,55 @@ async function buildTmdbLibraryItems(type, tmdbId, status = 'planned', rating = 
     return buildAnimeSeasonItemsForLibrary(item, status, rating);
   }
   return [item];
+}
+
+async function buildJikanAnimeLibraryItem(malId, status = 'planned', rating = 0) {
+  const id = String(malId || '').trim();
+  if (!id || !window.JikanAnime?.animeFull) throw new Error('Missing Jikan anime id');
+  const j = await window.JikanAnime.animeFull(id);
+  if (!j) throw new Error('Jikan details request failed');
+  const item = {
+    id: Date.now().toString() + '-mal-' + (j.mal_id || id),
+    title: j.title_english || j.title || j.title_japanese || '',
+    cover: j.images?.jpg?.large_image_url || j.images?.jpg?.image_url || '',
+    genre: '',
+    genreNames: [],
+    year: String(j.year || (j.aired?.from || '').slice(0, 4) || ''),
+    status,
+    rating,
+    dateAdded: new Date().toISOString(),
+    imdbId: '',
+    tmdbId: '',
+    mediaCategory: 'anime',
+    librarySection: 'anime',
+    source: 'myanimelist',
+    originalLanguage: 'ja',
+    originCountries: ['JP'],
+    isAnime: true,
+    episodes: []
+  };
+  if (typeof applyJikanCanonicalAnimeFields === 'function') {
+    applyJikanCanonicalAnimeFields(item, j, { overwrite: true });
+  }
+  const total = Number(j.episodes || 0);
+  item.totalEpisodes = total;
+  item.totalEps = total;
+  item.currentEp = status === 'watched' ? total : 0;
+  item.episodes = total > 0
+    ? Array.from({ length: total }, (_, index) => ({
+        id: item.id + '-ep-' + (index + 1),
+        number: index + 1,
+        seasonNum: 1,
+        seasonName: '',
+        epNum: index + 1,
+        title: '',
+        cover: item.cover || '',
+        watched: status === 'watched',
+        rating: 0
+      }))
+    : [];
+  item.animeSeasonItems = [];
+  return item;
 }
 
 
@@ -2196,6 +2250,11 @@ async function buildMalImportItems(entry = {}) {
     imdbId: '',
     tmdbId: '',
     malId: entry.malId || '',
+    mal_id: entry.malId || '',
+    animeIdentityKey: entry.malId ? `mal:${entry.malId}` : '',
+    malUrl: info?.url || (entry.malId ? `https://myanimelist.net/anime/${entry.malId}` : ''),
+    jikanUrl: info?.url || (entry.malId ? `https://myanimelist.net/anime/${entry.malId}` : ''),
+    url: info?.url || (entry.malId ? `https://myanimelist.net/anime/${entry.malId}` : ''),
     mediaCategory: 'anime',
     librarySection: 'anime',
     source: 'myanimelist',
@@ -2211,6 +2270,7 @@ async function buildMalImportItems(entry = {}) {
     englishTitle: info?.title_english || entry.title,
     romajiTitle: titleByType('default') || info?.title || entry.title,
     japaneseTitle: titleByType('japanese') || '',
+    animeType: info?.type || entry.malType || '',
     totalEpisodes: episodesTotal,
     totalEps: episodesTotal,
     currentEp: entry.status === 'watched' ? episodesTotal : Math.max(0, Number(entry.watchedEpisodes || 0)),
@@ -2218,6 +2278,9 @@ async function buildMalImportItems(entry = {}) {
     bulkImportCompact: true,
     episodes: []
   };
+  if (info && typeof applyJikanCanonicalAnimeFields === 'function') {
+    applyJikanCanonicalAnimeFields(item, info);
+  }
   return [item];
 }
 

@@ -88,11 +88,15 @@
   }
 
   function getManualStatsFromModal() {
+    const seasonKd = normalizeDecimal(document.getElementById('tracker-manual-season-kd')?.value || '');
+    const lifetimeKd = normalizeDecimal(document.getElementById('tracker-manual-lifetime-kd')?.value || '');
     return {
       currentRank: cleanText(document.getElementById('tracker-manual-rank')?.value || ''),
       peakRank: cleanText(document.getElementById('tracker-manual-peak')?.value || ''),
       winRate: normalizePercent(document.getElementById('tracker-manual-winrate')?.value || ''),
-      kd: normalizeDecimal(document.getElementById('tracker-manual-kd')?.value || '')
+      seasonKd,
+      lifetimeKd,
+      kd: lifetimeKd || seasonKd || normalizeDecimal(document.getElementById('tracker-manual-kd')?.value || '')
     };
   }
   function setManualStatsFields(stats = {}) {
@@ -101,10 +105,14 @@
     const peakInput = document.getElementById('tracker-manual-peak');
     const winRateInput = document.getElementById('tracker-manual-winrate');
     const kdInput = document.getElementById('tracker-manual-kd');
+    const seasonKdInput = document.getElementById('tracker-manual-season-kd');
+    const lifetimeKdInput = document.getElementById('tracker-manual-lifetime-kd');
     if (rankInput) rankInput.value = normalized.currentRank || '';
     if (peakInput) peakInput.value = normalized.peakRank || '';
     if (winRateInput) winRateInput.value = normalized.winRate || '';
     if (kdInput) kdInput.value = normalized.kd || '';
+    if (seasonKdInput) seasonKdInput.value = normalized.seasonKd || '';
+    if (lifetimeKdInput) lifetimeKdInput.value = normalized.lifetimeKd || normalized.kd || '';
   }
 
   function applyTrackerUnsupportedUi(gameKey = '') {
@@ -116,12 +124,15 @@
     const statsLabel = document.getElementById('tracker-stats-mode-label');
     const noteEl = document.getElementById('tracker-auto-stats-note');
     if (apiSection) apiSection.style.display = unsupported ? 'none' : '';
-    if (manualSection) manualSection.style.display = unsupported ? '' : 'none';
+    if (manualSection) manualSection.style.display = '';
     if (fetchBtn) fetchBtn.style.display = unsupported ? 'none' : '';
     if (copyEl) copyEl.textContent = unsupported
       ? "This game isn't in the Tracker.gg public API. Paste your profile URL, then enter your stats manually — they'll show on the game card."
       : "Paste your Tracker.gg profile URL or handle. Shelfd fetches your rank, K/D, and win rate from the API and shows them on the game card.";
     if (unsupported && copyEl) copyEl.textContent = "This game isn't in the Tracker.gg public API. Paste your profile URL, then enter your stats manually so Shelfd can show them on the game card.";
+    if (copyEl) copyEl.textContent = unsupported
+      ? "This game isn't in the Tracker.gg public API. Enter the competitive profile metadata manually; Tracker.gg and highlights links are optional."
+      : "Paste a Tracker.gg profile URL if you want API sync, or edit the competitive profile metadata manually below.";
     if (statsLabel) statsLabel.textContent = unsupported ? 'Manual stats' : 'API stats';
     if (noteEl) noteEl.textContent = unsupported ? 'Enter the stats you want saved to this game.' : 'Stats will be fetched from Tracker.gg.';
     return unsupported;
@@ -223,7 +234,9 @@
       currentRank: cleanText(stats.currentRank || item.currentRank || ''),
       peakRank: cleanText(stats.peakRank || item.peakRank || ''),
       winRate: cleanText(stats.winRate || stats.winPercentage || item.winRate || ''),
-      kd: cleanText(stats.kd || stats.kdRatio || item.kd || ''),
+      seasonKd: cleanText(stats.seasonKd || item.seasonKd || item.gameSeasonKd || ''),
+      lifetimeKd: cleanText(stats.lifetimeKd || stats.kd || stats.kdRatio || item.lifetimeKd || item.gameLifetimeKd || item.kd || ''),
+      kd: cleanText(stats.kd || stats.kdRatio || stats.lifetimeKd || item.kd || item.kdRatio || item.lifetimeKd || ''),
       sourceUrl,
       linkedAt: stats.linkedAt || linked.linkedAt || '',
       updatedAt: stats.updatedAt || linked.updatedAt || '',
@@ -232,7 +245,7 @@
   }
 
   function hasUsefulStat(snapshot = {}) {
-    return !!(snapshot.currentRank || snapshot.peakRank || snapshot.winRate || snapshot.kd);
+    return !!(snapshot.currentRank || snapshot.peakRank || snapshot.winRate || snapshot.kd || snapshot.seasonKd || snapshot.lifetimeKd);
   }
 
   function hasTrackerBreakdownForItem(item = {}) {
@@ -332,11 +345,15 @@
   }
 
   function normalizeTrackerApiStats(profile = {}) {
+    const seasonKd = normalizeDecimal(profile.seasonKd || profile.gameSeasonKd || '');
+    const lifetimeKd = normalizeDecimal(profile.lifetimeKd || profile.gameLifetimeKd || profile.kd || '');
     return {
       currentRank: cleanText(profile.currentRank || ''),
       peakRank: cleanText(profile.peakRank || ''),
       winRate: normalizePercent(profile.winRate || ''),
-      kd: normalizeDecimal(profile.kd || '')
+      seasonKd,
+      lifetimeKd,
+      kd: lifetimeKd || seasonKd || normalizeDecimal(profile.kd || '')
     };
   }
 
@@ -492,8 +509,8 @@
         </div>
         <div id="tracker-manual-section" class="tracker-auto-stats" style="display:none;">
           <div class="tracker-auto-stats-head">
-            <span>Manual stats</span>
-            <small>These save directly to the Shelfd title card for unsupported Tracker API games.</small>
+            <span>Profile metadata</span>
+            <small>These fields save directly to this competitive game profile.</small>
           </div>
           <div class="tracker-link-form tracker-manual-form">
             <label class="tracker-link-field">
@@ -509,8 +526,12 @@
               <input id="tracker-manual-winrate" type="text" value="${attr(snapshot.winRate || '')}" placeholder="54.2%">
             </label>
             <label class="tracker-link-field">
-              <span>K/D</span>
-              <input id="tracker-manual-kd" type="text" value="${attr(snapshot.kd || '')}" placeholder="1.18">
+              <span>Season KD</span>
+              <input id="tracker-manual-season-kd" type="text" value="${attr(snapshot.seasonKd || '')}" placeholder="1.18">
+            </label>
+            <label class="tracker-link-field">
+              <span>Lifetime KD</span>
+              <input id="tracker-manual-lifetime-kd" type="text" value="${attr(snapshot.lifetimeKd || snapshot.kd || '')}" placeholder="1.22">
             </label>
           </div>
         </div>
@@ -685,8 +706,9 @@
     const platform = connection.platform;
     const now = new Date().toISOString();
 
-    if (!profileUrl && !displayName) {
-      setTrackerLinkStatus('Add a Tracker.gg profile URL or account name.', 'error');
+    const manualStatsBeforeSave = getManualStatsFromModal();
+    if (!profileUrl && !displayName && !hasUsefulStat(manualStatsBeforeSave)) {
+      setTrackerLinkStatus('Add a profile URL/account or enter at least one profile field.', 'error');
       return;
     }
 
@@ -698,19 +720,22 @@
     }
 
     try {
-      const fetchedStats = unsupported
-        ? getManualStatsFromModal()
+      const manualStats = manualStatsBeforeSave;
+      const fetchedStats = unsupported || (!profileUrl && !displayName)
+        ? manualStats
         : await fetchTrackerStatsFromModal({ showSuccess: false });
       const existingSnapshot = getTrackerSnapshot(record.item || {});
       const mergedStats = normalizeTrackerApiStats({
-        currentRank: fetchedStats?.currentRank || existingSnapshot.currentRank,
-        peakRank: fetchedStats?.peakRank || existingSnapshot.peakRank,
-        winRate: fetchedStats?.winRate || existingSnapshot.winRate,
-        kd: fetchedStats?.kd || existingSnapshot.kd
+        currentRank: manualStats.currentRank || fetchedStats?.currentRank || existingSnapshot.currentRank,
+        peakRank: manualStats.peakRank || fetchedStats?.peakRank || existingSnapshot.peakRank,
+        winRate: manualStats.winRate || fetchedStats?.winRate || existingSnapshot.winRate,
+        seasonKd: manualStats.seasonKd || fetchedStats?.seasonKd || existingSnapshot.seasonKd,
+        lifetimeKd: manualStats.lifetimeKd || fetchedStats?.lifetimeKd || existingSnapshot.lifetimeKd,
+        kd: manualStats.kd || fetchedStats?.kd || existingSnapshot.kd
       });
       if (!hasUsefulStat(mergedStats)) {
         throw new Error(unsupported
-          ? 'Enter at least one stat before saving this competitive profile.'
+          ? 'Enter at least one profile field before saving this competitive profile.'
           : 'Tracker.gg did not return API stats for this profile.');
       }
       if (button) button.textContent = 'Saving';
@@ -723,6 +748,8 @@
         currentRank: mergedStats.currentRank,
         peakRank: mergedStats.peakRank,
         winRate: mergedStats.winRate,
+        seasonKd: mergedStats.seasonKd,
+        lifetimeKd: mergedStats.lifetimeKd,
         kd: mergedStats.kd,
         sourceUrl: profileUrl,
         syncMode: unsupported ? 'manual-entry' : 'tracker-api',
@@ -745,6 +772,10 @@
         peakRank: snapshot.peakRank,
         winRate: snapshot.winRate,
         winPercentage: snapshot.winRate,
+        seasonKd: snapshot.seasonKd,
+        gameSeasonKd: snapshot.seasonKd,
+        lifetimeKd: snapshot.lifetimeKd,
+        gameLifetimeKd: snapshot.lifetimeKd,
         kd: snapshot.kd,
         kdRatio: snapshot.kd,
         trackerAccount: {
@@ -780,6 +811,9 @@
       }
       closeTrackerLinkModal();
       if (typeof render === 'function') render();
+      if (typeof window.openMyListGameProfilePage === 'function' && document.getElementById('mylist-game-profile-page')) {
+        window.openMyListGameProfilePage(record.id);
+      }
       if (typeof showToast === 'function') showToast('Tracker.gg linked');
     } catch (error) {
       console.warn('Tracker.gg link save failed:', error);

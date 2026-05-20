@@ -1237,98 +1237,1205 @@ body.light-mode.viewing-other-user .header-import-btn {
 }
 
 /* ============================================================================
-   v10.299 - Universal fixed app-shell header
+   v10.303 - All sticky/fixed header behavior REMOVED app-wide
    ----------------------------------------------------------------------------
-   The shared Shelfd header now pins to the visual viewport instead of relying
-   on sticky flow. Current TestFlight builds with Capacitor contentInset:always
-   keep CSS safe-area padding at 0 to avoid double inset. Re-archived builds
-   with the ShelfdNativeNoInset UA marker manage the safe area in CSS.
+   User requested: rip out every sticky/fixed header rule. The v10.299 universal
+   fixed app-shell header (and the v10.300/v10.301/v10.302 patches that built
+   on it) are fully gone. The Shelfd header sits in normal document flow,
+   scrolls with the page, and the older v161 standalone safe-area padding
+   inside .header itself is what reserves room for the Dynamic Island.
+
+   Anchored: the html element background color (#0E0E0E dark / #ffffff light).
+   Because html does not scroll, any area revealed during rubber-band
+   overscroll fills with that same color — the top of the screen reads as
+   a continuous "safe area" regardless of scroll position.
+
+   Not anchored / in flow: the .header (cog, Import, logo, DM). It scrolls
+   with the rest of the page exactly like any other content block.
+
+   The body::before fixed strip is also removed below so nothing pretends to
+   be a fixed top bar anymore — the html background covers the same area.
    ============================================================================ */
-:root {
-  --shelfd-sticky-header-safe-top: 0px;
-  --shelfd-sticky-header-surface: #0E0E0E;
-  --shelfd-sticky-header-offset: 58px;
+
+/* Force-static positioning on every header variant in case any previous rule
+   still leaks `position: fixed` or `position: sticky`. */
+#app-container > .header,
+body.main-tab-discover #app-container > .header,
+body.main-tab-community #app-container > .header,
+body.main-tab-mylist #app-container > .header,
+body.true-dark-mode #app-container > .header,
+body.light-mode #app-container > .header,
+.header {
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  z-index: auto !important;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
-@media (display-mode: standalone) {
-  html:not(.shelfd-capacitor-ios) {
-    --shelfd-sticky-header-safe-top: env(safe-area-inset-top, 0px);
+/* No more page-content offset — the header is in flow, so #app-container
+   does not need to reserve space for a fixed header anymore. */
+body:not(.profile-active):not(.import-page-active):not(.steam-sync-page-active) #app-container {
+  padding-top: 0 !important;
+}
+
+/* Kill the body::before fixed safe-area strip — the html background alone
+   handles the safe-area zone now. (Capacitor already had it off via the
+   shelfd-capacitor-ios rule above; this extends that to all surfaces.) */
+body::before {
+  display: none !important;
+  height: 0 !important;
+  max-height: 0 !important;
+}
+
+/* Lock html background to the theme surface so the area above the in-flow
+   header always reads as a continuous safe-area zone. */
+html {
+  background-color: #0E0E0E !important;
+}
+body.light-mode {
+  background-color: #ffffff !important;
+}
+
+/* v10.298 kept: keep My Lists profile block off the very top edge so the
+   avatar is never tucked behind the safe-area zone. */
+@media (max-width: 700px) {
+  body.main-tab-mylist #mylist-view #mylist-profile-controls {
+    margin-top: 8px !important;
   }
 }
 
-html.shelfd-capacitor-ios {
-  --shelfd-sticky-header-safe-top: 0px;
+/* ============================================================================
+   v10.304 - Shift the My Lists page (and every page) up vertically
+   ----------------------------------------------------------------------------
+   Even after v10.303 unfixed the header, the cog/DM row was still sitting
+   ~95px below the top of the screen. Reason: two layers of safe-area math
+   were still stacked.
+     - v161 rule:  .header { padding-top: calc(10px + env(safe-area-inset-top)) }
+                   → 10 + 59 = 69px inside .header before any content
+     - .header-top mobile grid: 48px first row with cog centered = +24px
+     - Net: cog visible at body-y ≈ 93px = screen-y ≈ 93px below screen top
+   Fix: move the safe-area inset onto BODY (so the page itself starts just
+   below the Dynamic Island), and collapse .header padding-top to zero. The
+   cog row then sits right at the safe-area boundary instead of 69px below it.
+   Also tighten .header-top's first row so the cog isn't vertically centered
+   inside a tall row anymore — align it to top of a short row.
+   ============================================================================ */
+
+/* Body carries the Dynamic Island inset directly so EVERY page lands flush
+   under the DI rather than 60+px below it. env() returns the right value
+   in standalone PWA, Capacitor (both contentInset modes), and Safari. */
+body {
+  padding-top: env(safe-area-inset-top, 0px) !important;
 }
 
-html.shelfd-capacitor-no-inset,
-html.shelfd-capacitor-ios.shelfd-capacitor-no-inset {
-  --shelfd-sticky-header-safe-top: env(safe-area-inset-top, 0px);
-}
-
-#app-container > .header {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  z-index: 2050 !important;
-  width: 100% !important;
-  background: var(--shelfd-sticky-header-surface) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.28) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  transform: translateZ(0);
-}
-
-body:not(.profile-active):not(.import-page-active):not(.steam-sync-page-active) #app-container {
-  padding-top: calc(var(--shelfd-sticky-header-safe-top) + var(--shelfd-sticky-header-offset)) !important;
-}
-
+/* Header gets no extra top padding — body already cleared the DI. */
+.header,
+#app-container > .header,
 body.main-tab-discover #app-container > .header,
 body.main-tab-community #app-container > .header,
 body.main-tab-mylist #app-container > .header,
 body.true-dark-mode #app-container > .header,
 body.light-mode #app-container > .header {
-  background: var(--shelfd-sticky-header-surface) !important;
+  padding-top: 4px !important;
+  padding-bottom: 6px !important;
+}
+
+/* Tighten the mobile mylist header grid so the cog isn't floating in the
+   middle of a 48px row. Top-align the cog/DM row inside a 40px track. */
+@media (max-width: 700px) {
+  body.main-tab-mylist .header-top {
+    grid-template-rows: 40px 22px !important;
+    min-height: 56px !important;
+    row-gap: 2px !important;
+  }
+  body.main-tab-mylist .mylist-header-cog,
+  body.main-tab-mylist .header-dm-btn {
+    align-self: center !important;
+  }
+}
+
+/* ============================================================================
+   v10.306 - Deep-dive fix: cog row was being pulled BEHIND the Dynamic Island
+   ----------------------------------------------------------------------------
+   Symptom after v10.305: cog/chat icons clipped to a tiny sliver at the very
+   top of the screen, half-hidden behind the status bar.
+   Root cause (two stacked bugs):
+     1. v10.294 added `html.shelfd-capacitor-ios body { padding-top: 0 !important }`
+        which OVERRODE v10.304's `body { padding-top: env(safe-area-inset-top) }`
+        in Capacitor mode (class selector wins on specificity). So in the
+        TestFlight WebView the body safe-area inset was ZERO — body content
+        rendered at screen y=0, behind the iOS status bar / Dynamic Island.
+        v10.294 was correct WHEN Capacitor's contentInset was "always" (the
+        WebView itself was positioned below the DI by the native shell), but
+        Codex flipped contentInset to "never" — the WebView now extends behind
+        the DI, so we DO need body padding-top: env() to push content out.
+     2. v10.305 added `margin-top: -6px` on .header which pulled it ANOTHER
+        6px upward, making the clipping worse.
+   Fix:
+     - Override v10.294 so body padding-top: env() applies in Capacitor too
+     - Remove v10.305's negative margin-top entirely
+     - Keep v10.305's tight grid rows and top-aligned cog/DM
+   Net result: cog/DM lands right at the bottom edge of the Dynamic Island
+   in both Capacitor TestFlight AND standalone PWA, no clipping, no extra gap.
+   ============================================================================ */
+
+/* ============================================================================
+   v10.308 - Remove body padding entirely + pull avatar up flush with cog row
+   ----------------------------------------------------------------------------
+   Per direct user instruction:
+     1. REMOVE THE BODY PADDING ALL TOGETHER → body padding-top: 0 universally
+     2. Top of profile picture must align horizontally with the cog (top-left)
+        and the DM icon (top-right)
+   Implementation:
+     - Body padding-top forced to 0 on every selector path that previously
+       applied env() / max() / fixed values.
+     - .header keeps zero padding-top / margin-top.
+     - The mylist profile block (.mylist-own-profile-center inside
+       #mylist-profile-controls) gets a NEGATIVE margin-top large enough to
+       pull the 78px avatar UP so its top edge sits at the same Y as the
+       cog/DM row. The cog/DM row is in the .header (48px first row, cog
+       vertically centered, button ~36px). So cog top is roughly 6px below
+       .header's top, and we want the avatar top there too.
+   ============================================================================ */
+
+/* Body padding-top: 0 EVERYWHERE. Beats every prior rule on cascade order. */
+body,
+html body,
+html.shelfd-capacitor-ios body,
+html.shelfd-capacitor-no-inset body {
+  padding-top: 0 !important;
+}
+@media (display-mode: standalone) {
+  body,
+  html body {
+    padding-top: 0 !important;
+  }
+}
+
+/* Header: zero top padding, zero margin, minimal bottom padding. */
+.header,
+#app-container > .header,
+body.main-tab-discover #app-container > .header,
+body.main-tab-community #app-container > .header,
+body.main-tab-mylist #app-container > .header,
+body.true-dark-mode #app-container > .header,
+body.light-mode #app-container > .header {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+/* Header-top grid: revert to v161 defaults (48px first row, cog/DM centered) */
+@media (max-width: 700px) {
+  body.main-tab-mylist .header-top,
+  body.main-tab-discover .header-top,
+  body.main-tab-community .header-top {
+    grid-template-rows: 48px 24px !important;
+    min-height: 72px !important;
+    row-gap: 6px !important;
+    align-items: center !important;
+  }
+  body.main-tab-mylist .mylist-header-cog,
+  body.main-tab-mylist .header-dm-btn,
+  body.main-tab-mylist .header-logo-block > img.site-logo-img {
+    align-self: center !important;
+  }
+}
+
+/* Pull the My Lists profile block UP so the avatar's top edge aligns with
+   the cog/DM row's top.
+   The cog/DM are vertically centered inside a 48px row, so their TOP edge
+   is roughly at .header y=6 (centered 36px button inside 48px row).
+   The .mylist-own-profile-center natural position is below .header, which
+   means it starts at body y = .header_height (≈ 72-80px).
+   To pull the avatar's top up to .header y=6:
+       margin-top = -(natural_y - target_y)
+                  = -(80 - 6)
+                  = -74px
+   Round to -78px (= one avatar diameter) so it lifts cleanly to header top.
+   Also: shrink the avatar slightly and stop centering it inside a wide
+   reserved zone so it overlaps cleanly between cog and DM without colliding. */
+body.main-tab-mylist #mylist-view #mylist-profile-controls {
+  margin-top: -78px !important;
+  position: relative !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+}
+body.main-tab-mylist #mylist-view #mylist-profile-controls .mylist-own-profile-center,
+body.main-tab-mylist #mylist-view #mylist-profile-controls .mylist-own-profile-shortcut,
+body.main-tab-mylist #mylist-view #mylist-profile-controls .mylist-own-profile-name,
+body.main-tab-mylist #mylist-view #mylist-profile-controls .mylist-own-profile-bio,
+body.main-tab-mylist #mylist-view #mylist-profile-controls .mylist-profile-action-row {
+  pointer-events: auto !important;
+}
+
+/* ============================================================================
+   v10.309 — Unify background color across every surface
+   ----------------------------------------------------------------------------
+   User reported a visible color seam between the header band and the page
+   above/below it on Discover, Activity, Friends, MyList, and the full-page
+   universal search. Three sources of mismatch:
+     1. 10-mobile-transitions-media-profile.css adds a purple-tinted gradient
+        to .header in mobile dark-mode (linear-gradient #050410 → #15102d).
+     2. 05-messages-early-polish.css gives .header a frosted overlay
+        (rgba(5,4,16,0.76) + backdrop-filter: blur(10px)).
+     3. 15-universal-discovery-search.css paints the universal search overlay
+        as #05040d instead of #0E0E0E.
+   Force every surface to the same flat #0E0E0E (dark mode) / #ffffff
+   (light mode), kill the gradients, kill the backdrop-filter, kill the
+   border-bottom/box-shadow seam.
+   ============================================================================ */
+
+/* DARK MODE — universal #0E0E0E across every page and the header */
+html:not(.light-mode-html),
+body:not(.light-mode),
+body:not(.light-mode) #app-container,
+body:not(.light-mode) #app-container > .header,
+body:not(.light-mode) .header,
+body:not(.light-mode) .header .container,
+body:not(.light-mode) #discover-view,
+body:not(.light-mode) #community-view,
+body:not(.light-mode) #mylist-view,
+body:not(.light-mode) #friends-list-view,
+body:not(.light-mode) .friend-list-page,
+body:not(.light-mode) .friend-list-shell,
+body:not(.light-mode) .discover-universal-search-overlay,
+body:not(.light-mode) .discover-universal-search-shell,
+body:not(.light-mode) .discover-universal-search-body,
+body:not(.light-mode) .discover-universal-search-shelfline,
+body:not(.light-mode) .discover-universal-search-overlay .discover-universal-search-panel,
+body:not(.light-mode) .discover-universal-search-overlay .discover-universal-search-header,
+body:not(.light-mode) .discover-universal-search-overlay .discover-universal-search-tabs,
+body:not(.light-mode) .discover-universal-search-overlay .discover-universal-search-body,
+body:not(.light-mode):not(.true-dark-mode) .header,
+body.main-tab-discover:not(.light-mode):not(.true-dark-mode) .header,
+body.main-tab-community:not(.light-mode):not(.true-dark-mode) .header,
+body.main-tab-mylist:not(.light-mode):not(.true-dark-mode) .header {
+  background: #0E0E0E !important;
+  background-color: #0E0E0E !important;
+  background-image: none !important;
+}
+
+/* Kill the header seam (gradient, blur, border, shadow). */
+.header,
+#app-container > .header,
+.header .container,
+body:not(.light-mode) .header,
+body:not(.light-mode):not(.true-dark-mode) .header,
+body.main-tab-discover .header,
+body.main-tab-community .header,
+body.main-tab-mylist .header {
+  border-bottom: 0 !important;
+  border-bottom-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* LIGHT MODE — universal #ffffff across the same surfaces */
+body.light-mode,
+body.light-mode #app-container,
+body.light-mode #app-container > .header,
+body.light-mode .header,
+body.light-mode .header .container,
+body.light-mode #discover-view,
+body.light-mode #community-view,
+body.light-mode #mylist-view,
+body.light-mode #friends-list-view,
+body.light-mode .friend-list-page,
+body.light-mode .friend-list-shell,
+body.light-mode .discover-universal-search-overlay,
+body.light-mode .discover-universal-search-shell,
+body.light-mode .discover-universal-search-body,
+body.light-mode .discover-universal-search-shelfline {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+}
+body.light-mode .header,
+body.light-mode #app-container > .header {
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* v10.310 — Universal search panel inner override.
+   15-universal-discovery-search.css line 246-248 paints
+   `.discover-universal-search-panel { background: radial-gradient(... rgba(124,58,237,0.13)) #05040d }`
+   which sits INSIDE the overlay we already forced to #0E0E0E. The panel
+   has `padding-top: env(safe-area-inset-top)` (line 55), so the seam appears
+   exactly at the safe-area boundary: overlay #0E0E0E behind the status bar,
+   panel #05040d gradient below it. Force the panel + all inner sections to
+   the same flat #0E0E0E and nuke the radial gradient. Light-mode gets #ffffff. */
+body:not(.light-mode) .discover-universal-search-panel,
+body:not(.light-mode) .discover-universal-search-overlay > .discover-universal-search-panel,
+body:not(.light-mode) .discover-universal-search-header,
+body:not(.light-mode) .discover-universal-search-tabs,
+body:not(.light-mode) .discover-universal-search-overlay .discover-universal-search-empty {
+  background: #0E0E0E !important;
+  background-color: #0E0E0E !important;
+  background-image: none !important;
+}
+body.light-mode .discover-universal-search-panel,
+body.light-mode .discover-universal-search-overlay > .discover-universal-search-panel,
+body.light-mode .discover-universal-search-header,
+body.light-mode .discover-universal-search-tabs,
+body.light-mode .discover-universal-search-overlay .discover-universal-search-empty {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+}
+
+/* ============================================================================
+   v10.311 — Discovery, Activity, Friends: one shade brighter (#161616)
+   ----------------------------------------------------------------------------
+   The MyList page stays at #0E0E0E. These three pages tick one step up the
+   dark scale to #161616 so the user can visually distinguish "browse"
+   surfaces from "personal shelf" surfaces.
+   Targets html (via :has) + body + #app-container + .header + the view root,
+   so the brighter shade is consistent from behind the status bar all the
+   way down through the page body. No seams, no gradients, just the new
+   solid tone.
+   The friends list activates `body.shelfd-friends-list-mode` (see
+   js/14-navigation.js line 810, 821).
+   ============================================================================ */
+/* ============================================================================
+   v10.312 — Pro feature locked card on full-page user profile
+   ----------------------------------------------------------------------------
+   Inserted between .profile-hero-card and .profile-favorites-card (right
+   above "Profile Showcase"). A horizontal card with a faux blurred analytics
+   preview behind a sharp overlay carrying a lock icon, the title
+   "Advanced Analytics & Stats", and a "Pro feature" badge.
+   ============================================================================ */
+.profile-analytics-locked-card {
+  position: relative;
+  overflow: hidden;
+  margin: 18px 0 0;
+  padding: 18px 20px;
+  border-radius: 18px;
+  border: 1px solid rgba(196, 181, 253, 0.22);
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.16), rgba(15, 11, 36, 0.92));
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.profile-analytics-locked-preview {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  gap: 8px;
+  padding: 14px 24px;
+  pointer-events: none;
+  filter: blur(10px);
+  opacity: 0.55;
+  z-index: 0;
+}
+
+.profile-analytics-locked-bar {
+  flex: 1;
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(196, 181, 253, 0.85), rgba(124, 58, 237, 0.45));
+  box-shadow: 0 6px 12px rgba(124, 58, 237, 0.32);
+}
+.profile-analytics-locked-bar-1 { height: 38%; }
+.profile-analytics-locked-bar-2 { height: 68%; }
+.profile-analytics-locked-bar-3 { height: 84%; }
+.profile-analytics-locked-bar-4 { height: 52%; }
+.profile-analytics-locked-bar-5 { height: 72%; }
+
+.profile-analytics-locked-spark {
+  position: absolute;
+  top: 18px;
+  left: 14%;
+  right: 14%;
+  height: 28px;
+  background: linear-gradient(90deg, transparent 0%, rgba(167, 139, 250, 0.85) 30%, rgba(244, 114, 182, 0.7) 60%, transparent 100%);
+  filter: blur(6px);
+  opacity: 0.6;
+  border-radius: 999px;
+}
+
+.profile-analytics-locked-overlay {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.profile-analytics-locked-icon {
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: rgba(167, 139, 250, 0.22);
+  border: 1px solid rgba(196, 181, 253, 0.32);
+  color: #ddd6fe;
+  box-shadow: 0 8px 18px rgba(124, 58, 237, 0.28);
+}
+.profile-analytics-locked-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.profile-analytics-locked-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.profile-analytics-locked-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #f8f4ff;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.profile-analytics-locked-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(167, 139, 250, 0.18);
+  border: 1px solid rgba(167, 139, 250, 0.36);
+  color: #c4b5fd;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  align-self: flex-start;
+  width: max-content;
+  text-transform: none;
+}
+.profile-analytics-locked-badge svg {
+  width: 11px;
+  height: 11px;
 }
 
 @media (max-width: 700px) {
-  #app-container > .header,
-  body.main-tab-discover #app-container > .header,
-  body.main-tab-community #app-container > .header,
-  body.main-tab-mylist #app-container > .header {
-    padding-top: calc(var(--shelfd-sticky-header-safe-top) + 4px) !important;
-    padding-bottom: 4px !important;
+  .profile-analytics-locked-card {
+    padding: 16px 16px;
+    border-radius: 16px;
+  }
+  .profile-analytics-locked-preview {
+    padding: 10px 16px;
+  }
+  .profile-analytics-locked-icon {
+    width: 42px;
+    height: 42px;
+  }
+  .profile-analytics-locked-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+  .profile-analytics-locked-title {
+    font-size: 15px;
   }
 }
 
-@media (min-width: 701px) {
-  :root {
-    --shelfd-sticky-header-offset: 82px;
-  }
+body.light-mode .profile-analytics-locked-card {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.08), rgba(255, 255, 255, 0.92));
+  border-color: rgba(124, 58, 237, 0.22);
+  box-shadow: 0 14px 30px rgba(124, 58, 237, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+body.light-mode .profile-analytics-locked-bar {
+  background: linear-gradient(180deg, rgba(124, 58, 237, 0.55), rgba(167, 139, 250, 0.32));
+  box-shadow: 0 6px 12px rgba(124, 58, 237, 0.18);
+}
+body.light-mode .profile-analytics-locked-icon {
+  background: rgba(124, 58, 237, 0.12);
+  border-color: rgba(124, 58, 237, 0.28);
+  color: #6d28d9;
+  box-shadow: 0 8px 18px rgba(124, 58, 237, 0.16);
+}
+body.light-mode .profile-analytics-locked-title {
+  color: #1f1538;
+}
+body.light-mode .profile-analytics-locked-badge {
+  background: rgba(124, 58, 237, 0.1);
+  border-color: rgba(124, 58, 237, 0.32);
+  color: #6d28d9;
+}
 
-  #app-container > .header,
-  body.main-tab-discover #app-container > .header,
-  body.main-tab-community #app-container > .header,
-  body.main-tab-mylist #app-container > .header {
-    padding-top: calc(var(--shelfd-sticky-header-safe-top) + 14px) !important;
-    padding-bottom: 10px !important;
+/* ============================================================================
+   v10.316 — Profile Studio: same safe-area cleanup as the rest of the app
+   ----------------------------------------------------------------------------
+   The Profile Studio page (full-page user profile) had the same gap problem
+   we already fixed on MyList/Discover/Activity/Friends: the topbar (Back,
+   Profile Studio title, cog, share, Edit Profile) sat ~77px below the screen
+   top because two layers of safe-area padding were stacked:
+     - 06-profile.css line 22:  .profile-page { padding-top: env(safe-area-inset-top) } → ~59px
+     - 06-profile.css line 39:  .profile-shell.container { padding: 18px 18px 34px }  → +18px
+   The page-level env() inset is enough to clear the Dynamic Island on its
+   own. The shell's extra 18px on top of that pushes the topbar too far down.
+   Fix: zero the shell's top padding everywhere (keep horizontal + bottom
+   padding intact) so the topbar sits directly at the env() boundary — flush
+   with the DI bottom edge, same look as the cog row on MyList.
+   Also retiring v10.313's Capacitor-only `-20px` margin-top — once the shell
+   padding is gone, the topbar is already where it needs to be, no extra
+   negative shift required (and the shift would have pulled it behind the DI).
+   ============================================================================ */
+.profile-shell,
+.profile-shell.container,
+.profile-page .profile-shell,
+.profile-page .profile-shell.container {
+  padding-top: 0 !important;
+}
+
+/* Cancel v10.313's negative margin — shell padding is gone, so the topbar is
+   already at the DI boundary in Capacitor too. */
+html.shelfd-capacitor-ios .profile-topbar,
+.profile-topbar {
+  margin-top: 0 !important;
+}
+
+html:has(body.main-tab-discover):not(.light-mode-html),
+html:has(body.main-tab-community):not(.light-mode-html),
+html:has(body.shelfd-friends-list-mode):not(.light-mode-html),
+body.main-tab-discover:not(.light-mode),
+body.main-tab-community:not(.light-mode),
+body.shelfd-friends-list-mode:not(.light-mode),
+body.main-tab-discover:not(.light-mode) #app-container,
+body.main-tab-community:not(.light-mode) #app-container,
+body.shelfd-friends-list-mode:not(.light-mode) #app-container,
+body.main-tab-discover:not(.light-mode) #app-container > .header,
+body.main-tab-community:not(.light-mode) #app-container > .header,
+body.shelfd-friends-list-mode:not(.light-mode) #app-container > .header,
+body.main-tab-discover:not(.light-mode) .header,
+body.main-tab-community:not(.light-mode) .header,
+body.shelfd-friends-list-mode:not(.light-mode) .header,
+body.main-tab-discover:not(.light-mode) .header .container,
+body.main-tab-community:not(.light-mode) .header .container,
+body.shelfd-friends-list-mode:not(.light-mode) .header .container,
+body.main-tab-discover:not(.light-mode) #discover-view,
+body.main-tab-community:not(.light-mode) #community-view,
+body.shelfd-friends-list-mode:not(.light-mode) #friends-list-view,
+body.shelfd-friends-list-mode:not(.light-mode) .friend-list-page,
+body.shelfd-friends-list-mode:not(.light-mode) .friend-list-shell {
+  background: #161616 !important;
+  background-color: #161616 !important;
+  background-image: none !important;
+}
+
+/* v10.319 → v10.321: reverted. The Capacitor-iOS overrides that pinned
+   .discover-media-back / .discover-media-action-row to top:6px and shrank
+   the hero padding-top to 56px were rolled back; the default safe-area
+   rules in 05-messages-early-polish.css / 06-profile.css /
+   11-patch-notes-friends-refinements.css are back in effect. */
+
+/* v10.322 → v10.323: the -15px margin-top approach was too small for the
+   real cause. Profile Studio sat ~118px too low on TestFlight because
+   .profile-page has `padding-top: env(safe-area-inset-top)` (06-profile.css:22)
+   AND the Capacitor WebView is already physically inset below the Dynamic
+   Island — so env() reports ~59px inside the WebView, stacking a second
+   safe-area inset on top of the OS-applied one. Same root cause as
+   v10.294 (body) and v10.295 (DM topbar). Fix: zero the page padding-top
+   in Capacitor iOS so the only inset is the native one — matches the
+   PWA's "exact proper height" appearance. */
+html.shelfd-capacitor-ios .profile-page {
+  padding-top: 0 !important;
+}
+
+/* v10.324 → v10.325: reverted. The Capacitor-iOS padding-top override on
+   the My Lists sub-page topbars (.mylist-album-shelf-topbar /
+   .music-artist-profile-topbar / .mylist-media-review-topbar /
+   .shelf-log-composer-topbar / .music-album-profile-topbar) was rolled
+   back; the default `padding: max(12px, env(safe-area-inset-top, 0px))
+   16px 10px` rule in 01-mylists-cards-episodes.css is back in effect. */
+
+/* v10.329: DM chat-thread topbar — same env() double-inset bug that
+   v10.323 fixed on .profile-page. The v10.295 fix on .direct-messages-topbar
+   is overridden by a higher-specificity (0,3,0) `!important` rule at
+   09-direct-messages.css:1251 that sets
+   `padding: calc(env(safe-area-inset-top, 0px) + 38px) 14px 16px !important`.
+   In Capacitor the WebView is already inset below the Dynamic Island and
+   env() still reports ~59px inside it — so the thread topbar's padding-top
+   resolves to ~97px and the avatar/name sit ~156px below the iPhone top.
+   Match the v10.296 inbox style: 64px topbar, centered content, constant
+   padding. Specificity (0,4,0) + !important to beat 09-direct-messages.css:1251. */
+html.shelfd-capacitor-ios .direct-messages-page.dm-thread-open {
+  --dm-topbar-h: 64px !important;
+  --dm-thread-topbar-h: 64px !important;
+}
+html.shelfd-capacitor-ios .direct-messages-page.dm-thread-open .direct-messages-topbar {
+  min-height: 64px !important;
+  height: 64px !important;
+  padding: 6px 14px 8px !important;
+  align-items: center !important;
+}
+html.shelfd-capacitor-ios .direct-messages-page.dm-thread-open .direct-messages-content {
+  height: calc(100dvh - 64px) !important;
+}
+/* v10.355: My Lists + My List Game Profile typography downshift.
+   User-requested global pass for these two surfaces only:
+   - subtract 5px from visible text controls/labels
+   - reduce numeric font weights by ~200
+   - move each page surface down by 10px from its current placement.
+*/
+body.main-tab-mylist #mylist-view .main-content,
+#mylist-view .main-content {
+  padding-top: 18px !important;
+}
+
+#mylist-view .section-btn {
+  font-size: 9px !important;
+  font-weight: 500 !important;
+}
+#mylist-view .mylist-edit-btn,
+#mylist-view .mylist-toggle-bubble {
+  font-size: 5px !important;
+  font-weight: 600 !important;
+}
+#mylist-view #mylist-toolbar .tab-btn,
+#mylist-view .tab-btn {
+  font-size: 16px !important;
+  font-weight: 200 !important;
+}
+#mylist-view #mylist-toolbar .tab-btn.active,
+#mylist-view .tab-btn.active {
+  font-weight: 400 !important;
+}
+#mylist-view .tab-count {
+  font-size: 5px !important;
+}
+#mylist-view .games-playing-toggle {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+#mylist-view .games-playing-toggle.active {
+  font-weight: 700 !important;
+}
+#mylist-view .games-playing-toggle small {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+}
+#mylist-view .search-input,
+#mylist-view input[type="text"],
+#mylist-view input[type="number"],
+#mylist-view input[type="url"] {
+  font-size: 8px !important;
+  font-weight: 300 !important;
+}
+#mylist-view .btn-primary,
+#mylist-view .btn-secondary {
+  font-size: 8px !important;
+  font-weight: 400 !important;
+}
+#mylist-view .btn-sm {
+  font-size: 6px !important;
+}
+#mylist-view .sort-btn-label {
+  font-size: 6px !important;
+}
+#mylist-view .sort-btn-icon,
+#mylist-view .sort-dropdown-arrow {
+  font-size: 11px !important;
+}
+#mylist-view .sort-direction-toggle {
+  font-size: 7px !important;
+  font-weight: 650 !important;
+}
+#mylist-view .sort-direction-toggle strong {
+  font-size: 10px !important;
+}
+#mylist-view .sort-dropdown-item {
+  font-size: 9px !important;
+  font-weight: 300 !important;
+}
+#mylist-view .card-title {
+  font-size: 10px !important;
+  font-weight: 400 !important;
+}
+#mylist-view .card-genre,
+#mylist-view .card-release-date,
+#mylist-view .progress-meta,
+#mylist-view .progress-percent-inline,
+#mylist-view .rating-label,
+#mylist-view .season-progress,
+#mylist-view .season-arrow {
+  font-size: 6px !important;
+  font-weight: 400 !important;
+}
+#mylist-view .card-year.mylist-watchlist-year,
+#mylist-view .card-artist,
+#mylist-view .card-availability-line {
+  font-size: 7px !important;
+  font-weight: 500 !important;
+}
+#mylist-view .status-pill {
+  font-size: 6px !important;
+  font-weight: 400 !important;
+}
+#mylist-view .card-action-row .comments-btn,
+#mylist-view .card-action-row .ep-toggle-bar.card-footer-btn,
+#mylist-view .game-library-card .comments-btn,
+#mylist-view .game-details-expand-btn,
+#mylist-view .card-action-row .comments-btn-label,
+#mylist-view .card-action-row .ep-toggle-bar.card-footer-btn span:first-child,
+#mylist-view .card-tracklist-btn,
+#mylist-view .game-card-more-btn,
+#mylist-view .mylist-bottom-export-badge {
+  font-size: 6px !important;
+  font-weight: 450 !important;
+}
+#mylist-view .card-comment-body,
+#mylist-view .card-comment-body.card-comment-body--watched-media {
+  font-size: 7px !important;
+  font-weight: 200 !important;
+}
+#mylist-view .watchlist-priority-input,
+#mylist-view .screenlist-game-cover-picker-status,
+#mylist-view .screenlist-game-cover-choice span,
+#mylist-view .screenlist-game-cover-choice small,
+#mylist-view .screenlist-game-cover-empty {
+  font-size: 6px !important;
+  font-weight: 550 !important;
+}
+#mylist-view .card-cover.screenlist-game-cover-pending span {
+  font-size: 6px !important;
+  font-weight: 600 !important;
+}
+#mylist-view .star-label,
+#cards-grid .card .rating-area .stars[data-prefix="overall"] .star-label {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+#cards-grid .card .rating-area .stars[data-prefix="overall"],
+#cards-grid .card .rating-area .stars[data-prefix="overall"] .star-btn {
+  --star-size: 17px !important;
+  font-size: 17px !important;
+}
+#cards-grid .card .rating-area .stars[data-prefix="overall"] .star-btn {
+  width: 17px !important;
+  min-width: 17px !important;
+}
+#cards-grid .card .rating-area .stars.rating-scale-five[data-prefix="overall"]:not(.is-expanded) .star-btn:first-of-type {
+  width: 17px !important;
+  min-width: 17px !important;
+}
+
+.mylist-game-profile-shell {
+  box-sizing: border-box;
+  padding-top: 10px !important;
+}
+.mylist-game-profile-topbar > span {
+  font-size: 9px !important;
+  font-weight: 300 !important;
+}
+.mylist-game-profile-edit {
+  font-size: 8px !important;
+  font-weight: 450 !important;
+}
+.mylist-game-profile-identity h1 {
+  font-size: clamp(25px, calc(8vw - 5px), 41px) !important;
+  font-weight: 620 !important;
+}
+.mylist-game-profile-meta-row span {
+  font-size: 19px !important;
+  font-weight: 300 !important;
+}
+.mylist-game-profile-cover {
+  font-size: 41px !important;
+}
+.mylist-game-profile-facts span {
+  font-size: 17px !important;
+  font-weight: 400 !important;
+}
+.mylist-game-profile-facts strong {
+  font-size: 17px !important;
+  font-weight: 300 !important;
+}
+.mylist-game-profile-panel-head span {
+  font-size: 8px !important;
+  font-weight: 450 !important;
+}
+.mylist-game-profile-stat span {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+.mylist-game-profile-stat strong {
+  font-size: 37px !important;
+  font-weight: 620 !important;
+}
+.mylist-game-profile-link-row span {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+}
+.mylist-game-profile-link-row strong {
+  font-size: 14px !important;
+  font-weight: 500 !important;
+}
+
+@media (max-width: 430px) {
+  .mylist-game-profile-identity h1 {
+    font-size: clamp(23px, calc(8vw - 5px), 31px) !important;
+  }
+  .mylist-game-profile-meta-row span {
+    font-size: 17px !important;
+  }
+  .mylist-game-profile-facts span,
+  .mylist-game-profile-facts strong {
+    font-size: 16px !important;
+  }
+  .mylist-game-profile-stat span {
+    font-size: 11px !important;
+  }
+  .mylist-game-profile-stat strong {
+    font-size: 35px !important;
+  }
+  .mylist-game-profile-link-row span,
+  .mylist-game-profile-link-row strong {
+    font-size: 14px !important;
   }
 }
 
-.profile-topbar,
-.profile-settings-topbar,
-.mylist-media-review-topbar,
-.import-topbar,
-.steam-sync-shell .import-topbar {
-  background: var(--shelfd-sticky-header-surface) !important;
+@media (max-width: 360px) {
+  .mylist-game-profile-facts span,
+  .mylist-game-profile-facts strong {
+    font-size: 13px !important;
+  }
+  .mylist-game-profile-stat span {
+    font-size: 9px !important;
+  }
+  .mylist-game-profile-stat strong {
+    font-size: 29px !important;
+  }
 }
 
-/* v10.298: My Lists profile was being pulled upward under the now-sticky
-   header by older mobile layout offsets. Keep the profile block below the
-   header so the avatar is never covered at scroll position zero. */
-@media (max-width: 700px) {
-  body.main-tab-mylist #mylist-view #mylist-profile-controls {
-    margin-top: 8px !important;
+/* v10.364: Discovery top-right universal search page.
+   Deep cascade fix: earlier body:not(.light-mode) rules in this same file were
+   stronger than the v10.363 selectors and kept forcing #0E0E0E. TestFlight/iOS
+   also uses safe-area padding, not desktop margin-top, so lift that path too. */
+body:not(.light-mode) .discover-universal-search-overlay,
+body:not(.light-mode) .discover-universal-search-overlay.shelfline-filter-ui,
+body:not(.light-mode) .discover-universal-search-overlay.discover-universal-search-shelfline,
+body:not(.light-mode) .discover-universal-search-shelfline,
+body:not(.light-mode) .discover-universal-search-overlay .discover-universal-search-panel,
+body:not(.light-mode) .discover-universal-search-overlay > .discover-universal-search-panel,
+body:not(.light-mode) .discover-universal-search-shelfline .discover-universal-search-panel,
+body:not(.light-mode) .discover-universal-search-titlebar,
+body:not(.light-mode) .discover-universal-search-overlay .discover-universal-search-titlebar,
+body:not(.light-mode) .discover-universal-search-header,
+body:not(.light-mode) .discover-universal-search-overlay .discover-universal-search-header,
+body:not(.light-mode) .discover-universal-search-tabs,
+body:not(.light-mode) .discover-universal-search-overlay .discover-universal-search-tabs,
+body:not(.light-mode) .discover-universal-search-body,
+body:not(.light-mode) .discover-universal-search-overlay .discover-universal-search-body,
+body:not(.light-mode) .discover-universal-search-overlay .discover-universal-search-empty,
+.discover-universal-search-overlay.shelfline-filter-ui,
+.discover-universal-search-overlay.discover-universal-search-shelfline,
+.discover-universal-search-shelfline .discover-universal-search-panel,
+.discover-universal-search-shelfline .discover-universal-search-body {
+  background: #181c20 !important;
+  background-color: #181c20 !important;
+  background-image: none !important;
+}
+
+.discover-universal-search-panel,
+.discover-universal-search-shelfline .discover-universal-search-panel {
+  margin-top: 0 !important;
+  padding-top: max(0px, calc(env(safe-area-inset-top, 0px) - 50px)) !important;
+}
+
+.discover-universal-search-titlebar,
+.discover-universal-search-shelfline .discover-universal-search-titlebar {
+  padding-top: 0 !important;
+}
+
+@media (min-width: 701px) and (hover: hover) and (pointer: fine) and (not (display-mode: standalone)) {
+  .discover-universal-search-panel,
+  .discover-universal-search-shelfline .discover-universal-search-panel {
+    margin-top: 24px !important;
   }
+}
+
+/* v10.365: Discovery universal search button color pass. */
+.discover-universal-search-overlay .discover-universal-search-back,
+.discover-universal-search-overlay .discover-universal-search-clear,
+.discover-universal-search-overlay .discover-universal-search-tab,
+.discover-universal-search-overlay .discover-category-filter-btn,
+.discover-universal-search-overlay .discover-universal-search-filter-btn,
+.discover-universal-search-overlay .discover-add-btn,
+.discover-universal-search-overlay .discover-close-btn,
+.discover-universal-search-shelfline .discover-universal-search-back,
+.discover-universal-search-shelfline .discover-universal-search-clear,
+.discover-universal-search-shelfline .discover-universal-search-tab,
+.discover-universal-search-shelfline .discover-category-filter-btn,
+.discover-universal-search-shelfline .discover-universal-search-filter-btn,
+.discover-universal-search-shelfline .discover-add-btn,
+.discover-universal-search-shelfline .discover-close-btn {
+  color: #ffffff !important;
+}
+
+.discover-universal-search-overlay .discover-universal-search-tab::after,
+.discover-universal-search-shelfline .discover-universal-search-tab::after {
+  background: #ffffff !important;
+}
+
+/* v10.366: keep Discovery filter/sort child pages on the same #181c20 surface,
+   and pin the filter button to the top-right of each final results page. */
+body:not(.light-mode) #discover-category-full-page,
+body:not(.light-mode) .discover-category-full-page,
+body:not(.light-mode) .discover-category-full-shell,
+body:not(.light-mode) .discover-category-filter-sheet,
+body:not(.light-mode) .discover-category-filter-drawer,
+body:not(.light-mode) .discover-category-filter-track,
+body:not(.light-mode) .discover-category-filter-panel,
+body:not(.light-mode) .discover-category-filter-sheet-letterboxd .discover-category-filter-drawer,
+body:not(.light-mode) .discover-category-filter-sheet-letterboxd .discover-category-filter-track,
+body:not(.light-mode) .discover-category-filter-sheet-letterboxd .discover-category-filter-panel,
+body:not(.light-mode) .discover-category-filter-sheet-letterboxd .discover-category-filter-header-flat {
+  background: #181c20 !important;
+  background-color: #181c20 !important;
+  background-image: none !important;
+}
+
+.discover-category-full-topbar {
+  display: grid !important;
+  grid-template-columns: 48px minmax(0, 1fr) 48px !important;
+  align-items: center !important;
+  justify-content: stretch !important;
+}
+
+.discover-category-full-back {
+  grid-column: 1 !important;
+  justify-self: start !important;
+}
+
+.discover-category-full-topbar #discover-category-filter-btn,
+.discover-category-full-topbar .discover-category-filter-btn {
+  grid-column: 3 !important;
+  justify-self: end !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  color: #ffffff !important;
+  background: rgba(255,255,255,0.06) !important;
+  border-color: rgba(255,255,255,0.16) !important;
+}
+
+.discover-category-filter-sheet-letterboxd .discover-category-filter-done,
+.discover-category-filter-sheet-letterboxd .discover-category-filter-back,
+.discover-category-filter-sheet-letterboxd .discover-category-filter-select-all,
+.discover-category-filter-sheet-letterboxd .discover-category-filter-clear-inline,
+.discover-category-filter-sheet-letterboxd .discover-category-filter-row,
+.discover-category-filter-sheet-letterboxd .discover-category-filter-check {
+  color: #ffffff !important;
+}
+
+.discover-category-filter-sheet-letterboxd .discover-category-filter-close-x {
+  justify-self: end !important;
+  width: 42px !important;
+  min-width: 42px !important;
+  height: 42px !important;
+  border-radius: 999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #ffffff !important;
+  font-size: 26px !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+}
+
+.discover-category-filter-sheet-letterboxd .discover-category-filter-header,
+.discover-category-filter-sheet-letterboxd .discover-category-filter-panel-top {
+  display: grid !important;
+  grid-template-columns: 48px minmax(0, 1fr) 48px !important;
+  align-items: center !important;
+}
+
+.discover-category-filter-sheet-letterboxd .discover-category-filter-panel-top h3 {
+  grid-column: 2 !important;
+  text-align: center !important;
+}
+
+.discover-category-filter-sheet-letterboxd .discover-category-filter-header > div {
+  grid-column: 1 / 3 !important;
+}
+
+.discover-category-filter-sheet-letterboxd .discover-category-filter-back {
+  grid-column: 1 !important;
+  justify-self: start !important;
+}
+
+.discover-category-filter-sheet-letterboxd .discover-category-filter-close-x {
+  grid-column: 3 !important;
+}
+
+/* v10.368: after choosing a filter option, users return to the filtered
+   Discovery results page. Keep that page's filter control visibly pinned
+   top-right instead of letting earlier universal-search header rules drift. */
+.discover-universal-search-shelfline .discover-universal-search-header,
+.discover-universal-search-overlay .discover-universal-search-header {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 48px !important;
+  align-items: end !important;
+  justify-content: stretch !important;
+}
+
+.discover-universal-search-shelfline #discover-universal-search-filter-btn,
+.discover-universal-search-overlay #discover-universal-search-filter-btn,
+.discover-universal-search-shelfline .discover-universal-search-filter-btn,
+.discover-universal-search-overlay .discover-universal-search-filter-btn {
+  grid-column: 2 !important;
+  justify-self: end !important;
+  align-self: end !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  color: #ffffff !important;
+}
+
+/* v10.369: revert My Lists title-card ratings back to the regular visible
+   10-star interaction. This overrides the compact one-star chip presentation
+   while keeping the same `rate()` save path and star markup. */
+#cards-grid .card .rating-area .stars[data-prefix="overall"] {
+  --star-size: 16px !important;
+  width: auto !important;
+  max-width: 100% !important;
+  min-height: 24px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  vertical-align: middle !important;
+  transform: none !important;
+  transition: none !important;
+}
+
+#cards-grid .card .rating-area .stars[data-prefix="overall"] .star-btn,
+#cards-grid .card .rating-area .stars[data-prefix="overall"]:not(.is-expanded) .star-btn,
+#cards-grid .card .rating-area .stars[data-prefix="overall"]:not(.is-expanded) .star-btn:not(:first-of-type),
+#cards-grid .card .rating-area .stars[data-prefix="overall"].is-expanded .star-btn {
+  display: inline-flex !important;
+  flex: 0 0 auto !important;
+  width: 16px !important;
+  min-width: 16px !important;
+  height: 22px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+}
+
+#cards-grid .card .rating-area .stars.rating-scale-five[data-prefix="overall"],
+#cards-grid .card .rating-area .stars.rating-scale-five[data-prefix="overall"].is-expanded {
+  max-width: 100% !important;
+  gap: 0 !important;
+}
+
+#cards-grid .card .rating-area .stars.rating-scale-five[data-prefix="overall"] .star-btn.half-step,
+#cards-grid .card .rating-area .stars.rating-scale-five[data-prefix="overall"].is-expanded .star-btn.half-step,
+#cards-grid .card .rating-area .stars.rating-scale-five[data-prefix="overall"]:not(.is-expanded) .star-btn:first-of-type {
+  width: 8px !important;
+  min-width: 8px !important;
+  height: 22px !important;
+}
+
+#cards-grid .card .rating-area .stars[data-prefix="overall"] .star-label {
+  min-width: auto !important;
+  margin-left: 5px !important;
+  color: #ffffff !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+}
+
+/* v10.373: My Lists title cards across every category/status use a larger,
+   medium-weight title. Includes linked title buttons so games/media profile
+   title links match plain card titles. */
+#mylist-view #cards-grid .card .card-title,
+#mylist-view #cards-grid .card .card-title-profile-btn,
+#mylist-view #cards-grid .card .media-title-profile-btn,
+#mylist-view #cards-grid .card .game-title-profile-btn {
+  font-size: 18px !important;
+  font-weight: 500 !important;
+  line-height: 1.18 !important;
+}
+
+/* v10.374: TV/anime title-card Watching status uses the same lavender for
+   both text and the outline ring instead of the older filled gradient. */
+#mylist-view #cards-grid .card[data-library-section="shows"] .status-pill.watching-active,
+#mylist-view #cards-grid .card[data-library-section="anime"] .status-pill.watching-active,
+body.mylist-section-shows #mylist-view #cards-grid .card .status-pill.watching-active,
+body.mylist-section-anime #mylist-view #cards-grid .card .status-pill.watching-active {
+  color: #c4b5fd !important;
+  border-color: #c4b5fd !important;
+  background: rgba(196,181,253,0.10) !important;
+  box-shadow: inset 0 0 0 1px rgba(196,181,253,0.38) !important;
+}
+
+/* v10.376: Games Playing + Backlog title cards no longer carry the legacy
+   bottom-right edit affordance/details footer, so the card ends just under
+   the poster instead of reserving the old lower action band. */
+#mylist-view #cards-grid .card.game-playing-backlog-compact-card {
+  padding-bottom: 0 !important;
+}
+
+#mylist-view #cards-grid .card.game-playing-backlog-compact-card .card-header {
+  padding-bottom: 14px !important;
+}
+
+#mylist-view #cards-grid .card.game-playing-backlog-compact-card .card-action-row,
+#mylist-view #cards-grid .card.game-playing-backlog-compact-card .game-details-panel,
+#mylist-view #cards-grid .card.game-playing-backlog-compact-card .game-card-edit-btn,
+#mylist-view #cards-grid .card.game-playing-backlog-compact-card .game-card-comment-drop {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+/* v10.380: TV Shows Watching/Paused move the full rating control to the
+   lower-left action band, aligned with the poster, while next-episode metadata
+   occupies the old rating slot directly under the progress bar. */
+#mylist-view #cards-grid .card.tv-show-progress-rating-shift-card .card-action-row {
+  padding-left: 14px !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+#mylist-view #cards-grid .card.tv-show-progress-rating-shift-card .tv-show-bottom-rating-slot {
+  flex: 0 1 auto !important;
+  min-width: 0 !important;
+  margin-right: auto !important;
+  overflow: visible !important;
+}
+
+#mylist-view #cards-grid .card.tv-show-progress-rating-shift-card .tv-show-bottom-rating-slot .rating-area {
+  margin: 0 !important;
+}
+
+#mylist-view #cards-grid .card.tv-show-progress-rating-shift-card .tv-show-bottom-rating-slot .stars[data-prefix="overall"] {
+  width: auto !important;
+  max-width: none !important;
+  overflow: visible !important;
+}
+
+#mylist-view #cards-grid .card.tv-show-progress-rating-shift-card .tv-show-next-episode-slot {
+  min-height: 14px;
+  margin-top: 7px;
+}
+
+#mylist-view #cards-grid .card.tv-show-progress-rating-shift-card .tv-show-next-episode-slot:not(.has-next-episode) {
+  display: none;
+}
+
+#mylist-view #cards-grid .card.tv-show-progress-rating-shift-card .tv-show-next-episode-slot .card-next-episode {
+  display: block;
+  max-width: 100%;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.15;
 }

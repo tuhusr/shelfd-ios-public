@@ -1217,6 +1217,10 @@ function syncSignedOutRoute() {
     openSharedMediaProfileRoute();
     return;
   }
+  if (typeof parseScreenListAlbumRoute === 'function' && parseScreenListAlbumRoute()) {
+    openSharedAlbumRoute();
+    return;
+  }
   if (typeof parseScreenListProfileRoute === 'function') {
     const profileRoute = parseScreenListProfileRoute();
     if (profileRoute?.uid && (profileRoute.section || window.location.pathname.startsWith('/profile-card/'))) {

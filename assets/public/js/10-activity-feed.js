@@ -2755,23 +2755,22 @@ async function renderTrailerOptions(filterText = '') {
   if (!grid || !currentUser) return;
   
   try {
-    const snap = await db.collection('watchlist').doc(currentUser.uid).get();
-    if (!snap.exists) {
-      grid.innerHTML = '<div class="discover-message">No items in your library yet.</div>';
-      return;
-    }
-    
-    const data = snap.data();
+    /* v10.387: section-aware fan-out replaces the legacy single-doc read. */
+    const listData = await loadWatchlistDataForUid(currentUser.uid);
     let allItems = [];
-    
+
     for (const section of SCREENLIST_SECTIONS) {
-      let items = [];
-      try { items = data[section] ? JSON.parse(data[section]) : []; } catch(e) {}
+      const items = Array.isArray(listData[section]) ? listData[section] : [];
       items.forEach(item => {
         if (item.title && item.cover) {
           allItems.push({ ...item, section, mediaType: section });
         }
       });
+    }
+
+    if (!allItems.length) {
+      grid.innerHTML = '<div class="discover-message">No items in your library yet.</div>';
+      return;
     }
     
     if (filterText) {
@@ -6416,13 +6415,11 @@ async function fetchAllFriendActivities(dayLimit = 7) {
         const userSnap = await db.collection('users').doc(uid).get();
         if (userSnap.exists) usersMap[uid] = { ...userSnap.data(), uid };
       }
-      const snap = await db.collection('watchlist').doc(uid).get();
-      if (!snap.exists) return;
-      const d = snap.data();
+      /* v10.387: section-aware fan-out replaces the legacy single-doc read. */
+      const listData = await loadWatchlistDataForUid(uid);
       const u = usersMap[uid] || {};
       for (const section of SCREENLIST_SECTIONS) {
-        let items = [];
-        try { items = d[section] ? JSON.parse(d[section]) : []; } catch(e) {}
+        const items = Array.isArray(listData[section]) ? listData[section] : [];
         processUserItems(uid, u, items, section);
       }
     } catch(e) {}

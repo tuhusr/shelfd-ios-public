@@ -73,11 +73,15 @@ function getFriendLibraryLiveItemKey(item = {}, section = '') {
 function buildFriendWatchlistLiveState(dataObj = {}) {
   const nextState = {};
   SCREENLIST_SECTIONS.forEach(section => {
+    /* v10.387: accept either a pre-parsed array (post-schema-v2, from
+       loadWatchlistDataForUid) or a legacy JSON string field (pre-migration
+       friends still on the old single-doc shape). */
     let items = [];
-    try {
-      items = dataObj[section] ? JSON.parse(dataObj[section]) : [];
-    } catch (e) {
-      items = [];
+    const raw = dataObj[section];
+    if (Array.isArray(raw)) {
+      items = raw;
+    } else if (typeof raw === 'string' && raw) {
+      try { items = JSON.parse(raw); } catch (e) { items = []; }
     }
     if (!Array.isArray(items)) return;
     items.forEach(item => {
@@ -289,15 +293,29 @@ function syncFriendActivityLiveListeners() {
   }
 
   friends.forEach(uid => {
-    const unsub = db.collection('watchlist').doc(uid).onSnapshot(snap => {
-      const nextState = snap.exists ? buildFriendWatchlistLiveState(snap.data() || {}) : {};
-      const previousState = friendActivityWatchlistState[uid] || null;
-      friendActivityWatchlistState[uid] = nextState;
-      const events = buildFriendWatchlistDiffEvents(uid, previousState, nextState);
-      pushFriendActivityLiveEvents(events);
-      const latest = events.reduce((max, event) => Math.max(max, parseFriendActivityTime(event.timestamp)), 0)
-        || getLatestFriendWatchlistNotificationTime(previousState, nextState);
-      handleLiveFriendActivity(latest);
+    /* v10.387: the parent watchlist/{uid} doc no longer carries the JSON
+       sections — under schema v2 it's just a heartbeat ({ updatedAt,
+       schemaVersion }). When the snapshot fires we fan out to the section
+       subdocs to get the actual list data. Legacy un-migrated friends still
+       work because loadWatchlistDataForUid falls back to the parent's
+       legacy fields when section subdocs are missing. */
+    const unsub = db.collection('watchlist').doc(uid).onSnapshot(async snap => {
+      try {
+        let nextState = {};
+        if (snap && snap.exists) {
+          const listData = await loadWatchlistDataForUid(uid, { parentSnap: snap });
+          nextState = buildFriendWatchlistLiveState(listData);
+        }
+        const previousState = friendActivityWatchlistState[uid] || null;
+        friendActivityWatchlistState[uid] = nextState;
+        const events = buildFriendWatchlistDiffEvents(uid, previousState, nextState);
+        pushFriendActivityLiveEvents(events);
+        const latest = events.reduce((max, event) => Math.max(max, parseFriendActivityTime(event.timestamp)), 0)
+          || getLatestFriendWatchlistNotificationTime(previousState, nextState);
+        handleLiveFriendActivity(latest);
+      } catch (err) {
+        console.error('Friend activity watchlist fan-out failed:', err);
+      }
     }, err => console.error('Friend activity watchlist listener failed:', err));
     friendActivityWatchlistUnsubscribes.push(unsub);
   });

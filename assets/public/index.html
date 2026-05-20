@@ -106,26 +106,26 @@
 </script>
 <link rel="stylesheet" href="/css/sohne-fonts.css?v=576_sohne_font_setup">
 <link rel="stylesheet" href="/css/00-base-layout.css?v=10278_bounce_scrolling">
-<link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=10212_full_page_review_actions">
+<link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=10390_title_card_star_color">
 <link rel="stylesheet" href="/css/02-comments-login-theme.css?v=927_add_shelf_modal_scroll_lock_results_fix">
 <link rel="stylesheet" href="/css/03-friends-discovery-base.css?v=925_requested_btn_lavender">
 <link rel="stylesheet" href="/css/04-activity-feed.css?v=10291_hide_stack_child_avatar_zone">
 <link rel="stylesheet" href="/css/05-messages-early-polish.css?v=10210_portrait_lock_surface_fix">
-<link rel="stylesheet" href="/css/06-profile.css?v=1036_fpmp_title_synopsis_recenter">
+<link rel="stylesheet" href="/css/06-profile.css?v=10327_favorites_people_media_locked_pro_card">
 <link rel="stylesheet" href="/css/07-imports-discover-rankings.css?v=942_game_status_competitive_selector">
 <link rel="stylesheet" href="/css/08-watch-together.css?v=404-shared-watch-copy-underline">
 <link rel="stylesheet" href="/css/09-direct-messages.css?v=280-dm-plaintext-aptos-composer">
 <link rel="stylesheet" href="/css/10-mobile-transitions-media-profile.css?v=1097_trailer_pull_down_experiment">
 <link rel="stylesheet" href="/css/11-patch-notes-friends-refinements.css?v=670_stat_weight_500_clean">
 <link rel="stylesheet" href="/css/12-pwa-header-continuity.css?v=10135_activity_notifications_tab">
-<link rel="stylesheet" href="/css/13-e2ee-activity-post.css?v=10287_remove_red_import_outline">
+<link rel="stylesheet" href="/css/13-e2ee-activity-post.css?v=10371_show_details_season_poster_smaller">
 <link rel="stylesheet" href="/css/14-live-update-discover-controls.css?v=10281_revert_sticky_keep_tight">
 <link rel="stylesheet" href="/css/15-universal-discovery-search.css?v=10171_discovery_search_preset_hub">
 <link rel="stylesheet" href="/css/16-light-mode-contrast.css?v=10189_activity_action_row_alignment">
-<link rel="stylesheet" href="/css/17-auth-flow-setup.css?v=10299_native_header_inset_fix">
+<link rel="stylesheet" href="/css/17-auth-flow-setup.css?v=10390_title_card_star_color">
 
-<meta name="screenlist-build-version" content="2026-05-18-v10.299_native_header_inset_fix">
-<script>window.SCREENLIST_BUILD_VERSION = "2026-05-18-v10.299_native_header_inset_fix"; window.SCREENLIST_DISPLAY_VERSION = "v10.299-May 18th, 2026";</script>
+<meta name="screenlist-build-version" content="2026-05-20-v10.390_title_card_star_color">
+<script>window.SCREENLIST_BUILD_VERSION = "2026-05-20-v10.390_title_card_star_color"; window.SCREENLIST_DISPLAY_VERSION = "v10.390-May 20th, 2026";</script>
 <script>
   window.__shelfdGuestContinueQueued = false;
   window.continueWithoutSignIn = window.continueWithoutSignIn || function() {
@@ -969,7 +969,7 @@
 
   <div class="discover-media-tab-section" data-discovery-tab="tv">
     <div class="discover-section">
-      <button class="discover-section-title discover-section-title-button" type="button" onclick="openDiscoverFriendsWatchingPage()">What Your Friends Are Watching</button>
+      <button class="discover-section-title discover-section-title-button discover-category-title-clickable" type="button" onclick="openDiscoverFriendsWatchingPage()">What Your Friends Are Watching</button>
       <div class="discover-section-desc">Movies, shows, and anime currently on your friends' watching or watchlist rows.</div>
       <div class="discover-friends-row-shell">
         <div class="discover-grid" id="discover-friends-watching-grid"><div class="discover-message">Loading...</div></div>
@@ -979,7 +979,6 @@
           </svg>
         </button>
       </div>
-      <button class="discover-expand-btn" data-discover-target="discover-friends-watching-grid" onclick="openDiscoverFriendsWatchingPage()">View all</button>
     </div>
     <div class="discover-section">
       <h2 class="discover-section-title">Newest Releases Movies</h2>
@@ -989,19 +988,16 @@
         <button class="discover-filter-btn" type="button" data-release-range="month" onclick="changeDiscoverReleaseRange('month')">New This Month</button>
       </div>
       <div class="discover-grid" id="discover-movie-new-releases-grid"><div class="discover-message">Loading...</div></div>
-      <button class="discover-expand-btn" data-discover-target="discover-movie-new-releases-grid" onclick="toggleDiscoverSection('discover-movie-new-releases-grid')">View all</button>
     </div>
     <div class="discover-section">
       <h2 class="discover-section-title">Newest Releases TV Shows</h2>
       <div class="discover-section-desc">Newest TV shows releasing in the United States, sorted by first air date, not popularity.</div>
       <div class="discover-grid" id="discover-tv-new-releases-grid"><div class="discover-message">Loading...</div></div>
-      <button class="discover-expand-btn" data-discover-target="discover-tv-new-releases-grid" onclick="toggleDiscoverSection('discover-tv-new-releases-grid')">View all</button>
     </div>
     <div class="discover-section">
       <h2 class="discover-section-title">In Theaters</h2>
       <div class="discover-section-desc">Movies currently playing in theaters, ranked for useful theater browsing.</div>
       <div class="discover-grid" id="discover-movie-in-theaters-grid"><div class="discover-message">Loading...</div></div>
-      <button class="discover-expand-btn" data-discover-target="discover-movie-in-theaters-grid" onclick="toggleDiscoverSection('discover-movie-in-theaters-grid')">View all</button>
     </div>
     <div class="discover-section">
       <h2 class="discover-section-title">Trending Movies</h2>
@@ -1017,13 +1013,11 @@
       <h2 class="discover-section-title">Most Anticipated Movies</h2>
       <div class="discover-section-desc">The most-hyped upcoming movies ? what audiences are searching for, talking about, and most excited to see.</div>
       <div class="discover-grid" id="discover-movie-anticipated-grid"><div class="discover-message">Loading...</div></div>
-      <button class="discover-expand-btn" data-discover-target="discover-movie-anticipated-grid" onclick="toggleDiscoverSection('discover-movie-anticipated-grid')">View all</button>
     </div>
     <div class="discover-section">
       <h2 class="discover-section-title">Most Anticipated TV Shows</h2>
       <div class="discover-section-desc">The most-hyped upcoming TV shows ? buzz, awareness, and audience anticipation combined.</div>
       <div class="discover-grid" id="discover-tv-anticipated-grid"><div class="discover-message">Loading...</div></div>
-      <button class="discover-expand-btn" data-discover-target="discover-tv-anticipated-grid" onclick="toggleDiscoverSection('discover-tv-anticipated-grid')">View all</button>
     </div>
     <div class="discover-section">
       <h2 class="discover-section-title">Popular Movies</h2>
@@ -1039,37 +1033,31 @@
       <h2 class="discover-section-title">Releasing Soon Movies</h2>
       <div class="discover-section-desc">Upcoming movies sorted by the closest future release date.</div>
       <div class="discover-grid" id="discover-movie-releasing-soon-grid"><div class="discover-message">Loading...</div></div>
-      <button class="discover-expand-btn" data-discover-target="discover-movie-releasing-soon-grid" onclick="toggleDiscoverSection('discover-movie-releasing-soon-grid')">View all</button>
     </div>
     <div class="discover-section">
       <h2 class="discover-section-title">Releasing Soon TV Shows</h2>
       <div class="discover-section-desc">Upcoming TV shows sorted by the closest future air date.</div>
       <div class="discover-grid" id="discover-tv-releasing-soon-grid"><div class="discover-message">Loading...</div></div>
-      <button class="discover-expand-btn" data-discover-target="discover-tv-releasing-soon-grid" onclick="toggleDiscoverSection('discover-tv-releasing-soon-grid')">View all</button>
     </div>
     <div class="discover-section">
       <h2 class="discover-section-title">This Year's Best Movies</h2>
       <div class="discover-section-desc">Movies from this year ranked by strong ratings and meaningful vote volume.</div>
       <div class="discover-grid" id="discover-movie-years-best-grid"><div class="discover-message">Loading...</div></div>
-      <button class="discover-expand-btn" data-discover-target="discover-movie-years-best-grid" onclick="toggleDiscoverSection('discover-movie-years-best-grid')">View all</button>
     </div>
     <div class="discover-section">
       <h2 class="discover-section-title">This Year's Best TV Shows</h2>
       <div class="discover-section-desc">TV shows from this year ranked by strong ratings and meaningful vote volume.</div>
       <div class="discover-grid" id="discover-tv-years-best-grid"><div class="discover-message">Loading...</div></div>
-      <button class="discover-expand-btn" data-discover-target="discover-tv-years-best-grid" onclick="toggleDiscoverSection('discover-tv-years-best-grid')">View all</button>
     </div>
     <div class="discover-section">
       <h2 class="discover-section-title">Top Rated Movies (All Time)</h2>
       <div class="discover-section-desc">Highest rated movies of all time with enough votes to avoid low-review outliers.</div>
       <div class="discover-grid" id="discover-movie-top-rated-grid"><div class="discover-message">Loading...</div></div>
-      <button class="discover-expand-btn" data-discover-target="discover-movie-top-rated-grid" onclick="toggleDiscoverSection('discover-movie-top-rated-grid')">View all</button>
     </div>
     <div class="discover-section">
       <h2 class="discover-section-title">Top Rated TV Shows (All Time)</h2>
       <div class="discover-section-desc">Highest rated TV shows of all time with enough votes to avoid low-review outliers.</div>
       <div class="discover-grid" id="discover-tv-top-rated-grid"><div class="discover-message">Loading...</div></div>
-      <button class="discover-expand-btn" data-discover-target="discover-tv-top-rated-grid" onclick="toggleDiscoverSection('discover-tv-top-rated-grid')">View all</button>
     </div>
   </div>
 
@@ -1124,7 +1112,6 @@
     <div class="discover-section-top"><div class="discover-section-title" id="anime-seasonal-section-title">Seasonal Anime</div></div>
     <div class="discover-section-desc">Anime airing in the selected season, ranked by MyAnimeList member count.</div>
     <div class="discover-grid" id="anime-discover-seasonal-grid"><div class="discover-message">Loading seasonal anime?</div></div>
-    <button class="discover-expand-btn" data-discover-target="anime-discover-seasonal-grid" onclick="toggleDiscoverSection('anime-discover-seasonal-grid')">Show more</button>
   </div>
 
   <div class="discover-section discover-search-section" id="anime-discover-search-section">
@@ -1133,42 +1120,35 @@
     </div>
     <div class="discover-section-desc">Pulled from TMDB TV search, then narrowed to animation with Japan or Korea-origin signals and ranked for cleaner anime discovery.</div>
     <div class="discover-grid" id="anime-discover-search-grid"></div>
-    <button class="discover-expand-btn" data-discover-target="anime-discover-search-grid" onclick="toggleDiscoverSection('anime-discover-search-grid')">Show more</button>
   </div>
   <div class="discover-section" id="anime-discover-new-section">
     <div class="discover-section-top"><div class="discover-section-title">Newest Releases</div></div>
     <div class="discover-section-desc">Newest anime-style series releasing in the United States, sorted by first air date, not popularity.</div>
     <div class="discover-grid" id="anime-discover-new-grid"><div class="discover-message">Open Anime to load newest anime.</div></div>
-    <button class="discover-expand-btn" data-discover-target="anime-discover-new-grid" onclick="toggleDiscoverSection('anime-discover-new-grid')">Show more</button>
   </div>
   <div class="discover-section" id="anime-discover-years-best-section">
     <div class="discover-section-top"><div class="discover-section-title">This Year's Best</div></div>
     <div class="discover-section-desc">Anime from this year ranked by strong ratings and meaningful vote volume.</div>
     <div class="discover-grid" id="anime-discover-years-best-grid"><div class="discover-message">Open Anime to load this year's best anime.</div></div>
-    <button class="discover-expand-btn" data-discover-target="anime-discover-years-best-grid" onclick="toggleDiscoverSection('anime-discover-years-best-grid')">Show more</button>
   </div>
   <div class="discover-section" id="anime-discover-popular-section">
     <div class="discover-section-top"><div class="discover-section-title">Popular Anime</div></div>
     <div class="discover-section-desc">Anime-style shows with strong current audience interest.</div>
     <div class="discover-grid" id="anime-discover-popular-grid"><div class="discover-message">Open Anime to load popular anime.</div></div>
-    <button class="discover-expand-btn" data-discover-target="anime-discover-popular-grid" onclick="toggleDiscoverSection('anime-discover-popular-grid')">Show more</button>
   </div>
   <div class="discover-section" id="anime-discover-rated-section">
     <div class="discover-section-top"><div class="discover-section-title">Top Rated Anime</div></div>
     <div class="discover-section-desc">Highly rated anime-style shows with enough votes to avoid low-review outliers.</div>
     <div class="discover-grid" id="anime-discover-rated-grid"><div class="discover-message">Open Anime to load top rated anime.</div></div>
-    <button class="discover-expand-btn" data-discover-target="anime-discover-rated-grid" onclick="toggleDiscoverSection('anime-discover-rated-grid')">Show more</button>
   </div>
   <div class="discover-section" id="anime-discover-trending-section">
     <div class="discover-section-top"><div class="discover-section-title">Trending Anime</div></div>
     <div class="discover-grid" id="anime-discover-trending-grid"><div class="discover-message">Open Anime to load trending anime.</div></div>
-    <button class="discover-expand-btn" data-discover-target="anime-discover-trending-grid" onclick="toggleDiscoverSection('anime-discover-trending-grid')">Show more</button>
   </div>
   <div class="discover-section" id="anime-discover-anticipated-section">
     <div class="discover-section-top"><div class="discover-section-title">Anticipated</div></div>
     <div class="discover-section-desc">The most-hyped upcoming anime ? buzz, awareness, and audience anticipation combined.</div>
     <div class="discover-grid" id="anime-discover-anticipated-grid"><div class="discover-message">Open Anime to load anticipated anime.</div></div>
-    <button class="discover-expand-btn" data-discover-target="anime-discover-anticipated-grid" onclick="toggleDiscoverSection('anime-discover-anticipated-grid')">Show more</button>
   </div>
   <div class="screenlist-bottom-link-wrap"></div>
 </div>
@@ -1198,61 +1178,51 @@
     </div>
     <div class="discover-section-desc">Pulled directly from RAWG game search, then filtered for usable cover images and ranked by relevance, player interest, added counts, rating activity, and platform reach.</div>
     <div class="discover-grid" id="discover-games-search-grid"></div>
-    <button class="discover-expand-btn" data-discover-target="discover-games-search-grid" onclick="toggleDiscoverSection('discover-games-search-grid')">Show more</button>
   </div>
   <div class="discover-section">
     <div class="discover-section-top"><div class="discover-section-title">Newest Releases</div></div>
     <div class="discover-section-desc">Newest games sorted by release date, not popularity.</div>
     <div class="discover-grid" id="discover-games-new-releases-grid"><div class="discover-message">Open Games Discovery to load new releases.</div></div>
-    <button class="discover-expand-btn" data-discover-target="discover-games-new-releases-grid" onclick="toggleDiscoverSection('discover-games-new-releases-grid')">Show more</button>
   </div>
   <div class="discover-section">
     <div class="discover-section-top"><div class="discover-section-title">This Year's Best</div></div>
     <div class="discover-section-desc">Games from this year ranked by rating strength and review volume.</div>
     <div class="discover-grid" id="discover-games-years-best-grid"><div class="discover-message">Open Games Discovery to load this year's best games.</div></div>
-    <button class="discover-expand-btn" data-discover-target="discover-games-years-best-grid" onclick="toggleDiscoverSection('discover-games-years-best-grid')">Show more</button>
   </div>
   <div class="discover-section">
     <div class="discover-section-top"><div class="discover-section-title">Popular Games</div></div>
     <div class="discover-section-desc">Games with the strongest current player interest.</div>
     <div class="discover-grid" id="discover-games-popular-grid"><div class="discover-message">Open Games Discovery to load popular games.</div></div>
-    <button class="discover-expand-btn" data-discover-target="discover-games-popular-grid" onclick="toggleDiscoverSection('discover-games-popular-grid')">Show more</button>
   </div>
   <div class="discover-section">
     <div class="discover-section-top"><div class="discover-section-title">Top Rated Games</div></div>
     <div class="discover-section-desc">Highly rated games filtered to avoid low-review outliers.</div>
     <div class="discover-grid" id="discover-games-rated-grid"><div class="discover-message">Open Games Discovery to load top rated games.</div></div>
-    <button class="discover-expand-btn" data-discover-target="discover-games-rated-grid" onclick="toggleDiscoverSection('discover-games-rated-grid')">Show more</button>
   </div>
   <div class="discover-section">
     <div class="discover-section-top"><div class="discover-section-title">Trending Games</div></div>
     <div class="discover-section-desc">New and currently active games ranked by player attention and rating signals.</div>
     <div class="discover-grid" id="discover-games-trending-grid"><div class="discover-message">Open Games Discovery to load trending games.</div></div>
-    <button class="discover-expand-btn" data-discover-target="discover-games-trending-grid" onclick="toggleDiscoverSection('discover-games-trending-grid')">Show more</button>
   </div>
   <div class="discover-section">
     <div class="discover-section-top"><div class="discover-section-title">Anticipated Games</div></div>
     <div class="discover-section-desc">Upcoming games ranked by player-interest signals and release timing.</div>
     <div class="discover-grid" id="discover-games-anticipated-grid"><div class="discover-message">Open Games Discovery to load anticipated games.</div></div>
-    <button class="discover-expand-btn" data-discover-target="discover-games-anticipated-grid" onclick="toggleDiscoverSection('discover-games-anticipated-grid')">Show more</button>
   </div>
   <div class="discover-section">
     <div class="discover-section-top"><div class="discover-section-title">Open World & Story Games</div></div>
     <div class="discover-section-desc">Adventure, RPG, open-world, story-rich, and single-player leaning games.</div>
     <div class="discover-grid" id="discover-games-story-grid"><div class="discover-message">Open Games Discovery to load open world and story games.</div></div>
-    <button class="discover-expand-btn" data-discover-target="discover-games-story-grid" onclick="toggleDiscoverSection('discover-games-story-grid')">Show more</button>
   </div>
   <div class="discover-section">
     <div class="discover-section-top"><div class="discover-section-title">Multiplayer / Co-op Games</div></div>
     <div class="discover-section-desc">Multiplayer, co-op, competitive, PvP, party, and online games.</div>
     <div class="discover-grid" id="discover-games-multiplayer-grid"><div class="discover-message">Open Games Discovery to load multiplayer and co-op games.</div></div>
-    <button class="discover-expand-btn" data-discover-target="discover-games-multiplayer-grid" onclick="toggleDiscoverSection('discover-games-multiplayer-grid')">Show more</button>
   </div>
   <div class="discover-section">
     <div class="discover-section-top"><div class="discover-section-title">Hidden Gems</div></div>
     <div class="discover-section-desc">Lower-mainstream games with strong ratings and enough player feedback.</div>
     <div class="discover-grid" id="discover-games-hidden-grid"><div class="discover-message">Open Games Discovery to load hidden gems.</div></div>
-    <button class="discover-expand-btn" data-discover-target="discover-games-hidden-grid" onclick="toggleDiscoverSection('discover-games-hidden-grid')">Show more</button>
   </div>
   <div class="screenlist-bottom-link-wrap"></div>
 </div>
@@ -1411,11 +1381,68 @@
       <div class="profile-stats-grid" id="profile-stats-grid"></div>
     </div>
 
+    <div class="profile-section-card profile-analytics-locked-card" aria-label="Advanced Analytics and Stats — Pro feature">
+      <div class="profile-analytics-locked-preview" aria-hidden="true">
+        <div class="profile-analytics-locked-bar profile-analytics-locked-bar-1"></div>
+        <div class="profile-analytics-locked-bar profile-analytics-locked-bar-2"></div>
+        <div class="profile-analytics-locked-bar profile-analytics-locked-bar-3"></div>
+        <div class="profile-analytics-locked-bar profile-analytics-locked-bar-4"></div>
+        <div class="profile-analytics-locked-bar profile-analytics-locked-bar-5"></div>
+        <div class="profile-analytics-locked-spark" aria-hidden="true"></div>
+      </div>
+      <div class="profile-analytics-locked-overlay">
+        <div class="profile-analytics-locked-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="11" width="16" height="10" rx="2"></rect>
+            <path d="M8 11V8a4 4 0 0 1 8 0v3"></path>
+          </svg>
+        </div>
+        <div class="profile-analytics-locked-text">
+          <div class="profile-analytics-locked-title">Advanced Analytics &amp; Stats</div>
+          <div class="profile-analytics-locked-badge">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="7" width="10" height="7" rx="1.5"></rect>
+              <path d="M5 7V5a3 3 0 0 1 6 0v2"></path>
+            </svg>
+            <span>Pro feature</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="profile-section-card profile-analytics-locked-card profile-favorites-people-locked-card" aria-label="Favorites, People and Media — Pro feature">
+      <div class="profile-analytics-locked-preview" aria-hidden="true">
+        <div class="profile-analytics-locked-bar profile-analytics-locked-bar-1"></div>
+        <div class="profile-analytics-locked-bar profile-analytics-locked-bar-2"></div>
+        <div class="profile-analytics-locked-bar profile-analytics-locked-bar-3"></div>
+        <div class="profile-analytics-locked-bar profile-analytics-locked-bar-4"></div>
+        <div class="profile-analytics-locked-bar profile-analytics-locked-bar-5"></div>
+        <div class="profile-analytics-locked-spark" aria-hidden="true"></div>
+      </div>
+      <div class="profile-analytics-locked-overlay">
+        <div class="profile-analytics-locked-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="11" width="16" height="10" rx="2"></rect>
+            <path d="M8 11V8a4 4 0 0 1 8 0v3"></path>
+          </svg>
+        </div>
+        <div class="profile-analytics-locked-text">
+          <div class="profile-analytics-locked-title">Favorites, People and Media</div>
+          <div class="profile-analytics-locked-badge">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="7" width="10" height="7" rx="1.5"></rect>
+              <path d="M5 7V5a3 3 0 0 1 6 0v2"></path>
+            </svg>
+            <span>Pro users only</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="profile-section-card profile-favorites-card">
       <div class="profile-section-head">
         <div>
           <div class="profile-section-title">Profile Showcase</div>
-          <div class="profile-section-sub">Top 3 overall media first, then movies, TV shows, anime, games, characters, actors, directors, and musical artists. Each row stays 3 across.</div>
         </div>
       </div>
       <div class="profile-favorites-grid profile-showcase-grid" id="profile-favorites-grid"></div>
@@ -1659,27 +1686,27 @@
 <script src="/js/00-live-update-pwa.js?v=968-tier-list-reload-guard"></script>
 <script src="/js/01-firebase-login-state.js?v=902_guest_readonly_mode"></script>
 <script src="/js/02-messages-e2ee.js?v=280-dm-plaintext-aptos-composer"></script>
-<script src="/js/03-watch-together.js?v=294-watch-together-modal-search"></script>
-<script src="/js/04-shared-utils-data.js?v=1035_games_wishlist_priority"></script>
+<script src="/js/03-watch-together.js?v=10387_watchlist_section_split"></script>
+<script src="/js/04-shared-utils-data.js?v=10387_watchlist_section_split"></script>
 <script src="/js/20-imdb-ratings.js?v=1100_search_genre_imdb_year"></script>
 <script src="/js/21-discover-ranking.js?v=673_central_ranking_module"></script>
 <script src="/js/22-youtube-hype.js?v=10166_5sig_no_search_smarter_match"></script>
-<script src="/js/05-app-state-preview-routes.js?v=1035_games_wishlist_priority"></script>
-<script src="/js/23-trackergg-linking.js?v=951_tracker_stats_persist_real_valorant_badges"></script>
-<script src="/js/06-mylists-render-episodes-ratings.js?v=10282_viewer_layers_icon"></script>
+<script src="/js/05-app-state-preview-routes.js?v=10341_album_details_actions"></script>
+<script src="/js/23-trackergg-linking.js?v=10351_game_profile_draft_layout"></script>
+<script src="/js/06-mylists-render-episodes-ratings.js?v=10389_next_season_badge"></script>
 <script src="/js/07-add-shelf-import-search.js?v=10175_discovery_games_engagement_ranking"></script>
-<script src="/js/08-discovery-state.js?v=673_central_ranking_module"></script>
+<script src="/js/08-discovery-state.js?v=10352_discovery_header_viewall"></script>
 <script src="/js/09-direct-messages.js?v=902_guest_readonly_mode"></script>
-<script src="/js/10-activity-feed.js?v=10293_preserve_read_on_backfill"></script>
+<script src="/js/10-activity-feed.js?v=10387_watchlist_section_split"></script>
 <script src="/js/20-jikan-anime.js?v=704_viewall_slide_profile_fix"></script>
-<script src="/js/11-discovery-media-games-profiles.js?v=10290_igdb_fallback"></script>
+<script src="/js/11-discovery-media-games-profiles.js?v=10387_watchlist_section_split"></script>
 <script src="/js/12-patch-notes.js?v=420_activity_feed_inline_stack_expand_collapse"></script>
 <script src="/js/13-discover-add-imports.js?v=1080_games_identity_lock_fix"></script>
 <script src="/js/14-navigation.js?v=10135_activity_notifications_tab"></script>
-<script src="/js/15-profile-settings.js?v=10287_remove_trackergg_row"></script>
-<script src="/js/24-movie-rating-duel.js?v=1092_tier_list_fullscreen_footer_fix"></script>
-<script src="/js/16-friends-requests.js?v=10281_nav_badge_includes_notifications"></script>
-<script src="/js/17-comments-auth-init.js?v=10281_eager_notifications_listener"></script>
+<script src="/js/15-profile-settings.js?v=10387_watchlist_section_split"></script>
+<script src="/js/24-movie-rating-duel.js?v=10345_tier_long_press_drag"></script>
+<script src="/js/16-friends-requests.js?v=10387_watchlist_section_split"></script>
+<script src="/js/17-comments-auth-init.js?v=10341_album_details_actions"></script>
 <script src="/js/18-search-page.js?v=10175_discovery_games_engagement_ranking"></script>
 <script src="/js/19-gis-signin.js?v=907_landing_google_cleanup"></script>
 <script src="/js/19b-email-password-auth.js?v=752_email_auth_fullscreen_page"></script>
@@ -1687,11 +1714,11 @@
 <script src="/js/22-favorite-people.js?v=730_fav_people_actors"></script>
 <script src="/js/25-orientation-lock.js?v=10210_portrait_lock_surface_fix"></script>
 <script src="/js/26-music-album-profile.js?v=10233_music_profile"></script>
-<script src="/js/27-music-album-shelf-page.js?v=10292_fix_own_album_rating_save"></script>
+<script src="/js/27-music-album-shelf-page.js?v=10341_album_details_actions"></script>
 <script src="/js/28-music-artist-profile.js?v=10246_artist_profile"></script>
 <script src="/js/29-favorite-artists.js?v=10258_artist_heart"></script>
 <script src="/js/30-add-password-provider.js?v=10279_auto_open_for_google_users"></script>
-<script src="/js/31-edge-swipe-back.js?v=10272_carousel_safe"></script>
+<script src="/js/31-edge-swipe-back.js?v=10388_swipe_back_corners_45"></script>
 <script src="/js/32-stack-carousel.js?v=10272_stack_carousel_init"></script>
 <script src="/js/33-push-notifications.js?v=10275_push_notifications"></script>
 <script>
