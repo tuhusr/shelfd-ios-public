@@ -525,23 +525,29 @@
     });
   }
 
-  /* v10.253: album-level 10-star rating widget that sits between the hero
-     and the tracklist. Mirrors the existing Shelfd rating pattern (`.stars
-     .star-btn`, hover preview, click, `.lit` color, star-pop). Edits commit
-     to `item.rating` and ride the same save() pipeline as everything else,
-     so the rating shows up on the my-list title card, the activity card,
-     the FPReview, etc. */
+  /* v10.253 / v10.396: album-level rating widget between the hero and
+     the tracklist. v10.396 swaps the old 10-star `.star-btn` markup for
+     the new `.music-rating` widget (5 stars, half-step granularity)
+     shared with the My List title card. Both surfaces read/write the
+     same `item.rating` int (0–10 internal, displayed as 0.5/5), so
+     editing in either place keeps both in sync. The widget's inline
+     handlers route through `rate(itemId,'overall',score)` which fires
+     the standard `updateOverallRatingUI` re-render — that selector now
+     matches `.music-rating[data-item-id][data-prefix="overall"]`, so
+     this widget AND the title card behind the overlay both repaint
+     from a single click. */
   function renderAlbumRatingHtml(item) {
+    const itemId = item?.id || '';
     const rating = Number(item?.rating || 0);
-    const stars = [];
-    for (let s = 1; s <= 10; s++) {
-      stars.push(`<button type="button" class="star-btn${s <= rating ? ' lit' : ''}" data-album-rating-star="${s}" aria-label="Rate ${s} of 10">&#9733;</button>`);
-    }
+    const interactive = !window.viewingUser;
     const ratio = computeFavoriteRatio(item);
+    const ratingMarkup = typeof window.buildMusicRatingMarkup === 'function'
+      ? window.buildMusicRatingMarkup(rating, itemId, 'overall', 28, interactive)
+      : `<div class="music-rating" data-item-id="${itemId}" data-prefix="overall" data-section="music"></div>`;
     return `
       <section class="mylist-album-shelf-rating" data-album-rating>
         <div class="mylist-album-shelf-rating-label">Your rating</div>
-        <div class="stars mylist-album-shelf-rating-stars" style="--star-size:26px;" data-album-rating-stars>${stars.join('')}</div>
+        ${ratingMarkup}
         <div class="mylist-album-shelf-fav-ratio" data-album-fav-ratio>
           <span data-album-fav-ratio-text>${ratio.total === 0 ? '—' : `${ratio.percent}%`}</span>
         </div>
@@ -558,58 +564,18 @@
     const ratio = computeFavoriteRatio(live);
     txt.textContent = ratio.total === 0 ? '—' : `${ratio.percent}%`;
   }
-  function attachAlbumRatingHandlers(overlay, itemId) {
-    const ratingZone = overlay.querySelector('[data-album-rating]');
-    if (!ratingZone) return;
-    const starsHost = ratingZone.querySelector('[data-album-rating-stars]');
-    if (!starsHost) return;
-    const starBtns = Array.from(starsHost.querySelectorAll('.star-btn'));
-    const currentRating = () => {
-      const live = getLiveMusicItem(itemId);
-      return Number(live?.rating || 0);
-    };
-    function previewStars(value) {
-      starBtns.forEach((b, i) => b.classList.toggle('lit', (i + 1) <= value));
-    }
-    function commitRating(value) {
-      const live = getLiveMusicItem(itemId);
-      if (!live) return;
-      live.rating = Number(value || 0);
-      callGlobalFn('save');
-      callGlobalFn('markOwnItemLastEdited', live, 'music');
-      previewStars(value);
-    }
-    starBtns.forEach((btn, i) => {
-      const v = i + 1;
-      btn.addEventListener('mouseenter', () => previewStars(v));
-      btn.addEventListener('mouseleave', () => previewStars(currentRating()));
-      btn.addEventListener('click', e => {
-        e.stopPropagation();
-        const newVal = currentRating() === v ? 0 : v;
-        commitRating(newVal);
-        btn.classList.remove('star-pop');
-        void btn.offsetWidth;
-        btn.classList.add('star-pop');
-        setTimeout(() => btn.classList.remove('star-pop'), 460);
-      });
-    });
-    /* Touch scrub across the row to set a rating. */
-    starsHost.addEventListener('touchmove', e => {
-      const touch = e.touches?.[0];
-      if (!touch) return;
-      const el = document.elementFromPoint(touch.clientX, touch.clientY);
-      if (el && el.dataset && el.dataset.albumRatingStar) {
-        const v = Number(el.dataset.albumRatingStar) || 0;
-        previewStars(v);
-        ratingZone.dataset.scrubValue = String(v);
-        e.preventDefault?.();
-      }
-    }, { passive: false });
-    starsHost.addEventListener('touchend', () => {
-      const v = Number(ratingZone.dataset.scrubValue || '0');
-      if (v > 0) commitRating(v);
-      ratingZone.dataset.scrubValue = '';
-    }, { passive: true });
+  /* v10.396: previously this function added click / mouseenter /
+     mouseleave / touchmove / touchend listeners to the legacy
+     `.star-btn` 10-star widget. The new `.music-rating` widget shipped
+     in v10.395 has all of those handlers inlined on the buttons (via
+     buildMusicRatingMarkup → onclick / onmouseenter / onmouseleave /
+     ontouchstart / ontouchmove / ontouchend), so this attachment pass
+     is no longer needed. Kept as a no-op so the existing call site
+     remains valid; future album-widget hookups (e.g. instrumenting
+     analytics) can hang off this seam without re-introducing
+     listeners that would now double up with the inline ones. */
+  function attachAlbumRatingHandlers(_overlay, _itemId) {
+    /* intentionally empty — see comment above */
   }
 
   /* v10.256: walk the track list and async-enrich any track whose displayed

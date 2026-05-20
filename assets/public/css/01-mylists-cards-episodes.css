@@ -469,6 +469,10 @@
     -webkit-user-select: none;
             user-select: none;
   }
+  /* v10.396: sizes are driven by inline CSS variables on the
+     `.music-rating` container (`--music-star-size`, `--music-half-width`).
+     Title card sets 20/10, album shelf page sets 28/14. One ruleset,
+     two surfaces. */
   .music-rating-half {
     appearance: none;
     -webkit-appearance: none;
@@ -476,11 +480,11 @@
     border: 0;
     padding: 0;
     margin: 0;
-    width: 10px;
-    min-width: 10px;
-    height: 24px;
+    width: var(--music-half-width, 10px);
+    min-width: var(--music-half-width, 10px);
+    height: calc(var(--music-star-size, 20px) + 4px);
     line-height: 1;
-    font-size: 20px;
+    font-size: var(--music-star-size, 20px);
     font-family: inherit;
     color: #443d60;
     overflow: hidden;
@@ -497,7 +501,7 @@
   }
   .music-rating-half.music-rating-half-right {
     text-align: left;
-    text-indent: -10px;
+    text-indent: calc(var(--music-half-width, 10px) * -1);
     justify-content: flex-start;
   }
   .music-rating-half.lit,
@@ -519,7 +523,7 @@
   .music-rating-value {
     margin-left: 8px;
     color: #ffffff;
-    font: 700 14px/1 'Sohne', 'DM Sans', sans-serif;
+    font: 700 calc(var(--music-star-size, 20px) * 0.7)/1 'Sohne', 'DM Sans', sans-serif;
     letter-spacing: -0.01em;
     white-space: nowrap;
   }

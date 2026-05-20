@@ -669,53 +669,61 @@ function renderMyListCardOverallRating(item = {}, section = activeSection) {
   return renderStars(Number(item?.rating || 0), item?.id || '', 'overall', 16, section);
 }
 
-/* v10.395: dedicated music rating widget — Musicboard-style 5-star bar
-   with half-step granularity (10 invisible half-step buttons, each
-   rendering one half of a glyph via the same text-indent trick the
-   shared widget uses). All interaction wiring (click, hover preview,
-   touch scrub, pop animation) is kept parallel to the shared
-   .star-btn family but uses entirely new class names so we never
-   collide with global !important rules.
+/* v10.395 / v10.396: dedicated music rating widget — Musicboard-style
+   5-star bar with half-step granularity. Used by the My List title card
+   AND the Tracklist full page (album shelf). New class names so global
+   `.star-btn` rules can't compress it.
 
    Save path reuses the shared `rate(itemId, prefix, score)` so item
-   updates / activity / save() debounce all flow through the same
-   pipeline as every other section. */
-function renderMyListMusicCardOverallRating(item = {}) {
-  const rating = Number(item?.rating || 0);
-  const itemId = item?.id || '';
-  const interactive = !viewingUser;
+   updates / activity / save() debounce / firestore writes all flow
+   through the same pipeline as every other section. Both surfaces share
+   `item.rating` as the single source of truth (1–10 int stored,
+   displayed as 0.5 increments out of 5).
+
+   Size is driven by inline CSS variables on the container, so the same
+   markup works for the compact 20px title-card widget and the larger
+   26px album-page widget without a CSS variant per surface. */
+function buildMusicRatingMarkup(rating = 0, itemId = '', prefix = 'overall', size = 20, interactive = true) {
+  const cleanRating = Number(rating || 0);
+  const halfWidth = Math.max(1, Math.round(size / 2));
   const escapedItemId = (typeof escAttr === 'function') ? escAttr(itemId) : String(itemId);
+  const escapedPrefix = (typeof escAttr === 'function') ? escAttr(prefix) : String(prefix);
   const touchAttrs = interactive
     ? ' ontouchstart="musicRatingTouchStart(event)"' +
       ' ontouchmove="musicRatingTouchMove(event)"' +
       ' ontouchend="musicRatingTouchEnd(event)"' +
       ' ontouchcancel="musicRatingTouchEnd(event)"'
     : '';
-  let html = `<div class="music-rating" data-item-id="${escapedItemId}" data-prefix="overall" data-section="music"${touchAttrs}>`;
+  const styleAttr = `style="--music-star-size:${size}px;--music-half-width:${halfWidth}px;"`;
+  let html = `<div class="music-rating" ${styleAttr} data-item-id="${escapedItemId}" data-prefix="${escapedPrefix}" data-section="music"${touchAttrs}>`;
   for (let star = 1; star <= 5; star++) {
     const leftVal = star * 2 - 1;
     const rightVal = star * 2;
-    const leftLit = leftVal <= rating ? ' lit' : '';
-    const rightLit = rightVal <= rating ? ' lit' : '';
+    const leftLit = leftVal <= cleanRating ? ' lit' : '';
+    const rightLit = rightVal <= cleanRating ? ' lit' : '';
     if (interactive) {
       html += `<button type="button" class="music-rating-half music-rating-half-left${leftLit}" data-star="${leftVal}"`
-        + ` onclick="event.stopPropagation();rate('${escapedItemId}','overall',${leftVal})"`
-        + ` onmouseenter="musicRatingHover(this,${leftVal})" onmouseleave="musicRatingUnhover(this,${rating})">★</button>`;
+        + ` onclick="event.stopPropagation();rate('${escapedItemId}','${escapedPrefix}',${leftVal})"`
+        + ` onmouseenter="musicRatingHover(this,${leftVal})" onmouseleave="musicRatingUnhover(this,${cleanRating})">★</button>`;
       html += `<button type="button" class="music-rating-half music-rating-half-right${rightLit}" data-star="${rightVal}"`
-        + ` onclick="event.stopPropagation();rate('${escapedItemId}','overall',${rightVal})"`
-        + ` onmouseenter="musicRatingHover(this,${rightVal})" onmouseleave="musicRatingUnhover(this,${rating})">★</button>`;
+        + ` onclick="event.stopPropagation();rate('${escapedItemId}','${escapedPrefix}',${rightVal})"`
+        + ` onmouseenter="musicRatingHover(this,${rightVal})" onmouseleave="musicRatingUnhover(this,${cleanRating})">★</button>`;
     } else {
       html += `<span class="music-rating-half music-rating-half-left${leftLit}">★</span>`;
       html += `<span class="music-rating-half music-rating-half-right${rightLit}">★</span>`;
     }
   }
-  if (rating > 0) {
-    const display = rating / 2;
+  if (cleanRating > 0) {
+    const display = cleanRating / 2;
     const label = Number.isInteger(display) ? String(display) : display.toFixed(1);
     html += `<span class="music-rating-value">${label}</span>`;
   }
   html += `</div>`;
   return html;
+}
+
+function renderMyListMusicCardOverallRating(item = {}) {
+  return buildMusicRatingMarkup(Number(item?.rating || 0), item?.id || '', 'overall', 20, !viewingUser);
 }
 
 /* v10.395: hover preview — paint .lit-hover on every half-step up to and
@@ -789,13 +797,16 @@ function musicRatingTouchEnd(e) {
   }
 }
 
-/* Expose for inline handler resolution. */
+/* Expose for inline handler resolution + cross-file consumers
+   (album shelf page in 27-music-album-shelf-page.js uses
+   window.buildMusicRatingMarkup). */
 if (typeof window !== 'undefined') {
   window.musicRatingHover = musicRatingHover;
   window.musicRatingUnhover = musicRatingUnhover;
   window.musicRatingTouchStart = musicRatingTouchStart;
   window.musicRatingTouchMove = musicRatingTouchMove;
   window.musicRatingTouchEnd = musicRatingTouchEnd;
+  window.buildMusicRatingMarkup = buildMusicRatingMarkup;
 }
 
 
@@ -7957,6 +7968,33 @@ function deleteItem(eventOrId, maybeId) {
    changed. */
 function updateOverallRatingUI(item = {}, section = activeSection) {
   if (!item || !item.id) return;
+  /* v10.396: music uses the new `.music-rating` widget (introduced v10.395).
+     Pre-v10.396 this function only knew about `.stars` containers, so every
+     rate() on a music card left the `.music-rating-value` label and the lit
+     state of the 10 half-step buttons stale. We now branch on section and
+     repaint every `.music-rating` node matching the item id — that picks
+     up the title card AND the album-shelf "Your rating" widget at once,
+     keeping both surfaces in lockstep with the single source of truth
+     (item.rating, stored as 0–10 int, displayed as 0.5 increments / 5). */
+  if (section === 'music') {
+    if (typeof buildMusicRatingMarkup !== 'function') return;
+    const idStr = String(item.id);
+    const currentRating = Number(item.rating || 0);
+    document.querySelectorAll('.music-rating[data-item-id][data-prefix="overall"]').forEach(node => {
+      if (node.dataset.itemId !== idStr) return;
+      /* Preserve each existing widget's size — the title card uses 20px,
+         the album shelf page uses ~26px. Read the size off the inline
+         CSS variable on the existing container. */
+      const styleStr = node.getAttribute('style') || '';
+      const m = styleStr.match(/--music-star-size:\s*(\d+(?:\.\d+)?)px/);
+      const size = m ? Number(m[1]) : 20;
+      const tmp = document.createElement('div');
+      tmp.innerHTML = buildMusicRatingMarkup(currentRating, item.id, 'overall', size, !viewingUser);
+      const replacement = tmp.firstElementChild;
+      if (replacement) node.replaceWith(replacement);
+    });
+    return;
+  }
   if (typeof buildRatingStarsMarkup !== 'function') return;
   const tmp = document.createElement('div');
   tmp.innerHTML = buildRatingStarsMarkup(Number(item.rating || 0), item.id, 'overall', 16, section, !viewingUser);
