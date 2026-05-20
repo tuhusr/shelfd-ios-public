@@ -710,8 +710,12 @@
     const rating = Number(item?.rating || 0);
     const interactive = !window.viewingUser;
     const ratio = computeFavoriteRatio(item);
+    /* v10.398: album-level "Your rating" widget reduced 28 -> 25 (3px
+     smaller per spec). buildMusicRatingMarkup propagates this to BOTH
+     the star glyph font-size and the value label (`calc(--music-star-size
+     * 0.7)`), so stars and label shrink together cleanly. */
     const ratingMarkup = typeof window.buildMusicRatingMarkup === 'function'
-      ? window.buildMusicRatingMarkup(rating, itemId, 'overall', 28, interactive)
+      ? window.buildMusicRatingMarkup(rating, itemId, 'overall', 25, interactive)
       : `<div class="music-rating" data-item-id="${itemId}" data-prefix="overall" data-section="music"></div>`;
     return `
       <section class="mylist-album-shelf-rating" data-album-rating>

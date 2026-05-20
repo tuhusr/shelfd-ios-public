@@ -766,9 +766,12 @@
   /* Legacy track-number element kept in the DOM in case other code
      queries it, but visually removed. */
   .mylist-album-shelf-track-num { display: none !important; }
+  /* v10.398: track title bumped DOWN 1px (14 -> 13) per spec — pulls
+     the tracklist into tighter visual rhythm with the now-smaller
+     "Your rating" widget and the per-track value text. */
   .mylist-album-shelf-track-title {
     color: #f8f4ff;
-    font: 500 14px/1.25 'Sohne', 'DM Sans', sans-serif;
+    font: 500 13px/1.25 'Sohne', 'DM Sans', sans-serif;
     overflow: hidden;
     text-overflow: ellipsis;
     word-break: break-word;
@@ -821,9 +824,12 @@
     font-size: 20px;
     line-height: 1;
   }
+  /* v10.398: per-track "4.5 / 5" label — weight 700 -> 600 (lighter by
+     one weight step / 100) and font 13 -> 12 (1px smaller). Star icon
+     in the same toggle keeps its 20px size; only the value text shrinks. */
   .mylist-album-shelf-track-rate-value {
     color: #ffffff;
-    font: 700 13px/1 'Sohne', 'DM Sans', sans-serif;
+    font: 600 12px/1 'Sohne', 'DM Sans', sans-serif;
     letter-spacing: -0.01em;
     white-space: nowrap;
   }
