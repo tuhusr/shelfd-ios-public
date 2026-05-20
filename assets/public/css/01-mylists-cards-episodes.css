@@ -448,6 +448,41 @@
     max-width: none;
     overflow: visible;
   }
+  /* v10.394: defeat the 17-auth-flow-setup.css `width: 16px / 8px !important`
+     box rules that compress stars to a slot narrower than the ★ glyph's
+     natural width, causing adjacent stars to visually overlap. Inside the
+     music-bottom-rating-slot we use a higher-specificity selector chain
+     (#mylist-view .card[data-library-section="music"] .music-bottom-rating-slot ...)
+     to override at: full star 22px box / 22px font / 26px height,
+     half-step 11px box. The half-step text-indent / overflow trick in
+     01-mylists-cards-episodes.css line 1216-1222 already keys off the
+     `--star-size` variable, so re-bumping it to 22px keeps the left/right
+     glyph positioning correct without us having to override text-indent
+     manually. */
+  #mylist-view .card[data-library-section="music"] .music-bottom-rating-slot .stars[data-prefix="overall"] {
+    --star-size: 22px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0 !important;
+  }
+  #mylist-view .card[data-library-section="music"] .music-bottom-rating-slot .stars[data-prefix="overall"] .star-btn {
+    width: 22px !important;
+    min-width: 22px !important;
+    height: 26px !important;
+    font-size: 22px !important;
+    line-height: 1 !important;
+  }
+  #mylist-view .card[data-library-section="music"] .music-bottom-rating-slot .stars.rating-scale-five[data-prefix="overall"] .star-btn.half-step {
+    width: 11px !important;
+    min-width: 11px !important;
+    height: 26px !important;
+    font-size: 22px !important;
+  }
+  #mylist-view .card[data-library-section="music"] .music-bottom-rating-slot .stars[data-prefix="overall"] .star-label {
+    font-size: 14px !important;
+    margin-left: 8px !important;
+    line-height: 1 !important;
+  }
   /* v10.261: music tab order — Planned → In Rotation → Listened. The
      static HTML order is Watching · Planned · Watched, so we use CSS flex
      order to reposition them visually when active section is music. */
