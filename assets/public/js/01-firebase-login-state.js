@@ -208,8 +208,10 @@ const CREATOR_PUBLIC_UID = 'KihPpiqSsFMpn5Tee4xZWFWapg62';
 const CREATOR_DEFAULT_NAME = 'King Kooom';
 const CREATOR_PUBLIC_PROFILE_SLUG = 'kingkooom';
 const CREATOR_PUBLIC_PROFILE_CACHE_KEY = 'screenlist-public-creator-profile-v1';
-const CREATIVE_TEAM_DISPLAY_NAMES = new Set(['z money']);
-const CREATIVE_TEAM_UIDS = new Set(['xHu4YAzC2EVUTq1XWJM3BCJEgTw1']);
+/* v10.589: removed savage tones (uid xHu4YAzC2EVUTq1XWJM3BCJEgTw1 /
+   display "z money") from creative team tag per direct request. */
+const CREATIVE_TEAM_DISPLAY_NAMES = new Set();
+const CREATIVE_TEAM_UIDS = new Set();
 let commentsViewState = null;
 let creatorSearchUserCache = null;
 

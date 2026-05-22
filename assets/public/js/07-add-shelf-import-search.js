@@ -1506,6 +1506,9 @@ function normaliseIgdbGameToRawg(g) {
     platforms:     (g.platforms || []).map(p => ({ platform: { name: p } })),
     genres:        (g.genres    || []).map(n => ({ name: n })),
     themes:        (g.themes    || []).map(n => ({ name: n })),
+    /* v10.494: forward alternative_names so the Universal Search
+       bucket scorer can match abbreviations / regional titles. */
+    alternative_names: Array.isArray(g.alternative_names) ? g.alternative_names.slice() : [],
     slug:          g.slug || '',
     source:        'igdb',
     sourceId:      String(g.id || ''),

@@ -1,4 +1,4 @@
-/* Universal Discovery Search */
+﻿/* Universal Discovery Search */
 .discover-search-trigger {
   flex-shrink: 0;
   width: 38px;
@@ -52,7 +52,7 @@ body.discover-universal-search-open {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: var(--shelfd-safe-top, 0px);
 }
 .discover-universal-search-header {
   display: flex;
@@ -238,7 +238,7 @@ body.light-mode .discover-universal-search-empty { color: rgba(21,16,45,0.4); }
   min-height: 100%;
 }
 
-/* v267: Discovery universal search — cleaner icon and popularity-first results */
+/* v267: Discovery universal search â€” cleaner icon and popularity-first results */
 .discover-universal-search-body #discover-universal-search-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
@@ -247,7 +247,7 @@ body.light-mode .discover-universal-search-empty { color: rgba(21,16,45,0.4); }
   background: radial-gradient(circle at top, rgba(124,58,237,0.13), transparent 32%), #05040d;
 }
 .discover-universal-search-header {
-  padding-top: max(14px, calc(env(safe-area-inset-top, 0px) + 10px));
+  padding-top: max(14px, calc(var(--shelfd-safe-top, 0px) + 10px));
 }
 .discover-universal-search-input {
   border-radius: 999px;
@@ -269,12 +269,12 @@ body.light-mode .discover-universal-search-empty { color: rgba(21,16,45,0.4); }
   }
 }
 
-/* Discover View All — topbar lifted to screen top, clear gap above category title */
+/* Discover View All â€” topbar lifted to screen top, clear gap above category title */
 .discover-category-full-page {
-  padding-top: max(6px, env(safe-area-inset-top, 0px)) !important;
+  padding-top: max(6px, var(--shelfd-safe-top, 0px)) !important;
 }
 .discover-category-full-topbar {
-  top: max(6px, env(safe-area-inset-top, 0px)) !important;
+  top: max(6px, var(--shelfd-safe-top, 0px)) !important;
   margin-bottom: 42px !important;
 }
 .discover-category-full-head {
@@ -282,10 +282,10 @@ body.light-mode .discover-universal-search-empty { color: rgba(21,16,45,0.4); }
 }
 @media (max-width: 700px) {
   .discover-category-full-page {
-    padding-top: max(4px, env(safe-area-inset-top, 0px)) !important;
+    padding-top: max(4px, var(--shelfd-safe-top, 0px)) !important;
   }
   .discover-category-full-topbar {
-    top: max(4px, env(safe-area-inset-top, 0px)) !important;
+    top: max(4px, var(--shelfd-safe-top, 0px)) !important;
     margin-bottom: 42px !important;
   }
 }
@@ -357,11 +357,11 @@ body.light-mode.main-tab-discover .header-discover-search-btn {
   padding-top: 0 !important;
 }
 .discover-category-full-shell {
-  padding-top: max(82px, calc(env(safe-area-inset-top, 0px) + 70px));
+  padding-top: max(82px, calc(var(--shelfd-safe-top, 0px) + 70px));
 }
 .discover-category-full-topbar {
   position: fixed !important;
-  top: max(6px, calc(env(safe-area-inset-top, 0px) + 2px)) !important;
+  top: max(6px, calc(var(--shelfd-safe-top, 0px) + 2px)) !important;
   left: 50% !important;
   right: auto !important;
   width: min(1120px, calc(100vw - 32px));
@@ -374,10 +374,10 @@ body.light-mode.main-tab-discover .header-discover-search-btn {
 }
 @media (max-width: 700px) {
   .discover-category-full-shell {
-    padding-top: max(78px, calc(env(safe-area-inset-top, 0px) + 66px)) !important;
+    padding-top: max(78px, calc(var(--shelfd-safe-top, 0px) + 66px)) !important;
   }
   .discover-category-full-topbar {
-    top: max(4px, calc(env(safe-area-inset-top, 0px) + 1px)) !important;
+    top: max(4px, calc(var(--shelfd-safe-top, 0px) + 1px)) !important;
     width: calc(100vw - 24px);
   }
 }
@@ -393,7 +393,7 @@ body.light-mode.main-tab-discover .header-discover-search-btn {
 @media (max-width: 700px) {
   body.main-tab-discover .header,
   body.main-tab-community .header {
-    padding-top: max(10px, env(safe-area-inset-top, 0px)) !important;
+    padding-top: max(10px, var(--shelfd-safe-top, 0px)) !important;
     padding-bottom: 10px !important;
   }
 
@@ -537,7 +537,7 @@ body.light-mode.main-tab-discover .header-discover-search-btn {
 .discover-universal-search-notch {
   width: 48px;
   height: 22px;
-  margin: max(8px, calc(env(safe-area-inset-top, 0px) + 6px)) auto 0;
+  margin: max(8px, calc(var(--shelfd-safe-top, 0px) + 6px)) auto 0;
   padding: 0;
   border: 0;
   background: transparent;
@@ -792,7 +792,7 @@ body.light-mode .discover-universal-search-body #discover-universal-search-grid.
   grid-template-columns: 44px minmax(0, 1fr) 44px;
   align-items: center;
   gap: 8px;
-  padding: max(10px, calc(env(safe-area-inset-top, 0px) + 8px)) 16px 8px;
+  padding: max(10px, calc(var(--shelfd-safe-top, 0px) + 8px)) 16px 8px;
   border-bottom: 1px solid rgba(232, 227, 243, 0.12);
 }
 
@@ -1188,7 +1188,7 @@ body.light-mode .discover-universal-search-overlay {
 /* v288: Discover search compact top layout + larger ShelfLine result posters.
    Keeps the Search / Filter / media tabs centered and removes any vertical tab separators. */
 .discover-universal-search-shelfline .discover-universal-search-titlebar {
-  padding-top: max(6px, calc(env(safe-area-inset-top, 0px) + 4px)) !important;
+  padding-top: max(6px, calc(var(--shelfd-safe-top, 0px) + 4px)) !important;
   padding-bottom: 5px !important;
   min-height: 42px !important;
 }
@@ -1311,7 +1311,7 @@ body.light-mode .discover-universal-search-overlay {
    This keeps the same clean UI, but gives the title, search/filter row, helper copy, and tabs
    enough vertical breathing room so the top area no longer feels crushed. */
 .discover-universal-search-shelfline .discover-universal-search-titlebar {
-  padding-top: max(12px, calc(env(safe-area-inset-top, 0px) + 9px)) !important;
+  padding-top: max(12px, calc(var(--shelfd-safe-top, 0px) + 9px)) !important;
   padding-bottom: 10px !important;
   min-height: 56px !important;
 }
@@ -1368,7 +1368,7 @@ body.light-mode .discover-universal-search-overlay {
 @media (max-width: 390px) {
   .discover-universal-search-shelfline .discover-universal-search-titlebar {
     min-height: 54px !important;
-    padding-top: max(10px, calc(env(safe-area-inset-top, 0px) + 7px)) !important;
+    padding-top: max(10px, calc(var(--shelfd-safe-top, 0px) + 7px)) !important;
     padding-bottom: 9px !important;
   }
 
@@ -1411,7 +1411,7 @@ body.light-mode .discover-universal-search-overlay {
    without changing result cards or filter logic. */
 .discover-universal-search-shelfline .discover-universal-search-notch {
   height: 32px !important;
-  margin-top: max(14px, calc(env(safe-area-inset-top, 0px) + 12px)) !important;
+  margin-top: max(14px, calc(var(--shelfd-safe-top, 0px) + 12px)) !important;
   margin-bottom: 18px !important;
 }
 
@@ -1485,7 +1485,7 @@ body.light-mode .discover-universal-search-overlay {
 
 @media (max-width: 390px) {
   .discover-universal-search-shelfline .discover-universal-search-notch {
-    margin-top: max(12px, calc(env(safe-area-inset-top, 0px) + 10px)) !important;
+    margin-top: max(12px, calc(var(--shelfd-safe-top, 0px) + 10px)) !important;
     margin-bottom: 16px !important;
   }
 
@@ -1931,10 +1931,10 @@ body.main-tab-discover .header-dm-btn {
 }
 
 /* =============================================================
-   v850 — Discover universal search: full-page + lavender redesign
+   v850 â€” Discover universal search: full-page + lavender redesign
    --------------------------------------------------------------
    - Forces full-page layout on every viewport (no desktop modal
-     window — the search now owns the screen on tablet/desktop too).
+     window â€” the search now owns the screen on tablet/desktop too).
    - Hides the "Search across Discovery without leaving this page"
      subtitle line.
    - Removes every horizontal divider/border-bottom line (titlebar,
@@ -1944,7 +1944,7 @@ body.main-tab-discover .header-dm-btn {
    ============================================================= */
 
 /* Full-page overlay on ALL viewports.
-   v853: reverted v852 — back to the v850 charcoal #181c20 panel
+   v853: reverted v852 â€” back to the v850 charcoal #181c20 panel
    background. User preferred the charcoal-vs-results contrast. */
 .discover-universal-search-overlay,
 .discover-universal-search-overlay.discover-universal-search-shelfline {
@@ -1966,7 +1966,7 @@ body.main-tab-discover .header-dm-btn {
   border-radius: 0 !important;
   background: #181c20 !important;
   box-shadow: none !important;
-  padding-top: env(safe-area-inset-top, 0px) !important;
+  padding-top: var(--shelfd-safe-top, 0px) !important;
 }
 
 /* Hide the "Search across Discovery without leaving this page" subtitle. */
@@ -1995,7 +1995,7 @@ body.main-tab-discover .header-dm-btn {
   border-bottom: 0 !important;
 }
 
-/* Lavender accent recolor — header controls, input, tabs, filter button. */
+/* Lavender accent recolor â€” header controls, input, tabs, filter button. */
 .discover-universal-search-title,
 .discover-universal-search-shelfline .discover-universal-search-title {
   color: #ffffff !important;
@@ -2043,10 +2043,10 @@ body.main-tab-discover .header-dm-btn {
   background: #c4b5fd !important;
 }
 
-/* v851 — remove the top pull-down notch and tighten the top padding so
+/* v851 â€” remove the top pull-down notch and tighten the top padding so
    the search titlebar starts directly under the Dynamic Island safe
    area, with no extra vertical room. Previously the notch element
-   plus its 14–18px top/bottom margins pushed the titlebar ~50px down
+   plus its 14â€“18px top/bottom margins pushed the titlebar ~50px down
    from the safe-area edge; killing the notch reclaims that space. */
 .discover-universal-search-notch,
 .discover-universal-search-shelfline .discover-universal-search-notch {
@@ -2057,7 +2057,7 @@ body.main-tab-discover .header-dm-btn {
 }
 .discover-universal-search-panel,
 .discover-universal-search-shelfline .discover-universal-search-panel {
-  padding-top: env(safe-area-inset-top, 0px) !important;
+  padding-top: var(--shelfd-safe-top, 0px) !important;
 }
 /* The titlebar's own top padding is already env(safe-area-inset-top + 8px)
    from the legacy rule (line 793). Reset it to just a small breathing

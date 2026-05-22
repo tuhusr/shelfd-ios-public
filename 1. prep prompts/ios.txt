@@ -1,0 +1,45 @@
+Absolute priority:
+The actual iOS TestFlight app is the mobile source of truth.
+
+For all mobile decisions, prioritize the iOS TestFlight/App Store build over everything else.
+
+Do NOT optimize for or judge against:
+- mobile Safari
+- mobile browser
+- PWA / Add-to-Home-Screen behavior
+- responsive DevTools mobile preview
+
+Completely ignore mobile browser and PWA behavior unless I explicitly ask for it in a separate task.
+
+Desktop can still be considered as a secondary platform, but mobile optimization must be based only on the actual iOS TestFlight app.
+
+Judge mobile layout, functionality, animation, touch behavior, and visual polish from the iOS app first.
+
+Verify:
+- smaller iPhone, standard iPhone, and Pro Max layouts
+- correct iPhone viewport fit
+- safe areas / notch / Dynamic Island / home indicator
+- bottom nav and header overlap
+- modal position
+- keyboard behavior
+- scroll behavior
+- touch behavior
+- tap target comfort
+- readable text size
+- animation smoothness
+- no horizontal overflow
+- no clipped content
+- no oversized, off-center, cramped, or overlapping elements
+- App Store-ready visual polish
+
+Also verify iOS rendering quality:
+- correct viewport scale on iPhone
+- sharp Retina-quality rendering
+- no blurry icons, posters, logos, or UI assets
+- images use high enough resolution for Retina displays
+- no stretched, pixelated, or downscaled artwork
+- layout looks sharp in actual TestFlight screenshots
+
+Do not optimize only for the largest iPhone. The layout must scale cleanly across smaller, standard, and large iPhones without changing the intended design.
+
+Report any element that is clipped, blurry, oversized, too small, off-center, overlapping, hard to tap, or visually different from the intended iOS app presentation.

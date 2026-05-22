@@ -1,4 +1,4 @@
-/* v221 - Shelfd Secure Key E2EE recovery modal */
+﻿/* v221 - Shelfd Secure Key E2EE recovery modal */
 .dm-e2ee-recovery-modal {
   position: fixed;
   inset: 0;
@@ -274,9 +274,9 @@
     transition: none !important;
   }
 }
-/* v433: tighten the bottom-sheet header — the sheet sits 19vh below the top of
+/* v433: tighten the bottom-sheet header â€” the sheet sits 19vh below the top of
    the screen, so safe-area-inset-top isn't relevant here and the previous
-   max(14px, env(safe-area-inset-top) + 8px) was leaving a big empty gap below
+   max(14px, var(--shelfd-safe-top, 0px) + 8px) was leaving a big empty gap below
    the drag handle. Compact the header so the title sits right under the notch. */
 #feed-post-page .overlay-page-header {
   min-height: 40px !important;
@@ -702,7 +702,7 @@
   }
 }
 
-/* ── v196: Mobile fix — squashed friend cards in Requests tab ── */
+/* â”€â”€ v196: Mobile fix â€” squashed friend cards in Requests tab â”€â”€ */
 @media (max-width: 640px) {
   #requests-view .user-card:has(.friend-actions-group) {
     flex-direction: column !important;
@@ -718,7 +718,7 @@
   }
 }
 
-/* ── v202: Activity page — profile header strip ── */
+/* â”€â”€ v202: Activity page â€” profile header strip â”€â”€ */
 .activity-page-header { margin-bottom: 20px; }
 .activity-page-user-strip {
   display: flex;
@@ -788,7 +788,7 @@ body.light-mode .activity-page-profile-btn {
   color: #fff !important;
 }
 
-/* ── v203: user-filter-active — Twitter/Instagram-style feed cards ── */
+/* â”€â”€ v203: user-filter-active â€” Twitter/Instagram-style feed cards â”€â”€ */
 .activity-page.user-filter-active #activity-page-feed {
   padding-left: 0;
   padding-right: 0;
@@ -921,7 +921,7 @@ body.light-mode .activity-page.user-filter-active .activity-card-time    { color
 body.light-mode .activity-page.user-filter-active .activity-card-section { color: #9a90b5 !important; }
 body.light-mode .activity-page.user-filter-active .activity-interaction-btn { color: #8878b8 !important; }
 
-/* ── v205: Add to Shelf — universal search filter pills + result badges ── */
+/* â”€â”€ v205: Add to Shelf â€” universal search filter pills + result badges â”€â”€ */
 .shelf-filter-pills {
   display: flex;
   flex-wrap: wrap;
@@ -981,7 +981,7 @@ body.light-mode .shelf-filter-pill.active {
   border-color: transparent;
 }
 
-/* ── v206: Main feed activity card revamp — Instagram/Twitter-inspired ── */
+/* â”€â”€ v206: Main feed activity card revamp â€” Instagram/Twitter-inspired â”€â”€ */
 #community-view #activity-tab-view .activity-card {
   grid-template-columns: 44px minmax(0,1fr) 78px !important;
   column-gap: 0 !important;
@@ -1126,7 +1126,7 @@ body.light-mode .shelf-filter-pill.active {
   }
 }
 
-/* ── v206: Single-user activity page updates ── */
+/* â”€â”€ v206: Single-user activity page updates â”€â”€ */
 .activity-page.user-filter-active .activity-card {
   grid-template-columns: minmax(0,1fr) 88px !important;
 }
@@ -1356,7 +1356,7 @@ body.mylist-settings-open {
      auth-flow panels and the card-comment composer. Was the legacy
      deep-purple #0e0c22 with cyan/teal action button; now charcoal
      surface + lavender accents end-to-end. Width tightened (was
-     min-width: 230px with no max — could stretch wide). */
+     min-width: 230px with no max â€” could stretch wide). */
   position: absolute;
   min-width: 200px;
   max-width: 280px;
@@ -1556,7 +1556,7 @@ body.mylist-settings-open {
   box-shadow: 0 0 10px rgba(244,240,255,0.18);
 }
 .mylist-settings-action-btn {
-  /* v847: lavender gradient (was teal/cyan #0891b2 → #06b6d4 — legacy). */
+  /* v847: lavender gradient (was teal/cyan #0891b2 â†’ #06b6d4 â€” legacy). */
   font-size: 14px;
   font-weight: 700;
   color: #ffffff;
@@ -1578,7 +1578,7 @@ body.mylist-settings-open {
 
 .mylist-settings-import-box {
   /* v10.287: red outline + tinted background removed. Was a visual nudge
-     while the panel was new — no longer wanted now that Tracker.gg is
+     while the panel was new â€” no longer wanted now that Tracker.gg is
      gone and only one Import row sits in this box. */
   border: 0;
   border-radius: 13px;
@@ -1616,7 +1616,7 @@ body.mylist-settings-open {
   }
 }
 
-/* Rate by Matchups — movies only v1 */
+/* Rate by Matchups â€” movies only v1 */
 .movie-duel-overlay {
   position: fixed;
   inset: 0;
@@ -1655,7 +1655,7 @@ body.movie-rating-duel-open .mobile-bottom-nav {
   left: 0;
   right: 0;
   bottom: 0;
-  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 14px);
+  max-height: calc(100dvh - var(--shelfd-safe-top, 0px) - 14px);
   overflow-y: auto;
   padding: 18px 18px max(16px, env(safe-area-inset-bottom, 0px));
   border-radius: 24px 24px 0 0;
@@ -1691,7 +1691,7 @@ body.movie-rating-duel-open .mobile-bottom-nav {
   border-radius: 0;
   border-top: 0;
   box-shadow: none;
-  padding-top: calc(18px + env(safe-area-inset-top, 0px));
+  padding-top: calc(18px + var(--shelfd-safe-top, 0px));
   padding-bottom: 0;
   transform: translate3d(0, 100%, 0);
   opacity: 0.98;
@@ -2109,7 +2109,7 @@ body.movie-rating-duel-open .mobile-bottom-nav {
   justify-content: center;
 }
 /* v10.80: Rating Game result-screen confirmation prompt. Shown when
-   the suggested tier differs from the saved Tier List placement —
+   the suggested tier differs from the saved Tier List placement â€”
    user must explicitly accept the change before anything is written
    to their saved Tier List. */
 .movie-duel-confirm-prompt {
@@ -2148,7 +2148,7 @@ body.movie-rating-duel-open .mobile-bottom-nav {
   bottom: 0;
   max-height: none;
   border-radius: 0;
-  padding-top: calc(18px + env(safe-area-inset-top, 0px));
+  padding-top: calc(18px + var(--shelfd-safe-top, 0px));
   padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
 }
 .movie-duel-overlay.has-active-round .movie-duel-sheet {
@@ -2156,7 +2156,7 @@ body.movie-rating-duel-open .mobile-bottom-nav {
   bottom: 0;
   max-height: none;
   border-radius: 0;
-  padding-top: calc(18px + env(safe-area-inset-top, 0px));
+  padding-top: calc(18px + var(--shelfd-safe-top, 0px));
   padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
 }
 .movie-duel-overlay.has-active-round .movie-duel-sheet {
@@ -2264,7 +2264,7 @@ body.movie-rating-duel-open .mobile-bottom-nav {
   bottom: 0;
   max-height: none;
   border-radius: 0;
-  padding-top: calc(18px + env(safe-area-inset-top, 0px));
+  padding-top: calc(18px + var(--shelfd-safe-top, 0px));
   padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
   border-top: 0;
   box-shadow: none;
@@ -2477,6 +2477,60 @@ body.movie-rating-duel-open .mobile-bottom-nav {
   user-select: none !important;
   -webkit-user-select: none !important;
 }
+/* v10.493: while a tier-list item is being held + dragged, fully lock
+   the document's touch behavior so the page / tier-row scroll cannot
+   compete with the drag gesture. JS still updates `scrollLeft` directly
+   for the auto-scroll-at-edge feature (works fine on `touch-action: none`
+   containers). Previously native horizontal scroll on the row was
+   stealing touch events mid-drag, which is what the user reported as
+   the "scrolling vs moving fight". */
+body.movie-duel-tier-dragging {
+  overflow: hidden !important;
+  touch-action: none !important;
+  overscroll-behavior: contain !important;
+}
+body.movie-duel-tier-dragging .movie-duel-tier-scroll,
+body.movie-duel-tier-dragging .movie-duel-tier-scroll-wrap,
+body.movie-duel-tier-dragging .movie-duel-tier-item,
+body.movie-duel-tier-dragging .movie-duel-tier-poster {
+  touch-action: none !important;
+}
+
+/* v10.493: per-media-kind poster geometry.
+   - Music albums are 1:1 (square) with 1px corners.
+   - Video games are 5:6.38 aspect (slightly taller than 4:5).
+   - Movies / TV / anime keep the default 2:3 poster shape.
+   The board renderer stamps `.movie-duel-tier-board--{kind}` on the
+   board, so we target each kind via the board class. */
+
+/* Music â€” square album cover with 1px corners */
+.movie-duel-tier-board--music .movie-duel-tier-item,
+.movie-duel-tier-board--music .movie-duel-tier-poster {
+  width: 88px;
+}
+.movie-duel-tier-board--music .movie-duel-tier-poster {
+  aspect-ratio: 1 / 1;
+  border-radius: 1px;
+}
+.movie-duel-tier-board--music .movie-duel-tier-drag-placeholder {
+  width: 88px;
+  height: 88px;
+  border-radius: 1px;
+}
+
+/* Video games â€” 5 : 6.38 cover (5/6.38 â‰ˆ 0.7837) */
+.movie-duel-tier-board--games .movie-duel-tier-item,
+.movie-duel-tier-board--games .movie-duel-tier-poster {
+  width: 80px;
+}
+.movie-duel-tier-board--games .movie-duel-tier-poster {
+  aspect-ratio: 5 / 6.38;
+}
+.movie-duel-tier-board--games .movie-duel-tier-drag-placeholder {
+  width: 80px;
+  /* aspect 5/6.38 from a width of 80 â†’ height â‰ˆ 102.08 */
+  height: 102px;
+}
 .movie-duel-tier-item.is-drag-source {
   opacity: 0.18;
   transform: scale(0.92);
@@ -2561,7 +2615,7 @@ body.movie-rating-duel-open .mobile-bottom-nav {
   }
 }
 
-/* v241: contain mylist page horizontally — stops native browser pan without touching html/body */
+/* v241: contain mylist page horizontally â€” stops native browser pan without touching html/body */
 /* overflow-x: clip (not hidden) avoids creating a BFC, so overflow-y stays visible and
    the profile avatar's negative-margin offset isn't clipped */
 #mylist-view { overflow-x: clip; }
@@ -2611,7 +2665,7 @@ body.true-dark-mode #mylist-view #mylist-header .mylist-categories-section .sect
   will-change: transform !important;
   -webkit-backface-visibility: hidden !important;
   backface-visibility: hidden !important;
-  transform: translate3d(0, 0, 0); /* no !important — JS inline styles must be able to override this */
+  transform: translate3d(0, 0, 0); /* no !important â€” JS inline styles must be able to override this */
   transition: transform 0.32s cubic-bezier(0.34, 1.4, 0.64, 1) !important;
 }
 .section-sliding-pill.pill-init,
@@ -3113,13 +3167,13 @@ body.mylist-episode-page-open .mobile-bottom-nav {
   justify-content: flex-start;
   gap: 0;
   padding:
-    max(calc(env(safe-area-inset-top, 0px) - 18px), 10px)
+    max(calc(var(--shelfd-safe-top, 0px) - 18px), 10px)
     18px
     8px;
   flex: 0 0 auto;
 }
 html.shelfd-capacitor-native .mylist-episode-page-topbar {
-  padding-top: max(calc(env(safe-area-inset-top, 0px) - 24px), 8px);
+  padding-top: max(calc(var(--shelfd-safe-top, 0px) - 24px), 8px);
 }
 .mylist-episode-page-back {
   appearance: none;
@@ -3584,7 +3638,7 @@ html.shelfd-capacitor-native .mylist-episode-page-topbar {
 }
 
 
-/* v301: Full-page post polish — brighter dark dividers, bottom reply composer, delete X only inside post page. */
+/* v301: Full-page post polish â€” brighter dark dividers, bottom reply composer, delete X only inside post page. */
 #feed-post-page {
   --feed-post-divider: rgba(255, 255, 255, 0.07);
   --feed-post-surface: #161618;
@@ -3594,7 +3648,7 @@ body.true-dark-mode #feed-post-page {
   --feed-post-divider: rgba(255, 255, 255, 0.06);
   --feed-post-surface: #111113;
 }
-/* v430: 100vh full-height inner retired — bottom-sheet rules above own height
+/* v430: 100vh full-height inner retired â€” bottom-sheet rules above own height
    (81vh / 81dvh). We keep flex-column + theme background, but force position +
    width + height to inherit from the v430 rule by leaving them unset here. */
 #feed-post-page .overlay-page-inner {
@@ -3644,7 +3698,7 @@ body.true-dark-mode #feed-post-page .overlay-page-header {
   margin-left: 0 !important;
 }
 
-/* v10.79: per-comment heart button — sits at the right edge of every
+/* v10.79: per-comment heart button â€” sits at the right edge of every
    feed-reply-item row, hugging the avatar/content column. Compact pill
    with the standard true-dark accent palette. Liked state uses the
    established error-red palette (#fb7185) so it mirrors the activity-card
@@ -3832,7 +3886,7 @@ body.light-mode #feed-post-replies-composer .feed-reply-input {
   }
 }
 
-/* v276 swipe-back rules retired — v430 bottom-sheet animation owns the page now.
+/* v276 swipe-back rules retired â€” v430 bottom-sheet animation owns the page now.
    The swipe-back classes are forced inert so any stale class on #feed-post-page
    cannot fight the bottom-sheet transform. The wrapper itself stays untouched
    (position/inset/background owned by the v430 block above). */
@@ -4016,7 +4070,7 @@ body.light-mode .feed-reply-context button {
 }
 
 
-/* v278 full-page replies retired — v430 bottom-sheet inner owns sizing.
+/* v278 full-page replies retired â€” v430 bottom-sheet inner owns sizing.
    Keep flex-column behavior so header/content/composer stack correctly inside the sheet. */
 #feed-post-page {
   overflow: hidden !important;
@@ -4108,7 +4162,7 @@ body.true-dark-mode .x-reply-item {
   }
 }
 
-/* v279: Full post floating composer rebuild — separate fixed layer, no swipe-transform conflict. */
+/* v279: Full post floating composer rebuild â€” separate fixed layer, no swipe-transform conflict. */
 #feed-post-page {
   overflow: hidden !important;
   overscroll-behavior: none !important;

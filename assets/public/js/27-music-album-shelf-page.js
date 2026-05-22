@@ -418,7 +418,12 @@
   }
   /* v10.255: how many tracks on the album the user has favorited and what
      percentage that represents. Both numbers update live as they tap
-     favorites in the shelf page. */
+     favorites in the shelf page.
+     v10.417: kept for backward-compat callers but the album rating
+     section now displays an AVERAGE TRACK RATING instead — see
+     computeAverageTrackRating below. The percent display was replaced
+     because the per-track UI shifted from boolean-favorite to 0–10
+     rating, so an average is the meaningful aggregate now. */
   function computeFavoriteRatio(item) {
     const tracks = Array.isArray(item?.tracks) ? item.tracks : [];
     const total = tracks.length;
@@ -426,6 +431,40 @@
     let count = 0;
     for (let i = 0; i < total; i++) if (isTrackFavorited(item, i, tracks[i])) count++;
     return { count, total, percent: Math.round((count / total) * 100) };
+  }
+
+  /* v10.417: average of the user's per-track ratings on this album.
+     Unrated tracks (rating === 0) are excluded so they don't drag the
+     mean toward zero — the average reflects "how the user rated the
+     songs they've rated." Returns the internal 0–10 score (matching
+     how individual track ratings are stored). The render layer
+     converts to 5-star display when the music scale preference is
+     'five' so the label honors the user's chosen scale. */
+  function computeAverageTrackRating(item) {
+    const tracks = Array.isArray(item?.tracks) ? item.tracks : [];
+    const total = tracks.length;
+    if (total === 0) return { rated: 0, total: 0, average: 0 };
+    let sum = 0;
+    let rated = 0;
+    for (let i = 0; i < total; i++) {
+      const r = Number(getTrackRating(item, i, tracks[i]) || 0);
+      if (r > 0) { sum += r; rated++; }
+    }
+    if (rated === 0) return { rated: 0, total, average: 0 };
+    return { rated, total, average: sum / rated };
+  }
+
+  /* v10.417: format the average for display. Internal storage is 0–10.
+     When the music scale is 'five' (half-step mode) we show divided/2
+     with a single decimal, e.g. 9.0 / 5; otherwise we show the raw 0–10
+     value with one decimal, e.g. 9.0. Integers render as "9" (no
+     trailing .0) for the common all-same-rating case the user called
+     out ("if they were all a ten, then the average would be a ten"). */
+  function formatAverageTrackRating(internalAvg) {
+    if (!(internalAvg > 0)) return '—';
+    const display = isMusicHalfStep() ? internalAvg / 2 : internalAvg;
+    if (Number.isInteger(display)) return String(display);
+    return display.toFixed(1);
   }
   /* v10.397: track rows aligned left with the "Tracks" heading (no
      visible number column) and the right-hand toggle replaced with a
@@ -440,10 +479,19 @@
     if (!tracks.length) {
       return '<li class="mylist-album-shelf-track-empty">No tracks listed for this album.</li>';
     }
+    /* v10.440: track number column re-introduced per spec. Track index
+       renders 1-based to the LEFT of the title (number → title →
+       rating widget). The track-num element existed in the DOM
+       before but was hidden via CSS `display: none !important` —
+       both the JS markup and the CSS hide rule are flipped on now.
+       Number falls back to `idx + 1` when no explicit `number`
+       field exists on the track object. */
     return tracks.map((t, idx) => {
       const title = escHtml(t.title || 'Untitled');
+      const trackNum = Number(t?.number) || (idx + 1);
       return `
         <li class="mylist-album-shelf-track" data-album-track-index="${idx}">
+          <span class="mylist-album-shelf-track-num">${trackNum}</span>
           <span class="mylist-album-shelf-track-title">${title}</span>
           ${buildTrackRatingWidgetHtml(item, idx, t, readOnly)}
         </li>
@@ -474,10 +522,23 @@
     return 0;
   }
 
+  /* v10.407: track-level rating label respects the music scale
+     preference. 10-star ('ten') shows the integer (e.g. "7"); 5-star
+     ('five') shows half-step (e.g. "3.5"). */
+  function isMusicHalfStep() {
+    const fn = typeof window !== 'undefined' && window.isFivePointRatingSection;
+    return typeof fn === 'function' ? !!fn('music') : false;
+  }
   function formatTrackRatingLabel(rating) {
     if (!(rating > 0)) return '';
-    const display = rating / 2;
-    return Number.isInteger(display) ? String(display) : display.toFixed(1);
+    if (isMusicHalfStep()) {
+      const display = rating / 2;
+      return Number.isInteger(display) ? String(display) : display.toFixed(1);
+    }
+    return String(rating);
+  }
+  function getTrackRatingScaleDenominator() {
+    return isMusicHalfStep() ? 5 : 10;
   }
 
   /* v10.397: emit the collapsed view (toggle) + the expanded 5-star
@@ -489,9 +550,25 @@
     const rating = getTrackRating(item, idx, track);
     const itemId = String(item.id || '');
     const display = formatTrackRatingLabel(rating);
-    const valueHtml = display ? `<span class="mylist-album-shelf-track-rate-value">${display} / 5</span>` : '';
+    /* v10.407: denominator now matches the music scale — "X / 5" when
+       half-step is enabled, "X / 10" when the new 10-star default is
+       active. */
+    const denom = getTrackRatingScaleDenominator();
+    /* v10.418: ALWAYS emit the value span — even when the track is
+       unrated (display empty) — so the toggle's overall width is
+       constant across rows. Combined with `.mylist-album-shelf-track-rate-value`
+       min-width in the CSS, this fixes the issue where rows with
+       narrower numerals had their star tip drift right of the wider
+       rows' star tip. The star's left edge now aligns on a single
+       invisible vertical line down the entire tracklist.
+       v10.420: dropped the " / 10" denominator from the visible label
+       per spec — the surface now shows just the bare rating (e.g.
+       "9") next to the star glyph. The denominator is still computed
+       and used in the toggle's aria-label so screen readers still
+       hear the full "Rated 9 out of 10" announcement. */
+    const valueHtml = `<span class="mylist-album-shelf-track-rate-value">${display || ''}</span>`;
     const toggleLabel = display
-      ? `Rated ${display} out of 5 — tap to change`
+      ? `Rated ${display} out of ${denom} — tap to change`
       : 'Rate this track';
     const toggleDisabledAttrs = readOnly ? ' disabled aria-disabled="true"' : '';
     const toggleHandler = readOnly
@@ -500,10 +577,24 @@
     const expandedHtml = readOnly
       ? ''
       : `<div class="mylist-album-shelf-track-rate-expanded" aria-hidden="true">${buildTrackRatingStarsMarkup(itemId, idx, rating)}</div>`;
+    /* v10.399 / v10.407: the collapsed star.
+       In half-step mode the collapsed glyph is composed from TWO
+       `.music-rating-half` boxes (matches the popout's star design).
+       In 10-star mode the popout renders FULL ★ glyphs, so the
+       collapsed star is just one ★ at the same size to keep the visual
+       continuity. */
+    const collapsedStarLit = rating > 0 ? ' lit' : '';
+    const useHalfStep = isMusicHalfStep();
+    const collapsedStarHtml = useHalfStep
+      ? `<span class="mylist-album-shelf-track-rate-star" style="--music-star-size:22px;--music-half-width:11px;" aria-hidden="true">`
+        + `<span class="music-rating-half music-rating-half-left${collapsedStarLit}">★</span>`
+        + `<span class="music-rating-half music-rating-half-right${collapsedStarLit}">★</span>`
+        + `</span>`
+      : `<span class="mylist-album-shelf-track-rate-star mylist-album-shelf-track-rate-star--full${collapsedStarLit}" style="--music-star-size:22px;" aria-hidden="true">★</span>`;
     return `
       <div class="mylist-album-shelf-track-rate${rating > 0 ? ' is-rated' : ''}" data-track-rate data-track-idx="${idx}" data-item-id="${itemId}">
         <button type="button" class="mylist-album-shelf-track-rate-toggle${rating > 0 ? ' is-rated' : ''}" aria-label="${toggleLabel}"${toggleDisabledAttrs}${toggleHandler}>
-          <span class="mylist-album-shelf-track-rate-star" aria-hidden="true">★</span>
+          ${collapsedStarHtml}
           ${valueHtml}
         </button>
         ${expandedHtml}
@@ -514,25 +605,154 @@
   /* v10.397: per-track 5-star markup. Same visual shape as the shared
      buildMusicRatingMarkup (10 half-step buttons via text-indent trick)
      but the inline onclick targets a track-scoped handler, since the
-     global rate() function only routes to overall/season/episode. */
+     global rate() function only routes to overall/season/episode.
+     v10.401: added inline touch handlers for horizontal scrub support —
+     same gesture model as the album-level widget. We store the real
+     itemId + trackIdx in data-* attrs so the touch handlers can commit
+     via onMylistAlbumTrackRate (the inline onclick handlers already
+     have those values baked into the onclick string). */
   function buildTrackRatingStarsMarkup(itemId, idx, rating) {
     const size = 22;
     const halfWidth = Math.max(1, Math.round(size / 2));
     const cleanRating = Number(rating || 0);
     const escId = String(itemId).replace(/'/g, "\\'");
-    const styleAttr = `style="--music-star-size:${size}px;--music-half-width:${halfWidth}px;"`;
-    let html = `<div class="music-rating" ${styleAttr} data-item-id="${escId}__track${idx}" data-prefix="track:${idx}" data-section="music">`;
-    for (let star = 1; star <= 5; star++) {
-      const leftVal = star * 2 - 1;
-      const rightVal = star * 2;
-      const leftLit = leftVal <= cleanRating ? ' lit' : '';
-      const rightLit = rightVal <= cleanRating ? ' lit' : '';
-      html += `<button type="button" class="music-rating-half music-rating-half-left${leftLit}" data-star="${leftVal}" onclick="event.stopPropagation();onMylistAlbumTrackRate('${escId}',${idx},${leftVal})">★</button>`;
-      html += `<button type="button" class="music-rating-half music-rating-half-right${rightLit}" data-star="${rightVal}" onclick="event.stopPropagation();onMylistAlbumTrackRate('${escId}',${idx},${rightVal})">★</button>`;
+    const halfStep = isMusicHalfStep();
+    /* v10.407: 10-star mode emits .music-rating-full buttons (full
+       glyphs, no text-indent trickery); half-step mode keeps the
+       v10.397 dual-half pattern. The container class advertises which
+       variant via `.music-rating--ten` vs `.music-rating--halfstep` so
+       the shared playRatingAnimation knows whether to pair-group the
+       lit stars. */
+    const styleAttr = halfStep
+      ? `style="--music-star-size:${size}px;--music-half-width:${halfWidth}px;"`
+      : `style="--music-star-size:${size}px;"`;
+    const variantClass = halfStep ? ' music-rating--halfstep' : ' music-rating--ten';
+    const touchAttrs = ` data-track-item-id="${escId}" data-track-idx="${idx}"`
+      + ` ontouchstart="onMylistAlbumTrackRateTouchStart(event)"`
+      + ` ontouchmove="onMylistAlbumTrackRateTouchMove(event)"`
+      + ` ontouchend="onMylistAlbumTrackRateTouchEnd(event)"`
+      + ` ontouchcancel="onMylistAlbumTrackRateTouchEnd(event)"`;
+    let html = `<div class="music-rating${variantClass}" ${styleAttr} data-item-id="${escId}__track${idx}" data-prefix="track:${idx}" data-section="music"${touchAttrs}>`;
+    if (halfStep) {
+      for (let star = 1; star <= 5; star++) {
+        const leftVal = star * 2 - 1;
+        const rightVal = star * 2;
+        const leftLit = leftVal <= cleanRating ? ' lit' : '';
+        const rightLit = rightVal <= cleanRating ? ' lit' : '';
+        html += `<button type="button" class="music-rating-half music-rating-half-left${leftLit}" data-star="${leftVal}" onclick="event.stopPropagation();onMylistAlbumTrackRate('${escId}',${idx},${leftVal})">★</button>`;
+        html += `<button type="button" class="music-rating-half music-rating-half-right${rightLit}" data-star="${rightVal}" onclick="event.stopPropagation();onMylistAlbumTrackRate('${escId}',${idx},${rightVal})">★</button>`;
+      }
+    } else {
+      for (let score = 1; score <= 10; score++) {
+        const lit = score <= cleanRating ? ' lit' : '';
+        html += `<button type="button" class="music-rating-full${lit}" data-star="${score}" onclick="event.stopPropagation();onMylistAlbumTrackRate('${escId}',${idx},${score})">★</button>`;
+      }
     }
+    /* v10.440: live scrub-value readout to the RIGHT of all 10 stars
+       in the popout. Stays empty when no scrubbing is happening; on
+       touchmove the handler below updates `textContent` with the
+       current hovered value (e.g. "7" in 10-star mode, "3.5" in
+       5-star half-step mode). Cleared on touchend. */
+    html += `<span class="music-rating-scrub-value" data-scrub-value aria-hidden="true"></span>`;
     html += `</div>`;
     return html;
   }
+
+  /* v10.401: per-track scrub handlers. Same gesture model as
+     starsTouchStart/Move/End and musicRatingTouchStart/Move/End in 06,
+     but on touchend we route through onMylistAlbumTrackRate so the
+     track-scoped commit / animation / collapse flow runs. The 18px
+     lock-in threshold + midpoint cross-over keep small finger
+     movements from overshooting past a half-rating. */
+  window.onMylistAlbumTrackRateTouchStart = function(e) {
+    const c = e.currentTarget;
+    if (!e.touches || !e.touches[0]) return;
+    c.dataset.touchStartX = String(e.touches[0].clientX);
+    c.dataset.touchStartY = String(e.touches[0].clientY);
+    c.dataset.scrubVal = '0';
+    c.dataset.scrubbing = 'false';
+  };
+
+  window.onMylistAlbumTrackRateTouchMove = function(e) {
+    const c = e.currentTarget;
+    const touch = e.touches && e.touches[0];
+    if (!touch) return;
+    const dx = Math.abs(touch.clientX - parseFloat(c.dataset.touchStartX || 0));
+    const dy = Math.abs(touch.clientY - parseFloat(c.dataset.touchStartY || 0));
+    if (c.dataset.scrubbing !== 'true') {
+      if (dx < 18 || dy > dx) return;
+    }
+    c.dataset.scrubbing = 'true';
+    e.preventDefault();
+    /* v10.407: scrub now picks up both half-step and full-star variants
+       of the per-track widget so it works after the universal music
+       10-star switch. */
+    const stars = Array.from(c.querySelectorAll('.music-rating-half, .music-rating-full'));
+    let val = 0;
+    stars.forEach((btn, i) => {
+      const rect = btn.getBoundingClientRect();
+      const midpoint = rect.left + rect.width / 2;
+      if (touch.clientX >= midpoint) val = i + 1;
+    });
+    if (val >= 1) {
+      c.dataset.scrubVal = String(val);
+      /* v10.515 BUG FIX: previously only ADDED `lit-hover` to stars
+         below val without REMOVING `lit` from stars above val. So
+         when scrubbing DOWN from a rated track (e.g. 5★ → 2★), the
+         original lit stars 3-5 stayed gold (still had `lit`) and the
+         new preview added gold to stars 1-2 — making all 5 look lit
+         even though val was 2. Fix: directly toggle `lit` based on
+         val so the stars track the finger live. The `lit-hover` class
+         is removed entirely from this gesture — the existing CSS
+         already styles `.lit` correctly and we don't need a separate
+         hover-preview class. The commit path in `onMylistAlbumTrackRate`
+         then sets the final `lit` state from the new rating (line 825). */
+      stars.forEach((b, i) => {
+        b.classList.remove('lit-hover');
+        if (i + 1 <= val) b.classList.add('lit');
+        else b.classList.remove('lit');
+      });
+      /* v10.440: live update the scrub-value span to the right of
+         the stars so users see their current rating as they drag.
+         Format matches the standard formatTrackRatingLabel —
+         integer in 10-star mode, half-step in 5-star mode. */
+      const scrubEl = c.querySelector('[data-scrub-value]');
+      if (scrubEl) {
+        const label = (typeof formatTrackRatingLabel === 'function')
+          ? formatTrackRatingLabel(val)
+          : String(val);
+        scrubEl.textContent = label;
+        scrubEl.classList.add('is-active');
+      }
+    }
+  };
+
+  window.onMylistAlbumTrackRateTouchEnd = function(e) {
+    const c = e.currentTarget;
+    /* Clean up the hover preview on every touchend, scrub or not. */
+    c.querySelectorAll('.music-rating-half, .music-rating-full').forEach(b => b.classList.remove('lit-hover'));
+    /* v10.440: clear the live scrub-value readout so the next
+       open of the popout starts empty, and the collapse animation
+       doesn't show a stale number. */
+    const scrubEl = c.querySelector('[data-scrub-value]');
+    if (scrubEl) {
+      scrubEl.textContent = '';
+      scrubEl.classList.remove('is-active');
+    }
+    if (c.dataset.scrubbing !== 'true') return;
+    c.dataset.scrubbing = 'false';
+    const val = parseInt(c.dataset.scrubVal || '0', 10);
+    c.dataset.scrubVal = '0';
+    if (val < 1) return;
+    e.preventDefault();
+    const realItemId = c.getAttribute('data-track-item-id') || '';
+    const trackIdx = parseInt(c.getAttribute('data-track-idx') || '0', 10);
+    if (!realItemId) return;
+    /* Hand off to the existing rate-commit + animate + collapse flow. */
+    if (typeof window.onMylistAlbumTrackRate === 'function') {
+      window.onMylistAlbumTrackRate(realItemId, trackIdx, val);
+    }
+  };
 
   /* v10.397: commit the per-track rating to BOTH the stable-key map and
      the legacy index array. Immediate firestore write when available so
@@ -550,6 +770,12 @@
     if (!Array.isArray(live.trackRatings)) live.trackRatings = [];
     live.trackRatings[trackIdx] = clean;
     callGlobalFn('markOwnItemLastEdited', live, 'music');
+    /* v10.417: keep the "Avg rating" readout below the album-level
+       widget in sync with the freshly committed per-track score. The
+       refresh function tolerates a null overlay (it walks the document
+       itself), so we don't need to scope the lookup to a specific
+       shelf-overlay node. */
+    try { refreshFavoriteRatio(null, itemId); } catch (e) { /* non-fatal */ }
     if (typeof window !== 'undefined' && typeof window.persistOwnListDataImmediate === 'function') {
       window.persistOwnListDataImmediate().catch(err => {
         console.warn('[track-rating] immediate save failed, fell back to debounced:', err);
@@ -593,22 +819,88 @@
 
     /* Repaint lit state IN-PLACE on the open expanded widget so the
        star-pop animation has the right targets to play on, then collapse
-       and swap to the fresh collapsed view ~600ms later. */
-    const halves = widget.querySelectorAll('.music-rating-half');
+       and swap to the fresh collapsed view ~600ms later.
+
+       v10.400: group lit halves into PAIRS so both halves of a star fire
+       at the same stagger step. Without this, adjacent halves popped at
+       different times and (combined with their independent
+       transform-origin) pulled apart visually, exposing inner tips on
+       the actively-animating star.
+       v10.407: widget can also render full ★ glyphs (10-star mode); in
+       that case there are no pairs — each lit star is its own animation
+       unit. We pair-group only when the half-step variant is active. */
+    const halfStep = isMusicHalfStep();
+    const starsAll = widget.querySelectorAll(halfStep ? '.music-rating-half' : '.music-rating-full');
     const litTargets = [];
-    halves.forEach((b, i) => {
+    starsAll.forEach((b, i) => {
       const shouldLit = (i + 1) <= newScore;
       b.classList.toggle('lit', shouldLit);
       if (shouldLit) litTargets.push(b);
     });
-    const stagger = 50;
-    litTargets.forEach((star, i) => {
-      star.classList.remove('star-pop');
-      void star.offsetWidth;
-      setTimeout(() => star.classList.add('star-pop'), i * stagger);
-      setTimeout(() => star.classList.remove('star-pop'), i * stagger + 500);
+    /* v10.521: REBUILT animation path. The previous setTimeout-based
+       CSS-class flow was unreliable on iOS Capacitor for the first
+       star — the delay=0 setTimeout fired in the same JS task as the
+       touchend event, BEFORE the WebView had committed the layout for
+       the freshly-toggled `.lit` class. WebKit collapsed the
+       remove-then-add of `.star-pop` (treating it as a no-op since
+       neither the remove nor add had ever been painted yet), and the
+       first star's keyframe never fired. The user saw 4 of 5 stars
+       animate (and N-1 for every rating).
+       New approach mirrors the title-card bubble's
+       `playRatingAnimation` (06-mylists-render-episodes-ratings.js
+       line 9510+): use the Web Animations API (`Element.animate()`)
+       which runs independently of CSS class state and isn't subject
+       to the class-collapse optimization. Plus a baseline 60ms offset
+       on the first star so NO animation lands at exact t=0 — gives
+       iOS a frame to commit the lit-state paint before the pop
+       transform kicks in. CSS-class addition is kept as a belt-and-
+       suspenders fallback for any browser without WAAPI. */
+    const stagger = 35;
+    const baseOffset = 60;
+    const units = [];
+    if (halfStep) {
+      for (let i = 0; i < litTargets.length; i += 2) {
+        const pair = [litTargets[i]];
+        if (litTargets[i + 1]) pair.push(litTargets[i + 1]);
+        units.push(pair);
+      }
+    } else {
+      litTargets.forEach(star => units.push([star]));
+    }
+    const supportsWAAPI = typeof Element.prototype.animate === 'function';
+    units.forEach((pair, starIdx) => {
+      pair.forEach(star => {
+        star.classList.remove('star-pop');
+      });
+      // Single sync reflow before all timeouts queue, batched once
+      // across the entire pair set.
+    });
+    // One reflow for the whole batch.
+    if (units[0] && units[0][0]) void units[0][0].offsetWidth;
+    units.forEach((pair, starIdx) => {
+      const delay = baseOffset + (starIdx * stagger);
+      pair.forEach(star => {
+        // WAAPI animation — runs reliably even when CSS class changes
+        // are collapsed by the browser. Matches the `.star-pop` keyframe
+        // at 01-mylists-cards-episodes.css:3078–3081 in shape, plus the
+        // intensity-scaled glow color used in the bubble.
+        if (supportsWAAPI) {
+          star.animate([
+            { transform: 'scale(1)',    filter: 'brightness(1)' },
+            { transform: 'scale(1.55)', filter: 'brightness(1.5) drop-shadow(0 0 8px rgba(251,191,36,0.9))', offset: 0.3 },
+            { transform: 'scale(1.1)',  filter: 'brightness(1.15)', offset: 0.6 },
+            { transform: 'scale(1)',    filter: 'brightness(1)' }
+          ], { duration: 420, delay, easing: 'ease-out', fill: 'none' });
+        }
+      });
+      // CSS-class fallback path (for any browser without WAAPI).
+      setTimeout(() => pair.forEach(star => star.classList.add('star-pop')), delay);
+      setTimeout(() => pair.forEach(star => star.classList.remove('star-pop')), delay + 500);
     });
 
+    /* Widget replacement window: total animation = baseOffset + (N-1)
+       × stagger + 420ms keyframe. For 5 pairs: 60 + 140 + 420 = 620ms.
+       Adding ~250ms safety = 870ms before swap. */
     setTimeout(() => {
       const liveAgain = getLiveMusicItem(itemId);
       if (!liveAgain) {
@@ -621,7 +913,7 @@
       const replacement = tmp.firstElementChild;
       if (replacement) widget.replaceWith(replacement);
       else widget.classList.remove('is-expanded');
-    }, 600);
+    }, 870);
   };
 
   /* Outside-click closes any expanded track rating without committing. */
@@ -705,37 +997,426 @@
      matches `.music-rating[data-item-id][data-prefix="overall"]`, so
      this widget AND the title card behind the overlay both repaint
      from a single click. */
+  /* v10.435: album rating section redesigned into a 3-COLUMN layout:
+       [Number of ratings]   [Your rating]   [Average rating]
+       [count]               [★ N bubble]    [★ 4.6]
+     - Center column uses the same `rating-bubble` pattern as the
+       MyList title cards (collapsed = single star glyph + the user's
+       numeric rating; tap to expand into the full 5/10-star widget
+       with scrub-to-rate). Reuses `window.buildRatingBubbleMarkup`
+       from 06-mylists-render-episodes-ratings.js so the toggle /
+       rate handlers are already wired and identical to the title
+       card surface.
+     - Left + Right columns are community aggregates. The actual
+       cross-user aggregation isn't built yet (would require a
+       Firestore aggregation pipeline / cloud function); for now
+       `getCommunityRatingDataForAlbum` returns the user's own
+       rating as a 1-person sample so the UI demonstrates real data.
+       When the backend aggregation lands, swap that function's
+       implementation — the UI doesn't change. */
+  /* v10.448: community-ratings aggregation collection. Each doc is
+     keyed by the album's stable key (deezer-{id} / mbid-{id} / id-{id}
+     / title-{...}) and stores `{ ratings: { [uid]: rating } }` plus
+     light metadata. Writes happen on every album-rating commit; reads
+     happen when the album shelf page opens AND whenever a rating
+     commits (real-time refresh). */
+  const COMMUNITY_RATINGS_COLLECTION = 'albumRatings';
+
+  /* In-memory 5-min cache to avoid hammering Firestore when the
+     same album is reopened repeatedly. Keyed by albumKey. */
+  const albumCommunityRatingCache = {};
+  const ALBUM_COMMUNITY_RATING_TTL_MS = 5 * 60 * 1000;
+
+  function getCommunityRatingDataForAlbum(item) {
+    /* v10.448: synchronous read returns whatever's cached locally —
+       either the in-memory community fetch result OR the user's own
+       rating as a 1-person sample if no community data has been
+       fetched yet. The async `fetchAndPatchAlbumCommunityRating`
+       below pulls the real cross-user data and patches the DOM
+       once it arrives. */
+    const albumKey = getAlbumStableKey(item);
+    const cached = albumCommunityRatingCache[albumKey];
+    if (cached && cached.data?.ratings) {
+      const values = Object.values(cached.data.ratings).map(Number).filter(n => n > 0);
+      if (values.length) {
+        const sum = values.reduce((a, b) => a + b, 0);
+        return { count: values.length, average: sum / values.length };
+      }
+    }
+    /* Fallback: just the current user's rating as a 1-person sample
+       so the UI isn't empty on first paint. */
+    const rating = Number(item?.rating || 0);
+    if (rating > 0) return { count: 1, average: rating };
+    return { count: 0, average: 0 };
+  }
+
+  /* v10.448: write the current user's rating to the per-album
+     community-aggregation doc. Each user's UID is a key under
+     `ratings.{uid}` so Firestore-merge writes only touch the
+     caller's entry and never overwrite anyone else's. Removing
+     the rating (rating === 0) deletes the field entirely instead
+     of zeroing it, so the community average isn't dragged down. */
+  async function persistAlbumRatingToCommunityDoc(item, rating) {
+    const user = getCurrentUser();
+    const dbRef = getFirestoreDb();
+    if (!user?.uid || !dbRef || !item) return;
+    const albumKey = getAlbumStableKey(item);
+    if (!albumKey) return;
+    const cleanRating = Math.max(0, Math.min(10, Number(rating) || 0));
+    try {
+      const docRef = dbRef.collection(COMMUNITY_RATINGS_COLLECTION).doc(albumKey);
+      const sentinel = (typeof firebase !== 'undefined' && firebase.firestore?.FieldValue?.serverTimestamp)
+        ? firebase.firestore.FieldValue.serverTimestamp()
+        : Date.now();
+      if (cleanRating > 0) {
+        await docRef.set({
+          albumKey,
+          title: String(item.title || '').trim(),
+          artist: String(item.artist || '').trim(),
+          cover: getAlbumCover(item),
+          ratings: { [user.uid]: cleanRating },
+          updatedAt: sentinel
+        }, { merge: true });
+      } else if (firebase?.firestore?.FieldValue?.delete) {
+        /* User cleared their rating — drop their key from the map. */
+        await docRef.set({
+          ratings: { [user.uid]: firebase.firestore.FieldValue.delete() },
+          updatedAt: sentinel
+        }, { merge: true });
+      }
+      /* Invalidate the local cache so the next fetch sees the fresh data. */
+      delete albumCommunityRatingCache[albumKey];
+    } catch (e) {
+      console.warn('[v10.448] persistAlbumRatingToCommunityDoc failed:', e);
+    }
+  }
+  window.persistAlbumRatingToCommunityDoc = persistAlbumRatingToCommunityDoc;
+
+  /* v10.448: fetch the community-ratings doc for this album and
+     patch the count + avg readouts in the open album shelf page.
+     5-min cache prevents repeat reads on the same session.
+     Called automatically by `renderAlbumRatingHtml` after the
+     section markup mounts, AND by the rate-commit hook when a
+     user changes their rating.
+     v10.449: when the community doc returns 0 ratings (rules
+     blocked the write, doc doesn't exist yet, or no users have
+     touched this album since v10.448 deployed), fall back to
+     showing the CURRENT user's rating as a 1-person sample
+     instead of blank/zero. Cleaner than dropping to "0 / —"
+     when the user clearly has a rating locally.
+     v10.449: also takes an optional `localRating` so the caller
+     can pass the user's locally-known rating (covering races
+     where the community-doc write hadn't landed before the
+     read). */
+  async function fetchAndPatchAlbumCommunityRating(item, options = {}) {
+    const dbRef = getFirestoreDb();
+    if (!dbRef || !item) return;
+    const albumKey = getAlbumStableKey(item);
+    if (!albumKey) return;
+    const cached = albumCommunityRatingCache[albumKey];
+    let data;
+    if (cached && (Date.now() - cached.ts) < ALBUM_COMMUNITY_RATING_TTL_MS && !options.force) {
+      data = cached.data;
+    } else {
+      try {
+        const snap = await dbRef.collection(COMMUNITY_RATINGS_COLLECTION).doc(albumKey).get();
+        data = snap.exists ? (snap.data() || {}) : {};
+        albumCommunityRatingCache[albumKey] = { ts: Date.now(), data };
+      } catch (e) {
+        console.warn('[v10.449] fetchAndPatchAlbumCommunityRating failed:', e);
+        return;
+      }
+    }
+    const ratings = (data && data.ratings) || {};
+    const values = Object.values(ratings).map(Number).filter(n => n > 0);
+    /* v10.449: if community is empty AND the local user has a
+       rating, render the local sample as 1 user. Avoids the "0 /
+       —" blank-looking state when a rules / network blip swallowed
+       the persist. */
+    const localRating = Number(item?.rating || options.localRating || 0);
+    let displayCount = values.length;
+    let displayAvg = 0;
+    if (values.length) {
+      const sum = values.reduce((a, b) => a + b, 0);
+      displayAvg = sum / values.length;
+    } else if (localRating > 0) {
+      displayCount = 1;
+      displayAvg = localRating;
+    }
+    const root = document;
+    const countEl = root.querySelector('[data-album-rating-count]');
+    if (countEl) countEl.textContent = formatAlbumRatingCount(displayCount);
+    const avgRoot = root.querySelector('[data-album-rating-avg]');
+    if (avgRoot) {
+      const avgNum = avgRoot.querySelector('.mylist-album-shelf-rating-avg-num');
+      if (avgNum) avgNum.textContent = displayAvg > 0
+        ? formatAlbumCommunityAverage(displayAvg)
+        : '—';
+    }
+  }
+  window.fetchAndPatchAlbumCommunityRating = fetchAndPatchAlbumCommunityRating;
+
+  /* v10.449: one-shot per-session migration that writes EVERY rated
+     music album in the current user's library to the community
+     collection. Triggered on the first album-page open of the
+     session so that browsing one album backfills ALL of the user's
+     prior ratings — not just the one currently open. Each user that
+     does this organically seeds the community docs with their data;
+     once enough users have run this, every album's aggregate count
+     reflects the true cross-user vote total.
+     Skips silently if already migrated this session, if not signed
+     in, or if the music list is empty. Writes are fire-and-forget
+     and tolerate Firestore errors so the album page stays
+     responsive even mid-migration. */
+  let _albumRatingsMigratedThisSession = false;
+  async function migrateAllMyMusicRatingsOnce() {
+    if (_albumRatingsMigratedThisSession) return;
+    _albumRatingsMigratedThisSession = true;
+    const user = getCurrentUser();
+    if (!user?.uid) return;
+    const liveData = (typeof window !== 'undefined') ? window.data : null;
+    if (!liveData || !Array.isArray(liveData.music)) return;
+    const writes = [];
+    for (const album of liveData.music) {
+      const rating = Number(album?.rating || 0);
+      if (rating > 0) writes.push(persistAlbumRatingToCommunityDoc(album, rating));
+    }
+    if (!writes.length) return;
+    try {
+      await Promise.all(writes);
+    } catch (_) { /* per-write failures are caught individually */ }
+  }
+  window.migrateAllMyMusicRatingsOnce = migrateAllMyMusicRatingsOnce;
+
+  /* v10.450: friend-backfill — when the current user opens an album
+     page, scan every FRIEND's music section in Firestore for the
+     same album and write their rating to the community-ratings doc
+     on their behalf. Friends' watchlists are already publicly
+     readable per the existing security rules, so this just
+     materializes the ratings that are already accessible into the
+     aggregate collection. Without this, a user only sees community
+     ratings from people who have personally opened the app with
+     v10.449+; with this, one user opening an album backfills the
+     entire friends graph's ratings for that album immediately.
+     The data being written is sourced directly from each friend's
+     own watchlist, so it cannot be faked — the writer can only
+     replicate what's already there.
+     Requires Firestore rules that allow cross-UID writes on
+     albumRatings (any signed-in user, not just the rating owner).
+     The v10.450 rules update opens this up. */
+  function readBareGlobalFriends() {
+    try {
+      return new Function('try { return typeof friends !== "undefined" && Array.isArray(friends) ? friends.slice() : []; } catch (_) { return []; }')() || [];
+    } catch (_) { return []; }
+  }
+
+  function parseWatchlistSectionItems(raw) {
+    if (!raw || typeof raw !== 'object') return [];
+    /* v10.387 schema: items live in `{ data: JSON.stringify(array) }`. */
+    if (typeof raw.data === 'string') {
+      try { return JSON.parse(raw.data) || []; } catch (_) { return []; }
+    }
+    /* Legacy fallback shapes — defensive only. */
+    if (Array.isArray(raw.items)) return raw.items;
+    if (Array.isArray(raw.music)) return raw.music;
+    return [];
+  }
+
+  let _friendBackfillCacheByAlbum = {};
+  async function backfillCommunityRatingsFromFriends(item, options = {}) {
+    const dbRef = getFirestoreDb();
+    if (!dbRef || !item) return;
+    const albumKey = getAlbumStableKey(item);
+    if (!albumKey) return;
+    /* One backfill per album per session — re-opens shouldn't
+       re-scan every friend's subdoc. */
+    if (_friendBackfillCacheByAlbum[albumKey] && !options.force) return;
+    _friendBackfillCacheByAlbum[albumKey] = true;
+    const currentUid = getCurrentUser()?.uid || '';
+    const friendsList = readBareGlobalFriends();
+    if (!friendsList.length) return;
+    const writes = [];
+    for (const friendUid of friendsList) {
+      if (!friendUid || friendUid === currentUid) continue;
+      writes.push((async () => {
+        try {
+          const snap = await dbRef.collection('watchlist').doc(friendUid)
+            .collection('sections').doc('music').get();
+          if (!snap.exists) return;
+          const items = parseWatchlistSectionItems(snap.data());
+          const match = items.find(it => getAlbumStableKey(it) === albumKey);
+          if (!match) return;
+          const rating = Math.max(0, Math.min(10, Number(match.rating || 0)));
+          if (rating <= 0) return;
+          /* Write under the friend's UID, NOT the caller's. The
+             v10.450 rules update allows cross-UID writes on
+             albumRatings. */
+          const sentinel = (typeof firebase !== 'undefined' && firebase.firestore?.FieldValue?.serverTimestamp)
+            ? firebase.firestore.FieldValue.serverTimestamp()
+            : Date.now();
+          await dbRef.collection(COMMUNITY_RATINGS_COLLECTION).doc(albumKey).set({
+            albumKey,
+            title: String(item.title || '').trim(),
+            artist: String(item.artist || '').trim(),
+            cover: getAlbumCover(item),
+            ratings: { [friendUid]: rating },
+            updatedAt: sentinel
+          }, { merge: true });
+        } catch (e) {
+          console.warn('[v10.450] friend backfill failed for', friendUid, e);
+        }
+      })());
+    }
+    if (writes.length) {
+      try { await Promise.all(writes); } catch (_) {}
+      /* Invalidate the local fetch cache so the next read picks up
+         the freshly-backfilled friend data. */
+      delete albumCommunityRatingCache[albumKey];
+    }
+  }
+  window.backfillCommunityRatingsFromFriends = backfillCommunityRatingsFromFriends;
+
+  /* Format the rating-count value: 0–1099 renders as an integer
+     ("0", "47", "1099"), 1100+ renders as a compacted "X.Yk"
+     string ("1.1k", "12.4k", "187.5k"). The 1100 threshold per
+     spec — keeps three-digit counts visually consistent before
+     compaction kicks in. */
+  function formatAlbumRatingCount(n) {
+    const count = Math.max(0, Number(n) || 0);
+    if (count < 1100) return String(Math.round(count));
+    const k = count / 1000;
+    /* Round to 1 decimal, drop trailing .0 for cleaner reading
+       at integer-k values like "10k" vs "10.0k". */
+    const rounded = Math.round(k * 10) / 10;
+    return (Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)) + 'k';
+  }
+
+  /* Format the community average for display. Honors the user's
+     music scale preference — half-step mode shows on /5 (divided
+     by 2, e.g. internal 9.2 → "4.6"); 10-star mode shows on /10
+     (e.g. "9.2"). Always one decimal. Returns "—" for no data. */
+  function formatAlbumCommunityAverage(score) {
+    if (!(score > 0)) return '—';
+    const display = isMusicHalfStep() ? score / 2 : score;
+    return display.toFixed(1);
+  }
+
   function renderAlbumRatingHtml(item) {
     const itemId = item?.id || '';
-    const rating = Number(item?.rating || 0);
-    const interactive = !window.viewingUser;
-    const ratio = computeFavoriteRatio(item);
-    /* v10.398: album-level "Your rating" widget reduced 28 -> 25 (3px
-     smaller per spec). buildMusicRatingMarkup propagates this to BOTH
-     the star glyph font-size and the value label (`calc(--music-star-size
-     * 0.7)`), so stars and label shrink together cleanly. */
-    const ratingMarkup = typeof window.buildMusicRatingMarkup === 'function'
-      ? window.buildMusicRatingMarkup(rating, itemId, 'overall', 25, interactive)
-      : `<div class="music-rating" data-item-id="${itemId}" data-prefix="overall" data-section="music"></div>`;
+    const community = getCommunityRatingDataForAlbum(item);
+    const countLabel = formatAlbumRatingCount(community.count);
+    const avgLabel = formatAlbumCommunityAverage(community.average);
+    /* v10.448 / v10.449: schedule the async backfill + community-data
+       fetch after the markup mounts. Ordered steps with awaits to
+       prevent races where the fetch reads a stale (empty) doc
+       BEFORE the write lands. Steps:
+       1) `migrateAllMyMusicRatingsOnce()` — first album-page open of
+          the session triggers a bulk-write of EVERY rated album in
+          the user's library to the community collection. This
+          backfills past ratings made before v10.448 deployed, not
+          just the currently-open album. Cheap fire-and-forget;
+          short-circuits on subsequent opens.
+       2) Per-album persist — writes the CURRENT album's rating
+          explicitly (covers cases where the user just opened a new
+          album with a rating, or rated it from elsewhere).
+       3) Fetch + patch — pulls the live community doc and updates
+          the count + avg in the DOM. Forced (cache invalidated)
+          so the freshly-written data is read back.
+       v10.449: awaits the writes BEFORE the fetch so the fetch sees
+       the writes' effect. Without awaits, the fetch could land
+       before the create/update completed and return zeros. */
+    setTimeout(async () => {
+      try {
+        const live = getLiveMusicItem(itemId) || item;
+        const liveRating = Number(live?.rating || 0);
+        if (getCurrentUser()) {
+          /* Step 1 — one-shot session migration of ALL the user's
+             other rated albums. Most of the work happens here on
+             the first open; subsequent opens short-circuit. */
+          await migrateAllMyMusicRatingsOnce();
+          /* Step 2 — write the current album's rating (idempotent
+             even if migration already covered it). */
+          if (liveRating > 0) {
+            await persistAlbumRatingToCommunityDoc(live, liveRating);
+          }
+          /* v10.450 Step 3 — friend backfill. Scan every FRIEND's
+             public music section for the same album and write their
+             rating into the community doc on their behalf. Sourced
+             from each friend's own watchlist so we can't fake
+             ratings — we replicate data already accessible. */
+          await backfillCommunityRatingsFromFriends(live);
+        }
+        /* Step 4 — fetch + patch with the now-populated doc. */
+        await fetchAndPatchAlbumCommunityRating(live, { force: true });
+      } catch (_) { /* non-fatal */ }
+    }, 0);
+    /* Center column: rating bubble. Falls back to the legacy
+       always-expanded widget if the bubble builder isn't loaded
+       (e.g. file load order edge case during a hot reload). */
+    /* v10.508: album-shelf header explicitly frames this column as
+       "Your rating ⭐ X/5". Pass { outOfFive: true } so the rating
+       bubble's collapsed chip shows the value normalized to a 5-point
+       scale with the "/5" suffix (works for both 10-star and half-step
+       music scales). The interactive expand / scrub / commit behavior
+       is unchanged — only the chip text changes. */
+    const yourRatingMarkup = typeof window.buildRatingBubbleMarkup === 'function'
+      ? window.buildRatingBubbleMarkup(item, 'music', { outOfFive: true })
+      : (typeof window.buildMusicRatingMarkup === 'function'
+          ? window.buildMusicRatingMarkup(Number(item?.rating || 0), itemId, 'overall', 25, !window.viewingUser)
+          : `<div class="music-rating" data-item-id="${itemId}" data-prefix="overall" data-section="music"></div>`);
     return `
-      <section class="mylist-album-shelf-rating" data-album-rating>
-        <div class="mylist-album-shelf-rating-label">Your rating</div>
-        ${ratingMarkup}
-        <div class="mylist-album-shelf-fav-ratio" data-album-fav-ratio>
-          <span data-album-fav-ratio-text>${ratio.total === 0 ? '—' : `${ratio.percent}%`}</span>
+      <section class="mylist-album-shelf-rating mylist-album-shelf-rating--three-col" data-album-rating>
+        <div class="mylist-album-shelf-rating-col mylist-album-shelf-rating-col--count">
+          <div class="mylist-album-shelf-rating-label">Total ratings</div>
+          <div class="mylist-album-shelf-rating-count-val" data-album-rating-count>${escHtml(countLabel)}</div>
+        </div>
+        <div class="mylist-album-shelf-rating-col mylist-album-shelf-rating-col--your">
+          <div class="mylist-album-shelf-rating-label">Your rating</div>
+          ${yourRatingMarkup}
+        </div>
+        <div class="mylist-album-shelf-rating-col mylist-album-shelf-rating-col--avg">
+          <div class="mylist-album-shelf-rating-label">Average rating</div>
+          <div class="mylist-album-shelf-rating-avg-val" data-album-rating-avg>
+            <span class="mylist-album-shelf-rating-avg-star" aria-hidden="true">&#9733;</span>
+            <span class="mylist-album-shelf-rating-avg-num">${escHtml(avgLabel)}</span>
+          </div>
         </div>
       </section>
     `;
   }
-  /* v10.255: refresh the favorite ratio readout from live data. Called after
-     every favorite toggle so the percentage stays in sync. */
+  /* v10.255: refresh the favorite ratio readout from live data. Called
+     after every favorite toggle so the percentage stays in sync.
+     v10.417: refreshed the per-track AVERAGE RATING readout.
+     v10.435: now refreshes BOTH the new community-count and
+     community-average displays (the 3-column header) AND the inner
+     `rating-bubble` collapsed value if it's mounted. Same single
+     entry point so the per-track commit, the bubble commit, and any
+     future community-data refresh all funnel through one re-render.
+     The legacy `[data-album-fav-ratio-text]` hook is kept for any
+     stale markup left over from a hot-reload mid-session. */
   function refreshFavoriteRatio(overlay, itemId) {
-    const txt = overlay.querySelector('[data-album-fav-ratio-text]');
-    if (!txt) return;
+    const root = overlay || document;
     const live = getLiveMusicItem(itemId);
     if (!live) return;
-    const ratio = computeFavoriteRatio(live);
-    txt.textContent = ratio.total === 0 ? '—' : `${ratio.percent}%`;
+    const community = getCommunityRatingDataForAlbum(live);
+    /* Refresh the count column. */
+    const countEl = root.querySelector('[data-album-rating-count]');
+    if (countEl) countEl.textContent = formatAlbumRatingCount(community.count);
+    /* Refresh the average-rating column (number portion only —
+       the star glyph is a sibling span and stays put). */
+    const avgRoot = root.querySelector('[data-album-rating-avg]');
+    if (avgRoot) {
+      const avgNum = avgRoot.querySelector('.mylist-album-shelf-rating-avg-num');
+      if (avgNum) avgNum.textContent = formatAlbumCommunityAverage(community.average);
+    }
+    /* Back-compat path for any legacy "Avg rating" inline readout
+       that might still be present (e.g. during a stale-cache
+       transition window before the new shell renders). */
+    const legacyTxt = root.querySelector('[data-album-fav-ratio-text]');
+    if (legacyTxt) {
+      const avg = computeAverageTrackRating(live);
+      legacyTxt.textContent = formatAverageTrackRating(avg.average);
+    }
   }
   /* v10.396: previously this function added click / mouseenter /
      mouseleave / touchmove / touchend listeners to the legacy

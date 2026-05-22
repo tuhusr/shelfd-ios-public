@@ -22,7 +22,12 @@
   const TIER_ROW_LOAD_STEP = 12;
   const S_TIER_CAP = 5;
   const TIER_LONG_PRESS_MS = 260;
-  const TIER_LONG_PRESS_MOVE_TOLERANCE = 8;
+  /* v10.493: was 8px — too tight, real finger jitter on iPhone was
+     canceling the long-press intent before the timer fired. 16px gives
+     enough latitude for a stationary "hold" gesture without bleeding
+     into a clear horizontal swipe (which is well over 16px in the
+     first 260ms). */
+  const TIER_LONG_PRESS_MOVE_TOLERANCE = 16;
   const DUEL_SWAP_MS = 240;
   const MOVIE_DUEL_BASE_CLOSE_MS = 180;
   const MOVIE_DUEL_TIER_TRANSITION_MS = 450;
@@ -1058,8 +1063,11 @@
     movieDuelVisibleTierList = normalized;
     movieDuelVisibleTierActiveId = cleanActiveId;
     movieDuelVisibleTierMediaKey = mediaKey;
+    /* v10.493: stamp the mediaKey on the board so per-media-kind CSS
+       (music = 1:1 + 1px corners; games = 5:6.38; rest = 2:3) can
+       target without the renderer caring about poster geometry. */
     return `
-      <div class="movie-duel-tier-board">
+      <div class="movie-duel-tier-board movie-duel-tier-board--${attr(mediaKey)}" data-movie-duel-media-key="${attr(mediaKey)}">
         ${TIER_ROWS.map(tier => {
           const entries = normalized[tier.key] || [];
           const activeIndex = entries.findIndex(entry => cleanText(entry.id) === cleanActiveId);
@@ -1202,6 +1210,18 @@
     state.placeholder = placeholder;
     state.ghost = ghost;
     setMovieDuelTierGhostPosition(state.startX, state.startY);
+    /* v10.493: Capture the pointer to OUR handler so pointermove keeps
+       firing even if the finger drifts off the original poster (e.g.
+       onto another row, onto the body, off the edge). Without capture
+       iOS can hand the gesture back to native scroll mid-drag,
+       causing the "scrolling vs dragging fight" the user described.
+       The capture is released on pointerup / pointercancel. */
+    try {
+      if (state.pointerId !== undefined && posterEl.setPointerCapture) {
+        posterEl.setPointerCapture(state.pointerId);
+        state.capturedOn = posterEl;
+      }
+    } catch (_) {}
     if (navigator.vibrate) {
       try { navigator.vibrate(8); } catch (_) {}
     }
@@ -1219,6 +1239,12 @@
     state.ghost?.remove();
     document.querySelectorAll('.movie-duel-tier-empty.is-hidden-by-drag').forEach(node => node.classList.remove('is-hidden-by-drag'));
     document.body.classList.remove('movie-duel-tier-dragging');
+    /* v10.493: release the pointer capture set in startMovieDuelTierLongPressDrag. */
+    try {
+      if (state.capturedOn && state.pointerId !== undefined && state.capturedOn.releasePointerCapture) {
+        state.capturedOn.releasePointerCapture(state.pointerId);
+      }
+    } catch (_) {}
     movieDuelTierDragState = null;
   }
 

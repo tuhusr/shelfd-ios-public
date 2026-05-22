@@ -211,16 +211,44 @@
     }
   }
 
+  function normalizeFetchedRatingToFiveStar(value, source = '') {
+    const n = Number(value || 0);
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    const sourceKey = String(source || '').toLowerCase();
+    if (sourceKey.includes('metacritic') || sourceKey.includes('percent')) {
+      return Math.max(0, Math.min(5, n / 20));
+    }
+    if (sourceKey.includes('rawg') || sourceKey.includes('five')) {
+      return Math.max(0, Math.min(5, n));
+    }
+    if (
+      sourceKey.includes('imdb')
+      || sourceKey.includes('omdb')
+      || sourceKey.includes('tmdb')
+      || sourceKey.includes('jikan')
+      || sourceKey.includes('mal')
+      || sourceKey.includes('ten')
+    ) {
+      return Math.max(0, Math.min(5, n / 2));
+    }
+    if (n > 10) return Math.max(0, Math.min(5, n / 20));
+    if (n > 5) return Math.max(0, Math.min(5, n / 2));
+    return Math.max(0, Math.min(5, n));
+  }
+
   function getDisplayTitleRatingValue(item = {}) {
     if (!item || typeof item !== 'object') return 0;
     if (item.__jikan) {
       const animeRating = Number(item.score || item.vote_average || 0);
-      return animeRating > 0 ? animeRating : 0;
+      return normalizeFetchedRatingToFiveStar(animeRating, 'jikan');
     }
     const ref = getItemRatingKey(item);
-    if (!ref) return 0;
     const imdbRating = Number(item.imdbRating || 0);
-    return imdbRating > 0 ? imdbRating : 0;
+    if (imdbRating > 0) return normalizeFetchedRatingToFiveStar(imdbRating, item.ratingSource || 'imdb');
+    const tmdbRating = Number(item.vote_average || item.voteAverage || 0);
+    if (tmdbRating > 0) return normalizeFetchedRatingToFiveStar(tmdbRating, 'tmdb');
+    if (!ref) return 0;
+    return 0;
   }
 
   function formatDisplayTitleRating(item = {}) {
@@ -393,5 +421,6 @@
   window.formatImdbVotes = formatImdbVotes;
   window.getDisplayTitleRatingValue = getDisplayTitleRatingValue;
   window.formatDisplayTitleRating = formatDisplayTitleRating;
+  window.normalizeFetchedRatingToFiveStar = normalizeFetchedRatingToFiveStar;
   window.parseImdbVotes = parseImdbVotes;
 })();

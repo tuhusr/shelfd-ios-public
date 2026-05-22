@@ -1,4 +1,4 @@
-  /* Profile page */
+﻿  /* Profile page */
   body.profile-active {
     overflow: hidden;
   }
@@ -19,7 +19,7 @@
     overflow-y: auto;
     overflow-x: hidden;
     min-height: 100vh;
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: var(--shelfd-safe-top, 0px);
     background:
       radial-gradient(circle at 12% 8%, rgba(245,158,11,0.18), transparent 26%),
       radial-gradient(circle at 84% 10%, rgba(124,58,237,0.30), transparent 30%),
@@ -164,7 +164,7 @@
     inset: 0;
     z-index: 5;
     overflow-y: auto;
-    padding: max(22px, calc(env(safe-area-inset-top, 0px) + 18px)) 0 42px;
+    padding: max(22px, calc(var(--shelfd-safe-top, 0px) + 18px)) 0 42px;
     background:
       linear-gradient(180deg, rgba(5,4,16,0.97), rgba(5,4,16,0.985)),
       radial-gradient(circle at 18% 12%, rgba(124,58,237,0.22), transparent 28%),
@@ -222,8 +222,8 @@
   }
   /* v809: respect the HTML `hidden` attribute. `display: flex` above
      otherwise wins over the browser default `display: none` that the
-     `hidden` attribute is supposed to set — which is why Light Mode and
-     Cream Light remained visible in Profile → Settings → Theme even
+     `hidden` attribute is supposed to set â€” which is why Light Mode and
+     Cream Light remained visible in Profile â†’ Settings â†’ Theme even
      though their wrapping <label> already had hidden + aria-hidden. */
   .profile-rating-option[hidden] { display: none !important; }
   .profile-rating-option input {
@@ -1562,7 +1562,7 @@
 
   body.true-dark-mode {
     /* v482: "True Dark Mode" renamed to "Default Theme". Page background is
-       now #0E0E0E (neutral grey) — dark cards float on this grey base. */
+       now #0E0E0E (neutral grey) â€” dark cards float on this grey base. */
     background: #0E0E0E;
     color: #f5f5f5;
   }
@@ -1623,11 +1623,11 @@
   body.true-dark-mode .mobile-bottom-nav {
     background: rgba(8, 8, 12, 0.62) !important;
     border-color: rgba(255, 255, 245, 0.10) !important;
-    /* v950: was `blur(22px) saturate(140%)` — capped to 10px and dropped saturate (2× GPU op). Bottom nav reads identically on iPhone. */
+    /* v950: was `blur(22px) saturate(140%)` â€” capped to 10px and dropped saturate (2Ã— GPU op). Bottom nav reads identically on iPhone. */
     backdrop-filter: blur(10px) !important;
     -webkit-backdrop-filter: blur(10px) !important;
   }
-  /* Fallback for browsers without backdrop-filter — keep it readable. */
+  /* Fallback for browsers without backdrop-filter â€” keep it readable. */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     body.true-dark-mode .mobile-bottom-nav {
       background: rgba(10, 10, 14, 0.94) !important;
@@ -1781,7 +1781,7 @@
   }
 
 
-  /* Mobile-only friend card action layout — desktop stays unchanged */
+  /* Mobile-only friend card action layout â€” desktop stays unchanged */
   .friend-mobile-list-btn,
   .friend-mobile-profile-btn,
   .friend-mobile-remove-x {
@@ -2113,7 +2113,7 @@ body.game-media-profile-open .mobile-bottom-nav {
 .game-media-profile-overlay .discover-media-back,
 .game-media-profile-overlay .discover-media-add-floating {
   position: fixed;
-  top: max(14px, env(safe-area-inset-top, 0px));
+  top: max(14px, var(--shelfd-safe-top, 0px));
   z-index: 4;
   border-radius: 999px;
   padding: 9px 13px;
@@ -2153,7 +2153,7 @@ body.game-media-profile-open .mobile-bottom-nav {
 .game-media-profile-overlay .discover-media-hero {
   position: relative;
   min-height: 58vh;
-  padding: max(70px, calc(env(safe-area-inset-top, 0px) + 56px)) 18px 26px;
+  padding: max(70px, calc(var(--shelfd-safe-top, 0px) + 56px)) 18px 26px;
   display: flex;
   align-items: flex-end;
   background-size: cover;
@@ -2736,7 +2736,7 @@ body.light-mode .game-media-profile-overlay .discover-media-body {
   .discover-media-profile-overlay .discover-media-hero,
   .game-media-profile-overlay .discover-media-hero {
     min-height: auto;
-    padding: max(72px, calc(env(safe-area-inset-top, 0px) + 62px)) 16px 24px;
+    padding: max(72px, calc(var(--shelfd-safe-top, 0px) + 62px)) 16px 24px;
     align-items: flex-start;
     justify-content: center;
   }
@@ -3092,7 +3092,7 @@ body.light-mode .discover-person-ai-note {
   .discover-media-profile-overlay .discover-media-back,
   .discover-media-profile-overlay .discover-media-add-floating {
     position: fixed;
-    top: max(14px, env(safe-area-inset-top, 0px));
+    top: max(14px, var(--shelfd-safe-top, 0px));
     z-index: 4;
     border-radius: 999px;
     padding: 9px 13px;
@@ -3128,7 +3128,7 @@ body.light-mode .discover-person-ai-note {
   .discover-media-profile-overlay .discover-media-hero {
     position: relative;
     min-height: 58vh;
-    padding: max(70px, calc(env(safe-area-inset-top, 0px) + 56px)) 18px 26px;
+    padding: max(70px, calc(var(--shelfd-safe-top, 0px) + 56px)) 18px 26px;
     display: flex;
     align-items: flex-end;
     background-size: cover;
@@ -4074,7 +4074,7 @@ body.light-mode .activity-page.user-filter-active .activity-group-label-this-mon
   }
 }
 
-/* v293: Profile cleanup — flatter full profile, roomier stats, no extra showcase descriptions. */
+/* v293: Profile cleanup â€” flatter full profile, roomier stats, no extra showcase descriptions. */
 .profile-name-input,
 body.light-mode .profile-name-input,
 body.true-dark-mode .profile-name-input {
@@ -4502,7 +4502,7 @@ body.light-mode .profile-avatar-edit-btn {
 }
 
 
-/* v386: mobile/PWA profile header correction — exports stay in their own row, following restored */
+/* v386: mobile/PWA profile header correction â€” exports stay in their own row, following restored */
 @media (max-width: 900px) {
   .profile-page:not(.viewing-other-profile) .profile-hero-inner,
   .profile-page.viewing-other-profile .profile-hero-inner {
@@ -5380,7 +5380,7 @@ body.light-mode .profile-library-picker-poster { background: #f8f6ff; border-col
 }
 
 /* ============================================================================
-   v465: Top 3 Fictional Characters editor — mobile/PWA-first centered modal
+   v465: Top 3 Fictional Characters editor â€” mobile/PWA-first centered modal
    ============================================================================ */
 .profile-character-editor-overlay {
   position: fixed;
@@ -5389,7 +5389,7 @@ body.light-mode .profile-library-picker-poster { background: #f8f6ff; border-col
   display: none;
   align-items: center;
   justify-content: center;
-  padding: max(env(safe-area-inset-top, 0px), 16px) 14px max(env(safe-area-inset-bottom, 0px), 16px);
+  padding: max(var(--shelfd-safe-top, 0px), 16px) 14px max(env(safe-area-inset-bottom, 0px), 16px);
   background: rgba(0, 0, 0, 0.74);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -5528,7 +5528,7 @@ body.light-mode .profile-library-picker-poster { background: #f8f6ff; border-col
   color: #e8e3f3;
   outline: none;
   font-family: 'DM Sans', sans-serif;
-  /* v617: 16px minimum — iOS Safari won't raise the keyboard for inputs
+  /* v617: 16px minimum â€” iOS Safari won't raise the keyboard for inputs
      smaller than 16px inside a fixed-position sheet. */
   font-size: 16px;
   font-weight: 700;
@@ -5863,3 +5863,119 @@ body.true-dark-mode .profile-page .profile-bio-input {
   letter-spacing: -0.02em !important;
   line-height: 1.18 !important;
 }
+
+/* v10.543: Account / danger zone card in Profile Settings. Matches the
+   existing .profile-settings-card chrome but uses a muted red hairline
+   border to signal destructive territory without screaming at the user.
+   The delete button is full-width, red-tinted, with a clear label. */
+.profile-settings-danger-card {
+  border-color: rgba(239,68,68,0.22) !important;
+}
+.profile-delete-account-btn {
+  width: 100%;
+  padding: 13px 18px;
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.30);
+  border-radius: 12px;
+  color: #f87171;
+  font: 600 14px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  text-align: center;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.profile-delete-account-btn:hover,
+.profile-delete-account-btn:focus-visible {
+  outline: none;
+  background: rgba(239,68,68,0.14);
+  border-color: rgba(239,68,68,0.55);
+}
+.profile-delete-account-btn:active {
+  background: rgba(239,68,68,0.20);
+}
+.profile-delete-account-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* v10.543: Danger-style confirm button used in the delete-account modal.
+   Sits alongside .btn-secondary (Cancel). Red fill, no outline â€” clearly
+   destructive, not ambiguous. */
+.btn-danger {
+  padding: 10px 22px;
+  background: #dc2626;
+  border: none;
+  border-radius: 999px;
+  color: #fff;
+  font: 700 14px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background 160ms ease, opacity 160ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-danger:hover,
+.btn-danger:focus-visible {
+  outline: none;
+  background: #b91c1c;
+}
+.btn-danger:active { background: #991b1b; }
+.btn-danger:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* v10.552: Three-dot "More" button on the profile topbar.
+   Hidden on own profile; shown only when .viewing-other-profile. */
+.profile-more-wrap {
+  position: relative;
+}
+.profile-more-btn {
+  display: none; /* hidden by default â€” own profile */
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  color: #bdb4d8;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 140ms ease, color 140ms ease;
+}
+.profile-more-btn:hover { background: rgba(255,255,255,0.07); color: #f8f4ff; }
+.profile-more-btn:active { background: rgba(255,255,255,0.12); }
+/* Only show on other users' profiles */
+.viewing-other-profile .profile-more-btn { display: flex; }
+/* Hide own-profile-only buttons when viewing someone else */
+.viewing-other-profile .profile-settings-btn { display: none; }
+.viewing-other-profile .profile-save-btn { display: none; }
+
+.profile-more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 160px;
+  background: #1e1e2a;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+  z-index: 300;
+}
+.profile-more-menu button {
+  display: block;
+  width: 100%;
+  padding: 13px 16px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  color: #f8f4ff;
+  font: 500 14px/1.2 'Sohne', 'DM Sans', sans-serif;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.profile-more-menu button:last-child { border-bottom: none; }
+.profile-more-menu button:active { background: rgba(255,255,255,0.06); }
+.profile-more-menu button.is-destructive { color: #f87171; }

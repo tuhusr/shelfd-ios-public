@@ -9,6 +9,7 @@ function normalizeDiscoveryHub(hub) {
   if (hub === 'movies' || hub === 'movie') return 'tv';
   if (hub === 'anime') return 'anime';
   if (hub === 'gaming' || hub === 'games') return 'gaming';
+  if (hub === 'music') return 'music';
   return 'tv';
 }
 
@@ -34,17 +35,18 @@ function syncDiscoveryHubButtons() {
 
 let discoveryHubTransitionToken = 0;
 const DISCOVERY_HUB_JUMP_MS = 90;
-const DISCOVERY_HUB_ORDER = ['tv', 'movies', 'anime', 'gaming'];
+const DISCOVERY_HUB_ORDER = ['tv', 'movies', 'anime', 'gaming', 'music'];
 
 function getDiscoveryHubPanel(hub) {
   const normalizedHub = normalizeDiscoveryHub(hub);
   if (normalizedHub === 'anime') return document.getElementById('anime-discover-view');
   if (normalizedHub === 'gaming') return document.getElementById('games-discover-view');
+  if (normalizedHub === 'music') return document.getElementById('music-discover-view');
   return document.getElementById('discover-view');
 }
 
 function getDiscoveryHubPanels() {
-  return [document.getElementById('discover-view'), document.getElementById('anime-discover-view'), document.getElementById('games-discover-view')].filter(Boolean);
+  return [document.getElementById('discover-view'), document.getElementById('anime-discover-view'), document.getElementById('games-discover-view'), document.getElementById('music-discover-view')].filter(Boolean);
 }
 
 function clearDiscoveryHubTransitionClasses(panel) {
@@ -76,7 +78,8 @@ function loadActiveDiscoveryHub(force = false) {
   initDiscoverCategoryTitleLinks();
   syncDiscoveryHubButtons();
   let loadPromise;
-  if (activeDiscoveryHub === 'gaming') loadPromise = loadGamesDiscover(force);
+  if (activeDiscoveryHub === 'music') loadPromise = loadMusicDiscover(force);
+  else if (activeDiscoveryHub === 'gaming') loadPromise = loadGamesDiscover(force);
   else if (activeDiscoveryHub === 'anime') loadPromise = loadAnimeDiscover(force);
   else loadPromise = loadDiscover(force);
   if (!force && typeof scheduleDiscoverHubPrewarm === 'function') {
@@ -126,7 +129,7 @@ function switchDiscoveryHub(hub) {
 function getMainNavPanels(tab) {
   if (tab === 'mylist') return [document.getElementById('mylist-header'), document.getElementById('mylist-view')];
   if (tab === 'community') return [document.getElementById('community-view')];
-  if (tab === 'discover') return [document.getElementById('discover-view'), document.getElementById('anime-discover-view'), document.getElementById('games-discover-view')];
+  if (tab === 'discover') return [document.getElementById('discover-view'), document.getElementById('anime-discover-view'), document.getElementById('games-discover-view'), document.getElementById('music-discover-view')];
   if (tab === 'profile') return [document.getElementById('profile-page')];
   if (tab === 'import') return [document.getElementById('import-view')];
   return [];
@@ -222,16 +225,18 @@ function setMainNavVisibility(tab) {
   const discoverView = document.getElementById('discover-view');
   const animeDiscoverView = document.getElementById('anime-discover-view');
   const gamesDiscoverView = document.getElementById('games-discover-view');
+  const musicDiscoverView = document.getElementById('music-discover-view');
   const profilePage = document.getElementById('profile-page');
   const importView = document.getElementById('import-view');
   const steamSyncView = document.getElementById('steam-sync-view');
-  resetPanelStyles([myListView, myListHeader, communityView, discoverView, animeDiscoverView, gamesDiscoverView, profilePage, importView, steamSyncView]);
+  resetPanelStyles([myListView, myListHeader, communityView, discoverView, animeDiscoverView, gamesDiscoverView, musicDiscoverView, profilePage, importView, steamSyncView]);
   if (myListView) myListView.style.display = normalizedTab === 'mylist' ? 'block' : 'none';
   if (myListHeader) myListHeader.style.display = normalizedTab === 'mylist' ? 'block' : 'none';
   if (communityView) communityView.style.display = normalizedTab === 'community' ? 'block' : 'none';
   if (discoverView) discoverView.style.display = normalizedTab === 'discover' && isMediaDiscoveryHub() ? 'block' : 'none';
   if (animeDiscoverView) animeDiscoverView.style.display = normalizedTab === 'discover' && activeDiscoveryHub === 'anime' ? 'block' : 'none';
   if (gamesDiscoverView) gamesDiscoverView.style.display = normalizedTab === 'discover' && activeDiscoveryHub === 'gaming' ? 'block' : 'none';
+  if (musicDiscoverView) musicDiscoverView.style.display = normalizedTab === 'discover' && activeDiscoveryHub === 'music' ? 'block' : 'none';
   syncDiscoverMediaTabSections();
   if (profilePage) profilePage.style.display = normalizedTab === 'profile' ? 'block' : 'none';
   if (importView) importView.style.display = normalizedTab === 'import' ? 'block' : 'none';
@@ -255,7 +260,8 @@ function getActiveMainTab() {
   const discoverView = document.getElementById('discover-view');
   const animeDiscoverView = document.getElementById('anime-discover-view');
   const gamesDiscoverView = document.getElementById('games-discover-view');
-  if (isMainNavPanelVisible(discoverView) || isMainNavPanelVisible(animeDiscoverView) || isMainNavPanelVisible(gamesDiscoverView)) {
+  const musicDiscoverView = document.getElementById('music-discover-view');
+  if (isMainNavPanelVisible(discoverView) || isMainNavPanelVisible(animeDiscoverView) || isMainNavPanelVisible(gamesDiscoverView) || isMainNavPanelVisible(musicDiscoverView)) {
     return 'discover';
   }
 

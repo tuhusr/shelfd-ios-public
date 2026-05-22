@@ -581,8 +581,11 @@ async function runIgdbSearchEndpoint(request, env) {
 
   const config = getIgdbClientConfig(env);
   const escaped = escapeIgdbSearchString(query);
+  /* v10.494: request `alternative_names.name` so the Universal Search
+     bucket scorer can match queries like "GTA" against alias entries
+     such as "GTA V", "GTA5", etc. that IGDB exposes per game. */
   const body = [
-    "fields name, first_release_date, cover.image_id, genres.name, themes.name, platforms.name, summary, slug, total_rating, total_rating_count, rating, rating_count, aggregated_rating, aggregated_rating_count, hypes, follows;",
+    "fields name, alternative_names.name, first_release_date, cover.image_id, genres.name, themes.name, platforms.name, summary, slug, total_rating, total_rating_count, rating, rating_count, aggregated_rating, aggregated_rating_count, hypes, follows;",
     `search "${escaped}";`,
     `limit ${limit};`
   ].join("\n");
@@ -609,6 +612,8 @@ async function runIgdbSearchEndpoint(request, env) {
     genres: (g.genres || []).map(x => x.name).filter(Boolean),
     themes: (g.themes || []).map(x => x.name).filter(Boolean),
     platforms: (g.platforms || []).map(x => x.name).filter(Boolean),
+    /* v10.494: pass alternative_names through as a flat array of strings */
+    alternative_names: (g.alternative_names || []).map(a => a?.name).filter(Boolean),
     summary: g.summary || "",
     total_rating: g.total_rating || 0,
     total_rating_count: g.total_rating_count || 0,
@@ -2605,8 +2610,16 @@ function isAlbumSharePath(url) {
 async function serveMediaShareHtml(request, env, url) {
   const title = url.searchParams.get("title") || "Shelfd";
   const poster = url.searchParams.get("poster") || "";
-  const shareTitle = title ? `${title} on Shelfd` : "Shelfd";
-  const shareDescription = title ? `Check out ${title} on Shelfd.` : "Track your shows, movies, anime, and games.";
+  const user = url.searchParams.get("user") || "";
+  /* v10.547: when a username is passed, personalise the OG title so
+     iMessage / WhatsApp / Slack previews read "View John's review of
+     Inception" instead of the generic "Inception on Shelfd". */
+  const shareTitle = user && title
+    ? `View ${user}'s review of ${title}`
+    : title ? `${title} on Shelfd` : "Shelfd";
+  const shareDescription = user && title
+    ? `${user} shared ${title} on Shelfd.`
+    : title ? `Check out ${title} on Shelfd.` : "Track your shows, movies, anime, and games.";
   const image = /^https?:\/\//i.test(poster) ? poster : new URL("/og-image-v216.png", url.origin).toString();
   const indexUrl = new URL("/index.html", url.origin);
   const assetResponse = await env.ASSETS.fetch(new Request(indexUrl.toString(), { method: "GET" }));
@@ -4597,9 +4610,50 @@ async function runDeezerEndpoint(request, env, ctx) {
   return response;
 }
 
+/* v10.547: Apple App Site Association — iOS Universal Links.
+   Served at /.well-known/apple-app-site-association so that iOS can
+   verify Shelfd owns myshelfd.com and should open /media/*, /album/*,
+   and /profile-card/* links directly in the installed app rather than
+   Safari. Team ID comes from the APPLE_TEAM_ID Worker secret (already
+   required for push notifications). */
+function serveAppleAppSiteAssociation(env) {
+  const teamId = (env && env.APPLE_TEAM_ID) ? String(env.APPLE_TEAM_ID).trim() : "";
+  const appId = teamId ? `${teamId}.com.myshelfd.app` : "TEAM_ID.com.myshelfd.app";
+  const payload = {
+    applinks: {
+      details: [
+        {
+          appIDs: [appId],
+          components: [
+            { "/": "/media/*",        comment: "Media share links" },
+            { "/": "/album/*",        comment: "Album share links" },
+            { "/": "/profile-card/*", comment: "Profile card share links" }
+          ]
+        }
+      ]
+    }
+  };
+  return new Response(JSON.stringify(payload, null, 2), {
+    status: 200,
+    headers: {
+      "content-type": "application/json",
+      "cache-control": "public, max-age=3600"
+    }
+  });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
+    /* v10.547: serve AASA for both domains so Universal Links work on
+       both myshelfd.com and myscreenlist.com. */
+    if (
+      request.method === "GET" &&
+      url.pathname === "/.well-known/apple-app-site-association"
+    ) {
+      return serveAppleAppSiteAssociation(env);
+    }
 
     if (url.pathname === "/profile-card-og.svg" && request.method === "GET") {
       return serveProfileCardOgSvg(url);

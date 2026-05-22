@@ -184,7 +184,17 @@
     for (const selector of BACK_SELECTORS) {
       try {
         const candidates = document.querySelectorAll(selector);
-        for (const candidate of candidates) {
+        /* v10.487: iterate in REVERSE order so when multiple overlays
+           share a selector (e.g. media profile + actor profile both have
+           `.discover-media-back`), the LAST-in-DOM match wins. Stacked
+           overlays are typically appended later, so the last match is
+           the topmost overlay — the one whose back button the user
+           actually wants to fire. Previously we returned the first
+           match (the underneath page), so swiping the actor profile
+           would dismiss the media profile and reveal the discover
+           page two levels down instead of just one. */
+        for (let i = candidates.length - 1; i >= 0; i--) {
+          const candidate = candidates[i];
           if (isElementVisible(candidate)) return candidate;
         }
       } catch (_) {}
@@ -194,7 +204,15 @@
 
   /* v10.383: If the currently-visible back target matches a draggable
      overlay config, return that config (with a live surface element);
-     otherwise null. */
+     otherwise null.
+
+     v10.486: After the explicit configs are checked, fall back to a
+     GENERIC drag detection so EVERY back-buttoned page automatically
+     gets the same drag-to-dismiss animation that the Full Page Review
+     uses. The fallback walks up from the visible back button to find
+     the outermost large positioned ancestor (the "page" overlay), and
+     dismisses by clicking the back button after the slide-off
+     animation completes. */
   function findDraggableForCurrentBack() {
     for (const config of DRAGGABLE_OVERLAYS) {
       try {
@@ -203,6 +221,81 @@
         const surface = config.getSurface && config.getSurface();
         if (surface && surface.isConnected) return { config, surface };
       } catch (_) {}
+    }
+    /* Generic fallback — find any visible back button and try to wrap
+       its enclosing page overlay as the drag surface. */
+    const backBtn = findBackTarget();
+    if (!backBtn) return null;
+    const surface = findGenericPageSurface(backBtn);
+    if (!surface) return null;
+    const scrollEl = findGenericScrollContainer(surface);
+    return {
+      surface,
+      config: {
+        /* Pass the element directly — no per-page selector needed. */
+        scrollEl,
+        dismiss() {
+          try { backBtn.click(); } catch (_) {}
+        }
+      }
+    };
+  }
+
+  /* v10.486: Generic page-surface detector.
+     Climbs from the back button up the DOM tree looking for the
+     INNERMOST (closest to back button) `position: fixed` or
+     `position: absolute` ancestor that covers most of the viewport.
+     v10.487: Was returning OUTERMOST, which broke nested cases — e.g.
+     clicking an actor poster on a media profile opens the actor
+     overlay ON TOP of the media profile. Both are page-sized fixed
+     containers. Outermost returned the media profile (underneath);
+     innermost returns the actor overlay (on top), which is the one
+     the user actually wants to swipe off. */
+  function findGenericPageSurface(backButton) {
+    if (!backButton) return null;
+    const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+    const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+    if (!vw || !vh) return null;
+    let el = backButton.parentElement;
+    let depthGuard = 0;
+    while (el && el !== document.body && el.nodeType === 1 && depthGuard < 30) {
+      depthGuard += 1;
+      try {
+        const cs = window.getComputedStyle(el);
+        if (cs.position === 'fixed' || cs.position === 'absolute') {
+          const rect = el.getBoundingClientRect();
+          /* "Page-like": at least 70% of viewport width AND 50% of
+             viewport height. Filters out small popovers / sub-panels. */
+          if (rect.width >= vw * 0.70 && rect.height >= vh * 0.50) {
+            return el;  /* INNERMOST match — return immediately. */
+          }
+        }
+      } catch (_) {}
+      el = el.parentElement;
+    }
+    return null;
+  }
+
+  /* v10.486: Generic scroll-container detector.
+     BFS through the surface's descendants looking for the first
+     scrollable child (overflow-y: auto/scroll AND content overflows).
+     Used to scroll-lock the right element during the drag. */
+  function findGenericScrollContainer(surface) {
+    if (!surface) return null;
+    const queue = [];
+    for (const child of surface.children) queue.push(child);
+    let breadthGuard = 0;
+    while (queue.length && breadthGuard < 200) {
+      breadthGuard += 1;
+      const el = queue.shift();
+      try {
+        const cs = window.getComputedStyle(el);
+        if ((cs.overflowY === 'auto' || cs.overflowY === 'scroll')
+            && el.scrollHeight > el.clientHeight + 4) {
+          return el;
+        }
+      } catch (_) {}
+      for (const child of el.children) queue.push(child);
     }
     return null;
   }
@@ -309,9 +402,12 @@
       dragSurface.style.borderRadius = '45px';
       dragSurface.style.overflow = 'hidden';
       /* v10.386: scroll element is selected per draggable-overlay config so
-         every page can name its own scroll container. */
+         every page can name its own scroll container.
+         v10.486: also accept a pre-resolved element via `config.scrollEl`
+         (used by the generic fallback so we don't need a selector). */
       const scrollSelector = dragConfig && dragConfig.scrollSelector;
-      const scrollEl = scrollSelector ? dragSurface.querySelector(scrollSelector) : null;
+      const scrollEl = (dragConfig && dragConfig.scrollEl)
+        || (scrollSelector ? dragSurface.querySelector(scrollSelector) : null);
       if (scrollEl) {
         dragScrollEl = scrollEl;
         dragScrollTop = scrollEl.scrollTop;

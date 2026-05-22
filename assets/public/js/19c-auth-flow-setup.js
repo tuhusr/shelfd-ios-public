@@ -533,6 +533,8 @@
       const cred = await firebase.auth().createUserWithEmailAndPassword(email, password);
       createdUser = cred && cred.user;
       if (!createdUser) throw new Error('No user returned from Firebase');
+      /* v10.577: record terms agreement so returning users are never prompted */
+      try { localStorage.setItem('shelfd_terms_agreed', '1'); } catch(_) {}
 
       /* Send verification email with continue URL back to /auth/verify.
          Errors here are non-fatal — the user lands on the verify page
@@ -1156,18 +1158,24 @@
      transform / overlay / fixed-position parent.
      ════════════════════════════════════════════════════════════════════════ */
   function toggleShelfdLandingInlineSignin() {
-    const form = $('shelfd-landing-inline-signin');
+    const form   = $('shelfd-landing-inline-signin');
+    const screen = document.getElementById('login-screen');
     if (!form) return;
     const opening = form.hasAttribute('hidden');
     if (opening) {
+      /* Enter sign-in mode — hide everything else, show just the card */
       form.removeAttribute('hidden');
       setBanner($('shelfd-landing-inline-error'), '');
-      const toggle = $('shelfd-landing-signin-toggle');
-      if (toggle) toggle.textContent = 'Hide Sign In';
+      if (screen) screen.classList.add('signin-mode');
+      /* Focus email after the mode transition settles */
+      setTimeout(() => {
+        const email = document.getElementById('shelfd-landing-inline-email');
+        if (email) email.focus();
+      }, 120);
     } else {
+      /* Exit sign-in mode — restore the full landing page */
       form.setAttribute('hidden', '');
-      const toggle = $('shelfd-landing-signin-toggle');
-      if (toggle) toggle.textContent = 'Sign In';
+      if (screen) screen.classList.remove('signin-mode');
     }
   }
 

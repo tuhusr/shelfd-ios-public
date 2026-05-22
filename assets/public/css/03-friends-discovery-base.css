@@ -1,3 +1,37 @@
+﻿  /* v10.507 / v10.515: page-surface color parity. The shelf / My List
+     page uses `#0E0E0E` as its canonical Editorial-Dark base (defined
+     at 06-profile.css:1569 under `body.true-dark-mode #mylist-view`).
+     Apply the same exact color to the Friends page (`#community-view`),
+     the Discovery page (`#discover-view`), and the standalone Activity
+     page (`.activity-page`).
+     v10.515: escalated to `!important` with maximum-specificity body
+     prefixes after a user report that the previous unconditional rule
+     wasn't taking effect on the iOS app. Triple-up: cover the bare
+     selectors, the active-state selectors, and the body-themed
+     selectors so nothing else in the cascade can repaint these
+     containers a different color regardless of theme class / load
+     order / cached older patch CSS. The `#0E0E0E` hex MUST exactly
+     match the shelf's body.true-dark-mode background at 06-profile.css
+     line 1566 â€” if that ever changes, this block needs to track it. */
+  #community-view,
+  #discover-view,
+  .activity-page,
+  .activity-page.active {
+    background-color: #0E0E0E !important;
+    background-image: none !important;
+  }
+  body #community-view,
+  body #discover-view,
+  body .activity-page,
+  body .activity-page.active,
+  body.true-dark-mode #community-view,
+  body.true-dark-mode #discover-view,
+  body.true-dark-mode .activity-page,
+  body.true-dark-mode .activity-page.active {
+    background-color: #0E0E0E !important;
+    background-image: none !important;
+  }
+
   /* v10.222: IG-style friends list remodel. Wrapped in .shelfd-friends-vstack
      so the existing #friends-grid CSS grid (community-grid) doesn't fight the
      new vertical layout. v10.224: also apply this layout reset to the
@@ -351,7 +385,7 @@
   .friend-add-btn:hover { background: #2a1f5e; }
   .friend-remove-btn { background: transparent; border-color: #3d3466; color: #a99dc6; }
   .friend-remove-btn:hover { border-color: #ef4444; color: #ef4444; }
-  /* v925: "Requested" state — lavender-filled to confirm the request was sent */
+  /* v925: "Requested" state â€” lavender-filled to confirm the request was sent */
   .friend-pending-btn {
     background: linear-gradient(135deg, #8b5cf6, #7c3aed);
     border-color: rgba(196,181,253,0.42);
@@ -374,7 +408,7 @@
     padding: 1px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle;
   }
   .user-card.locked { cursor: default; }
-  .user-card.locked .user-card-stats::before { content: "🔒 "; }
+  .user-card.locked .user-card-stats::before { content: "ðŸ”’ "; }
   .find-search { width: 100%; max-width: 320px; margin-bottom: 16px; }
   .friends-empty {
     text-align: center; padding: 48px 20px; color: #b8afd1;
@@ -538,8 +572,14 @@
     inset: 0;
     z-index: 1500;
     overflow-y: auto;
-    background: linear-gradient(135deg, #050410 0%, #15102d 50%, #050410 100%);
-    padding-top: env(safe-area-inset-top, 0px);
+    /* v10.507: matched to the shelf / My List page background `#0E0E0E`
+       (the canonical Editorial-Dark page surface defined by
+       `body.true-dark-mode #mylist-view` at 06-profile.css:1569). The old
+       purple linear-gradient was the legacy non-mode-gated background
+       that made the standalone Activity page feel visually disconnected
+       from the rest of the app. */
+    background: #0E0E0E;
+    padding-top: var(--shelfd-safe-top, 0px);
   }
   .activity-page-opening {
     will-change: clip-path, opacity;
@@ -554,7 +594,7 @@
   }
   .activity-page-back-floating {
     position: fixed !important;
-    top: calc(env(safe-area-inset-top, 0px) + 14px) !important;
+    top: calc(var(--shelfd-safe-top, 0px) + 14px) !important;
     right: 16px !important;
     z-index: 1600 !important;
     width: auto !important;

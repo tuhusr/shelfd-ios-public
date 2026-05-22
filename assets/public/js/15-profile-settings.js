@@ -122,7 +122,13 @@ function getDefaultProfileVisibility() {
 
 
 function getDefaultListTabVisibility() {
-  return { anime: true, games: true, manga: true, books: true };
+  /* v10.416: books + manga are now permanently disabled as MyList categories.
+     Defaults still expose the keys for backward compat with persisted profile
+     docs, but they are hard-locked to false and the cogwheel modal no longer
+     renders toggles for them. Anime + Games are the only user-toggleable
+     categories. TV shows / Movies / Music are always visible and have no
+     toggle UI at all. */
+  return { anime: true, games: true, manga: false, books: false };
 }
 
 function normalizeListTabVisibility(raw) {
@@ -130,9 +136,11 @@ function normalizeListTabVisibility(raw) {
   if (raw && typeof raw === 'object') {
     defaults.anime = raw.anime !== false;
     defaults.games = raw.games !== false;
-    defaults.manga = raw.manga !== false;
-    defaults.books = raw.books !== false;
   }
+  /* v10.416: hard-lock books + manga to disabled even if a stored profile
+     doc previously had them set to true. */
+  defaults.manga = false;
+  defaults.books = false;
   return defaults;
 }
 
@@ -148,10 +156,11 @@ function getActiveListTabVisibility() {
 
 function isListSectionVisibleFromVisibility(section, visibility = getDefaultListTabVisibility()) {
   const safe = normalizeListTabVisibility(visibility);
+  /* v10.416: books + manga are globally disabled now — always return false
+     regardless of what's in the saved profile doc. */
+  if (section === 'books' || section === 'manga') return false;
   if (section === 'anime') return safe.anime !== false;
   if (section === 'games') return safe.games !== false;
-  if (section === 'manga') return safe.manga !== false;
-  if (section === 'books') return safe.books !== false;
   return true;
 }
 
@@ -168,7 +177,11 @@ function isProfileSectionVisibleFromListTabs(section, profile = getActiveProfile
 }
 
 function getFirstVisibleMyListSection(preferred = 'shows') {
-  const order = [preferred, 'shows', 'movies', 'anime', 'games', 'manga', 'books'];
+  /* v10.416: books + manga removed from the section order — they are
+     globally disabled and isSectionVisibleInMyLists() returns false for
+     them anyway, but dropping them here avoids ever landing on a hidden
+     category as the fallback. */
+  const order = [preferred, 'shows', 'movies', 'anime', 'games'];
   return order.find(section => section && isSectionVisibleInMyLists(section)) || 'shows';
 }
 
@@ -234,13 +247,13 @@ function renderShelfSummaryInlineHTML(source = data, className = 'mylist-own-pro
 let myListTabDraftVisibility = null;
 let _mylistVisOutsideHandler = null;
 let _mylistSettingsScrollY = 0;
+/* v10.416: books + manga removed — they are globally disabled categories
+   so their clear-category rows no longer surface in the cogwheel modal. */
 const MYLIST_CLEAR_CATEGORY_SECTIONS = [
   { key: 'shows', label: 'TV Shows' },
   { key: 'movies', label: 'Movies' },
   { key: 'anime', label: 'Anime' },
-  { key: 'games', label: 'Games' },
-  { key: 'manga', label: 'Manga' },
-  { key: 'books', label: 'Books' }
+  { key: 'games', label: 'Games' }
 ];
 
 function renderMyListEditControls() {
@@ -284,6 +297,19 @@ function renderMyListEditControls() {
     <div class="mylist-own-profile-center">
       <button type="button" class="mylist-own-profile-shortcut" onclick="openProfile()" aria-label="Open my profile" title="Open my profile">
         <img src="${escAttr(profilePhoto)}" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(profileName).replace(/'/g, '%27')}&background=1c1535&color=a78bfa'">
+        <!-- v10.508: pencil-icon badge in the bottom-right of the avatar to
+             signal the photo is editable. Only rendered inside the
+             .mylist-own-profile-shortcut button, which itself is only
+             emitted on the user's OWN shelf (the function early-returns
+             at line 264-271 when viewingUser is truthy, so other-user
+             shelves never receive this markup). aria-hidden so screen
+             readers fall through to the parent button's aria-label. -->
+        <span class="mylist-own-profile-edit-pencil" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9"/>
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/>
+          </svg>
+        </span>
       </button>
       <div class="mylist-own-profile-name">${escHtml(profileName)}</div>
       <div
@@ -350,11 +376,12 @@ function renderMyListCategoryClearRows() {
 
 function renderMyListSettingsInner() {
   const vis = normalizeListTabVisibility(myListTabDraftVisibility || userProfile?.listTabVisibility);
+  /* v10.416: toggle list trimmed to Anime + Games only. TV shows / Movies /
+     Music are always-on and have no toggle row. Books + Manga are globally
+     disabled categories and don't appear here at all. */
   const sections = [
     { key: 'games', label: 'Games' },
     { key: 'anime', label: 'Anime' },
-    { key: 'manga', label: 'Manga' },
-    { key: 'books', label: 'Books' },
   ];
   return `
     <div class="mylist-settings-title">My List Settings</div>
@@ -391,7 +418,6 @@ function openMyListSettingsModal(triggerEl) {
     return;
   }
   myListTabDraftVisibility = normalizeListTabVisibility(userProfile?.listTabVisibility);
-  const triggerRect = triggerEl ? triggerEl.getBoundingClientRect() : null;
 
   const modal = document.createElement('div');
   modal.id = 'mylist-settings-modal';
@@ -403,21 +429,24 @@ function openMyListSettingsModal(triggerEl) {
   modal.appendChild(panel);
   document.body.appendChild(modal);
 
-  if (triggerRect) {
-    const rect = triggerRect;
-    const isMobile = window.matchMedia && window.matchMedia('(max-width: 700px)').matches;
-    const panelW = isMobile ? window.innerWidth : 230;
-    let left = isMobile ? 0 : rect.left;
-    if (!isMobile && left + panelW > window.innerWidth - 10) left = window.innerWidth - panelW - 10;
-    left = isMobile ? 0 : Math.max(10, left);
-    const top = rect.bottom + 8;
-    panel.style.top = top + 'px';
-    panel.style.left = left + 'px';
-    panel.style.width = panelW + 'px';
-    panel.style.maxHeight = `calc(100dvh - ${Math.ceil(top + 10)}px)`;
-    const originX = rect.left + rect.width / 2 - left;
-    panel.style.transformOrigin = originX + 'px 0px';
-  }
+  /* v10.416: panel is now centered on the screen instead of anchored to the
+     cogwheel rect. Width is preserved at 230px (matching the legacy
+     desktop width) on both mobile and desktop so the modal feels the same
+     across viewports. We center horizontally and vertically inside the
+     viewport, then size maxHeight so it never spills past the edges and
+     stays scrollable on short screens. */
+  const panelW = 230;
+  const maxPanelH = Math.max(160, window.innerHeight - 40);
+  panel.style.width = panelW + 'px';
+  panel.style.maxHeight = maxPanelH + 'px';
+  /* Measure after layout so we can vertically center on the true height */
+  const measuredH = Math.min(panel.offsetHeight || maxPanelH, maxPanelH);
+  const left = Math.max(10, Math.round((window.innerWidth - panelW) / 2));
+  const top = Math.max(10, Math.round((window.innerHeight - measuredH) / 2));
+  panel.style.left = left + 'px';
+  panel.style.top = top + 'px';
+  panel.style.transformOrigin = '50% 50%';
+
   lockMyListSettingsPageScroll();
 
   setTimeout(() => {
@@ -1362,15 +1391,29 @@ function formatProfileFavoriteRatingDisplay(value, placeholder = 'Tap to rate') 
     && window.matchMedia('(max-width: 760px)').matches;
   const compact = text => {
     const normalized = String(text || '').trim().replace(/^★\s*/, '').replace(/^⭐\s*/, '');
-    const match = normalized.match(/^(\d+(?:\.\d+)?)\s*(?:\/\s*10)?$/);
+    /* v10.509: also strip an "/5" suffix in compact mode so the number
+       alone shows on narrow mobile widths. Legacy "/10" suffix is also
+       stripped for any in-flight stale labels still passing through. */
+    const match = normalized.match(/^(\d+(?:\.\d+)?)\s*(?:\/\s*(?:5|10))?$/);
     if (!match) return normalized;
     return match[1];
   };
   if (!raw) return placeholder;
   if (/^⭐/.test(raw) || /^★/.test(raw)) return compactMobile ? compact(raw) : raw.replace(/^★\s*/, '').replace(/^⭐\s*/, '');
-  if (/^\d+(\.\d+)?\s*(\/\s*10)?$/.test(raw)) {
-    const clean = raw.includes('/') ? raw.replace(/\s+/g, '') : raw + '/10';
-    return compactMobile ? compact(clean) : clean;
+  /* v10.509: app-wide rating scale is now 5-star with half-star steps.
+     Any incoming raw number — plain ("8") or legacy "/10" suffixed
+     ("8/10") — gets converted to the 5-point display ("4/5", "4.5/5").
+     Already-5-scale inputs ("4/5") are passed through unchanged because
+     the regex requires the legacy "/10" form or no suffix at all. */
+  const tenScaleMatch = raw.match(/^(\d+(?:\.\d+)?)\s*(?:\/\s*10)?$/);
+  if (tenScaleMatch) {
+    const numericRaw = parseFloat(tenScaleMatch[1]);
+    if (Number.isFinite(numericRaw) && numericRaw > 0) {
+      const fiveValue = numericRaw / 2;
+      const text = Number.isInteger(fiveValue) ? String(fiveValue) : fiveValue.toFixed(1);
+      const clean = `${text}/5`;
+      return compactMobile ? compact(clean) : clean;
+    }
   }
   return compactMobile ? compact(raw) : raw.replace(/^★\s*/, '').replace(/^⭐\s*/, '');
 }
@@ -2714,10 +2757,16 @@ function renderProfileSettingsPage() {
   const mediaFive = document.getElementById('rating-pref-media-five');
   const gamesTen = document.getElementById('rating-pref-games-ten');
   const gamesFive = document.getElementById('rating-pref-games-five');
-  if (mediaTen) mediaTen.checked = prefs.media !== 'five';
-  if (mediaFive) mediaFive.checked = prefs.media === 'five';
-  if (gamesTen) gamesTen.checked = prefs.games !== 'five';
-  if (gamesFive) gamesFive.checked = prefs.games === 'five';
+  /* v10.509: app-wide rating scale is forced to 5-star half-step (see
+     `getRatingPreferenceForSection` in 04-shared-utils-data.js). Lock
+     the settings UI to match — 5-star is always checked, 10-star is
+     always disabled. The stored profile preference is left intact; only
+     the visual control state is overridden. Mirror of the theme-mode
+     pattern at line 2738-2741 above. */
+  if (mediaTen) { mediaTen.checked = false; mediaTen.disabled = true; }
+  if (mediaFive) { mediaFive.checked = true; mediaFive.disabled = true; }
+  if (gamesTen) { gamesTen.checked = false; gamesTen.disabled = true; }
+  if (gamesFive) { gamesFive.checked = true; gamesFive.disabled = true; }
   const animeTitleMode = getAnimeTitleDisplayMode(userProfile || {});
   const animeTitleEnglish = document.getElementById('anime-title-pref-english');
   const animeTitleRomaji = document.getElementById('anime-title-pref-romaji');
@@ -2888,6 +2937,11 @@ async function saveUserProfile(user) {
     };
     userProfile = normalizeUserProfile(baseProfile);
     if (creatorAccount) userProfile.name = CREATOR_DEFAULT_NAME;
+    /* v10.552: seed the global blocked-users set so the activity feed
+       and DM list can filter instantly without extra Firestore reads. */
+    window.shelfdBlockedUids = new Set(Array.isArray(userProfile.blockedUids) ? userProfile.blockedUids : []);
+    /* v10.577: any successful sign-in = terms already agreed (Google/Apple/returning users) */
+    try { localStorage.setItem('shelfd_terms_agreed', '1'); } catch(_) {}
     if (isNewUser) {
       try {
         await db.collection("meta").doc("userCount").set({
@@ -4294,6 +4348,116 @@ async function runProfileCharacterImageSearch() {
   }
 }
 
+/* v10.552: Profile topbar three-dot menu — only shown when viewing
+   another user's profile. Opens a small dropdown with Report + Block. */
+function toggleProfileMoreMenu() {
+  const menu = document.getElementById('profile-more-menu');
+  if (!menu) return;
+  const willOpen = menu.hidden;
+  menu.hidden = !willOpen;
+  if (willOpen) {
+    setTimeout(() => {
+      const onOutside = e => {
+        const wrap = document.getElementById('profile-more-wrap');
+        if (wrap && !wrap.contains(e.target)) {
+          menu.hidden = true;
+          document.removeEventListener('click', onOutside, true);
+          document.removeEventListener('touchstart', onOutside, true);
+        }
+      };
+      document.addEventListener('click', onOutside, true);
+      document.addEventListener('touchstart', onOutside, true);
+    }, 0);
+  }
+}
+window.toggleProfileMoreMenu = toggleProfileMoreMenu;
+
+function closeProfileMoreMenu() {
+  const menu = document.getElementById('profile-more-menu');
+  if (menu) menu.hidden = true;
+}
+window.closeProfileMoreMenu = closeProfileMoreMenu;
+
+function reportViewingUser() {
+  const user = profileViewingUser;
+  if (!user?.uid || typeof window.openReportSheet !== 'function') return;
+  window.openReportSheet('user', user.uid, user.uid, `${user.name || 'this user'}'s profile`);
+}
+window.reportViewingUser = reportViewingUser;
+
+function blockViewingUser() {
+  const user = profileViewingUser;
+  if (!user?.uid) return;
+  openBlockUserModal(user.uid, user.name || 'this user');
+}
+window.blockViewingUser = blockViewingUser;
+
+/* v10.552: Block user modal — confirm before writing to Firestore.
+   Callable from the profile three-dot menu and the DM overflow menu. */
+function openBlockUserModal(uid, name) {
+  if (!uid) return;
+  window._shelfdPendingBlockUid = uid;
+  const resolvedName = name || (typeof usersMap !== 'undefined' && usersMap[uid]?.name) || 'this user';
+  window._shelfdPendingBlockName = resolvedName;
+  const titleEl = document.getElementById('block-user-modal-title');
+  const textEl  = document.getElementById('block-user-modal-text');
+  if (titleEl) titleEl.textContent = `Block ${resolvedName}?`;
+  if (textEl)  textEl.textContent  = `${resolvedName} won't appear in your activity feed or be able to send you messages. This can't be undone.`;
+  const modal = document.getElementById('block-user-modal');
+  if (modal) modal.style.display = 'flex';
+}
+window.openBlockUserModal = openBlockUserModal;
+
+function closeBlockUserModal() {
+  const modal = document.getElementById('block-user-modal');
+  if (modal) modal.style.display = 'none';
+  window._shelfdPendingBlockUid  = null;
+  window._shelfdPendingBlockName = null;
+  const btn = document.getElementById('block-user-confirm-btn');
+  if (btn) { btn.disabled = false; btn.textContent = 'Block'; }
+}
+window.closeBlockUserModal = closeBlockUserModal;
+
+async function confirmBlockUser() {
+  const uid  = window._shelfdPendingBlockUid;
+  const name = window._shelfdPendingBlockName || 'User';
+  if (!uid || !currentUser) { closeBlockUserModal(); return; }
+
+  const btn = document.getElementById('block-user-confirm-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Blocking…'; }
+
+  try {
+    /* Write to Firestore — arrayUnion is idempotent */
+    await db.collection('users').doc(currentUser.uid).set(
+      { blockedUids: firebase.firestore.FieldValue.arrayUnion(uid) },
+      { merge: true }
+    );
+
+    /* Update local caches so the feed filters immediately */
+    if (!window.shelfdBlockedUids) window.shelfdBlockedUids = new Set();
+    window.shelfdBlockedUids.add(uid);
+    if (userProfile) userProfile.blockedUids = [...window.shelfdBlockedUids];
+
+    closeBlockUserModal();
+
+    /* Close the profile page if we blocked from there */
+    if (isViewingOtherProfile() && profileViewingUser?.uid === uid) {
+      if (typeof closeProfileWithAnimation === 'function') closeProfileWithAnimation();
+    }
+
+    if (typeof showToast === 'function') {
+      showToast(`${name} has been blocked.`, { durationMs: 3500 });
+    }
+  } catch (err) {
+    console.error('[blockUser]', err);
+    if (btn) { btn.disabled = false; btn.textContent = 'Block'; }
+    if (typeof showToast === 'function') {
+      showToast('Could not block user. Please try again.', { durationMs: 3500 });
+    }
+  }
+}
+window.confirmBlockUser = confirmBlockUser;
+
 function selectProfileCharacterSearchResult(index) {
   const state = profileCharacterEditorState;
   if (!state) return;
@@ -4302,6 +4466,81 @@ function selectProfileCharacterSearchResult(index) {
   state.pendingImage = hit.imageUrl;
   state.pendingImageSource = 'search';
   renderProfileCharacterEditor();
+}
+
+/* v10.543: Account deletion — required by App Store guideline 5.1.1(v).
+   Opens / closes a confirmation modal, then on confirm permanently
+   deletes the user's Firestore profile doc AND the Firebase Auth
+   account.  If Firebase throws `requires-recent-login` (credential
+   older than the re-auth window) we sign them out and ask them to sign
+   back in — on the next sign-in the deletion attempt can be retried. */
+
+function openDeleteAccountModal() {
+  const modal = document.getElementById('delete-account-modal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeDeleteAccountModal() {
+  const modal = document.getElementById('delete-account-modal');
+  if (modal) modal.style.display = 'none';
+  /* Re-enable the confirm button in case a previous attempt failed. */
+  const btn = document.getElementById('delete-account-confirm-btn');
+  if (btn) { btn.disabled = false; btn.textContent = 'Delete'; }
+}
+
+async function confirmDeleteAccount() {
+  const user = auth.currentUser;
+  if (!user) {
+    closeDeleteAccountModal();
+    return;
+  }
+
+  const btn = document.getElementById('delete-account-confirm-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
+
+  try {
+    /* 1. Wipe the Firestore user document. Best-effort — if it fails
+          we still proceed to delete the Auth account. */
+    try {
+      await db.collection('users').doc(user.uid).delete();
+    } catch (firestoreErr) {
+      console.warn('[deleteAccount] Firestore delete failed (continuing):', firestoreErr);
+    }
+
+    /* 2. Delete the Firebase Auth account. */
+    await user.delete();
+
+    /* 3. Success — sign out fully and land back on the login screen. */
+    closeDeleteAccountModal();
+    if (typeof stopFriendsDataListener === 'function') stopFriendsDataListener();
+    if (typeof stopWatchTogetherListener === 'function') stopWatchTogetherListener();
+    if (typeof setBottomNavVisibility === 'function') setBottomNavVisibility(false);
+    document.body.classList.remove('profile-active');
+    await auth.signOut();
+
+  } catch (err) {
+    console.error('[deleteAccount] error:', err);
+
+    if (btn) { btn.disabled = false; btn.textContent = 'Delete'; }
+
+    if (err.code === 'auth/requires-recent-login') {
+      /* Credential too old — sign them out. Next sign-in refreshes it
+         and they can retry deletion. */
+      closeDeleteAccountModal();
+      if (typeof stopFriendsDataListener === 'function') stopFriendsDataListener();
+      if (typeof stopWatchTogetherListener === 'function') stopWatchTogetherListener();
+      if (typeof setBottomNavVisibility === 'function') setBottomNavVisibility(false);
+      document.body.classList.remove('profile-active');
+      try { await auth.signOut(); } catch (_) {}
+      if (typeof showToast === 'function') {
+        showToast('Please sign in again to complete account deletion.', { durationMs: 5000 });
+      }
+    } else {
+      if (typeof showToast === 'function') {
+        showToast('Could not delete account. Please try again.', { durationMs: 4000 });
+      }
+    }
+  }
 }
 
 function handleProfileCharacterUploadInput(input) {

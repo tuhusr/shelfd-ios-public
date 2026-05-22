@@ -1,4 +1,4 @@
-/* =============================================================
+﻿/* =============================================================
    16-light-mode-contrast.css                              v.784
    Sleek, modern, minimalistic light-mode contrast pass.
    Loaded LAST ? only overrides color/UI; never functions.
@@ -1118,28 +1118,54 @@ body.true-dark-mode #mylist-view .mylist-own-profile-shortcut {
 .activity-notifications-shell::-webkit-scrollbar { display: none; }
 
 .activity-notification-row {
+  /* v10.464: REWRITTEN from CSS Grid to flexbox after six iterations of
+     Grid-based fixes failed to keep iOS WebView from collapsing the row
+     height. The previous symptom â€” every row showed only the middle
+     band of its text content, top + bottom clipped â€” was caused by:
+       1. `display: grid` + `align-items: center` + a nested
+          `display: flex; flex-direction: column` inside the middle
+          column.
+          iOS WebKit miscalculates the grid auto-row height when the
+          middle track contains a flex column whose items are sized
+          with `line-height` and `gap`. The track resolves to the
+          AVATAR's track height (42px) instead of the COPY column's
+          actual content height (~44px after text + snippet + time +
+          two gaps), which makes the row's content box 42px tall.
+       2. `overflow: hidden` on the row then chops the COPY column's
+          overflow above AND below the visible band, leaving just a
+          narrow horizontal strip of glyphs visible.
+       3. `align-items: center` makes the clip symmetric (top + bottom),
+          which is what produces the "only middle stripe visible" look
+          rather than a clean truncation.
+     Flexbox doesn't have this auto-row resolution problem â€” the
+     row's height grows to the tallest child naturally, no track
+     calculation. Also dropping `overflow: hidden` (no longer needed
+     since the row's children don't exceed its rounded-corner box)
+     and replacing the `mask-image` on the avatar (another known
+     WebKit clipping landmine) with plain `overflow: hidden` on the
+     avatar alone. `min-height: 72px` is the safety net â€” even if
+     iOS still miscalculates, the row can't get shorter than that. */
   width: 100%;
   min-width: 0;
-  display: grid;
-  /* v10.392: bumped avatar track from 42 to 44 + gap from 12 to 14 to give
-     real breathing room between the unread stripe, the avatar, and the
-     copy block. Left padding bumped 12 -> 18 for the same reason. */
-  grid-template-columns: 44px minmax(0, 1fr) 48px;
+  display: flex;
   align-items: center;
   gap: 14px;
-  padding: 12px 12px 12px 18px;
+  padding: 12px 14px 12px 18px;
+  min-height: 72px;
   border: 1px solid rgba(196, 181, 253, 0.11);
   border-radius: 18px;
   background: linear-gradient(135deg, rgba(18, 20, 24, 0.96), rgba(9, 10, 13, 0.98));
   color: #f4f1ff;
   text-align: left;
-  font-family: 'Söhne', 'Sohne', 'DM Sans', sans-serif;
+  font-family: 'SÃ¶hne', 'Sohne', 'DM Sans', sans-serif;
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
   position: relative;
-  overflow: hidden;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+  appearance: none;
+  -webkit-appearance: none;
+  font: inherit;
 }
 
 .activity-notification-row::before {
@@ -1174,15 +1200,18 @@ body.true-dark-mode #mylist-view .mylist-own-profile-shortcut {
 }
 
 .activity-notification-avatar {
-  /* v10.392: defensive sizing so the avatar can NEVER shrink or shift
-     within its grid track — `flex-shrink` is harmless in grid context
-     and `min-width` plus `place-self` keep the element pinned at its
-     intended 42×42 box regardless of weird WebView behavior. */
+  /* v10.392: defensive sizing so the avatar can NEVER shrink or shift.
+     v10.464: dropped the `mask-image` belt-and-suspenders. `mask-image`
+     on iOS WebKit creates a stacking context that has been linked to
+     downstream layout glitches on the parent grid/flex container â€”
+     including the row-height collapse the previous Grid layout was
+     suffering. `overflow: hidden` + `border-radius: 50%` alone is
+     enough to give a clean circular clip in WebKit; the mask was
+     redundant defense that was actually hurting more than it helped. */
   width: 42px;
   height: 42px;
   min-width: 42px;
-  flex-shrink: 0;
-  place-self: center;
+  flex: 0 0 42px;
   border-radius: 50%;
   overflow: hidden;
   background: rgba(167, 139, 250, 0.18);
@@ -1193,10 +1222,7 @@ body.true-dark-mode #mylist-view .mylist-own-profile-shortcut {
   font-size: 15px;
   font-weight: 700;
   box-shadow: inset 0 0 0 1px rgba(196, 181, 253, 0.14);
-  /* Belt-and-suspenders: ensure the circular clip path is applied even
-     in WebViews where `overflow: hidden` on a transformed ancestor leaks. */
-  -webkit-mask-image: radial-gradient(circle at center, #000 99%, transparent 100%);
-          mask-image: radial-gradient(circle at center, #000 99%, transparent 100%);
+  align-self: center;
 }
 
 .activity-notification-avatar img,
@@ -1208,7 +1234,7 @@ body.true-dark-mode #mylist-view .mylist-own-profile-shortcut {
   display: block;
 }
 
-/* v10.392: previously this class had ZERO CSS — when actorPhoto was empty
+/* v10.392: previously this class had ZERO CSS â€” when actorPhoto was empty
    the fallback `<span>` rendered the user's first letter as inline text,
    which looked broken inside the round container. This styles it as a
    properly centered initial. */
@@ -1226,9 +1252,16 @@ body.true-dark-mode #mylist-view .mylist-own-profile-shortcut {
 }
 
 .activity-notification-copy {
+  /* v10.464: in the new flexbox row layout, this is the FLEX-GROWING
+     middle child. `flex: 1 1 0` makes it consume all remaining
+     horizontal space between the avatar (42px) and the optional
+     thumb (48px). `min-width: 0` lets ellipsis truncation work on
+     the inner snippet without forcing the parent to grow. */
+  flex: 1 1 0;
   min-width: 0;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 4px;
 }
 
@@ -1263,8 +1296,11 @@ body.true-dark-mode #mylist-view .mylist-own-profile-shortcut {
 }
 
 .activity-notification-thumb {
+  /* v10.464: explicit flex-basis so the thumb holds its 48Ã—60 box on
+     the right edge of the flex row and never grows / shrinks. */
   width: 48px;
   height: 60px;
+  flex: 0 0 48px;
   border-radius: 12px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.05);
@@ -1275,6 +1311,7 @@ body.true-dark-mode #mylist-view .mylist-own-profile-shortcut {
   font-size: 16px;
   font-weight: 700;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  align-self: center;
 }
 
 .activity-notifications-empty,
@@ -1290,7 +1327,7 @@ body.true-dark-mode #mylist-view .mylist-own-profile-shortcut {
   gap: 7px;
   align-items: center;
   text-align: center;
-  font-family: 'Söhne', 'Sohne', 'DM Sans', sans-serif;
+  font-family: 'SÃ¶hne', 'Sohne', 'DM Sans', sans-serif;
 }
 
 .activity-notifications-empty strong {
@@ -1318,23 +1355,25 @@ body.true-dark-mode #mylist-view .mylist-own-profile-shortcut {
   }
 
   .activity-notification-row {
-    /* v10.392: matches the desktop layout pattern — bumped avatar track,
-       wider gap, expanded left padding so the stripe + avatar don't
-       crowd each other on iPhone widths. */
-    grid-template-columns: 42px minmax(0, 1fr) 44px;
+    /* v10.464: row is now flexbox (not grid) â€” drop the grid-template
+       override and just tighten gap / padding / min-height for phone
+       widths. */
     gap: 12px;
     padding: 11px 11px 11px 16px;
+    min-height: 68px;
   }
 
   .activity-notification-avatar {
     width: 40px;
     height: 40px;
     min-width: 40px;
+    flex: 0 0 40px;
   }
 
   .activity-notification-thumb {
     width: 44px;
     height: 56px;
+    flex: 0 0 44px;
   }
 }
 
@@ -1361,7 +1400,7 @@ body.main-tab-mylist .mylist-rating-duel-header-btn {
   background: rgba(255,255,255,0.045) !important;
   color: rgba(248,246,252,0.92) !important;
   box-shadow: none !important;
-  font-family: 'Sohne', 'Söhne', 'DM Sans', sans-serif !important;
+  font-family: 'Sohne', 'SÃ¶hne', 'DM Sans', sans-serif !important;
   font-size: 12px !important;
   font-weight: 700 !important;
   line-height: 1 !important;
@@ -2006,11 +2045,11 @@ body.true-dark-mode #modal .add-title-modal {
   width: 100% !important;
   max-width: 100% !important;
   /* v10.63: `100dvh` was added in iOS Safari 15.4. On older iOS (PWA on iOS
-     14.x or 15.0–15.3), those three declarations were rejected by the CSS
+     14.x or 15.0â€“15.3), those three declarations were rejected by the CSS
      parser, leaving the modal with no defined height. The inner flex chain
-     (`.add-shelf-step-shell` → `.add-shelf-step-scroll`, which uses
+     (`.add-shelf-step-shell` â†’ `.add-shelf-step-scroll`, which uses
      `flex: 1 1 auto; overflow-y: auto`) needs a constrained parent height
-     to scroll — without it the Confirm panel rendered below the viewport
+     to scroll â€” without it the Confirm panel rendered below the viewport
      with no way to reach it. The `100vh` lines below are the fallback that
      older iOS keeps; the `100dvh` lines override on modern iOS. */
   height: 100vh !important;
@@ -2023,7 +2062,7 @@ body.true-dark-mode #modal .add-title-modal {
   background: #0E0E0E !important;
   border: none !important;
   box-shadow: none !important;
-  padding: max(env(safe-area-inset-top, 20px), 20px) 20px 20px !important;
+  padding: max(var(--shelfd-safe-top, 0px), 20px) 20px 20px !important;
   overflow-y: hidden !important;
   touch-action: none !important;
   -webkit-overflow-scrolling: touch !important;
@@ -2086,7 +2125,7 @@ body.true-dark-mode #modal #inp-tmdb-search {
   color: #f5f5f5 !important;
   border-radius: 999px !important;
   padding: 14px 20px !important;
-  /* v931: 16px minimum — iOS auto-zooms the page when focusing any input
+  /* v931: 16px minimum â€” iOS auto-zooms the page when focusing any input
      with font-size < 16px. 15px was causing the unwanted zoom on tap. */
   font-size: 16px !important;
   font-weight: 600 !important;
@@ -2188,7 +2227,7 @@ body.true-dark-mode #modal #modal-status-picker {
 
 body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection {
   justify-content: flex-start !important;
-  padding-top: max(env(safe-area-inset-top, 20px), 20px) !important;
+  padding-top: max(var(--shelfd-safe-top, 0px), 20px) !important;
   padding-bottom: max(env(safe-area-inset-bottom, 20px), 20px) !important;
 }
 body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection #api-key-section,
@@ -2620,7 +2659,7 @@ body.true-dark-mode #modal .add-title-modal {
 }
 body.true-dark-mode #modal .add-shelf-close-btn {
   position: absolute !important;
-  top: calc(env(safe-area-inset-top, 0px) + 12px) !important;
+  top: calc(var(--shelfd-safe-top, 0px) + 12px) !important;
   right: 14px !important;
   z-index: 3 !important;
   min-width: 54px !important;
@@ -2638,7 +2677,7 @@ body.true-dark-mode #modal .add-shelf-close-btn {
 body.true-dark-mode #modal .add-title-modal h3 {
   flex: 0 0 auto !important;
   width: auto !important;
-  margin: calc(env(safe-area-inset-top, 0px) + 16px) 72px 14px 16px !important;
+  margin: calc(var(--shelfd-safe-top, 0px) + 16px) 72px 14px 16px !important;
   padding: 0 !important;
   color: var(--shelf-text) !important;
   font-family: 'Sohne', 'DM Sans', sans-serif !important;
@@ -2841,7 +2880,7 @@ body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection .modal-actio
   align-self: stretch !important;
 }
 body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection h3 {
-  margin: calc(env(safe-area-inset-top, 0px) + 16px) 72px 0 16px !important;
+  margin: calc(var(--shelfd-safe-top, 0px) + 16px) 72px 0 16px !important;
   text-align: left !important;
 }
 body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection #tmdb-selected-area {
@@ -3119,7 +3158,7 @@ body.true-dark-mode #modal .add-shelf-step-topbar {
   grid-template-columns: 56px minmax(0, 1fr) 56px !important;
   align-items: start !important;
   gap: 10px !important;
-  padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px 10px !important;
+  padding: calc(var(--shelfd-safe-top, 0px) + 14px) 16px 10px !important;
 }
 body.true-dark-mode #modal .add-shelf-step-back,
 body.true-dark-mode #modal .add-shelf-step-back-spacer,
@@ -3293,7 +3332,7 @@ body.true-dark-mode #modal .add-shelf-rating-desc {
   color: rgba(235,232,244,0.5) !important;
   font-size: 12px !important;
 }
-/* v10.68: Success step — strip the same chrome as the Review step so the
+/* v10.68: Success step â€” strip the same chrome as the Review step so the
    "Added to library" view reads clean. The check-mark circle is boosted in
    size (44px -> 64px) and given a slightly stronger ring + glow, since
    without the outer card frame it becomes the visual anchor of the page. */
@@ -3346,7 +3385,7 @@ body.true-dark-mode #modal .add-shelf-step-shell--success .add-shelf-success-pan
   max-width: 320px !important;
 }
 
-/* v10.67: Review (final confirm) step — strip ALL card chrome (borders,
+/* v10.67: Review (final confirm) step â€” strip ALL card chrome (borders,
    backgrounds, shadows) per user request. Keep ONLY the Back/Confirm
    buttons styled. Hero, chips, and panel become flat content on the page. */
 body.true-dark-mode #modal .add-shelf-step-shell--confirm .add-shelf-selected-hero {
@@ -4478,7 +4517,7 @@ body.true-dark-mode .discover-card .discover-card-rating-value {
     padding: 6px 6px !important;
     /* v653: glassy frosted blur ? stands out slightly from the page
        behind it without overpowering the content. */
-    /* v950: was `blur(22px) saturate(1.4)` — capped to 10px and dropped saturate (2× GPU op).
+    /* v950: was `blur(22px) saturate(1.4)` â€” capped to 10px and dropped saturate (2Ã— GPU op).
        Bumped rgba alpha from 0.62 -> 0.72 so the bottom nav still reads opaque on iPhone. */
     background: rgba(24, 28, 32, 0.72) !important;
     backdrop-filter: blur(10px) !important;
@@ -4642,7 +4681,7 @@ body.light-mode #mobile-bottom-nav #mobile-nav-mylist.active {
   will-change: transform !important;
   visibility: hidden !important;
   pointer-events: none !important;
-  padding: max(env(safe-area-inset-top, 0px), 0px) 0 max(env(safe-area-inset-bottom, 0px), 0px) !important;
+  padding: max(var(--shelfd-safe-top, 0px), 0px) 0 max(env(safe-area-inset-bottom, 0px), 0px) !important;
 }
 .shelfd-search-page.is-open {
   transform: none !important;
@@ -5110,7 +5149,7 @@ body.light-mode .activity-feed-load-more-btn:hover {
   height: 40px;
   transition: border-color 160ms ease, background 160ms ease, box-shadow 200ms ease;
 }
-/* v10.70: focus-within visual feedback removed per user — was adding a
+/* v10.70: focus-within visual feedback removed per user â€” was adding a
    lavender `box-shadow: 0 0 0 3px rgba(139,92,246,0.16)` ring (the
    "rectangular box" the user saw around the search pill on tap), plus a
    subtle background/border shift. Caret + keyboard already make focus
@@ -5124,7 +5163,7 @@ body.light-mode .activity-feed-load-more-btn:hover {
    The shadow is rectangular (the <input> has border-radius: 0), but the
    surrounding wrap is a pill (border-radius: 999px), so the shadow extends
    past the pill curves and reads as a "rectangular box around the search
-   field" — exactly what the user reported.
+   field" â€” exactly what the user reported.
    Three targeted overrides below kill ALL focus chrome on the search input
    (selector specificity 0,3,2 > the global 0,1,1 and 0,1,0). */
 body.true-dark-mode .shelfd-search-input:focus,
@@ -5483,7 +5522,7 @@ body.light-mode .shelfd-search-browse-icon {
   object-position: center 20%;
 }
 /* v10.236: music + artist rows always render the cover/avatar as a 1:1
-   square — album art and artist photos should never be cropped to portrait. */
+   square â€” album art and artist photos should never be cropped to portrait. */
 .shelfd-search-row[data-row-kind="music"] .shelfd-search-row-poster,
 .shelfd-search-row[data-row-kind="artist"] .shelfd-search-row-poster {
   width: 72px !important;
@@ -5805,7 +5844,7 @@ body.light-mode .shelfd-search-browse-icon {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: max(8px, env(safe-area-inset-top, 0px)) 14px calc(28px + env(safe-area-inset-bottom, 0px));
+  padding: max(8px, var(--shelfd-safe-top, 0px)) 14px calc(28px + env(safe-area-inset-bottom, 0px));
 }
 
 .shelfd-search-preset-panel-topbar {
@@ -6208,7 +6247,7 @@ body.light-mode .shelfd-search-browse-icon {
 }
 
 .shelfd-search-preset-panel-inner {
-  padding: max(10px, calc(env(safe-area-inset-top, 0px) + 8px)) 18px calc(28px + env(safe-area-inset-bottom, 0px)) !important;
+  padding: max(10px, calc(var(--shelfd-safe-top, 0px) + 8px)) 18px calc(28px + env(safe-area-inset-bottom, 0px)) !important;
   overflow: hidden !important;
 }
 
@@ -6438,7 +6477,7 @@ body.light-mode .shelfd-search-noresults strong { color: #111111; }
   margin: 18px auto 22px;
   filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.32));
   transition: filter 200ms cubic-bezier(0.22, 1, 0.36, 1), transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
-  /* v950: dropped `filter` from will-change — filter is non-compositable; only
+  /* v950: dropped `filter` from will-change â€” filter is non-compositable; only
      transform benefits from the layer hint. */
   will-change: transform;
 }
@@ -6802,13 +6841,15 @@ body.light-mode .shelfd-search-row:hover {
   font-size: 12px !important;
 }
 
-/* My Lists TV/anime next-episode air-date footer line. */
+/* My Lists TV/anime next-episode air-date footer line.
+   v10.415: font-weight dropped by 100 on both variants per spec â€”
+   750 -> 650 (default), 900 -> 800 (is-new today-state). */
 .card-next-episode {
   flex: 0 0 auto;
   max-width: 46%;
   margin: 0;
   font-size: 11px;
-  font-weight: 750;
+  font-weight: 650;
   letter-spacing: 0.01em;
   line-height: 1;
   color: #22d3ee;
@@ -6817,7 +6858,7 @@ body.light-mode .shelfd-search-row:hover {
   text-overflow: ellipsis;
 }
 .card-next-episode.is-new {
-  font-weight: 900;
+  font-weight: 800;
   letter-spacing: 0.04em;
   color: #22d3ee;
   text-transform: uppercase;
@@ -8388,7 +8429,7 @@ body.light-mode .sas-back-btn:active {
 
 /* -- DM: Thread head ? sticky user bar in chat view ------------------- */
 .direct-messages-page .dm-thread-head {
-  /* v950: dropped `backdrop-filter: blur(24px)` — element is position:sticky,
+  /* v950: dropped `backdrop-filter: blur(24px)` â€” element is position:sticky,
      so Safari was rasterizing blur every scroll frame. rgba 0.90 -> 0.94 keeps the look. */
   background: rgba(5,4,16,0.94) !important;
   border-bottom: 1px solid rgba(167,139,250,0.12) !important;
@@ -8551,7 +8592,7 @@ body.light-mode .direct-messages-page .dm-action-sent {
   align-items: flex-end;
   justify-content: center;
   background: transparent;
-  /* v950: dropped `backdrop-filter 0.28s` animation — animating GPU blur on a
+  /* v950: dropped `backdrop-filter 0.28s` animation â€” animating GPU blur on a
      full-viewport overlay is one of the most expensive things you can do on iPhone.
      Now: open/close just toggles a fixed blur and the background fade does the work. */
   transition: background 0.28s ease;
@@ -9390,7 +9431,7 @@ body.light-mode .profile-social-state-spinner {
 
 /* -- Thread head ----------------------------------------------------- */
 #direct-messages-page .dm-thread-head {
-  /* v950: dropped blur — sticky element, was rasterizing on every scroll frame.
+  /* v950: dropped blur â€” sticky element, was rasterizing on every scroll frame.
      rgba 0.96 alpha already reads opaque. */
   background: rgba(8,6,28,0.97) !important;
   border-bottom: 1px solid rgba(255,255,255,0.07) !important;
@@ -9405,7 +9446,7 @@ body.light-mode .profile-social-state-spinner {
 #direct-messages-page .direct-messages-topbar {
   background: #0E0E0E !important;
   border-bottom: 1px solid rgba(255,255,255,0.07) !important;
-  /* v950: was `blur(10px) saturate(120%)` — capped to 10px and dropped saturate (2× GPU op). */
+  /* v950: was `blur(10px) saturate(120%)` â€” capped to 10px and dropped saturate (2Ã— GPU op). */
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   box-shadow: none !important;
@@ -9481,7 +9522,7 @@ body.light-mode .profile-social-state-spinner {
   grid-template-columns: 44px minmax(0, 1fr) 44px !important;
   min-height: var(--dm-main-topbar-h) !important;
   height: var(--dm-main-topbar-h) !important;
-  padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px 10px !important;
+  padding: calc(var(--shelfd-safe-top, 0px) + 16px) 16px 10px !important;
   align-items: center !important;
   gap: 12px !important;
 }
@@ -9510,7 +9551,7 @@ body.light-mode .profile-social-state-spinner {
     --dm-main-topbar-h: 108px;
   }
   #direct-messages-page:not(.dm-thread-open) .direct-messages-topbar {
-    padding: calc(env(safe-area-inset-top, 0px) + 17px) 13px 9px !important;
+    padding: calc(var(--shelfd-safe-top, 0px) + 17px) 13px 9px !important;
   }
 }
 #direct-messages-page .dm-subtabs {
@@ -10243,32 +10284,31 @@ body.light-mode .import-option {
 body.light-mode ::-webkit-scrollbar-thumb { background: rgba(20,20,20,0.18) !important; }
 body.light-mode ::-webkit-scrollbar-track { background: transparent !important; }
 
-/* v855: Discover + Activity page background 0.3 shades lighter than
-   the global body #0E0E0E (rgb 14,14,14 ? rgb 22,22,22 = #161616).
-   Only these two page surfaces are targeted; nothing else is touched. */
+/* v855: Discover + Activity page background was previously 0.3 shades
+   lighter than the global body #0E0E0E (rgb 14,14,14 ? rgb 22,22,22 =
+   #161616). v10.518 REVERTED that design choice per repeated user
+   feedback that the shelf, friends, activity, and discovery pages
+   should all share the exact same canonical Editorial-Dark surface.
+   All three page surfaces now lock to `#0E0E0E` to match the shelf
+   (`body.true-dark-mode #mylist-view` at 06-profile.css:1566). */
 #discover-view,
 #anime-discover-view,
 #games-discover-view {
-  background-color: #161616 !important;
+  background-color: #0E0E0E !important;
   min-height: 100%;
 }
 .activity-page,
 #community-view {
-  background-color: #161616 !important;
+  background-color: #0E0E0E !important;
 }
 
-/* v856: Header background matches the lighter #161616 on Discover and
+/* v856: Header background matches the page surface on Discover and
    Activity/Community tabs so the full page blends seamlessly.
-   Two cases to cover:
-   ? Mobile browser: 12-pwa-header-continuity.css sets
-     body.true-dark-mode .header { background: #0E0E0E !important }.
-     We override that for the two affected tabs.
-   ? PWA standalone: header is transparent (inherits body bg which is
-     still #0E0E0E). We explicitly pin it to #161616 on those tabs so
-     the header surface matches the page surface below it. */
+   v10.518: was `#161616` to match the v855 lighter page surface.
+   Now locked to `#0E0E0E` to match the new unified surface. */
 body.main-tab-discover:not(.viewing-other-user) .header,
 body.main-tab-community:not(.viewing-other-user) .header {
-  background: #161616 !important;
+  background: #0E0E0E !important;
 }
 
 body.viewing-other-user .header {
@@ -10311,7 +10351,7 @@ body.light-mode #mylist-view .mylist-search-row .search-input {
     border: 1px solid rgba(196,181,253,0.12) !important;
     background: rgba(24, 28, 32, 0.72) !important;
     box-shadow: 0 18px 40px rgba(0,0,0,0.3) !important;
-    /* v950: was `blur(22px) saturate(1.4)` — capped to 10px and dropped saturate. */
+    /* v950: was `blur(22px) saturate(1.4)` â€” capped to 10px and dropped saturate. */
     backdrop-filter: blur(10px) !important;
     -webkit-backdrop-filter: blur(10px) !important;
     visibility: visible !important;
@@ -10468,7 +10508,7 @@ body.light-mode #mylist-view .mylist-search-row .search-input {
     padding-top: 24px;
     padding-bottom: 42px;
     color: #f5f1ff;
-    font-family: 'Sohne', 'Söhne', 'DM Sans', system-ui, sans-serif;
+    font-family: 'Sohne', 'SÃ¶hne', 'DM Sans', system-ui, sans-serif;
   }
 
   .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-detail-grid {
@@ -10591,7 +10631,7 @@ body.light-mode #mylist-view .mylist-search-row .search-input {
   .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-section h3 {
     margin: 0 0 14px;
     color: #c9b2ff;
-    font-family: 'Sohne', 'Söhne', 'DM Sans', system-ui, sans-serif;
+    font-family: 'Sohne', 'SÃ¶hne', 'DM Sans', system-ui, sans-serif;
     font-size: 13px;
     line-height: 1;
     font-weight: 650;
@@ -10634,7 +10674,7 @@ body.light-mode #mylist-view .mylist-search-row .search-input {
     border: 0;
     background: transparent;
     text-align: left;
-    font-family: 'Sohne', 'Söhne', 'DM Sans', system-ui, sans-serif;
+    font-family: 'Sohne', 'SÃ¶hne', 'DM Sans', system-ui, sans-serif;
   }
 
   .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-cast-card {
@@ -10690,7 +10730,7 @@ body.light-mode #mylist-view .mylist-search-row .search-input {
     padding-top: 24px;
     padding-bottom: 42px;
     color: #f5f1ff;
-    font-family: 'Sohne', 'SÃ¶hne', 'DM Sans', system-ui, sans-serif;
+    font-family: 'Sohne', 'SÃƒÂ¶hne', 'DM Sans', system-ui, sans-serif;
   }
 
   .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-detail-grid {
@@ -10809,7 +10849,7 @@ body.light-mode #mylist-view .mylist-search-row .search-input {
   .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-section h3 {
     margin: 0 0 14px;
     color: #c9b2ff;
-    font-family: 'Sohne', 'SÃ¶hne', 'DM Sans', system-ui, sans-serif;
+    font-family: 'Sohne', 'SÃƒÂ¶hne', 'DM Sans', system-ui, sans-serif;
     font-size: 13px;
     line-height: 1;
     font-weight: 650;
@@ -10832,7 +10872,7 @@ body.light-mode #mylist-view .mylist-search-row .search-input {
     border: 0;
     background: transparent;
     text-align: left;
-    font-family: 'Sohne', 'SÃ¶hne', 'DM Sans', system-ui, sans-serif;
+    font-family: 'Sohne', 'SÃƒÂ¶hne', 'DM Sans', system-ui, sans-serif;
   }
   .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-ai-more-list .discover-media-similar-card img {
     width: 100%;
@@ -10991,14 +11031,14 @@ body.light-mode #mylist-view .mylist-search-row .search-input {
 }
 
 /* =============================================================================
-   v10.73: Discover title ellipsis — UNIFIED rule.
+   v10.73: Discover title ellipsis â€” UNIFIED rule.
 
    PROBLEM: title overflow was inconsistent across Discover card variants.
    "Regular Show: The Lost Tapes" rendered as "Regular Show: The L" (clipped
    to card edge, no ellipsis); "Zhan Zhao Adventures" rendered as
    "Zhan Zhao Adventur". Different Discover card renderers (Newest Releases,
    Trending, Popular, Most Anticipated, In Theaters, Anime, Games, View All,
-   universal search) inherited slightly different parent flex contexts —
+   universal search) inherited slightly different parent flex contexts â€”
    notably .discover-new-release-card overrides .discover-card-info-row to
    `flex-direction: column !important; flex: 1 1 auto !important` which
    re-applied flex constraints WITHOUT re-declaring `min-width: 0`, letting
@@ -11057,21 +11097,21 @@ body.light-mode #mylist-view .mylist-search-row .search-input {
   white-space: nowrap !important;
   /* Disable the legacy 2-line clamp (06-profile.css:3593) so it can't compete
      with nowrap+ellipsis. If a future design wants multi-line, re-enable
-     locally on the variant — don't put it on the base. */
+     locally on the variant â€” don't put it on the base. */
   -webkit-line-clamp: unset !important;
   -webkit-box-orient: initial !important;
 }
 
 /* =============================================================================
-   v10.74: Discover title ellipsis — covers the variants v10.73 missed.
+   v10.74: Discover title ellipsis â€” covers the variants v10.73 missed.
 
    WHY v10.73 DIDN'T FIX IT: v10.73 only targeted titles with class
    `.discover-card-title` and `.discover-title-profile-btn` (the Movies/TV/
    universal-search renderers). But the Discover Games hub uses a DIFFERENT
-   title class — `.games-dc-title` (`11-discovery-...js:7344`) — and the
-   Anime Seasonal renderer uses ANOTHER one — `.anime-seasonal-card-title-btn`
+   title class â€” `.games-dc-title` (`11-discovery-...js:7344`) â€” and the
+   Anime Seasonal renderer uses ANOTHER one â€” `.anime-seasonal-card-title-btn`
    (`11-discovery-...js:8336`). Both of those classes had `display: -webkit-box;
-   -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;` —
+   -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;` â€”
    a 2-line clamp. When the parent flex chain didn't carry `min-width: 0`
    down to the title, the title's webkit-box grew to one wide line, the
    2-line clamp never triggered (only 1 line existed), and the line overran
@@ -11080,7 +11120,7 @@ body.light-mode #mylist-view .mylist-search-row .search-input {
    The Lost Tapes", "Zhan Zhao Adventures").
 
    FIX: select EVERY known Discover title-class by name with `body`-level
-   scope (no `#discover-view` / `.discover-card` ancestor required — this
+   scope (no `#discover-view` / `.discover-card` ancestor required â€” this
    rule wins even if the user is in a layout context where the previous
    selectors don't match). Force the full single-line ellipsis stack with
    `!important` on each, and explicitly `unset` the `-webkit-line-clamp`/
@@ -11107,7 +11147,7 @@ body .discover-country-title {
   min-inline-size: 0 !important;
 }
 
-/* Parent flex chain — every container that wraps a Discover title gets
+/* Parent flex chain â€” every container that wraps a Discover title gets
    `min-width: 0` so the title can shrink under its parent's width.
    `body` scope keeps these rules winning the cascade regardless of any
    per-variant override that re-sets flex on these classes. */
@@ -11129,7 +11169,7 @@ body .discover-card-title-row {
    v10.150: bumped selector specificity to 0,3,0 so this rule beats
    the per-tab overrides (Discover 26px, Community 25/28px, My Lists
    24/25px, mobile-portrait 18px clamp).
-   v10.151: size 15px → 18px (15px read too small). */
+   v10.151: size 15px â†’ 18px (15px read too small). */
 body .header-dm-icon,
 body .header-dm-icon svg,
 body.main-tab-discover .header-dm-icon,

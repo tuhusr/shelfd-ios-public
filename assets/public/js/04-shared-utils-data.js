@@ -375,7 +375,13 @@ function getDisplayTitleForItem(item = {}, sectionHint = '') {
 
 function getDefaultTabForSection(section) {
   if (section === "movies") return "planned";
-  if (section === "music") return "watched"; // music has only one status — "Listened" (stored as 'watched')
+  /* v10.452: music section now defaults to In Rotation (storage key
+     'watching') instead of Listened ('watched'). Comment above used
+     to say music had only one status; since v10.254 / v10.261 / v10.403
+     music exposes three (In Rotation / Listened / Planned), and per
+     spec the landing tab on entering the music section should be
+     In Rotation. */
+  if (section === "music") return "watching";
   return "watching";
 }
 
@@ -386,11 +392,13 @@ const SCREENLIST_VISIBLE_STATUS_TABS_BY_SECTION = {
   games: ['watching', 'planned', 'watched', 'wishlist'],
   manga: ['watching', 'planned', 'watched', 'paused'],
   books: ['watching', 'planned', 'watched', 'paused'],
-  /* v10.231 / v10.254 / v10.261: music exposes three statuses, in left→right
-     order: "Planned" (storage 'planned'), "In Rotation" (storage 'watching',
-     reusing the active-engagement key), and "Listened" (storage 'watched').
-     The static tabs row reorders the HTML to match this via CSS flex order. */
-  music: ['planned', 'watching', 'watched']
+  /* v10.231 / v10.254 / v10.261 / v10.403: music exposes three statuses,
+     in left→right order: "In Rotation" (storage 'watching'), "Listened"
+     (storage 'watched'), "Planned" (storage 'planned'). The static
+     tabs row reorders the HTML to match this via CSS flex order in
+     01-mylists-cards-episodes.css. This array controls the popup
+     status-selector options on each card. */
+  music: ['watching', 'watched', 'planned']
 };
 
 function isVisibleMyListStatusTab(tab = activeTab, section = activeSection) {
@@ -465,7 +473,12 @@ function getAddButtonSectionLabel(section) {
 }
 
 function getDefaultRatingPreferences() {
-  return { media: 'ten', games: 'ten' };
+  /* v10.509: app-wide default rating scale switched from 10-star to
+     5-star with half-star steps. Internal storage stays as a 1–10
+     integer (each unit = half-star) so existing ratings carry over
+     without migration; display layers everywhere now render the 5-
+     point scale with halves and the "X/5" suffix. */
+  return { media: 'five', games: 'five' };
 }
 
 /* v813 — Theme value mapping (corrected against screenshots):
@@ -542,13 +555,23 @@ function getRatingPreferencesForProfile(profile = null) {
 }
 
 function getRatingPreferenceForSection(section = '', profile = null) {
-  /* v10.393: music is always 5-star with half-step ratings, regardless of
-     the user's media rating preference. Mirrors the Musicboard convention.
-     Every downstream consumer (step count, format, star markup, popup
-     buttons) flows through this single function, so one return is enough. */
-  if (section === 'music') return 'five';
+  /* v10.393: music was forced to 5-star half-step regardless of the
+     user's media preference.
+     v10.407: REVERTED — music now follows the same media preference as
+     movies / shows / anime / etc., defaulting to 10-star. Albums and
+     individual tracks both share the same scale via this one path.
+     v10.509: FORCED app-wide to 'five' (5-star with half-star steps)
+     for EVERY section — games / movies / shows / anime / music.
+     Pattern matches `resolveActiveThemeMode` at line 523-526 which
+     hard-coerces every user into the active default theme. The stored
+     `ratingPreferences` on each profile is left intact (untouched) so
+     this can be reverted to a per-user preference later by deleting
+     the next two lines. The legacy `prefs` resolution below is kept
+     dormant for that potential rollback. */
+  return 'five';
+  // eslint-disable-next-line no-unreachable
   const prefs = getRatingPreferencesForProfile(profile);
-  return prefs[getRatingPreferenceKeyForSection(section)] || 'ten';
+  return prefs[getRatingPreferenceKeyForSection(section)] || 'five';
 }
 
 function getRatingStepCountForSection(section = '', profile = null) {

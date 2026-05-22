@@ -1,4 +1,4 @@
-/* v814: Mobile Safari browser — fix pitch-black header surface mismatch.
+﻿/* v814: Mobile Safari browser â€” fix pitch-black header surface mismatch.
    In browser mode (non-PWA), body.true-dark-mode applies background:#0a0a0a
    to .header from a later rule in 06-profile.css, which is visually
    near-pitch-black and stands out against the page's #0E0E0E surface.
@@ -6,9 +6,9 @@
 
    Source-order note: this rule uses !important and comes BEFORE the
    @media (display-mode: standalone) block below. For equal-specificity
-   !important declarations, the LATER declaration wins — so in PWA mode
+   !important declarations, the LATER declaration wins â€” so in PWA mode
    the standalone block's "background: transparent !important" still takes
-   precedence. In browser mode only this rule applies → #0E0E0E. */
+   precedence. In browser mode only this rule applies â†’ #0E0E0E. */
 body.true-dark-mode .header {
   background: #0E0E0E !important;
   box-shadow: none !important;
@@ -48,7 +48,7 @@ body.true-dark-mode .header {
 }
 
 
-/* v163: My Lists header actions — logo removed, Import/Profile/DM aligned, edit divider removed. */
+/* v163: My Lists header actions â€” logo removed, Import/Profile/DM aligned, edit divider removed. */
 body.main-tab-mylist .header-logo-block > img.site-logo-img {
   display: none !important;
 }
@@ -81,7 +81,7 @@ body.main-tab-mylist #mylist-view #mylist-header #mylist-edit-controls,
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    /* v506: match standard button proportions (friends/discover) — shorter,
+    /* v506: match standard button proportions (friends/discover) â€” shorter,
        wider pill instead of the tall 42px version */
     min-height: unset !important;
     height: auto !important;
@@ -135,7 +135,7 @@ body.main-tab-mylist #mylist-view #mylist-header #mylist-edit-controls,
   padding-bottom: 2px !important;
 }
 
-/* v165: Direct Messages — cleaner chat list, new chat composer, group/photo support */
+/* v165: Direct Messages â€” cleaner chat list, new chat composer, group/photo support */
 .direct-messages-new-btn,
 .dm-new-chat-btn {
   width: 42px;
@@ -396,7 +396,7 @@ body.light-mode #dm-group-name-input {
   text-decoration: none;
 }
 .direct-messages-title-wrap strong.dm-group-title-clickable::after {
-  content: '›';
+  content: 'â€º';
   display: inline-block;
   margin-left: 6px;
   color: rgba(196,181,253,0.72);
@@ -861,7 +861,7 @@ body.light-mode #mylist-view .mylist-categories-section .section-toggle {
 }
 
 
-/* v171: Friends Activity — force user avatar to the far left across all modes. */
+/* v171: Friends Activity â€” force user avatar to the far left across all modes. */
 #community-view #activity-tab-view .activity-card {
   display: grid !important;
   grid-template-columns: 42px minmax(0, 1fr) 66px !important;
@@ -912,7 +912,7 @@ body.light-mode #mylist-view .mylist-categories-section .section-toggle {
 }
 
 
-/* v173: Friends Activity — anchor the user avatar inside the activity notification card top-left. */
+/* v173: Friends Activity â€” anchor the user avatar inside the activity notification card top-left. */
 #community-view #activity-tab-view .activity-card {
   display: grid !important;
   grid-template-columns: 46px minmax(0, 1fr) 66px !important;
@@ -1879,7 +1879,7 @@ body.light-mode #games-discover-view .discover-section > .discover-section-title
 /* v205: Friends mobile header + activity layout cleanup */
 @media (max-width: 700px) {
   body.main-tab-community .header {
-    padding-top: max(12px, env(safe-area-inset-top, 0px)) !important;
+    padding-top: max(12px, var(--shelfd-safe-top, 0px)) !important;
     padding-bottom: 12px !important;
   }
   body.main-tab-community .header-top {

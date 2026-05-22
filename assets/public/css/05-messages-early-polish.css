@@ -1,4 +1,4 @@
-/* v209: Direct Messages chat list polish. */
+﻿/* v209: Direct Messages chat list polish. */
 .dm-chat-list .dm-chat-row,
 .direct-messages-page .dm-chat-list .dm-chat-row,
 body.light-mode .dm-chat-list .dm-chat-row,
@@ -221,7 +221,7 @@ body.light-mode .modal-status-confirm-copy strong {
   opacity: 1;
 }
 .discover-add-btn.added::before {
-  content: "✓";
+  content: "âœ“";
   margin-right: 6px;
   font-weight: 900;
 }
@@ -416,7 +416,7 @@ body.light-mode .discover-status-btn.planned-option:hover {
     }
     .discover-media-back {
       position: fixed;
-      top: max(14px, env(safe-area-inset-top, 0px));
+      top: max(14px, var(--shelfd-safe-top, 0px));
       left: 14px;
       z-index: 4;
       border: 1px solid rgba(255,255,255,0.18);
@@ -432,7 +432,7 @@ body.light-mode .discover-status-btn.planned-option:hover {
     }
     .discover-media-add-floating {
       position: fixed;
-      top: max(14px, env(safe-area-inset-top, 0px));
+      top: max(14px, var(--shelfd-safe-top, 0px));
       right: 14px;
       z-index: 4;
       border: 1px solid rgba(255, 216, 127, 0.5);
@@ -458,14 +458,14 @@ body.light-mode .discover-status-btn.planned-option:hover {
       color: #bff8ff;
       box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3), 0 0 18px rgba(34, 211, 238, 0.16);
     }
-    /* v10.124: Lock the FPMP add button to 38×38 to match the share
+    /* v10.124: Lock the FPMP add button to 38Ã—38 to match the share
        button exactly.
-       v10.125: Applied to BOTH states (unadded "+" and added "✓") since
+       v10.125: Applied to BOTH states (unadded "+" and added "âœ“") since
        both are now icon-only.
-       v10.126: Font-size 32px so the visible "+" glyph lands ~20–22px
-       inside the 38×38 circle.
+       v10.126: Font-size 32px so the visible "+" glyph lands ~20â€“22px
+       inside the 38Ã—38 circle.
        v10.129: Added state now uses a stroked SVG checkmark rendered
-       inside the button — font-size still governs the "+" text glyph,
+       inside the button â€” font-size still governs the "+" text glyph,
        and the SVG below has its own width/height so it stays at a
        crisp 20px inside the circle. */
     .discover-media-add-floating {
@@ -488,7 +488,7 @@ body.light-mode .discover-status-btn.planned-option:hover {
     }
     .discover-media-share-floating {
       position: fixed;
-      top: max(14px, env(safe-area-inset-top, 0px));
+      top: max(14px, var(--shelfd-safe-top, 0px));
       right: 14px;
       z-index: 4;
       width: 38px;
@@ -522,7 +522,7 @@ body.light-mode .discover-status-btn.planned-option:hover {
     }
     .discover-media-library-dock {
       position: fixed;
-      top: max(56px, calc(env(safe-area-inset-top, 0px) + 56px));
+      top: max(56px, calc(var(--shelfd-safe-top, 0px) + 56px));
       right: 12px;
       z-index: 5;
       width: min(336px, calc(100vw - 24px));
@@ -769,7 +769,7 @@ body.light-mode .discover-status-btn.planned-option:hover {
     .discover-media-hero {
       position: relative;
       min-height: 58vh;
-      padding: max(70px, calc(env(safe-area-inset-top, 0px) + 56px)) 18px 26px;
+      padding: max(70px, calc(var(--shelfd-safe-top, 0px) + 56px)) 18px 26px;
       display: flex;
       align-items: flex-end;
       background-size: cover;
@@ -836,8 +836,8 @@ body.light-mode .discover-status-btn.planned-option:hover {
     .discover-media-hero.has-trailer-preview .discover-media-hero-preview {
       position: absolute;
       /* v10.121: nudged the trailer wrapper up by 3px.
-         v10.123: nudge another 3px up — total -6px.
-         v10.130: one more pixel up — total -7px. Whole wrapper moves
+         v10.123: nudge another 3px up â€” total -6px.
+         v10.130: one more pixel up â€” total -7px. Whole wrapper moves
          (iframe + thumb + ::before/::after darkening overlays) so the
          fade layers still align with the trailer content perfectly. */
       top: -7px;
@@ -1004,7 +1004,7 @@ body.light-mode .discover-status-btn.planned-option:hover {
     .discover-media-profile-overlay.media-profile-trailer-fullscreen .discover-media-back,
     .game-media-profile-overlay.media-profile-trailer-fullscreen .discover-media-back {
       position: fixed !important;
-      top: max(14px, env(safe-area-inset-top, 0px)) !important;
+      top: max(14px, var(--shelfd-safe-top, 0px)) !important;
       left: 14px !important;
       z-index: 6020 !important;
       opacity: var(--media-profile-trailer-controls-opacity, 1);
@@ -1014,7 +1014,7 @@ body.light-mode .discover-status-btn.planned-option:hover {
     .discover-media-profile-overlay.media-profile-trailer-fullscreen .discover-media-hero-preview-sound,
     .game-media-profile-overlay.media-profile-trailer-fullscreen .discover-media-hero-preview-sound {
       position: fixed !important;
-      top: max(14px, env(safe-area-inset-top, 0px)) !important;
+      top: max(14px, var(--shelfd-safe-top, 0px)) !important;
       right: 14px !important;
       z-index: 6020 !important;
       opacity: var(--media-profile-trailer-controls-opacity, 1);
@@ -1039,7 +1039,7 @@ body.light-mode .discover-status-btn.planned-option:hover {
     }
     .discover-media-hero-preview-cta {
       position: absolute;
-      top: calc(max(14px, env(safe-area-inset-top, 0px)) + 50px);
+      top: calc(max(14px, var(--shelfd-safe-top, 0px)) + 50px);
       right: 14px;
       z-index: 5;
       min-height: 32px;
@@ -1075,7 +1075,7 @@ body.light-mode .discover-status-btn.planned-option:hover {
        as the CTA so they read as a vertical micro-stack. */
     .discover-media-hero-preview-sound {
       position: absolute;
-      top: calc(max(14px, env(safe-area-inset-top, 0px)) + 90px);
+      top: calc(max(14px, var(--shelfd-safe-top, 0px)) + 90px);
       right: 14px;
       z-index: 5;
       width: 36px;
@@ -1110,7 +1110,7 @@ body.light-mode .discover-status-btn.planned-option:hover {
       fill: currentColor;
       pointer-events: none;
     }
-    /* Default state = muted → show the muted (slashed-speaker) icon. */
+    /* Default state = muted â†’ show the muted (slashed-speaker) icon. */
     .discover-media-hero-preview-sound .discover-media-hero-preview-sound-icon-unmuted {
       display: none;
     }
@@ -1131,11 +1131,11 @@ body.light-mode .discover-status-btn.planned-option:hover {
     /* v10.120: Lighten ONLY the top-half darkening on the hero trailer
        so more of the trailer is visible up top, while keeping the
        bottom fade-to-page intact (the bottom stops below are unchanged).
-       - ::after vertical: top stop 0.42 → 0.28, mid 0.22 → 0.16. Bottom
+       - ::after vertical: top stop 0.42 â†’ 0.28, mid 0.22 â†’ 0.16. Bottom
          stop 0.88 untouched (page-blend gradient).
        - ::after horizontal: edge tints unchanged (purely side framing).
        - ::before top vertical (180deg): heavy reduction so the top of the
-         trailer chrome doesn't smother detail — 0.74 → 0.52, 0.46 → 0.28,
+         trailer chrome doesn't smother detail â€” 0.74 â†’ 0.52, 0.46 â†’ 0.28,
          fade-out at 34% kept (so the middle still goes clear).
        - ::before bottom vertical (0deg) and radial vignette: untouched. */
     .discover-media-hero-preview::after {
@@ -1212,6 +1212,27 @@ body.light-mode .discover-status-btn.planned-option:hover {
     .game-media-profile-overlay.media-profile-trailer-fullscreen .discover-media-hero-preview-frame,
     .game-media-profile-overlay.media-profile-trailer-fullscreen .discover-media-hero-preview-frame iframe {
       pointer-events: none;
+    }
+    @media (orientation: portrait) {
+      .discover-media-profile-overlay.media-profile-trailer-fullscreen.media-profile-trailer-letterbox-stable .discover-media-hero-preview-media,
+      .game-media-profile-overlay.media-profile-trailer-fullscreen.media-profile-trailer-letterbox-stable .discover-media-hero-preview-media {
+        left: 0 !important;
+        right: auto !important;
+        top: 50% !important;
+        bottom: auto !important;
+        width: 100% !important;
+        height: auto !important;
+        aspect-ratio: 16 / 9;
+        transform: translate3d(0, -50%, 0) !important;
+        transform-origin: center center !important;
+        background: #000;
+      }
+      .discover-media-profile-overlay.media-profile-trailer-fullscreen.media-profile-trailer-letterbox-stable .discover-media-hero-preview-thumb,
+      .discover-media-profile-overlay.media-profile-trailer-fullscreen.media-profile-trailer-letterbox-stable .discover-media-hero-preview-frame iframe,
+      .game-media-profile-overlay.media-profile-trailer-fullscreen.media-profile-trailer-letterbox-stable .discover-media-hero-preview-thumb,
+      .game-media-profile-overlay.media-profile-trailer-fullscreen.media-profile-trailer-letterbox-stable .discover-media-hero-preview-frame iframe {
+        transform: none !important;
+      }
     }
     .discover-media-hero-preview-controls {
       position: absolute;
@@ -1807,7 +1828,7 @@ body.light-mode .discover-status-btn.planned-option:hover {
        backdrop image and the back button. */
     .cast-fav-btn.cast-fav-btn--profile {
       position: absolute;
-      top: max(16px, env(safe-area-inset-top, 16px));
+      top: max(16px, var(--shelfd-safe-top, 0px));
       right: 16px;
       bottom: auto;
       width: 40px;
@@ -1826,7 +1847,7 @@ body.light-mode .discover-status-btn.planned-option:hover {
       box-shadow: 0 6px 22px rgba(229, 57, 80, 0.45);
     }
 
-    /* v734: Filmography section header — clickable, with a chevron. */
+    /* v734: Filmography section header â€” clickable, with a chevron. */
     .discover-person-filmography-header {
       display: flex;
       align-items: center;
@@ -1860,7 +1881,7 @@ body.light-mode .discover-status-btn.planned-option:hover {
       transform: translateX(2px);
     }
 
-    /* v734: Filmography full-page overlay — slides in from the right.
+    /* v734: Filmography full-page overlay â€” slides in from the right.
        Stacks on top of the person profile (z-index higher than overlay). */
     body.filmography-page-open {
       overflow: hidden;
@@ -1892,13 +1913,13 @@ body.light-mode .discover-status-btn.planned-option:hover {
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: max(14px, env(safe-area-inset-top, 14px)) 16px 12px;
+      padding: max(14px, var(--shelfd-safe-top, 0px)) 16px 12px;
       border-bottom: 1px solid rgba(255,255,255,0.08);
     }
     .filmography-page-back {
       position: absolute;
       left: 16px;
-      top: max(14px, env(safe-area-inset-top, 14px));
+      top: max(14px, var(--shelfd-safe-top, 0px));
     }
     .filmography-page-title {
       margin: 0;
@@ -3369,7 +3390,7 @@ body.light-mode .discover-status-btn.planned-option:hover {
     color: #ffffff;
     font-weight: 800;
   }
-  /* v437: rating-edit toast — card-style snackbar (not pill) so it properly
+  /* v437: rating-edit toast â€” card-style snackbar (not pill) so it properly
      contains the inline "Post update" text-action. Max-width ensures it never
      overflows on narrow mobile screens. */
   .app-toast.shelfd-rating-edit-toast {
@@ -3478,8 +3499,8 @@ body.light-mode .discover-status-btn.planned-option:hover {
     background:
       radial-gradient(circle at 50% 0%, rgba(167,139,250,0.18), transparent 34rem),
       rgba(4, 4, 8, 0.72);
-    backdrop-filter: blur(10px) /* v950: was blur(10px) saturate(125%) — saturate dropped (2x GPU op) */;
-    -webkit-backdrop-filter: blur(10px) /* v950: was blur(10px) saturate(125%) — saturate dropped (2x GPU op) */;
+    backdrop-filter: blur(10px) /* v950: was blur(10px) saturate(125%) â€” saturate dropped (2x GPU op) */;
+    -webkit-backdrop-filter: blur(10px) /* v950: was blur(10px) saturate(125%) â€” saturate dropped (2x GPU op) */;
     opacity: 0;
     transition: opacity 320ms cubic-bezier(.22, 1, .36, 1);
   }
@@ -3795,7 +3816,7 @@ body.light-mode .discover-status-btn.planned-option:hover {
   .friend-actions-group {
     align-items: center;
     /* v810: do NOT let the 3-button creator card wrap action buttons into
-       a stacked column on narrow widths — that's what was making the name
+       a stacked column on narrow widths â€” that's what was making the name
        overlap the buttons and the card columns squeeze vertically. */
     flex-wrap: nowrap;
     flex-shrink: 0;
@@ -3897,8 +3918,8 @@ body.light-mode .discover-status-btn.planned-option:hover {
   }
   body.light-mode .comments-page::before {
     background: rgba(32, 24, 52, 0.24);
-    backdrop-filter: blur(10px) /* v950: was blur(10px) saturate(115%) — saturate dropped (2x GPU op) */;
-    -webkit-backdrop-filter: blur(10px) /* v950: was blur(10px) saturate(115%) — saturate dropped (2x GPU op) */;
+    backdrop-filter: blur(10px) /* v950: was blur(10px) saturate(115%) â€” saturate dropped (2x GPU op) */;
+    -webkit-backdrop-filter: blur(10px) /* v950: was blur(10px) saturate(115%) â€” saturate dropped (2x GPU op) */;
   }
   body.light-mode .comments-page .main-content {
     border-color: rgba(88,60,130,0.14);
@@ -4154,12 +4175,12 @@ body.light-mode .discover-status-btn.planned-option:hover {
   }
 
 /* =============================================================================
-   v735: Filmography page — UNSCOPED rules (apply at every viewport).
+   v735: Filmography page â€” UNSCOPED rules (apply at every viewport).
    The earlier copies of these rules live inside @media (max-width: 700px)
    which can be flaky on PWA when the overlay-open transition reads viewport
    metrics. Duplicating them outside any media query guarantees the slide-in
    page is fully styled regardless of breakpoint match.
-   Animation duration bumped from 0.28s → 0.6s per spec.
+   Animation duration bumped from 0.28s â†’ 0.6s per spec.
    ============================================================================= */
 .discover-person-filmography-header {
   display: flex;
@@ -4220,13 +4241,13 @@ body.filmography-title-profile-open .filmography-page-overlay {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: max(14px, env(safe-area-inset-top, 14px)) 16px 12px;
+  padding: max(14px, var(--shelfd-safe-top, 0px)) 16px 12px;
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 .filmography-page-back {
   position: absolute;
   left: 16px;
-  top: max(14px, env(safe-area-inset-top, 14px));
+  top: max(14px, var(--shelfd-safe-top, 0px));
 }
 .filmography-page-title {
   margin: 0;
@@ -4469,7 +4490,7 @@ body.filmography-title-profile-open .filmography-page-overlay {
 /* ==========================================================================
    v10.115: Full-page cast view ("Show All" target).
 
-   Mirrors the filmography page layout — slides in from the right over the
+   Mirrors the filmography page layout â€” slides in from the right over the
    media profile, scrollable grid of actor cards reused from the inline
    row (.discover-media-cast-card). The cast row up top stays as-is
    (horizontal scroll, 18-card preview); this page is the overflow target
@@ -4486,7 +4507,7 @@ body.filmography-title-profile-open .filmography-page-overlay {
   border: 1px solid rgba(196,181,253,0.32);
   background: rgba(255,255,255,0.04);
   color: #f8f4ff;
-  font-family: 'Sohne', 'Söhne', 'DM Sans', system-ui, sans-serif;
+  font-family: 'Sohne', 'SÃ¶hne', 'DM Sans', system-ui, sans-serif;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.01em;
@@ -4535,13 +4556,13 @@ body.filmography-title-profile-open .filmography-page-overlay {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: max(14px, env(safe-area-inset-top, 14px)) 16px 14px;
+  padding: max(14px, var(--shelfd-safe-top, 0px)) 16px 14px;
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 .media-cast-page-back {
   position: absolute;
   left: 16px;
-  top: max(14px, env(safe-area-inset-top, 14px));
+  top: max(14px, var(--shelfd-safe-top, 0px));
 }
 .media-cast-page-title {
   margin: 0;
@@ -4582,7 +4603,7 @@ body.filmography-title-profile-open .filmography-page-overlay {
   border: 0;
   background: transparent;
   text-align: left;
-  font-family: 'Sohne', 'Söhne', 'DM Sans', system-ui, sans-serif;
+  font-family: 'Sohne', 'SÃ¶hne', 'DM Sans', system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
   cursor: pointer;
 }
@@ -4645,7 +4666,7 @@ body.filmography-title-profile-open .filmography-page-overlay {
    Characters use the same .discover-media-cast-card layout as the cast
    row (so the inline row and the full grid both inherit the existing
    sizing rules) with a .discover-media-character-card modifier that
-   strips the heart-favorite affordances and the tap-to-open cursor —
+   strips the heart-favorite affordances and the tap-to-open cursor â€”
    characters aren't navigable in-app, they're informational.
 
    The "Show All" button on the characters row is the same pill button
@@ -4663,7 +4684,7 @@ body.filmography-title-profile-open .filmography-page-overlay {
   cursor: default;
   -webkit-tap-highlight-color: transparent;
 }
-/* Character art often frames the head near the top — bias the crop so
+/* Character art often frames the head near the top â€” bias the crop so
    we don't slice off faces when the photo is forced into a 2:3 box. */
 .discover-media-character-card .discover-media-cast-photo img {
   object-position: center top;
@@ -4677,7 +4698,7 @@ body.filmography-title-profile-open .filmography-page-overlay {
   background: rgba(248, 197, 138, 0.18);
   color: #f5c88a;
 }
-/* Characters page reuses the cast page overlay shell — only the
+/* Characters page reuses the cast page overlay shell â€” only the
    per-card behavior differs (no heart, no cursor, biased crop). */
 .media-characters-page-overlay .discover-media-character-card {
   cursor: default;
@@ -4687,7 +4708,7 @@ body.filmography-title-profile-open .filmography-page-overlay {
 }
 
 /* ==========================================================================
-   v810: Friend-search result card — mobile horizontal layout fix.
+   v810: Friend-search result card â€” mobile horizontal layout fix.
    The 3-button creator card (Message / Profile / + Add) used to wrap the
    action buttons into stacked rows on narrow widths, which made the card
    grow tall and the buttons visually collide with the name column. We

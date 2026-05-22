@@ -270,7 +270,7 @@ function getDirectMessagesLayoutHeight() {
 
 function isDirectMessageTypingActive() {
   const active = document.activeElement;
-  return !!(active && active.closest && active.closest('.direct-messages-page .dm-compose-row'));
+  return !!(active && active.closest && active.closest('.direct-messages-page .dm-v2-compose'));
 }
 
 function setDirectMessagesStableLayoutHeight(force = false) {
@@ -367,16 +367,16 @@ function initDirectMessageKeyboardLift() {
     schedule();
   }, { passive: false });
   document.addEventListener('focusin', (event) => {
-    if (event.target && event.target.closest && event.target.closest('.direct-messages-page .dm-compose-row')) {
+    if (event.target && event.target.closest && event.target.closest('.direct-messages-page .dm-v2-compose')) {
       lockDirectMessageScrollPosition();
       schedule();
     }
   });
   document.addEventListener('focusout', (event) => {
-    if (event.target && event.target.closest && event.target.closest('.direct-messages-page .dm-compose-row')) {
+    if (event.target && event.target.closest && event.target.closest('.direct-messages-page .dm-v2-compose')) {
       window.setTimeout(() => {
         const active = document.activeElement;
-        if (!(active && active.closest && active.closest('.direct-messages-page .dm-compose-row'))) resetDirectMessageKeyboardLift();
+        if (!(active && active.closest && active.closest('.direct-messages-page .dm-v2-compose'))) resetDirectMessageKeyboardLift();
       }, 80);
     }
   });
@@ -1699,6 +1699,17 @@ function renderDirectMessageGroupEditPage(threadId = activeDmGroupEditThreadId) 
   </div>`;
 }
 
+/* v10.467: Instagram-style DM rebuild.
+   - Header: back chevron + avatar + name/handle + 3-dot overflow menu
+   - Messages: date dividers between conversational sessions, per-sender
+     bubble grouping (avatar only on first incoming in a run), mine
+     bubbles in Shelfd lavender, theirs in dark gray, emoji-only renders
+     without bubble background, "Seen" indicator under last sent bubble
+   - Composer: round purple camera button + pill input + mic + gallery
+     icons inside the pill (no separate Send button — Enter or tap-send)
+   Critical DOM hooks retained for legacy JS (keyboard lift, photo
+   upload, scroll, focus): `.dm-compose-row`, `#dm-message-input`,
+   `#dm-message-list`, `#dm-photo-input-{threadId}`. */
 function renderDirectMessageThread(threadId = activeDmThreadId) {
   const thread = dmThreadMap[threadId];
   if (!thread) {
@@ -1709,30 +1720,243 @@ function renderDirectMessageThread(threadId = activeDmThreadId) {
   const messages = Array.isArray(thread.messages) ? thread.messages : [];
   const isGroup = isDirectMessageGroupThread(thread);
   const title = getDirectMessageThreadTitle(thread);
-  return `<div class="dm-thread-panel">
-    <div class="dm-thread-head">
-      <button type="button" onclick="closeDirectMessageThread()">←</button>
-      <button class="dm-thread-avatar-btn ${isGroup ? 'editable' : ''}" type="button" ${isGroup ? `onclick="openDirectMessageGroupEdit('${escAttr(thread.id)}')" title="Edit group chat"` : 'tabindex="-1"'}>
-        <img src="${escAttr(getDirectMessageAvatar(profile))}" alt="" loading="lazy">
+  const subtitle = getDirectMessageThreadSubtitle(thread);
+  const otherUid = isGroup ? '' : getDirectMessageOtherUid(thread);
+  const myUid = currentUser?.uid || '';
+
+  /* Identify whether the LAST mine message has been seen by the recipient.
+     For 1:1 threads: the other party has read everything if they are no
+     longer in unreadUids. For groups we skip the indicator (multi-reader
+     semantics need their own treatment). */
+  const otherReadAll = !isGroup && otherUid && !(Array.isArray(thread.unreadUids) ? thread.unreadUids : []).includes(otherUid);
+  let lastMineIndex = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].fromUid === myUid) { lastMineIndex = i; break; }
+  }
+
+  /* Build the message list with date dividers + per-sender grouping.
+     A divider inserts before any message whose gap from the previous
+     message exceeds 30 minutes (or is the first message). The avatar
+     for incoming messages shows ONLY on the first message in a run
+     from the same sender within ~5 minutes — matches Instagram. */
+  const DM_DIVIDER_GAP_MS = 30 * 60 * 1000;
+  const DM_GROUPING_GAP_MS = 5 * 60 * 1000;
+  const messageHtml = messages.length ? messages.map((message, idx) => {
+    const ts = Number(message.createdAtMs || 0);
+    const prev = idx > 0 ? messages[idx - 1] : null;
+    const prevTs = prev ? Number(prev.createdAtMs || 0) : 0;
+    const showDivider = !prev || (ts - prevTs > DM_DIVIDER_GAP_MS);
+    const mine = message.fromUid === myUid;
+    const sameSenderAsPrev = prev && prev.fromUid === message.fromUid && (ts - prevTs <= DM_GROUPING_GAP_MS);
+    const showAvatar = !mine && (!sameSenderAsPrev || showDivider);
+    const senderProfile = !mine
+      ? getDirectMessageProfile(message.fromUid || '', thread.participants?.[message.fromUid] || {})
+      : null;
+    const senderAvatar = senderProfile ? getDirectMessageAvatar(senderProfile) : '';
+    const payload = getDirectMessagePlainPayload(message);
+    const isEmojiOnly = isDmV2EmojiOnly(payload.text) && !payload.imageData && !payload.shareMedia;
+    const content = renderDirectMessagePayloadContent(payload, false);
+    const dividerHtml = showDivider
+      ? `<div class="dm-v2-day-divider">${escHtml(formatDmV2DayDivider(ts))}</div>`
+      : '';
+    const senderNameHtml = (isGroup && !mine && (!sameSenderAsPrev || showDivider) && senderProfile)
+      ? `<span class="dm-v2-sender-name">${renderDisplayNameHTML(senderProfile, 'User')}</span>`
+      : '';
+    const seenHtml = (mine && idx === lastMineIndex && otherReadAll && !isGroup)
+      ? `<div class="dm-v2-seen">Seen</div>`
+      : '';
+    const bubbleClass = `dm-v2-bubble${isEmojiOnly ? ' dm-v2-bubble-emoji' : ''}${sameSenderAsPrev && !showDivider ? ' dm-v2-bubble-grouped' : ''}`;
+    const rowClass = `dm-v2-bubble-row ${mine ? 'mine' : 'theirs'}${sameSenderAsPrev && !showDivider ? ' grouped' : ''}`;
+    const avatarHtml = showAvatar
+      ? `<img class="dm-v2-bubble-avatar" src="${escAttr(senderAvatar)}" alt="" loading="lazy">`
+      : (!mine ? '<span class="dm-v2-bubble-avatar dm-v2-bubble-avatar-spacer" aria-hidden="true"></span>' : '');
+    return `${dividerHtml}<div class="${rowClass}">${avatarHtml}<div class="dm-v2-bubble-stack">${senderNameHtml}<div class="${bubbleClass}">${content}</div></div></div>${seenHtml}`;
+  }).join('') : `<div class="dm-v2-empty">Chat accepted. Send the first message.</div>`;
+
+  /* Identity button — tapping the avatar/name area opens the profile
+     (1:1) or the group-edit page (group). The 3-dot overflow opens a
+     small action menu anchored to the button. */
+  const identityClick = isGroup
+    ? `openDirectMessageGroupEdit('${escAttr(thread.id)}')`
+    : (otherUid ? `openUserProfile('${escAttr(otherUid)}')` : '');
+  const overflowMenuItems = isGroup
+    ? `<button type="button" onclick="closeDmV2OverflowMenu('${escAttr(thread.id)}'); openDirectMessageGroupEdit('${escAttr(thread.id)}')">Edit group</button>
+       <button type="button" onclick="closeDmV2OverflowMenu('${escAttr(thread.id)}'); markDirectMessageThreadRead('${escAttr(thread.id)}')">Mark as read</button>`
+    : `<button type="button" onclick="closeDmV2OverflowMenu('${escAttr(thread.id)}'); ${otherUid ? `openUserProfile('${escAttr(otherUid)}')` : 'showToast(\'No profile available\')'}">View profile</button>
+       <button type="button" onclick="closeDmV2OverflowMenu('${escAttr(thread.id)}'); markDirectMessageThreadRead('${escAttr(thread.id)}')">Mark as read</button>
+       ${otherUid ? `<button type="button" class="dm-overflow-report" onclick="closeDmV2OverflowMenu('${escAttr(thread.id)}'); if(typeof window.openReportSheet==='function') window.openReportSheet('dm_user','${escAttr(otherUid)}','${escAttr(thread.id)}','this user')">Report</button>` : ''}
+       ${otherUid ? `<button type="button" class="dm-overflow-report" onclick="closeDmV2OverflowMenu('${escAttr(thread.id)}'); if(typeof window.openBlockUserModal==='function') window.openBlockUserModal('${escAttr(otherUid)}')">Block</button>` : ''}`;
+
+  return `<div class="dm-v2-panel">
+    <div class="dm-v2-header">
+      <button class="dm-v2-back" type="button" onclick="closeDirectMessageThread()" aria-label="Back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
-      <div class="${isGroup ? 'dm-thread-title-editable' : ''}" ${isGroup ? `onclick="openDirectMessageGroupEdit('${escAttr(thread.id)}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDirectMessageGroupEdit('${escAttr(thread.id)}')}"` : ''}><strong>${escHtml(title)}</strong><span>${escHtml(getDirectMessageThreadSubtitle(thread))}</span></div>
+      <button class="dm-v2-identity" type="button" ${identityClick ? `onclick="${identityClick}"` : ''}>
+        <img class="dm-v2-identity-avatar" src="${escAttr(getDirectMessageAvatar(profile))}" alt="" loading="lazy">
+        <span class="dm-v2-identity-text">
+          <span class="dm-v2-identity-name">${escHtml(title)}</span>
+          <span class="dm-v2-identity-handle">${escHtml(subtitle)}</span>
+        </span>
+      </button>
+      <div class="dm-v2-overflow-wrap">
+        <button class="dm-v2-overflow" type="button" onclick="toggleDmV2OverflowMenu('${escAttr(thread.id)}')" aria-label="More options">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+        </button>
+        <div class="dm-v2-overflow-menu" id="dm-v2-overflow-menu-${escAttr(thread.id)}" hidden>
+          ${overflowMenuItems}
+        </div>
+      </div>
     </div>
-    <div class="dm-message-list" id="dm-message-list">
-      ${messages.length ? messages.map(message => {
-        const mine = message.fromUid === currentUser?.uid;
-        const sender = isGroup && !mine ? getDirectMessageProfile(message.fromUid || '', thread.participants?.[message.fromUid] || {}) : null;
-        const content = renderDirectMessagePayloadContent(getDirectMessagePlainPayload(message), false);
-        return `<div class="dm-bubble-row ${mine ? 'mine' : 'theirs'}"><div class="dm-bubble">${sender ? `<small>${renderDisplayNameHTML(sender, 'User')}</small>` : ''}${content}<em>${formatDirectMessageTime(message.createdAtMs)}</em></div></div>`;
-      }).join('') : `<div class="dm-thread-empty">Chat accepted. Send the first message.</div>`}
+    <div class="dm-v2-list" id="dm-message-list">
+      ${messageHtml}
     </div>
-    <div class="dm-compose-row">
+    <div class="dm-v2-compose">
       <input id="dm-photo-input-${escAttr(thread.id)}" type="file" accept="image/*" style="display:none" onchange="handleDirectMessagePhotoUpload('${escAttr(thread.id)}', this.files && this.files[0])">
-      <button class="dm-photo-upload-btn" type="button" aria-label="Send photo" onclick="triggerDirectMessagePhotoUpload('${escAttr(thread.id)}')">＋</button>
-      <input id="dm-message-input" type="text" placeholder="Message ${escAttr(title || 'chat')}..." autocomplete="off" onkeydown="if(event.key==='Enter'){sendDirectMessage('${escAttr(thread.id)}')}">
-      <button class="dm-send-btn" type="button" onpointerdown="if(window.matchMedia && window.matchMedia('(max-width: 700px)').matches){event.preventDefault();}" onclick="sendDirectMessage('${escAttr(thread.id)}')">Send</button>
+      <button class="dm-v2-camera-btn" type="button" aria-label="Take photo" onclick="triggerDirectMessagePhotoUpload('${escAttr(thread.id)}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5l-2 2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3.5l-2-2z"/><circle cx="12" cy="13" r="4"/></svg>
+      </button>
+      <div class="dm-v2-input-pill">
+        <input id="dm-message-input" class="dm-v2-input" type="text" placeholder="Message..." autocomplete="off" oninput="this.closest('.dm-v2-compose')?.classList.toggle('has-text', !!this.value.trim())" onkeydown="if(event.key==='Enter'){sendDirectMessage('${escAttr(thread.id)}')}">
+        <button class="dm-v2-pill-btn dm-v2-mic-btn" type="button" aria-label="Voice message" onclick="triggerDmV2VoiceNote('${escAttr(thread.id)}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+        </button>
+        <button class="dm-v2-pill-btn dm-v2-gallery-btn" type="button" aria-label="Photo library" onclick="triggerDirectMessagePhotoUpload('${escAttr(thread.id)}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="9.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </button>
+      </div>
+      <button class="dm-v2-send-btn" type="button" onpointerdown="if(window.matchMedia && window.matchMedia('(max-width: 700px)').matches){event.preventDefault();}" onclick="sendDirectMessage('${escAttr(thread.id)}')" aria-label="Send">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 11.5L21 3l-8.5 18-2.5-8L3 11.5z"/></svg>
+      </button>
     </div>
   </div>`;
 }
+
+/* v10.467: DM v2 helpers. Kept colocated with the renderer so the
+   message-list HTML and the formatting/menu utilities live in one place. */
+
+/* Date divider format — uppercase, contextual:
+     • Same day  → "TODAY AT 3:42 PM"
+     • Yesterday → "YESTERDAY AT 9:15 AM"
+     • This week → "MON 5:30 AM"
+     • Older     → "SEP 30 AT 6:50 AM" */
+function formatDmV2DayDivider(ts) {
+  const n = Number(ts || 0);
+  if (!n) return '';
+  const d = new Date(n);
+  const now = new Date();
+  const sameDay = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+  const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday = d.getFullYear() === yesterday.getFullYear() && d.getMonth() === yesterday.getMonth() && d.getDate() === yesterday.getDate();
+  const msSinceMidnight = (now - new Date(now.getFullYear(), now.getMonth(), now.getDate())) + (Date.now() - now.getTime());
+  const daysSince = Math.floor((Date.now() - n) / 86400000);
+  const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  if (sameDay) return `Today at ${time}`.toUpperCase();
+  if (isYesterday) return `Yesterday at ${time}`.toUpperCase();
+  if (daysSince < 7) {
+    const day = d.toLocaleDateString([], { weekday: 'short' });
+    return `${day} ${time}`.toUpperCase();
+  }
+  const dateStr = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  return `${dateStr} at ${time}`.toUpperCase();
+}
+
+/* Emoji-only detector — used to drop the bubble background on
+   single-emoji or short emoji-string messages so they render large,
+   matching the Instagram reference. */
+function isDmV2EmojiOnly(text = '') {
+  const s = String(text || '').trim();
+  if (!s) return false;
+  if (s.length > 16) return false; // very short messages only
+  try {
+    return /^(?:\s|\p{Emoji_Presentation}|\p{Extended_Pictographic}|️|‍)+$/u.test(s);
+  } catch (_) {
+    /* Older engines without the \p Unicode property escape — fall back
+       to a permissive surrogate-range check. */
+    return /^[⌀-➿\uD83C-􏰀-\uDFFF\s]+$/.test(s);
+  }
+}
+
+/* 3-dot overflow menu — open/close + outside-click dismiss. */
+window.toggleDmV2OverflowMenu = function(threadId) {
+  const id = String(threadId || '').trim();
+  if (!id) return;
+  const menu = document.getElementById('dm-v2-overflow-menu-' + id);
+  if (!menu) return;
+  const willOpen = menu.hidden;
+  /* Close any other open menus first. */
+  document.querySelectorAll('.dm-v2-overflow-menu').forEach(el => { el.hidden = true; });
+  menu.hidden = !willOpen;
+  if (willOpen) {
+    /* One-shot outside-click listener — closes the menu when the user
+       taps anywhere else. Captures touch + click for iOS. */
+    setTimeout(() => {
+      const onDocTap = (event) => {
+        if (menu.hidden) return;
+        if (event.target && event.target.closest && event.target.closest('.dm-v2-overflow-wrap')) return;
+        menu.hidden = true;
+        document.removeEventListener('click', onDocTap, true);
+        document.removeEventListener('touchstart', onDocTap, true);
+      };
+      document.addEventListener('click', onDocTap, true);
+      document.addEventListener('touchstart', onDocTap, true);
+    }, 0);
+  }
+};
+window.closeDmV2OverflowMenu = function(threadId) {
+  const id = String(threadId || '').trim();
+  if (!id) return;
+  const menu = document.getElementById('dm-v2-overflow-menu-' + id);
+  if (menu) menu.hidden = true;
+};
+
+/* v10.485: DM v2 inbox helpers — filter dropdown + inline search filter. */
+window.toggleDmV2InboxFilter = function() {
+  const menu = document.getElementById('dm-v2-inbox-filter-menu');
+  if (!menu) return;
+  const willOpen = menu.hidden;
+  document.querySelectorAll('.dm-v2-inbox-filter-menu').forEach(el => { el.hidden = true; });
+  menu.hidden = !willOpen;
+  if (willOpen) {
+    setTimeout(() => {
+      const onDocTap = (event) => {
+        if (menu.hidden) return;
+        if (event.target && event.target.closest && event.target.closest('.dm-v2-inbox-filter-wrap')) return;
+        menu.hidden = true;
+        document.removeEventListener('click', onDocTap, true);
+        document.removeEventListener('touchstart', onDocTap, true);
+      };
+      document.addEventListener('click', onDocTap, true);
+      document.addEventListener('touchstart', onDocTap, true);
+    }, 0);
+  }
+};
+window.closeDmV2InboxFilter = function() {
+  const menu = document.getElementById('dm-v2-inbox-filter-menu');
+  if (menu) menu.hidden = true;
+};
+/* Inline filter — typing in the search pill hides chat rows that don't
+   contain the query string. Resets when the query is cleared. */
+window.filterDmV2InboxChats = function(query) {
+  const q = String(query || '').trim().toLowerCase();
+  document.querySelectorAll('.dm-v2-inbox-list .dm-chat-swipe-item').forEach(item => {
+    if (!q) {
+      item.style.display = '';
+      return;
+    }
+    const txt = (item.textContent || '').toLowerCase();
+    item.style.display = txt.indexOf(q) !== -1 ? '' : 'none';
+  });
+};
+
+/* Voice-note placeholder — Shelfd doesn't have voice messages yet.
+   The icon exists in the composer (Instagram-parity) but tapping it
+   surfaces a toast so the affordance doesn't read as broken. */
+window.triggerDmV2VoiceNote = function(threadId) {
+  if (typeof window.showToast === 'function') {
+    window.showToast('Voice messages coming soon');
+  }
+};
 async function markDirectMessageThreadRead(threadId = '') {
   const thread = dmThreadMap[threadId];
   if (!currentUser || !thread || !(thread.unreadUids || []).includes(currentUser.uid)) return;
@@ -1825,14 +2049,54 @@ function renderDirectMessagesView() {
   } else if (activeDmThreadId) {
     html = renderDirectMessageThread(activeDmThreadId);
   } else {
+    /* v10.485: Instagram-style inbox rebuild.
+       Header: own avatar (left) + "Chat" title (center) + filter pill (right).
+       Search pill below the header for filtering the chat list inline.
+       Flat chat rows (avatar + name + last-message preview + timestamp).
+       Floating lavender FAB bottom-right for starting a new chat.
+       The All ▼ filter toggles between the existing chats / requests
+       subtabs, preserving all existing functionality. */
     const body = activeMessagesSubTab === 'requests' ? renderDirectMessageRequests() : renderDirectMessageChats();
-    html = `<div class="dm-lite-head"><strong>Messages</strong><button class="dm-new-chat-btn" type="button" onclick="openDirectMessageComposer('direct')" aria-label="New message">✎</button><span>${requestCount ? `${requestCount} request${requestCount === 1 ? '' : 's'}` : unreadCount ? `${unreadCount} unread` : 'Direct messages'}</span></div>
-      <div class="dm-subtabs">
-        <button class="${activeMessagesSubTab === 'chats' ? 'active' : ''}" type="button" onclick="switchMessagesSubTab('chats')">Chats${unreadCount ? `<span>${unreadCount}</span>` : ''}</button>
-        <button class="${activeMessagesSubTab === 'requests' ? 'active' : ''}" type="button" onclick="switchMessagesSubTab('requests')">Requests${requestCount ? `<span>${requestCount}</span>` : ''}</button>
+    const myProfile = (typeof userProfile === 'object' && userProfile) ? userProfile : {};
+    const myAvatar = currentUser.photoURL || myProfile.photo || myProfile.photoURL
+      || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.displayName || myProfile.name || 'Me')}&background=1e2028&color=a78bfa`;
+    const filterLabel = activeMessagesSubTab === 'requests'
+      ? (requestCount ? `Requests (${requestCount})` : 'Requests')
+      : 'All';
+    html = `<div class="dm-v2-inbox">
+      <div class="dm-v2-inbox-header">
+        <button class="dm-v2-inbox-back" type="button" onclick="closeDirectMessagesPage()" aria-label="Close messages">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <h1 class="dm-v2-inbox-title">Chat</h1>
+        <div class="dm-v2-inbox-filter-wrap">
+          <button class="dm-v2-inbox-filter" type="button" onclick="toggleDmV2InboxFilter()" aria-haspopup="true">
+            <span>${escHtml(filterLabel)}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dm-v2-inbox-filter-menu" id="dm-v2-inbox-filter-menu" hidden>
+            <button type="button" onclick="switchMessagesSubTab('chats');closeDmV2InboxFilter()">All chats</button>
+            <button type="button" onclick="switchMessagesSubTab('requests');closeDmV2InboxFilter()">Requests${requestCount ? ` (${requestCount})` : ''}</button>
+          </div>
+        </div>
       </div>
-      ${dmNewChatOpen ? renderDirectMessageComposerPanel() : ''}
-      ${body}`;
+      <div class="dm-v2-inbox-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"/>
+          <path d="m21 21-4.3-4.3"/>
+        </svg>
+        <input type="text" placeholder="Search" autocomplete="off" oninput="filterDmV2InboxChats(this.value)">
+      </div>
+      ${dmNewChatOpen ? `<div class="dm-v2-inbox-composer-panel">${renderDirectMessageComposerPanel()}</div>` : ''}
+      <div class="dm-v2-inbox-list">${body}</div>
+      <button class="dm-v2-inbox-fab" type="button" onclick="openDirectMessageComposer('direct')" aria-label="New chat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+          <line x1="12" y1="9" x2="12" y2="14"/>
+          <line x1="9.5" y1="11.5" x2="14.5" y2="11.5"/>
+        </svg>
+      </button>
+    </div>`;
   }
 
   updateDirectMessagesTopbar();

@@ -655,6 +655,500 @@ function renderStars(rating, itemId, prefix, size, sectionOverride = '') {
   return buildRatingStarsMarkup(rating, itemId, prefix, size, section, !viewingUser);
 }
 
+/* ============================================================================
+   v10.404: RATING BUBBLE — known pattern snapshot.
+
+   Lifted verbatim (markup + CSS pattern + interaction) from the season
+   card rating chip at renderMyListEpisodePageSeasonRatingMarkup() / the
+   `.mylist-episode-page-season-rating-control` family. Renamed and
+   wrapped so it can be hosted on My List title cards in:
+     - shows  : watching / watched / paused
+     - anime  : watching / watched / paused
+     - music  : watching (In Rotation) / watched (Listened)
+   Replaces the legacy 10-stars-laid-out widget on those cards. Sits
+   bottom-LEFT of the card, aligned with the poster.
+
+   Differences from the season-card version:
+     • Chip is at the LEFT edge of its slot, so the stars popout glides
+       to the RIGHT (season-card popout glides LEFT because the chip
+       sits on the right edge of a season header).
+     • Music gets 5 half-step stars (10 half-step buttons) inside the
+       popout — preserves the universal "music is 5-star" spec from
+       v10.393. TV / anime show the standard 10 full stars.
+
+   The commit path goes through the shared `rate(itemId, 'overall',
+   score)` pipeline, same as every other "overall" rating surface — so
+   one click here updates `item.rating` once and propagates to the FP
+   review, the activity feed, friend visibility, etc. ============================================================================ */
+let myListCardExpandedRatingKey = '';
+
+function buildRatingBubbleMarkup(item = {}, section = activeSection, opts = {}) {
+  const itemId = String(item?.id || '');
+  if (!itemId) return '';
+  const rating = Number(item?.rating || 0);
+  const interactive = !viewingUser;
+  const key = `${itemId}:overall`;
+  const isExpanded = myListCardExpandedRatingKey === key;
+  /* v10.508: optional "/5" display mode. When `opts.outOfFive` is true the
+     collapsed chip always shows the value normalized to a 5-point scale
+     with the "/5" suffix (e.g. "4/5", "3.5/5"). Used by the full-page
+     album shelf where the rating header is explicitly framed as "Your
+     rating ⭐ X/5". The underlying stars + scrub + commit behavior is
+     unchanged — this only affects the chip-value text. */
+  const outOfFive = !!opts.outOfFive;
+  /* v10.407: half-step rendering is now driven by the actual scale
+     preference (`isFivePointRatingSection`), not by `section === 'music'`.
+     With music defaulting to 10-star, the bubble renders 10 full stars
+     for music too. Half-step still works for any section the user has
+     manually set to 5-star. */
+  const isHalfStep = typeof isFivePointRatingSection === 'function'
+    ? isFivePointRatingSection(section)
+    : false;
+  /* Numeric label: 5-star scale shows half-step (e.g. "3.5"); 10-star
+     scale shows the integer (e.g. "7"). Empty = unrated bubble shows
+     just the icon.
+     v10.508: when outOfFive is requested, always convert to 5-point
+     and append "/5" regardless of the section's underlying scale.
+     v10.513 BUG FIX: the outOfFive branch was using `rating` directly
+     when isHalfStep was true, but the stored rating is ALWAYS on the
+     1–10 unit scale (each unit = half-star) regardless of half-step
+     mode. So a 4-star rating (stored as 8) was rendering as "8/5"
+     instead of "4/5". Always divide by 2 here — the storage→display
+     conversion is the same as `formatRatingValueForSection` (line 574
+     of 04-shared-utils-data.js). */
+  let labelText;
+  if (outOfFive) {
+    if (rating > 0) {
+      const fiveValue = rating / 2;
+      const formatted = fiveValue % 1 === 0
+        ? String(fiveValue)
+        : fiveValue.toFixed(1);
+      labelText = `${formatted}/5`;
+    } else {
+      labelText = '';
+    }
+  } else {
+    labelText = rating > 0
+      ? (isHalfStep
+          ? (typeof formatRatingValueForSection === 'function'
+              ? formatRatingValueForSection(rating, section)
+              : String(rating / 2))
+          : String(rating))
+      : '';
+  }
+  /* v10.405: stars sit INSIDE the same pill as the chip value — no
+     separate popout. The `.rating-bubble-stars-track` is the inline
+     expansion slot that goes from max-width:0 (collapsed, hidden) to
+     its natural width on `.is-expanded`. Click anywhere on the pill
+     that isn't a star = toggle (handled by the outer onclick); clicks
+     on individual stars stopPropagation and route to rate(). */
+  let starsHtml = '';
+  if (isHalfStep) {
+    /* v10.510: REBUILT half-step star rendering.
+       Old approach (v10.405–v10.509): two side-by-side button glyphs per
+       star, clipped via `width: 9-11px; overflow: hidden; text-indent:
+       -9 to -11px`. At the original 9px size the visual seam was hidden,
+       but at the larger 11px+ size introduced in v10.509 the seam became
+       visible — each "star" showed a vertical break running down the
+       middle plus subtle glyph misalignment, producing the "doubled"
+       look the user reported.
+       New approach: SVG-style layering, same pattern used successfully
+       by the activity card `renderActivityRatingStar` at
+       10-activity-feed.js:4881. Per visual star we render ONE slot
+       containing:
+         (a) a base ★ glyph (grey, full-width, visible always)
+         (b) a fill ★ glyph (gold, full-width, clipped via clip-path
+             to the per-slot fill percent — 0% / 50% / 100%)
+         (c) two invisible interactive buttons positioned as left/right
+             half hit targets, each carrying the data-score the rate()
+             pipeline needs.
+       Result: clean glyphs with no seams, half-fill is a true CSS clip
+       on a single glyph, the bubble scales cleanly at any size.
+       Storage and click semantics are UNCHANGED — `data-score` still
+       1–10 (half-star units), `rate()` still receives the same values. */
+    for (let star = 1; star <= 5; star++) {
+      const leftVal = star * 2 - 1;   // 1, 3, 5, 7, 9
+      const rightVal = star * 2;      // 2, 4, 6, 8, 10
+      let fillPct = 0;
+      if (rating >= rightVal) fillPct = 100;
+      else if (rating >= leftVal) fillPct = 50;
+      const leftLabel = `${leftVal / 2} of 5`;
+      const rightLabel = `${rightVal / 2} of 5`;
+      if (interactive) {
+        starsHtml +=
+          `<span class="rating-bubble-star-slot" data-star-index="${star}" style="--star-fill:${fillPct}%">`
+          + `<span class="rating-bubble-star-base" aria-hidden="true">&#9733;</span>`
+          + `<span class="rating-bubble-star-fill" aria-hidden="true">&#9733;</span>`
+          + `<button type="button" class="rating-bubble-star-hit rating-bubble-star-hit-left" data-score="${leftVal}" aria-label="Rate ${leftLabel}" onclick="event.stopPropagation();rateMyListCardRatingBubble('${escAttr(itemId)}','${escAttr(section)}',${leftVal},event)"></button>`
+          + `<button type="button" class="rating-bubble-star-hit rating-bubble-star-hit-right" data-score="${rightVal}" aria-label="Rate ${rightLabel}" onclick="event.stopPropagation();rateMyListCardRatingBubble('${escAttr(itemId)}','${escAttr(section)}',${rightVal},event)"></button>`
+          + `</span>`;
+      } else {
+        starsHtml +=
+          `<span class="rating-bubble-star-slot" data-star-index="${star}" style="--star-fill:${fillPct}%">`
+          + `<span class="rating-bubble-star-base" aria-hidden="true">&#9733;</span>`
+          + `<span class="rating-bubble-star-fill" aria-hidden="true">&#9733;</span>`
+          + `</span>`;
+      }
+    }
+  } else {
+    for (let score = 1; score <= 10; score++) {
+      const lit = score <= rating ? ' lit' : '';
+      if (interactive) {
+        starsHtml += `<button type="button" class="rating-bubble-star${lit}" data-score="${score}" onclick="event.stopPropagation();rateMyListCardRatingBubble('${escAttr(itemId)}','${escAttr(section)}',${score},event)">&#9733;</button>`;
+      } else {
+        starsHtml += `<span class="rating-bubble-star${lit}">&#9733;</span>`;
+      }
+    }
+  }
+  const expandedClass = isExpanded ? ' is-expanded' : '';
+  /* v10.407: half-step CSS variant decoupled from "music" identity —
+     the rating-bubble--halfstep class fires whenever scale is 5,
+     regardless of section. Old `.rating-bubble--music` class still
+     emitted as an alias for any external selector / migration. */
+  const halfStepClass = isHalfStep ? ' rating-bubble--halfstep rating-bubble--music' : '';
+  const ratedClass = rating > 0 ? ' is-rated' : '';
+  /* The outer pill IS the toggle button surface. Using a div with
+     role="button" (not an actual <button>) so we can nest interactive
+     star <button>s inside without invalid-nesting. Pointer-events on
+     the stars track are gated to expanded state so clicks pass
+     straight through to the outer surface when collapsed. */
+  const role = interactive ? 'button' : 'group';
+  const tabindex = interactive ? '0' : '-1';
+  const toggleHandler = interactive
+    ? ` onclick="event.stopPropagation();toggleMyListCardRatingBubble('${escAttr(itemId)}','${escAttr(section)}',event)"`
+    : ' aria-disabled="true"';
+  /* v10.406: inline touch handlers add horizontal scrub-to-rate on the
+     expanded bubble. Same gesture model as the music widget and the
+     per-track widget — 18px lock-in, midpoint cross-over. Tap-to-toggle
+     still works because the scrub handler only locks in when motion
+     exceeds the threshold; below that, the tap routes through to the
+     star button or the outer toggle as usual. */
+  const touchAttrs = interactive
+    ? ' ontouchstart="ratingBubbleTouchStart(event)"'
+      + ' ontouchmove="ratingBubbleTouchMove(event)"'
+      + ' ontouchend="ratingBubbleTouchEnd(event)"'
+      + ' ontouchcancel="ratingBubbleTouchEnd(event)"'
+    : '';
+  /* v10.508: `data-out-of-five="1"` persists the /5 display mode across
+     re-renders. updateOverallRatingUI reads it from the existing node
+     and passes `{outOfFive: true}` to the rebuild; the touch-scrub
+     handler reads it to format the in-progress preview number with the
+     "/5" suffix. */
+  const outOfFiveAttr = outOfFive ? ' data-out-of-five="1"' : '';
+  return `<div class="rating-bubble${expandedClass}${halfStepClass}${ratedClass}" role="${role}" tabindex="${tabindex}" aria-expanded="${isExpanded ? 'true' : 'false'}" data-item-id="${escAttr(itemId)}" data-section="${escAttr(section)}" data-prefix="overall"${outOfFiveAttr}${toggleHandler}${touchAttrs}>`
+    + `<span class="rating-bubble-chip-icon" aria-hidden="true">&#9733;</span>`
+    + (labelText ? `<span class="rating-bubble-chip-value">${escHtml(labelText)}</span>` : '')
+    + `<div class="rating-bubble-stars-track" aria-hidden="${isExpanded ? 'false' : 'true'}">${starsHtml}</div>`
+    + `</div>`;
+}
+
+window.toggleMyListCardRatingBubble = function(itemId, section, event) {
+  if (event) {
+    event.preventDefault?.();
+    event.stopPropagation?.();
+  }
+  const idStr = String(itemId || '');
+  const key = `${idStr}:overall`;
+  const willOpen = myListCardExpandedRatingKey !== key;
+  /* Close every other open bubble first — only one at a time, matches
+     the season-card behavior. */
+  document.querySelectorAll('.rating-bubble.is-expanded').forEach(node => {
+    node.classList.remove('is-expanded');
+    const chip = node.querySelector('.rating-bubble-chip');
+    if (chip) chip.setAttribute('aria-expanded', 'false');
+    const stars = node.querySelector('.rating-bubble-stars');
+    if (stars) stars.setAttribute('aria-hidden', 'true');
+  });
+  if (willOpen) {
+    /* v10.441: switched from `querySelector` (singular) to
+       `querySelectorAll` so EVERY rating-bubble matching the item
+       id toggles at once. The full-page album-details overlay
+       re-renders the bubble alongside the underlying MyList title
+       card, so the same item id can produce two bubbles in the
+       DOM simultaneously. The old `querySelector` returned only
+       the FIRST match (usually the title card behind the overlay),
+       leaving the album-details bubble visually unresponsive to
+       clicks — that's why the user reported "clicking does
+       nothing" on the album details page. Toggling all matches
+       in lock-step keeps both surfaces in sync regardless of
+       which one the user tapped. */
+    document.querySelectorAll(`.rating-bubble[data-item-id="${CSS.escape(idStr)}"]`).forEach(target => {
+      target.classList.add('is-expanded');
+      const chip = target.querySelector('.rating-bubble-chip');
+      if (chip) chip.setAttribute('aria-expanded', 'true');
+      const stars = target.querySelector('.rating-bubble-stars');
+      if (stars) stars.setAttribute('aria-hidden', 'false');
+    });
+    myListCardExpandedRatingKey = key;
+  } else {
+    myListCardExpandedRatingKey = '';
+  }
+};
+
+window.rateMyListCardRatingBubble = function(itemId, section, score, event) {
+  if (event) {
+    event.preventDefault?.();
+    event.stopPropagation?.();
+  }
+  const idStr = String(itemId || '');
+  /* Hand off to the shared overall-rating pipeline. rate() updates
+     item.rating, persists, fires activity, calls updateOverallRatingUI
+     (which repaints the bubble with new lit state), and fires
+     playRatingAnimation (which picks up .rating-bubble-star.lit via the
+     v10.404 selector widening below). */
+  try { rate(idStr, 'overall', Number(score) || 0); } catch (_) {}
+  /* Auto-collapse after the pop animation has had time to play. The
+     bubble re-renders during rate() via updateOverallRatingUI; we keep
+     myListCardExpandedRatingKey set so the rebuilt bubble retains
+     is-expanded for the animation, then clear + collapse after 700ms. */
+  setTimeout(() => {
+    if (myListCardExpandedRatingKey === `${idStr}:overall`) {
+      myListCardExpandedRatingKey = '';
+    }
+    document.querySelectorAll(`.rating-bubble[data-item-id="${CSS.escape(idStr)}"].is-expanded`).forEach(node => {
+      node.classList.remove('is-expanded');
+      const chip = node.querySelector('.rating-bubble-chip');
+      if (chip) chip.setAttribute('aria-expanded', 'false');
+      const stars = node.querySelector('.rating-bubble-stars');
+      if (stars) stars.setAttribute('aria-hidden', 'true');
+    });
+  }, 700);
+};
+
+/* v10.406: scrub-to-rate touch handlers for the rating bubble. Only
+   active when the bubble is expanded — collapsed-state taps still
+   trigger the toggle as normal. Mirrors the music widget's
+   musicRatingTouchStart/Move/End and the per-track equivalents:
+     • 18px horizontal-dominant motion to lock into scrub mode (slight
+       finger wiggle stays a tap)
+     • cross-over threshold = midpoint of each star button (so each
+       half-step has a "dwell zone" the touch has to commit to)
+     • on touchend the value lands via rateMyListCardRatingBubble,
+       same commit path as a single-tap-on-a-star, so the auto-
+       collapse + animation timing stays consistent. */
+/* v10.515: rebuilds the scrub cache from the CURRENT DOM positions.
+   Extracted from touchstart so the touchmove handler can refresh it at
+   the moment scrub locks in — needed because the cache built at
+   touchstart may have captured stale positions if the expand
+   transition was still mid-flight (user tapped chip, expanded, and
+   started dragging before the stars-track finished sliding out). */
+function buildRatingBubbleScrubCache(bubble) {
+  const isHalfStepBubble = bubble.classList.contains('rating-bubble--halfstep')
+    || bubble.classList.contains('rating-bubble--music');
+  const hitSelector = isHalfStepBubble ? '.rating-bubble-star-hit' : '.rating-bubble-star';
+  const hits = Array.from(bubble.querySelectorAll(hitSelector));
+  const hitMidpoints = hits.map(btn => {
+    const r = btn.getBoundingClientRect();
+    return r.left + r.width / 2;
+  });
+  const slots = isHalfStepBubble
+    ? Array.from(bubble.querySelectorAll('.rating-bubble-star-slot'))
+    : [];
+  bubble._scrubCache = {
+    isHalfStepBubble,
+    hits,
+    hitMidpoints,
+    slots,
+    lastVal: -1
+  };
+}
+
+window.ratingBubbleTouchStart = function(e) {
+  const bubble = e.currentTarget;
+  if (!e.touches || !e.touches[0]) return;
+  bubble.dataset.touchStartX = String(e.touches[0].clientX);
+  bubble.dataset.touchStartY = String(e.touches[0].clientY);
+  bubble.dataset.scrubVal = '0';
+  bubble.dataset.scrubbing = 'false';
+  /* v10.511: cache hit-zone midpoints + slot refs ONCE on touchstart.
+     The bubble does not move during a scrub, so layout reads via
+     getBoundingClientRect can be done once and reused across every
+     touchmove. Previously touchmove ran querySelectorAll + 10x
+     getBoundingClientRect per event — at 60Hz that's 600 layout reads
+     per second, which was the dominant source of scrub jank on iOS.
+     With this cache, touchmove is just an O(n) array scan + one
+     setProperty per slot that changed.
+     v10.515: cache is also rebuilt at lock-in (see touchmove) to handle
+     the case where touchstart captured mid-transition positions. */
+  buildRatingBubbleScrubCache(bubble);
+};
+
+window.ratingBubbleTouchMove = function(e) {
+  const bubble = e.currentTarget;
+  const touch = e.touches && e.touches[0];
+  if (!touch) return;
+  /* Scrub only makes sense on the expanded popout — the collapsed pill
+     has no visible stars to drag across. For a collapsed bubble we let
+     the gesture fall through so the outer onclick can toggle on tap. */
+  if (!bubble.classList.contains('is-expanded')) return;
+  const dx = Math.abs(touch.clientX - parseFloat(bubble.dataset.touchStartX || 0));
+  const dy = Math.abs(touch.clientY - parseFloat(bubble.dataset.touchStartY || 0));
+  if (bubble.dataset.scrubbing !== 'true') {
+    /* v10.515: dropped lock-in threshold 18 → 6 so scrub engages almost
+       immediately on intentional drag. Taps still work via the inline
+       onclick on each `.rating-bubble-star-hit` button (0px movement),
+       so a low threshold doesn't compromise tap accuracy. The `dy >
+       dx` guard still filters out vertical-dominant gestures (page
+       scroll). */
+    if (dx < 6 || dy > dx) return;
+    /* v10.515: rebuild the cache at the moment scrub locks in. The
+       original cache was captured at touchstart, but if the user
+       tapped to expand and started dragging before the stars-track's
+       max-width transition completed, the cached hit positions are
+       from the mid-transition state and won't match the visible star
+       positions. Rebuilding at lock-in guarantees the cache reflects
+       wherever the stars are NOW. */
+    buildRatingBubbleScrubCache(bubble);
+  }
+  bubble.dataset.scrubbing = 'true';
+  e.preventDefault();
+  /* v10.511: scrub uses the cache built in touchstart (hits + midpoints
+     + slot refs). No DOM queries, no getBoundingClientRect per move.
+     Also early-exits when val hasn't changed since the last touchmove,
+     skipping all DOM writes for the common case of finger micro-jitter
+     within a single slot's half-zone. */
+  const cache = bubble._scrubCache;
+  if (!cache) return;
+  let val = 0;
+  for (let i = 0; i < cache.hitMidpoints.length; i++) {
+    if (touch.clientX >= cache.hitMidpoints[i]) val = i + 1;
+  }
+  if (val < 1) return;
+  if (val === cache.lastVal) return;
+  cache.lastVal = val;
+  bubble.dataset.scrubVal = String(val);
+  if (cache.isHalfStepBubble) {
+    /* Slots are in star-index order (1..5). Per slot, compute its target
+       fill from val: above the slot's full-step value → 100, above the
+       half-step value → 50, otherwise 0. Single setProperty call per
+       slot — no querySelector, no condition checks beyond integer
+       comparisons. */
+    for (let idx = 0; idx < cache.slots.length; idx++) {
+      const starIdx = idx + 1;
+      const leftV = starIdx * 2 - 1;
+      const rightV = starIdx * 2;
+      let pct = 0;
+      if (val >= rightV) pct = 100;
+      else if (val >= leftV) pct = 50;
+      cache.slots[idx].style.setProperty('--star-fill', `${pct}%`);
+    }
+  } else {
+    for (let i = 0; i < cache.hits.length; i++) {
+      if (i + 1 <= val) cache.hits[i].classList.add('lit');
+      else cache.hits[i].classList.remove('lit');
+    }
+  }
+  /* Live-update the chip value label so the user sees the in-progress
+     rating tick during scrub. Half-step bubbles show "X" or "X.X"
+     (e.g. "3.5"). When `data-out-of-five="1"` (album shelf header) we
+     append "/5". The legacy non-half-step path shows the raw 1-10
+     number. `isHalfStepBubble` is read off the cache. */
+  const chipValue = bubble.querySelector('.rating-bubble-chip-value');
+  let display;
+  if (bubble.dataset.outOfFive === '1') {
+    const fiveValue = val / 2;
+    display = fiveValue % 1 === 0 ? `${fiveValue}/5` : `${fiveValue.toFixed(1)}/5`;
+  } else if (cache.isHalfStepBubble) {
+    const fiveValue = val / 2;
+    display = fiveValue % 1 === 0 ? String(fiveValue) : fiveValue.toFixed(1);
+  } else {
+    display = String(val);
+  }
+  if (chipValue) {
+    chipValue.textContent = display;
+  } else {
+    const icon = bubble.querySelector('.rating-bubble-chip-icon');
+    if (icon) {
+      const span = document.createElement('span');
+      span.className = 'rating-bubble-chip-value';
+      span.textContent = display;
+      icon.insertAdjacentElement('afterend', span);
+    }
+  }
+};
+
+window.ratingBubbleTouchEnd = function(e) {
+  const bubble = e.currentTarget;
+  /* v10.511: release the cached refs even if scrub never engaged, so a
+     plain tap that fell through to onclick doesn't leave a stale cache
+     hanging on the element. */
+  const wasScrubbing = bubble.dataset.scrubbing === 'true';
+  delete bubble._scrubCache;
+  if (!wasScrubbing) return;
+  bubble.dataset.scrubbing = 'false';
+  const val = parseInt(bubble.dataset.scrubVal || '0', 10);
+  bubble.dataset.scrubVal = '0';
+  if (val < 1) return;
+  e.preventDefault();
+  const itemId = bubble.getAttribute('data-item-id') || '';
+  const section = bubble.getAttribute('data-section') || activeSection;
+  if (!itemId) return;
+  /* v10.515: SCRUB-COMMIT EXCEPTION — if the scrubbed value lands on
+     the rating the item already has, do NOT commit. rate() at line
+     9176 toggles the rating to 0 when the new score equals the
+     previous score (so a deliberate tap on the lit star can clear).
+     But that toggle-off behavior is wrong for SCRUB gestures — a user
+     who scrubs through values and happens to release on the current
+     rating shouldn't accidentally clear their rating to 0. Only an
+     explicit tap-on-current-value (which goes through the inline
+     onclick on the star button, NOT through this touchend) should
+     clear. Here we look up the item's current rating; if val matches,
+     we just close the bubble without re-rating. */
+  let item = null;
+  try {
+    if (typeof getMyListEpisodeInteractionContext === 'function') {
+      item = getMyListEpisodeInteractionContext(itemId, section)?.item || null;
+    } else if (typeof data === 'object' && data[section]) {
+      item = data[section].find(i => i?.id === itemId) || null;
+    }
+  } catch (_) {}
+  const currentRating = Number(item?.rating || 0);
+  if (val === currentRating) {
+    /* Same-value scrub commit — close the bubble (mirror the auto-
+       collapse logic from rateMyListCardRatingBubble) without
+       touching the stored rating. */
+    setTimeout(() => {
+      if (myListCardExpandedRatingKey === `${itemId}:overall`) {
+        myListCardExpandedRatingKey = '';
+      }
+      document.querySelectorAll(`.rating-bubble[data-item-id="${CSS.escape(itemId)}"].is-expanded`).forEach(node => {
+        node.classList.remove('is-expanded');
+        const chip = node.querySelector('.rating-bubble-chip');
+        if (chip) chip.setAttribute('aria-expanded', 'false');
+        const stars = node.querySelector('.rating-bubble-stars');
+        if (stars) stars.setAttribute('aria-hidden', 'true');
+      });
+    }, 200);
+    return;
+  }
+  /* Commit through the same path as a click on a star — that runs
+     rate() (which fires animation + persist + activity hooks) and
+     schedules the 700ms auto-collapse so the bubble closes after the
+     pop animation. */
+  if (typeof window.rateMyListCardRatingBubble === 'function') {
+    window.rateMyListCardRatingBubble(itemId, section, val);
+  }
+};
+
+/* Outside-click closes any open rating bubble without committing. */
+if (typeof window !== 'undefined' && !window.__shelfdRatingBubbleOutsideBound) {
+  document.addEventListener('click', (e) => {
+    if (!myListCardExpandedRatingKey) return;
+    const target = e.target;
+    if (!target || target.nodeType !== 1) return;
+    if (target.closest && target.closest('.rating-bubble')) return;
+    myListCardExpandedRatingKey = '';
+    document.querySelectorAll('.rating-bubble.is-expanded').forEach(node => {
+      node.classList.remove('is-expanded');
+      const chip = node.querySelector('.rating-bubble-chip');
+      if (chip) chip.setAttribute('aria-expanded', 'false');
+      const stars = node.querySelector('.rating-bubble-stars');
+      if (stars) stars.setAttribute('aria-hidden', 'true');
+    });
+  }, true);
+  window.__shelfdRatingBubbleOutsideBound = true;
+}
+
 function renderMyListCardOverallRating(item = {}, section = activeSection) {
   /* v10.395: music uses a clean-slate, self-contained widget that does NOT
      share any class names with the global .star-btn rules. Earlier attempts
@@ -694,28 +1188,58 @@ function buildMusicRatingMarkup(rating = 0, itemId = '', prefix = 'overall', siz
       ' ontouchend="musicRatingTouchEnd(event)"' +
       ' ontouchcancel="musicRatingTouchEnd(event)"'
     : '';
-  const styleAttr = `style="--music-star-size:${size}px;--music-half-width:${halfWidth}px;"`;
-  let html = `<div class="music-rating" ${styleAttr} data-item-id="${escapedItemId}" data-prefix="${escapedPrefix}" data-section="music"${touchAttrs}>`;
-  for (let star = 1; star <= 5; star++) {
-    const leftVal = star * 2 - 1;
-    const rightVal = star * 2;
-    const leftLit = leftVal <= cleanRating ? ' lit' : '';
-    const rightLit = rightVal <= cleanRating ? ' lit' : '';
-    if (interactive) {
-      html += `<button type="button" class="music-rating-half music-rating-half-left${leftLit}" data-star="${leftVal}"`
-        + ` onclick="event.stopPropagation();rate('${escapedItemId}','${escapedPrefix}',${leftVal})"`
-        + ` onmouseenter="musicRatingHover(this,${leftVal})" onmouseleave="musicRatingUnhover(this,${cleanRating})">★</button>`;
-      html += `<button type="button" class="music-rating-half music-rating-half-right${rightLit}" data-star="${rightVal}"`
-        + ` onclick="event.stopPropagation();rate('${escapedItemId}','${escapedPrefix}',${rightVal})"`
-        + ` onmouseenter="musicRatingHover(this,${rightVal})" onmouseleave="musicRatingUnhover(this,${cleanRating})">★</button>`;
-    } else {
-      html += `<span class="music-rating-half music-rating-half-left${leftLit}">★</span>`;
-      html += `<span class="music-rating-half music-rating-half-right${rightLit}">★</span>`;
+  /* v10.407: branch on the actual music scale preference. Pre-v10.407
+     this widget hardcoded 5-star half-step (10 buttons composing 5
+     visible stars via text-indent). Music is now 10-star by default, so
+     when scale is 'ten' we render 10 standard full-star buttons. The
+     CSS variable approach for star-size still drives sizing for both
+     paths. */
+  const halfStep = typeof isFivePointRatingSection === 'function'
+    ? isFivePointRatingSection('music')
+    : false;
+  const styleAttr = halfStep
+    ? `style="--music-star-size:${size}px;--music-half-width:${halfWidth}px;"`
+    : `style="--music-star-size:${size}px;"`;
+  const scaleClass = halfStep ? ' music-rating--halfstep' : ' music-rating--ten';
+  let html = `<div class="music-rating${scaleClass}" ${styleAttr} data-item-id="${escapedItemId}" data-prefix="${escapedPrefix}" data-section="music"${touchAttrs}>`;
+  if (halfStep) {
+    for (let star = 1; star <= 5; star++) {
+      const leftVal = star * 2 - 1;
+      const rightVal = star * 2;
+      const leftLit = leftVal <= cleanRating ? ' lit' : '';
+      const rightLit = rightVal <= cleanRating ? ' lit' : '';
+      if (interactive) {
+        html += `<button type="button" class="music-rating-half music-rating-half-left${leftLit}" data-star="${leftVal}"`
+          + ` onclick="event.stopPropagation();rate('${escapedItemId}','${escapedPrefix}',${leftVal})"`
+          + ` onmouseenter="musicRatingHover(this,${leftVal})" onmouseleave="musicRatingUnhover(this,${cleanRating})">★</button>`;
+        html += `<button type="button" class="music-rating-half music-rating-half-right${rightLit}" data-star="${rightVal}"`
+          + ` onclick="event.stopPropagation();rate('${escapedItemId}','${escapedPrefix}',${rightVal})"`
+          + ` onmouseenter="musicRatingHover(this,${rightVal})" onmouseleave="musicRatingUnhover(this,${cleanRating})">★</button>`;
+      } else {
+        html += `<span class="music-rating-half music-rating-half-left${leftLit}">★</span>`;
+        html += `<span class="music-rating-half music-rating-half-right${rightLit}">★</span>`;
+      }
+    }
+  } else {
+    /* 10-star integer path — full-glyph buttons, no half-step trick. */
+    for (let score = 1; score <= 10; score++) {
+      const lit = score <= cleanRating ? ' lit' : '';
+      if (interactive) {
+        html += `<button type="button" class="music-rating-full${lit}" data-star="${score}"`
+          + ` onclick="event.stopPropagation();rate('${escapedItemId}','${escapedPrefix}',${score})"`
+          + ` onmouseenter="musicRatingHover(this,${score})" onmouseleave="musicRatingUnhover(this,${cleanRating})">★</button>`;
+      } else {
+        html += `<span class="music-rating-full${lit}">★</span>`;
+      }
     }
   }
   if (cleanRating > 0) {
-    const display = cleanRating / 2;
-    const label = Number.isInteger(display) ? String(display) : display.toFixed(1);
+    /* v10.407: label respects the actual scale — "3.5" for 5-star
+       half-step, "7" for 10-star integer. Delegates to the shared
+       formatter so other downstream consumers stay in sync. */
+    const label = typeof formatRatingValueForSection === 'function'
+      ? formatRatingValueForSection(cleanRating, 'music')
+      : (halfStep ? (cleanRating / 2).toFixed(1) : String(cleanRating));
     html += `<span class="music-rating-value">${label}</span>`;
   }
   html += `</div>`;
@@ -723,7 +1247,11 @@ function buildMusicRatingMarkup(rating = 0, itemId = '', prefix = 'overall', siz
 }
 
 function renderMyListMusicCardOverallRating(item = {}) {
-  return buildMusicRatingMarkup(Number(item?.rating || 0), item?.id || '', 'overall', 20, !viewingUser);
+  /* v10.403: music title-card stars match the TV-show widget exactly —
+     16px glyph + 12px value label (the label override lives in the
+     scoped `.music-bottom-rating-slot .music-rating-value` rule in
+     01-mylists-cards-episodes.css). */
+  return buildMusicRatingMarkup(Number(item?.rating || 0), item?.id || '', 'overall', 16, !viewingUser);
 }
 
 /* v10.395: hover preview — paint .lit-hover on every half-step up to and
@@ -731,8 +1259,11 @@ function renderMyListMusicCardOverallRating(item = {}) {
 function musicRatingHover(target, score) {
   const c = target && target.parentElement;
   if (!c) return;
-  const halves = c.querySelectorAll('.music-rating-half');
-  halves.forEach((btn, i) => {
+  /* v10.407: widget can render either `.music-rating-half` (half-step
+     scale) or `.music-rating-full` (10-star scale). Both selectors so
+     hover preview works for either path. */
+  const stars = c.querySelectorAll('.music-rating-half, .music-rating-full');
+  stars.forEach((btn, i) => {
     if (i + 1 <= score) btn.classList.add('lit-hover');
     else btn.classList.remove('lit-hover');
   });
@@ -740,7 +1271,7 @@ function musicRatingHover(target, score) {
 function musicRatingUnhover(target, currentRating) {
   const c = target && target.parentElement;
   if (!c) return;
-  c.querySelectorAll('.music-rating-half').forEach(btn => btn.classList.remove('lit-hover'));
+  c.querySelectorAll('.music-rating-half, .music-rating-full').forEach(btn => btn.classList.remove('lit-hover'));
 }
 
 /* v10.395: horizontal touch-scrub — parallels starsTouchStart/Move/End. */
@@ -759,18 +1290,27 @@ function musicRatingTouchMove(e) {
   const dx = Math.abs(touch.clientX - parseFloat(c.dataset.touchStartX || 0));
   const dy = Math.abs(touch.clientY - parseFloat(c.dataset.touchStartY || 0));
   if (c.dataset.scrubbing !== 'true') {
-    if (dx < 10 || dy > dx) return;
+    /* v10.401: require 18px of horizontal-dominant motion before locking
+       into scrub mode (was 10px). Slight wiggle stays a tap so users
+       trying to land on a half-rating don't accidentally trigger a scrub
+       that overshoots to 5/5. */
+    if (dx < 18 || dy > dx) return;
   }
   c.dataset.scrubbing = 'true';
   e.preventDefault();
-  const halves = Array.from(c.querySelectorAll('.music-rating-half'));
+  /* v10.407: scrub works for either widget variant — half-step or full
+     10-star — by selecting both star classes. Same midpoint-cross-over
+     logic from v10.401 applies regardless. */
+  const stars = Array.from(c.querySelectorAll('.music-rating-half, .music-rating-full'));
   let val = 0;
-  halves.forEach((btn, i) => {
-    if (touch.clientX >= btn.getBoundingClientRect().left) val = i + 1;
+  stars.forEach((btn, i) => {
+    const rect = btn.getBoundingClientRect();
+    const midpoint = rect.left + rect.width / 2;
+    if (touch.clientX >= midpoint) val = i + 1;
   });
   if (val >= 1) {
     c.dataset.scrubVal = String(val);
-    halves.forEach((b, i) => {
+    stars.forEach((b, i) => {
       if (i + 1 <= val) b.classList.add('lit-hover');
       else b.classList.remove('lit-hover');
     });
@@ -780,8 +1320,11 @@ function musicRatingTouchMove(e) {
       label.className = 'music-rating-value';
       c.appendChild(label);
     }
-    const display = val / 2;
-    label.textContent = Number.isInteger(display) ? String(display) : display.toFixed(1);
+    /* Format using the shared section-aware formatter so the live
+       preview matches the post-rate value display. */
+    label.textContent = typeof formatRatingValueForSection === 'function'
+      ? formatRatingValueForSection(val, 'music')
+      : String(val);
   }
 }
 function musicRatingTouchEnd(e) {
@@ -1770,10 +2313,16 @@ function normalizeWatchlistPriorityValue(value = '') {
 function renderWatchlistPriorityControl(item = {}, section = activeSection) {
   if (!canUseWatchlistPriority(item, section, activeTab)) return '';
   const value = getWatchlistPriorityValue(item);
-  const priorityLabel = 'Priority';
+  /* v10.434: "Priority" word removed from the bubble per spec — the
+     number alone now reads as the priority rank. The visible label
+     `<span>` is gone; aria-label still carries the full "Watchlist
+     priority for {title}" string so VoiceOver / screen readers
+     announce context. CSS in 01-mylists-cards-episodes.css updates
+     the slot's padding + min-width so the bubble shrinks now that
+     the word is gone, and bumps the number's font-size to 11px /
+     weight 400 per the same spec. */
   const priorityAria = `Watchlist priority for ${item.title || 'this title'}`;
   return `<label class="watchlist-priority-slot" onclick="event.stopPropagation()">
-    <span>${escHtml(priorityLabel)}</span>
     <input class="watchlist-priority-input" type="number" inputmode="numeric" pattern="[0-9]*" min="1" step="1" value="${escAttr(value)}" placeholder="-" aria-label="${escAttr(priorityAria)}" data-mylist-action="watch-priority" data-mylist-item-id="${escAttr(item.id)}" oninput="event.stopPropagation()" onchange="event.stopPropagation();setWatchlistPriority('${escAttr(item.id)}', this.value)">
   </label>`;
 }
@@ -1880,6 +2429,21 @@ function normalizeMyListTmdbNextEpisodeMetadata(details = {}) {
   }
   /* Nothing to return at all? Bail. The caller treats null as "no update". */
   if (!airDate && !nextSeason) return null;
+  /* v10.415: look up the season's TOTAL episode_count for the upcoming
+     next_episode_to_air so we can detect when that episode IS the season
+     final. TMDB's `/tv/{id}` response includes `seasons[].episode_count`
+     for every season. We match by season_number to the next episode's
+     season, then carry the count through `setMyListNextEpisodeMetadata`
+     onto the item. */
+  let seasonEpisodeCount = 0;
+  if (ep) {
+    const epSeasonNum = Number(ep?.season_number || ep?.seasonNumber || 0);
+    if (epSeasonNum >= 1) {
+      const matchSeason = seasons.find(s => Number(s?.season_number || 0) === epSeasonNum);
+      const count = Number(matchSeason?.episode_count || 0);
+      if (count > 0) seasonEpisodeCount = count;
+    }
+  }
   const result = {
     airDate,
     episode: ep ? {
@@ -1890,7 +2454,10 @@ function normalizeMyListTmdbNextEpisodeMetadata(details = {}) {
       season_number: ep?.season_number || ep?.seasonNumber || '',
       seasonNum: ep?.season_number || ep?.seasonNumber || '',
       episode_number: ep?.episode_number || ep?.episodeNumber || '',
-      epNum: ep?.episode_number || ep?.episodeNumber || ''
+      epNum: ep?.episode_number || ep?.episodeNumber || '',
+      /* v10.415: total episode count for THIS episode's season — used
+         by getMyListNextEpisodeLabel to detect season finales. */
+      seasonEpisodeCount: seasonEpisodeCount
     } : null,
     nextSeasonAirDate: nextSeason?.airDate || '',
     nextSeasonNumber: nextSeason?.seasonNumber || 0,
@@ -1954,30 +2521,45 @@ function getMyListNextSeasonNumber(item = {}) {
   return 0;
 }
 
-/* v10.389: extended to recognize season premieres.
-   Priority:
-     1. next_episode_to_air whose date is today/future:
-        - If it's a season premiere (episode_number === 1 AND its date matches
-          the known next-season air date), label as season-level.
-        - Otherwise label as episode-level (legacy behavior).
-     2. No upcoming episode but a future season premiere is known:
-        - Label as season-level ("New season airing M/D" / "NEW SEASON OUT").
-     3. Nothing. */
+/* v10.389 / v10.415: extended to recognize both season premieres AND
+   season finales.
+   Priority on next_episode_to_air whose date is today/future:
+     1. If episode_number === 1 AND air_date matches the known next-
+        season air date → SEASON PREMIERE → "NEW SEASON OUT" / "New
+        season airing M/D"
+     2. Else if episode_number === seasonEpisodeCount (TMDB-supplied
+        total for that season) → SEASON FINALE → "SEASON FINAL OUT" /
+        "Season final airing M/D"
+     3. Else regular episode → "NEW EPISODE OUT" / "Next episode airing
+        M/D"
+   Falls back to season-level data when no upcoming episode is known. */
 function getMyListNextEpisodeLabel(item = {}, section = activeSection) {
   if (section !== 'shows' && section !== 'anime') return '';
   const epDate = getMyListNextEpisodeAirDate(item);
   const seasonDate = getMyListNextSeasonAirDate(item);
   const epNumber = Number(item?.next_episode_to_air?.episode_number || item?.next_episode_to_air?.epNum || 0);
+  const seasonEpisodeCount = Number(item?.next_episode_to_air?.seasonEpisodeCount || 0);
   const isSeasonPremiereEpisode = epNumber === 1 && !!seasonDate && epDate === seasonDate;
+  /* v10.415: treat this as the season final when TMDB has supplied a
+     total episode count for the season AND the upcoming episode is the
+     last one (epNumber === seasonEpisodeCount). Premiere check fires
+     first so a hypothetical single-episode season (ep 1 of 1) still
+     reads as a premiere, which is the more useful framing. */
+  const isSeasonFinaleEpisode = !isSeasonPremiereEpisode
+    && seasonEpisodeCount > 0
+    && epNumber > 0
+    && epNumber === seasonEpisodeCount;
   if (isScreenListDateTodayOrFuture(epDate)) {
     if (isScreenListDateToday(epDate)) {
-      return isSeasonPremiereEpisode ? 'NEW SEASON OUT' : 'NEW EPISODE OUT';
+      if (isSeasonPremiereEpisode) return 'NEW SEASON OUT';
+      if (isSeasonFinaleEpisode) return 'SEASON FINAL OUT';
+      return 'NEW EPISODE OUT';
     }
     const labelDate = formatMyListNextEpisodeDate(epDate);
     if (!labelDate) return '';
-    return isSeasonPremiereEpisode
-      ? `New season airing ${labelDate}`
-      : `Next episode airing ${labelDate}`;
+    if (isSeasonPremiereEpisode) return `New season airing ${labelDate}`;
+    if (isSeasonFinaleEpisode) return `Season final airing ${labelDate}`;
+    return `Next episode airing ${labelDate}`;
   }
   /* Episode date missing or in the past — fall back to season-level data
      for shows that are between seasons. */
@@ -1992,8 +2574,11 @@ function getMyListNextEpisodeLabel(item = {}, section = activeSection) {
 function renderMyListNextEpisodeHtml(item = {}, section = activeSection) {
   const label = getMyListNextEpisodeLabel(item, section);
   if (!label) return '';
-  /* v10.389: glow on both today-states. */
-  const isNew = label === 'NEW EPISODE OUT' || label === 'NEW SEASON OUT';
+  /* v10.389 / v10.415: glow on every today-state — episode, season
+     premiere, and (new in v10.415) season finale. */
+  const isNew = label === 'NEW EPISODE OUT'
+    || label === 'NEW SEASON OUT'
+    || label === 'SEASON FINAL OUT';
   return `<div class="card-next-episode${isNew ? ' is-new' : ''}">${escHtml(label)}</div>`;
 }
 
@@ -2582,6 +3167,21 @@ function renderCard(item, isDraggable) {
     && !isGamesWishlistCard
     && !isCompetitiveGameCard
     && (activeTab === 'watching' || activeTab === 'planned');
+  /* v10.426: narrower variant — ONLY the Backloggd (planned) variant of
+     the previous "Playing OR Backlog" compact card. Used as the action-
+     row gate so the playing variants (Single / Live) get their action
+     row back (per spec, the action row should appear at the bottom-left
+     for Playing single / live / competitive AND Played, matching the
+     music + TV layout). Backloggd is intentionally still excluded —
+     the user did NOT include it in the request, and its existing
+     compact-card treatment stays untouched. `isGamePlayingOrBacklogCard`
+     is preserved as-is because it still drives the cover-only compact
+     class, the details-panel gate, and the edit-button gate further
+     down — those behaviors are independent of the action row. */
+  const isGameBackloggdCard = isGameCard
+    && !isGamesWishlistCard
+    && !isCompetitiveGameCard
+    && activeTab === 'planned';
   const shouldTrimGameActivityMetadata = isGameCard
     && !isGamesWishlistCard
     && !isCompetitiveGameCard
@@ -2592,7 +3192,16 @@ function renderCard(item, isDraggable) {
   const isInlineProgressPercentCard = type === "show"
     && (activeSection === 'shows' || activeSection === 'anime')
     && ['watching', 'paused'].includes(String(item?.status || '').trim());
-  const shouldShiftTvShowRatingLayout = activeSection === 'shows'
+  /* v10.430: extended from shows-only to shows + anime so anime
+     watching/paused cards inherit the same progress-bar + bottom-left
+     rating bubble + inline next-episode slot layout that TV shows
+     watching/paused uses. Spec was "exactly the layout of the title
+     card on TV shows watching" for anime watching / watched / paused
+     — for watched the action-row position is handled via the CSS
+     selector extension (see `data-library-section="anime"` rules
+     below), so this JS variable only needs to mirror the in-progress
+     statuses where shows uses it. */
+  const shouldShiftTvShowRatingLayout = (activeSection === 'shows' || activeSection === 'anime')
     && ['watching', 'paused'].includes(String(item?.status || '').trim());
   const shouldHideMyListCardOverallRating = (
       activeTab === 'planned' && (activeSection === 'movies' || activeSection === 'shows' || activeSection === 'anime')
@@ -2640,23 +3249,56 @@ function renderCard(item, isDraggable) {
   const tvShowNextEpisodeInlineHtml = shouldShiftTvShowRatingLayout
     ? `<div class="tv-show-next-episode-slot${nextEpisodeActionHtml ? ' has-next-episode' : ''}">${nextEpisodeActionHtml}</div>`
     : '';
-  const overallRatingHtml = shouldHideMyListCardOverallRating ? '' : `<div class="rating-area">
+  /* v10.404 / v10.407: rating BUBBLE replaces the legacy 10-stars-laid-
+     out widget on title cards in:
+       shows   watching / watched / paused
+       anime   watching / watched / paused
+       music   watching (In Rotation) / watched (Listened)
+       movies  watched                                    (added v10.407)
+       games   watching / live / competitive / watched    (added v10.407)
+     Bubble lives at bottom-LEFT of the card, aligned with the poster.
+     Music + planned stays on the inline widget. Games + planned/wishlist
+     stay on their existing widget (no rating shown there per the
+     existing shouldHideMyListCardOverallRating gating). */
+  const isMusicSection = activeSection === 'music';
+  const itemStatus = String(item?.status || '').trim();
+  /* v10.530: rating bubble now appears on every active/engaged status
+     across all categories, not just the original narrow per-section
+     lists. Movies previously only got the bubble on 'watched' — the
+     'paused' status was missing, producing the legacy inline rating
+     widget on paused movie cards (the issue the user reported).
+     Same expansion applied to music ('paused') and games ('paused')
+     for consistency — any state where the user has actually engaged
+     with the title gets the bubble. The remaining excluded states
+     (planned / wishlist / dropped per-category gating below) still
+     fall through to the inline widget OR hide the rating entirely
+     via `shouldHideMyListCardOverallRating`. */
+  const useRatingBubble = !shouldHideMyListCardOverallRating && (
+    ((activeSection === 'shows' || activeSection === 'anime') && ['watching', 'watched', 'paused'].includes(itemStatus))
+    || (isMusicSection && ['watching', 'watched', 'paused'].includes(itemStatus))
+    || (activeSection === 'movies' && ['watched', 'paused'].includes(itemStatus))
+    || (activeSection === 'games' && ['watching', 'live', 'competitive', 'watched', 'paused'].includes(itemStatus))
+  );
+  const overallRatingHtml = shouldHideMyListCardOverallRating
+    ? ''
+    : (useRatingBubble
+        ? buildRatingBubbleMarkup(item, activeSection)
+        : `<div class="rating-area">
             <div class="rating-label">Rating</div>
             ${renderMyListCardOverallRating(item, activeSection)}
-          </div>`;
+          </div>`);
   /* v10.393: music cards put the rating at the BOTTOM-LEFT of the card,
      aligned with the album-cover left edge — mirrors the Musicboard
-     layout. Implemented via the same shift pattern already used for
-     watching/paused TV shows: empty `inline` slot, populated bottom-left
-     slot. CSS in 01-mylists-cards-episodes.css positions
-     `.music-bottom-rating-slot` flush-left in the action row. */
-  const isMusicSection = activeSection === 'music';
-  const inlineOverallRatingHtml = (shouldShiftTvShowRatingLayout || isMusicSection) ? '' : overallRatingHtml;
-  const bottomLeftOverallRatingHtml = shouldShiftTvShowRatingLayout
-    ? `<div class="tv-show-bottom-rating-slot">${overallRatingHtml}</div>`
-    : (isMusicSection
-        ? `<div class="music-bottom-rating-slot">${overallRatingHtml}</div>`
-        : '');
+     layout. v10.404: same bottom-left slot pattern now extended to
+     bubble-using cards across shows/anime/music+listed-statuses. */
+  const inlineOverallRatingHtml = (shouldShiftTvShowRatingLayout || isMusicSection || useRatingBubble) ? '' : overallRatingHtml;
+  const bottomLeftOverallRatingHtml = useRatingBubble
+    ? `<div class="rating-bubble-bottom-left-slot">${overallRatingHtml}</div>`
+    : (shouldShiftTvShowRatingLayout
+        ? `<div class="tv-show-bottom-rating-slot">${overallRatingHtml}</div>`
+        : (isMusicSection
+            ? `<div class="music-bottom-rating-slot">${overallRatingHtml}</div>`
+            : ''));
   const showCommentButton = !shouldHideMyListCommentButton(activeSection, item);
   const gamesWishlistMetadataHtml = renderGamesWishlistMetadataHtml(item, activeSection, activeTab);
 
@@ -2708,10 +3350,20 @@ function renderCard(item, isDraggable) {
   const competitiveStatsHtml = isGameCard && !isGamesWishlistCard && typeof renderScreenListCompetitiveStatsCardHtml === 'function'
     ? renderScreenListCompetitiveStatsCardHtml(item)
     : '';
+  /* v10.434: SIMPLIFIED to Hours played only — Platform and
+     Tracker/Stats rows removed UNIVERSALLY for every game title
+     card (single / live / competitive / played / backloggd; wishlist
+     uses its own metadata renderer). Spec was "for all title cards,
+     remove platform from the title cards. It should only read the
+     title, the status button, the hours played, and then the action
+     row." So one stat row remains: Hours played. v10.433's
+     competitive-only Hours-row suppression is REVERTED — competitive
+     now shows Hours like every other game status. The dedicated
+     competitive stats card (`competitiveStatsHtml`) still renders
+     separately below for competitive-specific data (rating, peak
+     rank, etc.), so context is preserved. */
   const gameStatsHtml = isGameCard && !isGamesWishlistCard ? `<div class="game-card-stats-inline">
     <div class="game-card-stat-row"><span class="game-card-stat-label">Hours played:</span><span class="game-card-stat-val">${escHtml(gameStatHours)}</span></div>
-    <div class="game-card-stat-row"><span class="game-card-stat-label">Platform:</span><span class="game-card-stat-val">${escHtml(gameStatPlatform)}</span></div>
-    ${shouldTrimGameActivityMetadata ? '' : `<div class="game-card-stat-row"><span class="game-card-stat-label">Tracker/Stats:</span>${gameStatTracker ? `<a class="game-card-tracker-icon-link" href="${escAttr(gameStatTracker)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" aria-label="Open Tracker/Stats">${getScreenListGameTrackerIconSvg()}</a>` : '<span class="game-card-stat-val">—</span>'}</div>`}
   </div>` : '';
 
   // v318: game cards get inline comment dropdown; other cards navigate to comments page
@@ -2730,8 +3382,17 @@ function renderCard(item, isDraggable) {
   const dragAttrs = isDraggable
     ? `draggable="true" ondragstart="onCardDragStart(event,'${item.id}')" ondragover="onCardDragOver(event)" ondragleave="onCardDragLeave(event)" ondrop="onCardDrop(event,'${item.id}')"`
     : '';
+  /* v10.488: Movies → Watchlist card layout overhaul. Per user spec:
+     1. Drop the year metadata entirely on movies-watchlist cards.
+     2. Hoist the status button up to sit directly beneath the title
+        (it previously rendered AFTER year + genre + watchlist meta).
+     Implemented as a conditional gate + a single statusPillsHtml string
+     placed in one of two slots so the status pill's element id stays
+     unique (rendering it in both slots would duplicate the id). */
+  const isMoviesWatchlistCard = activeSection === 'movies' && activeTab === 'planned';
+  const statusPillsHtml = !viewingUser ? `<div class="status-pills status-pills-selector-wrap" id="status-pills-${item.id}">${statusSelectorHtml}</div>` : '';
   return `
-    <div class="card ${type === "show" ? "show-card" : ""}${isGameCard ? " game-library-card" : ""}${isGamesWishlistCard ? " games-wishlist-card" : ""}${isGamePlayingOrBacklogCard ? " game-playing-backlog-compact-card" : ""}${shouldShiftTvShowRatingLayout ? " tv-show-progress-rating-shift-card" : ""} ${viewingUser ? "friend-view-card" : ""}${isDraggable ? ' card-draggable' : ''}" id="card-${item.id}" data-mylist-review-card data-library-item-id="${itemIdAttr}" data-library-section="${itemSectionAttr}" onclick="handleMyListCardReviewSurfaceClick(event,'${itemIdAttr}','${itemSectionAttr}')" ${dragAttrs}>
+    <div class="card ${type === "show" ? "show-card" : ""}${isGameCard ? " game-library-card" : ""}${isGamesWishlistCard ? " games-wishlist-card" : ""}${isCompetitiveGameCard ? " game-competitive-card" : ""}${isGamePlayingOrBacklogCard ? " game-playing-backlog-compact-card" : ""}${shouldShiftTvShowRatingLayout ? " tv-show-progress-rating-shift-card" : ""}${useRatingBubble ? " card-uses-rating-bubble" : ""}${isMoviesWatchlistCard ? " movies-watchlist-card" : ""} ${viewingUser ? "friend-view-card" : ""}${isDraggable ? ' card-draggable' : ''}" id="card-${item.id}" data-mylist-review-card data-library-item-id="${itemIdAttr}" data-library-section="${itemSectionAttr}" onclick="handleMyListCardReviewSurfaceClick(event,'${itemIdAttr}','${itemSectionAttr}')" ${dragAttrs}>
       <div class="card-header">
         <div class="${coverClass}${coverProfileClass}" style="${coverStyle}" ${coverPosterAttr} ${coverProfileAttrs}${activeSection === 'music' ? ` onclick="event.stopPropagation();openMyListMusicCoverClick('${itemIdAttr}')"` : ''}>
           ${!cardCoverSrc ? (isGameCard ? `<span>${SCREENLIST_GAME_COVER_PLACEHOLDER_TEXT}</span>` : emoji) : ''}
@@ -2741,9 +3402,10 @@ function renderCard(item, isDraggable) {
             <div class="card-title">${gameTitleMarkup}</div>
             ${!viewingUser ? `<button class="delete-btn" onclick="deleteItem(event,'${item.id}')" title="Delete">×</button>` : (currentUser ? `<button class="friend-card-add-btn${friendAlreadyAdded ? ' added' : ''}" data-friend-item-id="${escHtml(item.id)}" onclick="event.stopPropagation();openFriendAddModal(this.dataset.friendItemId, this)" title="Add to my list">+</button>` : '')}
           </div>
+          ${isMoviesWatchlistCard ? statusPillsHtml : ''}
           ${gameStatsHtml}
           ${competitiveStatsHtml}
-          ${(((activeTab === 'planned' && isScreenListMovieTvAnimeSection(activeSection))
+          ${(((activeTab === 'planned' && isScreenListMovieTvAnimeSection(activeSection) && !isMoviesWatchlistCard)
               /* v10.76: Movies → Watched also shows year between title and genre.
                  v10.77: extended to ALL watched movie/TV/anime cards so the
                  metadata order (title → year → genre → status → rating → comment)
@@ -2753,15 +3415,25 @@ function renderCard(item, isDraggable) {
                  generic styling (font-size/color/weight), not watchlist-specific.
                  Applies on viewed-user lists too — same renderer, read-only by
                  way of the existing viewingUser-gated chrome elsewhere.
-                 v10.231: also show year for music album cards. */
+                 v10.231: also show year for music album cards.
+                 v10.488: movies-watchlist cards now skip the year per
+                 user spec (excluded via `!isMoviesWatchlistCard`). */
               || (activeTab === 'watched' && isScreenListMovieTvAnimeSection(activeSection))
               || activeSection === 'music')
               && item.year) ? `<div class="card-year mylist-watchlist-year">${escHtml(String(item.year).slice(0, 4))}</div>` : ''}
           ${(activeSection === 'music' && item.artist) ? `<div class="card-artist">${escHtml(String(item.artist))}</div>` : ''}
-          ${activeTab === 'planned' && isScreenListMovieTvAnimeSection(activeSection) ? '' : (!shouldTrimGameActivityMetadata && !isGamesWishlistCard && (!shouldHideMyListCardGenre(activeSection, item) && item.genre) ? `<div class="card-genre">${escHtml(isScreenListWatchedMediaCard(activeSection, item) ? formatMyListGenreList(item.genre, 2) : item.genre)}</div>` : '')}
+          ${/* v10.434: genre suppressed for ALL game title cards per
+                spec ("only read the title, the status button, the
+                hours played, and then the action row" — genre not in
+                the list). Added `!isGameCard` to the show-genre gate.
+                The earlier `shouldTrimGameActivityMetadata` +
+                `isCompetitiveGameCard` gates are now redundant for
+                games but kept in place because they're cheap and
+                document the prior intent. Movies / TV / anime / music
+                / books still show genre under their normal rules. */ ''}${activeTab === 'planned' && isScreenListMovieTvAnimeSection(activeSection) ? '' : (!isGameCard && !shouldTrimGameActivityMetadata && !isCompetitiveGameCard && !isGamesWishlistCard && (!shouldHideMyListCardGenre(activeSection, item) && item.genre) ? `<div class="card-genre">${escHtml(isScreenListWatchedMediaCard(activeSection, item) ? formatMyListGenreList(item.genre, 2) : item.genre)}</div>` : '')}
           ${gamesWishlistMetadataHtml}
           ${renderMyListWatchListMetadataHtml(item, activeSection, activeTab)}
-          ${!viewingUser ? `<div class="status-pills status-pills-selector-wrap" id="status-pills-${item.id}">${statusSelectorHtml}</div>` : ''}
+          ${!isMoviesWatchlistCard ? statusPillsHtml : ''}
           ${type === "show" ? (item.status === 'planned' ? `
             <div class="progress-area">
               <div class="progress-meta"><span id="progress-count-${item.id}">${totalEps > 0 ? `${totalEps} episodes` : 'Episodes TBD'}</span></div>
@@ -2794,7 +3466,7 @@ function renderCard(item, isDraggable) {
           ${gamesWishlistPriorityHtml}
         </div>
       </div>
-      ${!isGamePlayingOrBacklogCard ? `<div class="card-action-row${bottomExternalBadgeHtml ? ' has-bottom-export' : ''}${watchlistPriorityHtml ? ' has-watch-priority' : ''}${nextEpisodeActionRowHtml ? ' has-next-episode' : ''}">
+      ${!isGameBackloggdCard ? `<div class="card-action-row${bottomExternalBadgeHtml ? ' has-bottom-export' : ''}${watchlistPriorityHtml ? ' has-watch-priority' : ''}${nextEpisodeActionRowHtml ? ' has-next-episode' : ''}">
         ${bottomLeftOverallRatingHtml}
         ${nextEpisodeActionRowHtml}
         ${bottomExternalBadgeHtml ? `<div class="mylist-card-bottom-export">${bottomExternalBadgeHtml}</div>` : ''}
@@ -2808,7 +3480,7 @@ function renderCard(item, isDraggable) {
         <div class="card-right-controls">
           ${episodeToggleButton}
           ${renderWatchTogetherCardControl(item, activeSection)}
-          ${activeSection === 'music' ? `<button class="card-tracklist-btn" type="button" onclick="event.stopPropagation();openMyListAlbumPage('${itemIdAttr}')" aria-label="Open album tracklist">Tracklist</button>` : ''}
+          ${activeSection === 'music' ? `<button class="card-tracklist-btn" type="button" onclick="event.stopPropagation();openMyListAlbumPage('${itemIdAttr}')" aria-label="Open album details">Details</button>` : ''}
           ${buildCardCommentAddBtnHtml(item)}
         </div>
       </div>` : ''}
@@ -2817,7 +3489,14 @@ function renderCard(item, isDraggable) {
       ${item.shelfdActivityNote ? `<div class="card-activity-note" data-card-activity-note>${escHtml(item.shelfdActivityNote)}</div>` : ''}
       ${episodeSection}
       ${isCompetitiveGameCard ? `<button class="game-card-more-btn" type="button" onclick="event.stopPropagation();openMyListGameProfilePage('${itemIdAttr}')" aria-label="Open game profile">More</button>` : ''}
-      ${isGameCard && !isGamesWishlistCard && !isCompetitiveGameCard && !isGamePlayingOrBacklogCard && !viewingUser && !screenlistGameDetailsEditState[gameDetailsKey] ? `<button class="game-card-edit-btn" type="button" onclick="event.stopPropagation();openGameDetailsEdit('${gameDetailsKey}')" aria-label="Edit game details">${getScreenListGamePencilSvg()}</button>` : ''}
+      ${/* v10.429: pencil edit-button removed per spec. The legacy
+            affordance routed through `openGameDetailsEdit()` to expand
+            an inline editor on the card, but the surface is going away
+            entirely — no icon rendered, and the handler simply won't
+            be reachable from MyList anymore. The function definition
+            is intentionally left in place (unused) so other code paths
+            (e.g. the game profile page) that might still call it don't
+            ReferenceError; cleaning it up is a separate sweep. */ ''}
     </div>
   `;
 }
@@ -3074,9 +3753,15 @@ function renderMyListReviewTracklistToggle(item = {}) {
 function renderMyListReviewRating(item = {}, section = activeSection) {
   const rating = Number(item?.rating || 0);
   if (!rating) return '<div class="mylist-review-rating-empty">No rating yet</div>';
-  const label = typeof formatRatingValueForSection === 'function'
+  /* v10.516: full-page review now appends the "/5" suffix to the
+     numeric label to match the app-wide 5-star half-step display
+     (e.g. "3/5", "3.5/5"). Pulls the numeric value via the standard
+     `formatRatingValueForSection` (which already divides the stored
+     1–10 by 2 in five-point mode) and appends the suffix here. */
+  const numericLabel = typeof formatRatingValueForSection === 'function'
     ? formatRatingValueForSection(rating, section)
-    : String(rating);
+    : String(rating / 2);
+  const label = `${numericLabel}/5`;
   const stepCount = typeof getRatingStepCountForSection === 'function' ? getRatingStepCountForSection(section) : 10;
   const visualRating = stepCount === 5 ? rating / 2 : rating;
   const filledCount = Math.max(1, Math.min(stepCount, Math.floor(visualRating)));
@@ -3093,6 +3778,58 @@ function openMyListMediaReviewActions(event = null) {
   overlay.classList.add('actions-open');
 }
 window.openMyListMediaReviewActions = openMyListMediaReviewActions;
+
+/* v10.550: Non-owner review top-right — three-dot opens a small sheet
+   with "Share review" and "Report review". Reads ownerUid + authorName
+   from the overlay dataset so no extra params needed in the onclick. */
+function openMyListMediaReviewViewerActions(event = null) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const overlay = document.getElementById('mylist-media-review-page');
+  if (!overlay || overlay.dataset.reviewIsOwner === 'true') return;
+  const ownerUid   = overlay.dataset.reviewOwnerUid   || '';
+  const itemId     = overlay.dataset.reviewItemId     || '';
+  const authorName = overlay.dataset.reviewAuthorName || '';
+  const reportLabel = authorName ? `${authorName}'s review` : 'this review';
+
+  if (document.getElementById('mylist-review-viewer-menu')) return;
+  const menu = document.createElement('div');
+  menu.id = 'mylist-review-viewer-menu';
+  menu.className = 'mylist-media-review-viewer-menu';
+  menu.innerHTML = `
+    <button type="button" data-viewer-menu-share>Share review</button>
+    <button type="button" class="is-report" data-viewer-menu-report>Report review</button>
+  `;
+  const btn = event?.currentTarget || event?.target;
+  if (btn) btn.parentNode.appendChild(menu);
+  else overlay.querySelector('.mylist-media-review-topbar')?.appendChild(menu);
+
+  menu.querySelector('[data-viewer-menu-share]').addEventListener('click', e => {
+    e.stopPropagation();
+    menu.remove();
+    shareMyListMediaReview(null);
+  });
+  menu.querySelector('[data-viewer-menu-report]').addEventListener('click', e => {
+    e.stopPropagation();
+    menu.remove();
+    if (typeof window.openReportSheet === 'function') {
+      window.openReportSheet('review', ownerUid, itemId, reportLabel);
+    }
+  });
+  /* Dismiss on outside tap */
+  setTimeout(() => {
+    function onOutside(e) {
+      if (!menu.contains(e.target)) {
+        menu.remove();
+        document.removeEventListener('click', onOutside, true);
+        document.removeEventListener('touchstart', onOutside, true);
+      }
+    }
+    document.addEventListener('click', onOutside, true);
+    document.addEventListener('touchstart', onOutside, true);
+  }, 0);
+}
+window.openMyListMediaReviewViewerActions = openMyListMediaReviewViewerActions;
 
 function closeMyListMediaReviewActions(event = null) {
   event?.preventDefault?.();
@@ -3546,6 +4283,22 @@ function synthesizeMediaReviewRecordFromActivity(needle = '', section = '') {
   if (!activity) return null;
   const item = activity.item || {};
   const itemSection = item.librarySection || item.mediaCategory || section || '';
+  /* v10.443: convert activity.timestamp / activity.activityCreatedAt to
+     an ISO date so the FPReview date line shows the real activity
+     date. Same multi-shape handler as the feed-post version above. */
+  const dateIso = (function resolveTimestamp() {
+    const t = activity.timestamp || activity.activityCreatedAt || activity.createdAt || activity.eventDate;
+    if (!t) return '';
+    try {
+      if (typeof t === 'object' && typeof t.toDate === 'function') return t.toDate().toISOString();
+      if (typeof t === 'number' && Number.isFinite(t)) return new Date(t).toISOString();
+      if (typeof t === 'string') {
+        const ms = Date.parse(t);
+        if (Number.isFinite(ms)) return new Date(ms).toISOString();
+      }
+    } catch (_) {}
+    return '';
+  })();
   const synthItem = {
     id: item.id || '',
     title: item.title || '',
@@ -3555,14 +4308,44 @@ function synthesizeMediaReviewRecordFromActivity(needle = '', section = '') {
     librarySection: itemSection,
     mediaCategory: itemSection,
     reviewText: '',
-    reviewActivityId: activity.postId || activity.activityId || ''
+    reviewActivityId: activity.postId || activity.activityId || '',
+    /* v10.443: pre-populate the date fields the FPReview reader scans
+       so non-friend viewers see "Watched / Listened / Played {date}"
+       instead of "date not set" when they open the review from a
+       feed click. */
+    dateWatched: dateIso,
+    watchedAt: dateIso,
+    completedAt: dateIso,
+    dateAdded: dateIso,
+    createdAt: dateIso
   };
   const profile = (typeof window !== 'undefined' && window.usersMap && window.usersMap[activity.uid]) || {};
-  const fallbackName = profile?.name || profile?.customName || activity.name || 'Shelfd User';
+  /* v10.443: expanded fallback chain — checks the activity-baked
+     name/photo (always saved when the activity card was created)
+     before settling on the generic "Shelfd User" string. */
+  const fallbackName = profile?.name
+    || profile?.customName
+    || profile?.displayName
+    || activity.name
+    || activity.displayName
+    || activity.authorName
+    || 'Shelfd User';
   const author = {
     name: fallbackName,
-    photo: profile?.photo || profile?.customPhoto || activity.photo || getMyListReviewFallbackAvatar(fallbackName)
+    photo: profile?.photo
+      || profile?.customPhoto
+      || profile?.photoURL
+      || activity.photo
+      || activity.authorPhoto
+      || activity.photoURL
+      || getMyListReviewFallbackAvatar(fallbackName)
   };
+  /* v10.443: if usersMap missed this author, fire a one-shot
+     background fetch + DOM patch so the FPReview swaps to the real
+     profile data once it lands. Same helper as the feed-synth path. */
+  if (activity.uid && (!window.usersMap || !window.usersMap[activity.uid])) {
+    setTimeout(() => fetchAndPatchMyListReviewAuthor(activity.uid), 0);
+  }
   return {
     item: synthItem,
     section: itemSection,
@@ -3576,7 +4359,17 @@ function synthesizeMediaReviewRecordFromActivity(needle = '', section = '') {
 
 /* v10.220: build a stand-in record from a media-review feed post when the
    live item isn't in the viewer's local data (e.g., the viewer clicked the
-   review activity card from the feed and hasn't loaded that friend's list). */
+   review activity card from the feed and hasn't loaded that friend's list).
+   v10.443: cascaded MORE fallback paths for author + date + review-text so
+   non-friends / cold-cache viewers see the real post creator instead of
+   "Shelfd User". Was: only checked usersMap. Now: usersMap → post.name /
+   post.displayName / post.photo (baked into the post at create time on
+   some surfaces) → existing fallback. ALSO: derive a watched/listened
+   date from `post.timestamp` so the FPReview date line ("Watched Mar 12,
+   2024") populates instead of "Watched date not set". Plus a tiny
+   trampoline that async-fetches the author's profile from Firestore
+   when nothing local matches, then patches the DOM after the page is
+   already open so the avatar + name swap in. */
 function synthesizeMediaReviewRecordFromFeed(needle = '', section = '') {
   const wanted = String(needle || '').trim();
   if (!wanted) return null;
@@ -3587,6 +4380,22 @@ function synthesizeMediaReviewRecordFromFeed(needle = '', section = '') {
   if (!post) post = posts.find(p => p?.type === 'media-review' && (p?.item?.id === wanted || p?.reviewSourceItemId === wanted));
   if (!post) return null;
   const postItem = post.item || {};
+  /* v10.443: convert post.timestamp into an ISO date string the existing
+     `getMyListReviewDateLine` reader can parse. Handles three shapes:
+     Firestore Timestamp (`.toDate()` available), ms-number, ISO string. */
+  const dateIso = (function resolveTimestamp() {
+    const t = post.timestamp;
+    if (!t) return '';
+    try {
+      if (typeof t === 'object' && typeof t.toDate === 'function') return t.toDate().toISOString();
+      if (typeof t === 'number' && Number.isFinite(t)) return new Date(t).toISOString();
+      if (typeof t === 'string') {
+        const ms = Date.parse(t);
+        if (Number.isFinite(ms)) return new Date(ms).toISOString();
+      }
+    } catch (_) {}
+    return '';
+  })();
   const item = {
     id: postItem.id || post.reviewSourceItemId || '',
     title: postItem.title || '',
@@ -3595,15 +4404,45 @@ function synthesizeMediaReviewRecordFromFeed(needle = '', section = '') {
     rating: postItem.rating || 0,
     librarySection: postItem.librarySection || section || '',
     mediaCategory: postItem.mediaCategory || section || '',
-    reviewText: post.reviewText || post.content?.text || '',
-    reviewActivityId: post.postId || ''
+    reviewText: post.reviewText || post.content?.text || post.content?.body || '',
+    reviewActivityId: post.postId || '',
+    /* v10.443: populate every date field the reader scans so the
+       FPReview's "Watched / Listened / Played {date}" line resolves
+       to the post's actual creation date. */
+    dateWatched: dateIso,
+    watchedAt: dateIso,
+    completedAt: dateIso,
+    dateAdded: dateIso,
+    createdAt: dateIso
   };
   const author = (() => {
     const profile = (window.usersMap && window.usersMap[post.uid]) || {};
-    const name = profile?.name || profile?.customName || 'Shelfd User';
-    const photo = profile?.photo || profile?.customPhoto || getMyListReviewFallbackAvatar(name);
+    /* v10.443: post-level author info (name/displayName/photo baked
+       into the feed doc at write time) is now in the fallback chain
+       AHEAD of the generic "Shelfd User" string. */
+    const name = profile?.name
+      || profile?.customName
+      || profile?.displayName
+      || post.name
+      || post.displayName
+      || post.authorName
+      || 'Shelfd User';
+    const photo = profile?.photo
+      || profile?.customPhoto
+      || profile?.photoURL
+      || post.photo
+      || post.authorPhoto
+      || post.photoURL
+      || getMyListReviewFallbackAvatar(name);
     return { name, photo };
   })();
+  /* v10.443: if usersMap had no entry for this author, fire a one-shot
+     Firestore fetch in the background and patch the open FPReview
+     overlay's avatar + name when it lands. Tolerates a missing db /
+     non-Firestore environment via the typeof guards. */
+  if (post.uid && (!window.usersMap || !window.usersMap[post.uid])) {
+    setTimeout(() => fetchAndPatchMyListReviewAuthor(post.uid), 0);
+  }
   return {
     item,
     section: item.librarySection || section || '',
@@ -3614,6 +4453,73 @@ function synthesizeMediaReviewRecordFromFeed(needle = '', section = '') {
     ownerUid: post.uid || ''
   };
 }
+
+/* v10.443: one-shot async profile fetch + DOM patch for the FPReview.
+   Used when synthesizeMediaReviewRecordFromFeed / FromActivity opens
+   the review before usersMap has loaded the author's profile. Fetches
+   `users/{uid}`, caches into usersMap, then if the FPReview overlay is
+   still open AND still showing the same author, swaps in the real
+   name + photo. Silent on any error — the fallback "Shelfd User"
+   stays visible if the fetch fails. */
+async function fetchAndPatchMyListReviewAuthor(uid) {
+  if (!uid || typeof db === 'undefined') return;
+  try {
+    const snap = await db.collection('users').doc(uid).get();
+    if (!snap || !snap.exists) return;
+    const profile = { uid, ...(snap.data() || {}) };
+    if (!window.usersMap) window.usersMap = {};
+    window.usersMap[uid] = { ...(window.usersMap[uid] || {}), ...profile };
+    const overlay = document.getElementById('mylist-media-review-page');
+    if (!overlay) return;
+    if (String(overlay.dataset.reviewOwnerUid || '') !== String(uid)) return;
+    const nameEl = overlay.querySelector('.mylist-media-review-author strong');
+    const avatarEl = overlay.querySelector('.mylist-media-review-author .mylist-media-review-avatar');
+    const resolvedName = profile?.name || profile?.customName || profile?.displayName || '';
+    const resolvedPhoto = profile?.photo || profile?.customPhoto || profile?.photoURL || '';
+    if (nameEl && resolvedName) nameEl.textContent = resolvedName;
+    if (avatarEl && resolvedPhoto) avatarEl.src = resolvedPhoto;
+  } catch (_) { /* non-fatal */ }
+}
+window.fetchAndPatchMyListReviewAuthor = fetchAndPatchMyListReviewAuthor;
+
+/* v10.444: async backstop for review-text. Used when the friend's
+   local item has no `reviewText` field set (sync path returned
+   empty) but the item carries a `reviewActivityId` pointer. Reads
+   `feed/{reviewActivityId}` directly from Firestore — the feed-post
+   doc is the authoritative source for the review body — and if a
+   non-empty text comes back, injects a `<p>` into the open FPReview
+   body. Silent on any failure (permissions, missing doc, network)
+   so the empty body just stays as-is. */
+async function fetchAndPatchMyListReviewText(activityId) {
+  if (!activityId || typeof db === 'undefined') return;
+  try {
+    const snap = await db.collection('feed').doc(activityId).get();
+    if (!snap || !snap.exists) return;
+    const post = snap.data() || {};
+    const text = String(
+      post.reviewText
+      || post.content?.text
+      || post.content?.body
+      || ''
+    ).trim();
+    if (!text) return;
+    const overlay = document.getElementById('mylist-media-review-page');
+    if (!overlay) return;
+    /* Only patch if the body is still empty — don't overwrite
+       something the user might have edited or that synced in
+       between the fetch and the response. */
+    const body = overlay.querySelector('.mylist-media-review-body');
+    if (!body) return;
+    let p = body.querySelector('p');
+    if (p && String(p.textContent || '').trim()) return; // already filled
+    if (!p) {
+      p = document.createElement('p');
+      body.insertBefore(p, body.firstChild);
+    }
+    p.textContent = text;
+  } catch (_) { /* non-fatal — permissions, missing doc, offline */ }
+}
+window.fetchAndPatchMyListReviewText = fetchAndPatchMyListReviewText;
 
 function openFullPageMediaReview(itemId = '', section = activeSection) {
   let record = findMyListReviewItem(itemId, section);
@@ -3636,7 +4542,37 @@ function openFullPageMediaReview(itemId = '', section = activeSection) {
   const title = (typeof getDisplayTitleForItem === 'function' ? getDisplayTitleForItem(item, record.section) : '') || item.title || 'Untitled';
   const poster = record.posterOverride || (typeof getMyListPosterUrlForItem === 'function' ? getMyListPosterUrlForItem(item, record.section) : (item.cover || ''));
   const fallbackAvatar = getMyListReviewFallbackAvatar(author.name);
-  const reviewText = record.reviewTextOverride || getMyListReviewText(item);
+  /* v10.444: when the FPReview opens on a record sourced via
+     `findMyListReviewItem` (e.g., the viewer is browsing a friend's
+     list and tapped a card with `viewingUser` set), the friend's
+     item may not carry a `reviewText` field even though they
+     actually wrote one — the review body in the feed-post doc is
+     the authoritative source on that surface. If the local item
+     has no review text, fall through to the feed-post lookup using
+     the item id as the needle. `synthesizeMediaReviewRecordFromFeed`
+     already knows how to read `post.reviewText || post.content?.text`
+     and reuses the same matching rules; we just pull the
+     `reviewTextOverride` field off its return record. */
+  let reviewText = record.reviewTextOverride || getMyListReviewText(item);
+  if (!reviewText && item.id) {
+    try {
+      const feedRec = synthesizeMediaReviewRecordFromFeed(item.id, record.section);
+      if (feedRec && feedRec.reviewTextOverride) {
+        reviewText = feedRec.reviewTextOverride;
+      }
+    } catch (_) { /* non-fatal */ }
+  }
+  /* v10.444: if STILL no review text after the sync-feed lookup AND the
+     item carries a `reviewActivityId` pointer to a feed post, fire a
+     one-shot Firestore read against `feed/{reviewActivityId}` after the
+     page renders. When the post lands, patch a fresh `<p>` into
+     `.mylist-media-review-body`. This handles the common case where
+     `window.feedPosts` hasn't loaded the friend's posts yet (e.g.,
+     the viewer browsed straight to the friend's list without ever
+     scrolling the activity feed). */
+  const pendingReviewActivityId = (!reviewText)
+    ? String(record.reviewActivityId || item.reviewActivityId || '').trim()
+    : '';
   const dateLine = getMyListReviewDateLine(item, record.section);
   const reviewActivityId = record.reviewActivityId || item.reviewActivityId || '';
   const ownerUid = String(record.ownerUid || (viewingUser ? viewingUser.uid : currentUser?.uid) || '').trim();
@@ -3645,8 +4581,8 @@ function openFullPageMediaReview(itemId = '', section = activeSection) {
     ? `<button class="mylist-media-review-menu" type="button" onclick="openMyListMediaReviewActions(event)" aria-label="Review options">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
         </button>`
-    : `<button class="mylist-media-review-menu mylist-media-review-share-top" type="button" onclick="shareMyListMediaReview(event)" aria-label="Share review">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 16V3"/><path d="m7 8 5-5 5 5"/></svg>
+    : `<button class="mylist-media-review-menu" type="button" onclick="openMyListMediaReviewViewerActions(event)" aria-label="More options">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
         </button>`;
   const overlay = document.createElement('div');
   overlay.id = 'mylist-media-review-page';
@@ -3657,6 +4593,7 @@ function openFullPageMediaReview(itemId = '', section = activeSection) {
   overlay.dataset.reviewSection = record.section || '';
   overlay.dataset.reviewOwnerUid = ownerUid;
   overlay.dataset.reviewIsOwner = isOwnerReview ? 'true' : 'false';
+  overlay.dataset.reviewAuthorName = author.name || '';
   if (reviewActivityId) overlay.dataset.reviewActivityId = reviewActivityId;
   overlay.setAttribute('role', 'dialog');
   overlay.setAttribute('aria-modal', 'true');
@@ -3731,6 +4668,12 @@ function openFullPageMediaReview(itemId = '', section = activeSection) {
   requestAnimationFrame(() => overlay.classList.add('is-open'));
   attachMyListMediaReviewReplyComposer(overlay);
   loadMyListMediaReviewReplies();
+  /* v10.444: async backstop — if the synchronous review-text lookup
+     came up empty and the item still has a reviewActivityId pointer,
+     fetch the feed post directly from Firestore and patch the body. */
+  if (pendingReviewActivityId) {
+    setTimeout(() => fetchAndPatchMyListReviewText(pendingReviewActivityId), 0);
+  }
 
   /* v10.247: wire the tracklist dropdown for music albums. */
   try {
@@ -4351,7 +5294,10 @@ function renderEpisodePageSeasonRatingControl(item = {}, seasonNum = '', rating 
   const stars = Array.from({ length: 10 }, (_, index) => {
     const score = index + 1;
     const lit = score <= value ? ' lit' : '';
-    return `<button type="button" class="mylist-episode-page-season-rating-star${lit}" aria-label="Rate season ${escAttr(sNum)} ${score} out of 10" onclick="rateMyListEpisodePageSeasonRating('${escAttr(itemId)}','${escAttr(sNum)}',${score},event)">&#9733;</button>`;
+    /* v10.509: aria-label adjusted from "out of 10" to "out of 5" with
+       half-star value. score is still the underlying 1-10 unit (each
+       unit = half-star) because the stored rating model is unchanged. */
+    return `<button type="button" class="mylist-episode-page-season-rating-star${lit}" aria-label="Rate season ${escAttr(sNum)} ${(score / 2) % 1 === 0 ? (score / 2) : (score / 2).toFixed(1)} out of 5" onclick="rateMyListEpisodePageSeasonRating('${escAttr(itemId)}','${escAttr(sNum)}',${score},event)">&#9733;</button>`;
   }).join('');
   return `
     <div class="mylist-episode-page-season-rating-control${myListEpisodePageExpandedSeasonRating === key ? ' is-expanded' : ''}" data-rating-key="${escAttr(key)}">
@@ -5318,6 +6264,30 @@ function finishMediaProfileHeroAnimation(animation, done) {
   setTimeout(complete, MEDIA_PROFILE_HERO_DURATION_MS + 80);
 }
 
+function createMediaProfileHeroRevealPromise(overlay) {
+  if (!overlay) return;
+  let resolveReady = null;
+  overlay.__screenListHeroReadyPromise = new Promise(resolve => {
+    resolveReady = resolve;
+  });
+  overlay.__screenListHeroReadyResolve = () => {
+    if (typeof resolveReady === 'function') resolveReady();
+    resolveReady = null;
+    overlay.__screenListHeroReadyResolve = null;
+  };
+}
+
+function resolveMediaProfileHeroRevealPromise(overlay) {
+  if (typeof overlay?.__screenListHeroReadyResolve === 'function') {
+    overlay.__screenListHeroReadyResolve();
+  }
+}
+
+function waitForMediaProfileHeroReveal(overlay) {
+  return overlay?.__screenListHeroReadyPromise || Promise.resolve();
+}
+window.waitForMediaProfileHeroReveal = waitForMediaProfileHeroReveal;
+
 function animateMediaProfileOverlayTransform(overlay, fromTransform, toTransform, done) {
   if (!overlay || typeof overlay.animate !== 'function') {
     if (typeof done === 'function') done();
@@ -5346,9 +6316,13 @@ function animateMediaProfileOverlayTransform(overlay, fromTransform, toTransform
 function revealMediaProfileOverlay(overlay, transitionOrigin = null, triggerEvent = null) {
   const originElement = getMediaProfilePosterOriginElement(transitionOrigin || triggerEvent?.currentTarget || triggerEvent?.target);
   const originRect = getMediaProfileOriginRect(originElement);
+  createMediaProfileHeroRevealPromise(overlay);
 
   if (!canUseMediaProfileHeroAnimation(overlay, originRect)) {
-    requestAnimationFrame(() => overlay?.classList.add('open'));
+    requestAnimationFrame(() => {
+      overlay?.classList.add('open');
+      resolveMediaProfileHeroRevealPromise(overlay);
+    });
     return;
   }
 
@@ -5360,9 +6334,13 @@ function revealMediaProfileOverlay(overlay, transitionOrigin = null, triggerEven
   const endTransform = 'translate3d(0, 0, 0) scale(1, 1)';
 
   animateMediaProfileOverlayTransform(overlay, startTransform, endTransform, () => {
-    if (!document.body.contains(overlay)) return;
+    if (!document.body.contains(overlay)) {
+      resolveMediaProfileHeroRevealPromise(overlay);
+      return;
+    }
     overlay.classList.add('open');
     clearMediaProfileHeroInlineState(overlay);
+    resolveMediaProfileHeroRevealPromise(overlay);
   });
 }
 
@@ -5506,6 +6484,9 @@ function closeGameMediaProfile(reasonOrOptions = null) {
   closeDiscoverMediaLibraryDock();
   const overlay = document.getElementById('discover-media-profile');
   if (!overlay) return;
+  if (typeof destroyDiscoverHeroTrailerPreview === 'function') {
+    try { destroyDiscoverHeroTrailerPreview(overlay); } catch (_) {}
+  }
   document.removeEventListener('keydown', handleGameMediaProfileEsc);
   closeMediaProfileOverlay(overlay, () => {
     document.body.classList.remove('discover-media-profile-open', 'game-media-profile-open');
@@ -5540,15 +6521,21 @@ function renderGameMediaProfileAddButton(rawgId, details) {
   return `<button class="discover-media-add-floating${added ? ' added' : ''}" type="button" data-discover-type="game" data-discover-id="${escAttr(discoverId)}" data-discover-section="games" data-discover-title="${escAttr(title)}" data-discover-poster="${escAttr(poster)}" data-game-identity-key="${escAttr(identityKey || discoverId)}" aria-label="${added ? 'Manage this game in your library' : 'Add this game to your library'}" ${added ? `title="Manage this game in your library"` : ''}>${labelHtml}</button>`;
 }
 
+function getGameMediaProfileShareId(details, rawgId = '') {
+  const identityKey = details?.gameIdentityKey || details?.shelfdGameIdentityLock?.key || '';
+  return String(rawgId || getGameRawgIdValue(details) || identityKey || (details?.igdbId ? `igdb:${details.igdbId}` : '') || '').trim();
+}
+
 function renderGameMediaProfileShell(seed, rawgId = '') {
   const title = getGameTitleValue(seed) || 'Game Profile';
   const poster = getGameMediaImage(seed);
   const year = String(seed?.released || seed?.year || '').slice(0, 4);
   const overview = seed?.description_raw || seed?.description || 'Loading this game profile...';
   const genres = (seed?.genres || []).map(g => g?.name).filter(Boolean).slice(0, 4);
-  return `<section class="discover-media-page game-media-page discover-desktop-title-page" role="dialog" aria-modal="true" aria-label="${escAttr(title)} details">
+  const shareId = getGameMediaProfileShareId(seed, rawgId);
+  return `<section class="discover-media-page discover-standard-title-page game-media-page discover-desktop-title-page" role="dialog" aria-modal="true" aria-label="${escAttr(title)} details">
     <button class="discover-media-back" type="button" onclick="return handleDiscoverMediaProfileBack(event)">Back</button>
-    ${renderMediaProfileTopActions(renderMediaProfileShareButton('game', rawgId || getGameRawgIdValue(seed), title, poster), `${rawgId ? renderGameMediaProfileAddButton(rawgId, seed) : ''}${currentUser && !viewingUser ? `<button class="discover-media-add-floating screenlist-game-profile-cover-btn" type="button" onclick="event.preventDefault();event.stopPropagation();openScreenListGameCoverPickerForSeed('${escAttr(String(rawgId || getGameRawgIdValue(seed) || ''))}','${escAttr(title)}')">Change Cover</button>` : ''}`)}
+    ${renderMediaProfileTopActions(renderMediaProfileShareButton('game', shareId, title, poster), `${rawgId ? renderGameMediaProfileAddButton(rawgId, seed) : ''}${currentUser && !viewingUser ? `<button class="discover-media-add-floating screenlist-game-profile-cover-btn" type="button" onclick="event.preventDefault();event.stopPropagation();openScreenListGameCoverPickerForSeed('${escAttr(String(rawgId || getGameRawgIdValue(seed) || ''))}','${escAttr(title)}')">Change Cover</button>` : ''}`)}
     <div class="discover-media-hero game-media-hero" style="${poster ? `background-image:url('${escAttr(poster)}')` : ''}">
       <div class="discover-media-hero-shade"></div>
       <div class="discover-media-hero-content">
@@ -5601,6 +6588,24 @@ function getGameMetacriticScore(details = {}) {
   return null;
 }
 
+function formatGameMediaProfileFetchedRating(details = {}) {
+  const metacriticScore = getGameMetacriticScore(details);
+  if (metacriticScore !== null) {
+    const normalized = typeof window.normalizeFetchedRatingToFiveStar === 'function'
+      ? window.normalizeFetchedRatingToFiveStar(metacriticScore, 'metacritic')
+      : metacriticScore / 20;
+    return normalized > 0 ? normalized.toFixed(1) : 'N/A';
+  }
+  const rawgRating = Number(details.rating || 0);
+  if (rawgRating > 0) {
+    const normalized = typeof window.normalizeFetchedRatingToFiveStar === 'function'
+      ? window.normalizeFetchedRatingToFiveStar(rawgRating, 'rawg')
+      : rawgRating;
+    return normalized > 0 ? normalized.toFixed(1) : 'N/A';
+  }
+  return 'N/A';
+}
+
 function getGameMediaCredits(details = {}) {
   const rows = [];
   const developers = (details.developers || []).map(dev => dev.name).filter(Boolean).slice(0, 3);
@@ -5613,6 +6618,16 @@ function getGameMediaCredits(details = {}) {
 }
 
 function getGameMediaTrailer(details = {}) {
+  const youtube = details?.gameTrailer || details?.youtubeTrailer || details?.trailer || null;
+  const key = String(youtube?.key || youtube?.videoId || youtube?.youtubeId || '').trim();
+  if (key) {
+    return {
+      key,
+      site: 'YouTube',
+      type: youtube.type || 'Trailer',
+      name: youtube.name || youtube.title || `${getGameTitleValue(details)} trailer`
+    };
+  }
   const clip = details?.clip || {};
   const directCandidates = [
     clip.clip,
@@ -5628,6 +6643,123 @@ function getGameMediaTrailer(details = {}) {
     url,
     poster: typeof clip.preview === 'string' ? clip.preview : ''
   };
+}
+
+const gameMediaTrailerCache = new Map();
+const GAME_TRAILER_FETCH_TIMEOUT_MS = 9000;
+const GAME_TRAILER_CHANNEL_KEYWORDS = [
+  'official', 'playstation', 'xbox', 'nintendo', 'steam', 'epic games',
+  'game trailers', 'gamespot trailers', 'ign', 'devolver', 'ubisoft',
+  'bethesda', 'ea', 'electronic arts', 'activision', 'blizzard', 'capcom',
+  'square enix', 'bandai namco', 'sega', 'atlus', 'konami', 'rockstar',
+  '2k', 'riot games', 'marvel games', 'warner bros games', 'wb games',
+  'cd projekt', 'fromsoftware', 'kojima productions', 'insomniac games',
+  'naughty dog', 'sucker punch', 'santa monica studio', 'bungie', 'valve',
+  'mojang', 'epic games', 'netease games', 'hoyoverse', 'pokemon',
+  'the pokemon company'
+];
+const GAME_TRAILER_BAD_TITLE_PATTERN = /\b(review|reaction|walkthrough|lets play|let's play|tips|guide|explained|analysis|mods?|soundtrack|ost|full game|part\s+\d+|mission|boss fight)\b/i;
+const GAME_TRAILER_GOOD_TITLE_PATTERN = /\b(official\s+trailer|launch\s+trailer|reveal\s+trailer|announcement\s+trailer|gameplay\s+trailer|story\s+trailer|cinematic\s+trailer|teaser\s+trailer|trailer)\b/i;
+
+function normalizeGameTrailerText(value = '') {
+  return String(value || '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function gameTrailerTitleMatches(details = {}, videoTitle = '') {
+  const title = normalizeGameTrailerText(getGameTitleValue(details));
+  const video = normalizeGameTrailerText(videoTitle);
+  if (!title || !video) return false;
+  const tokens = title.split(' ').filter(token => token.length > 2);
+  if (!tokens.length) return video.includes(title);
+  const matched = tokens.filter(token => video.includes(token)).length;
+  return matched >= Math.min(tokens.length, Math.max(2, Math.ceil(tokens.length * 0.58)));
+}
+
+function gameTrailerChannelLooksOfficial(details = {}, channelTitle = '') {
+  const channel = normalizeGameTrailerText(channelTitle);
+  if (!channel) return false;
+  if (GAME_TRAILER_CHANNEL_KEYWORDS.some(keyword => channel.includes(normalizeGameTrailerText(keyword)))) return true;
+  const parties = [
+    ...(details.developers || []).map(dev => dev?.name),
+    ...(details.publishers || []).map(pub => pub?.name),
+    getGameTitleValue(details)
+  ].map(normalizeGameTrailerText).filter(Boolean);
+  return parties.some(name => name.length >= 4 && channel.includes(name));
+}
+
+function scoreGameTrailerCandidate(details = {}, item = {}) {
+  const videoId = String(item.videoId || item.id?.videoId || '').trim();
+  const title = String(item.title || '').trim();
+  if (!videoId || !title) return -Infinity;
+  if (GAME_TRAILER_BAD_TITLE_PATTERN.test(title)) return -Infinity;
+  if (!gameTrailerTitleMatches(details, title)) return -Infinity;
+  let score = 0;
+  if (GAME_TRAILER_GOOD_TITLE_PATTERN.test(title)) score += 70;
+  if (/\bofficial\b/i.test(title)) score += 22;
+  if (/\b(launch|reveal|announcement|gameplay|story|cinematic|teaser)\b/i.test(title)) score += 12;
+  if (gameTrailerChannelLooksOfficial(details, item.channelTitle || '')) score += 42;
+  const year = String(details.released || details.year || '').slice(0, 4);
+  if (year && String(title).includes(year)) score += 8;
+  return score;
+}
+
+function getGameTrailerSearchQueries(details = {}) {
+  const title = getGameTitleValue(details);
+  if (!title) return [];
+  const year = String(details.released || details.year || '').slice(0, 4);
+  return [
+    `${title}${year ? ` ${year}` : ''} official trailer game`,
+    `${title} official launch trailer`,
+    `${title} gameplay trailer`
+  ];
+}
+
+async function fetchGameYoutubeSearch(query = '') {
+  const clean = String(query || '').trim();
+  if (!clean) return [];
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), GAME_TRAILER_FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(`/api/youtube/search?q=${encodeURIComponent(clean)}`, { signal: controller.signal });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return Array.isArray(json?.items) ? json.items : [];
+  } catch (_) {
+    return [];
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function resolveGameMediaProfileTrailer(details = {}, rawgId = '') {
+  const direct = getGameMediaTrailer(details);
+  if (direct?.key) return direct;
+  const cacheKey = String(rawgId || getGameRawgIdValue(details) || getGameTitleValue(details) || '').toLowerCase();
+  if (cacheKey && gameMediaTrailerCache.has(cacheKey)) return gameMediaTrailerCache.get(cacheKey);
+  let best = null;
+  let bestScore = -Infinity;
+  for (const query of getGameTrailerSearchQueries(details)) {
+    const results = await fetchGameYoutubeSearch(query);
+    for (const item of results) {
+      const score = scoreGameTrailerCandidate(details, item);
+      if (score > bestScore) {
+        bestScore = score;
+        best = item;
+      }
+    }
+    if (bestScore >= 120) break;
+  }
+  const trailer = best && bestScore > 0
+    ? {
+        key: String(best.videoId || best.id?.videoId || '').trim(),
+        site: 'YouTube',
+        type: 'Trailer',
+        name: best.title || `${getGameTitleValue(details)} trailer`,
+        channelTitle: best.channelTitle || ''
+      }
+    : direct;
+  if (cacheKey) gameMediaTrailerCache.set(cacheKey, trailer || null);
+  return trailer || null;
 }
 
 function renderExternalLinkLabelWithLogo(title, logoUrl = '') {
@@ -6004,14 +7136,17 @@ function renderGameMediaProfileDetails(details, rawgId = '') {
   const overview = String(details.description_raw || details.description || 'No overview is available yet.').replace(/<[^>]*>/g, '');
   const genres = (details.genres || []).map(g => g.name).filter(Boolean).slice(0, 4);
   const facts = getGameMediaFacts(details);
-  const metacriticScore = getGameMetacriticScore(details);
-  const score = metacriticScore !== null ? String(metacriticScore) : 'N/A';
+  const score = formatGameMediaProfileFetchedRating(details);
   const trailer = getGameMediaTrailer(details);
+  const heroTrailer = trailer?.key ? trailer : null;
+  const directTrailer = trailer?.url && !heroTrailer ? trailer : null;
   const screenshots = (details.screenshots?.results || details.short_screenshots || []).filter(img => img?.image).slice(0, 8);
-  return `<section class="discover-media-page game-media-page" role="dialog" aria-modal="true" aria-label="${escAttr(title)} details">
+  const shareId = getGameMediaProfileShareId(details, rawgId);
+  return `<section class="discover-media-page discover-standard-title-page game-media-page discover-desktop-title-page" role="dialog" aria-modal="true" aria-label="${escAttr(title)} details">
     <button class="discover-media-back" type="button" onclick="return handleDiscoverMediaProfileBack(event)">Back</button>
-    ${renderMediaProfileTopActions(renderMediaProfileShareButton('game', rawgId || getGameRawgIdValue(details), title, poster), `${renderGameMediaProfileAddButton(rawgId || getGameRawgIdValue(details), details)}${currentUser && !viewingUser ? `<button class="discover-media-add-floating screenlist-game-profile-cover-btn" type="button" onclick="event.preventDefault();event.stopPropagation();openScreenListGameCoverPickerForSeed('${escAttr(String(rawgId || getGameRawgIdValue(details) || ''))}','${escAttr(title)}')">Change Cover</button>` : ''}`)}
-    <div class="discover-media-hero game-media-hero" style="${poster ? `background-image:url('${escAttr(poster)}')` : ''}">
+    ${renderMediaProfileTopActions(renderMediaProfileShareButton('game', shareId, title, poster), `${renderGameMediaProfileAddButton(rawgId || getGameRawgIdValue(details), details)}${currentUser && !viewingUser ? `<button class="discover-media-add-floating screenlist-game-profile-cover-btn" type="button" onclick="event.preventDefault();event.stopPropagation();openScreenListGameCoverPickerForSeed('${escAttr(String(rawgId || getGameRawgIdValue(details) || ''))}','${escAttr(title)}')">Change Cover</button>` : ''}`, '', (typeof renderDiscoverHeroTrailerSoundToggle === 'function' ? renderDiscoverHeroTrailerSoundToggle(heroTrailer) : ''))}
+    <div class="discover-media-hero game-media-hero${heroTrailer ? ' has-trailer-preview' : ''}" style="${poster ? `background-image:url('${escAttr(poster)}')` : ''}">
+      ${heroTrailer && typeof renderDiscoverHeroTrailerPreview === 'function' ? renderDiscoverHeroTrailerPreview(heroTrailer, title) : ''}
       <div class="discover-media-hero-shade"></div>
       <div class="discover-media-hero-content">
         <div class="discover-media-poster game-media-poster${poster ? '' : ' screenlist-game-cover-pending'}">${poster ? `<img src="${escAttr(poster)}" alt="" decoding="async">` : `<span>${SCREENLIST_GAME_COVER_PLACEHOLDER_TEXT}</span>`}</div>
@@ -6027,8 +7162,9 @@ function renderGameMediaProfileDetails(details, rawgId = '') {
         <div class="discover-media-score"><span class="discover-media-score-star" aria-hidden="true">★</span><span class="discover-media-score-value">${escHtml(score)}</span></div>
       </div>
       ${facts.length ? `<div class="discover-media-facts">${facts.map(fact => `<div class="${fact.priority ? 'primary' : ''}"><strong>${escHtml(fact.value)}</strong><span>${escHtml(fact.label)}</span></div>`).join('')}</div>` : ''}
-      ${trailer ? `<div class="discover-media-trailer"><video controls playsinline preload="metadata" ${trailer.poster ? `poster="${escAttr(trailer.poster)}"` : ''}><source src="${escAttr(trailer.url)}"></video></div>` : ''}
+      ${directTrailer ? `<div class="discover-media-trailer"><video controls playsinline preload="metadata" ${directTrailer.poster ? `poster="${escAttr(directTrailer.poster)}"` : ''}><source src="${escAttr(directTrailer.url)}"></video></div>` : ''}
       ${screenshots.length ? `<div class="discover-media-section"><h3>Screenshots</h3><div class="discover-media-similar game-media-screenshots">${screenshots.map(img => `<a class="discover-media-similar-card" href="${escAttr(img.image)}" target="_blank" rel="noopener"><img src="${escAttr(img.image)}" alt=""><span>Screenshot</span></a>`).join('')}</div></div>` : ''}
+      ${typeof window.renderUniversalMediaReviewsButton === 'function' ? window.renderUniversalMediaReviewsButton('game', details, rawgId || getGameRawgIdValue(details)) : ''}
       ${renderDeepSeekMoreLikeThisSection('game', details)}
     </div>
   </section>`;
@@ -6051,9 +7187,10 @@ function renderGameMediaProfileShellModern(seed, rawgId = '') {
   const year = String(seed?.released || seed?.year || '').slice(0, 4);
   const overview = seed?.description_raw || seed?.description || 'Loading this game profile...';
   const genres = (seed?.genres || []).map(g => g?.name).filter(Boolean).slice(0, 4);
-  return `<section class="discover-media-page game-media-page discover-desktop-title-page" role="dialog" aria-modal="true" aria-label="${escAttr(title)} details">
+  const shareId = getGameMediaProfileShareId(seed, rawgId);
+  return `<section class="discover-media-page discover-standard-title-page game-media-page discover-desktop-title-page" role="dialog" aria-modal="true" aria-label="${escAttr(title)} details">
     <button class="discover-media-back" type="button" onclick="return handleDiscoverMediaProfileBack(event)">Back</button>
-    ${renderMediaProfileTopActions(renderMediaProfileShareButton('game', rawgId || getGameRawgIdValue(seed), title, poster), `${rawgId ? renderGameMediaProfileAddButton(rawgId, seed) : ''}${currentUser && !viewingUser ? `<button class="discover-media-add-floating screenlist-game-profile-cover-btn" type="button" onclick="event.preventDefault();event.stopPropagation();openScreenListGameCoverPickerForSeed('${escAttr(String(rawgId || getGameRawgIdValue(seed) || ''))}','${escAttr(title)}')">Change Cover</button>` : ''}`)}
+    ${renderMediaProfileTopActions(renderMediaProfileShareButton('game', shareId, title, poster), `${rawgId ? renderGameMediaProfileAddButton(rawgId, seed) : ''}${currentUser && !viewingUser ? `<button class="discover-media-add-floating screenlist-game-profile-cover-btn" type="button" onclick="event.preventDefault();event.stopPropagation();openScreenListGameCoverPickerForSeed('${escAttr(String(rawgId || getGameRawgIdValue(seed) || ''))}','${escAttr(title)}')">Change Cover</button>` : ''}`)}
     <div class="discover-media-hero game-media-hero" style="${poster ? `background-image:url('${escAttr(poster)}')` : ''}">
       <div class="discover-media-hero-shade"></div>
       <div class="discover-media-hero-content">
@@ -6083,14 +7220,17 @@ function renderGameMediaProfileDetailsModern(details, rawgId = '') {
   const genres = (details.genres || []).map(g => g.name).filter(Boolean).slice(0, 4);
   const facts = getGameMediaFacts(details);
   const credits = getGameMediaCredits(details);
-  const metacriticScore = getGameMetacriticScore(details);
-  const score = metacriticScore !== null ? String(metacriticScore) : 'N/A';
+  const score = formatGameMediaProfileFetchedRating(details);
   const trailer = getGameMediaTrailer(details);
+  const heroTrailer = trailer?.key ? trailer : null;
+  const directTrailer = trailer?.url && !heroTrailer ? trailer : null;
   const screenshots = (details.screenshots?.results || details.short_screenshots || []).filter(img => img?.image).slice(0, 8);
-  return `<section class="discover-media-page game-media-page discover-desktop-title-page" role="dialog" aria-modal="true" aria-label="${escAttr(title)} details">
+  const shareId = getGameMediaProfileShareId(details, rawgId);
+  return `<section class="discover-media-page discover-standard-title-page game-media-page discover-desktop-title-page" role="dialog" aria-modal="true" aria-label="${escAttr(title)} details">
     <button class="discover-media-back" type="button" onclick="return handleDiscoverMediaProfileBack(event)">Back</button>
-    ${renderMediaProfileTopActions(renderMediaProfileShareButton('game', rawgId || getGameRawgIdValue(details), title, poster), `${renderGameMediaProfileAddButton(rawgId || getGameRawgIdValue(details), details)}${currentUser && !viewingUser ? `<button class="discover-media-add-floating screenlist-game-profile-cover-btn" type="button" onclick="event.preventDefault();event.stopPropagation();openScreenListGameCoverPickerForSeed('${escAttr(String(rawgId || getGameRawgIdValue(details) || ''))}','${escAttr(title)}')">Change Cover</button>` : ''}`)}
-    <div class="discover-media-hero game-media-hero" style="${poster ? `background-image:url('${escAttr(poster)}')` : ''}">
+    ${renderMediaProfileTopActions(renderMediaProfileShareButton('game', shareId, title, poster), `${renderGameMediaProfileAddButton(rawgId || getGameRawgIdValue(details), details)}${currentUser && !viewingUser ? `<button class="discover-media-add-floating screenlist-game-profile-cover-btn" type="button" onclick="event.preventDefault();event.stopPropagation();openScreenListGameCoverPickerForSeed('${escAttr(String(rawgId || getGameRawgIdValue(details) || ''))}','${escAttr(title)}')">Change Cover</button>` : ''}`, '', (typeof renderDiscoverHeroTrailerSoundToggle === 'function' ? renderDiscoverHeroTrailerSoundToggle(heroTrailer) : ''))}
+    <div class="discover-media-hero game-media-hero${heroTrailer ? ' has-trailer-preview' : ''}" style="${poster ? `background-image:url('${escAttr(poster)}')` : ''}">
+      ${heroTrailer && typeof renderDiscoverHeroTrailerPreview === 'function' ? renderDiscoverHeroTrailerPreview(heroTrailer, title) : ''}
       <div class="discover-media-hero-shade"></div>
       <div class="discover-media-hero-content">
         <div class="discover-media-hero-top">
@@ -6107,14 +7247,15 @@ function renderGameMediaProfileDetailsModern(details, rawgId = '') {
       </div>
     </div>
     <div class="discover-media-body discover-media-body-cinema">
-      ${(facts.length || credits.length || trailer) ? `<div class="discover-media-detail-grid${trailer ? ' has-trailer' : ''}">
+      ${(facts.length || credits.length || directTrailer) ? `<div class="discover-media-detail-grid${directTrailer ? ' has-trailer' : ''}">
         ${(facts.length || credits.length) ? `<div class="discover-media-detail-stack">
           ${facts.length ? `<div class="discover-media-facts">${facts.map(fact => `<div class="${fact.priority ? 'primary' : ''}"><strong>${escHtml(fact.value)}</strong><span>${escHtml(fact.label)}</span></div>`).join('')}</div>` : ''}
           ${credits.length ? `<div class="discover-media-credits">${credits.map(row => `<div><span>${escHtml(row.label)}</span><strong>${escHtml(row.value)}</strong></div>`).join('')}</div>` : ''}
         </div>` : ''}
-        ${trailer ? `<div class="discover-media-trailer discover-media-trailer-panel"><video controls playsinline preload="metadata" ${trailer.poster ? `poster="${escAttr(trailer.poster)}"` : ''}><source src="${escAttr(trailer.url)}"></video></div>` : ''}
+        ${directTrailer ? `<div class="discover-media-trailer discover-media-trailer-panel"><video controls playsinline preload="metadata" ${directTrailer.poster ? `poster="${escAttr(directTrailer.poster)}"` : ''}><source src="${escAttr(directTrailer.url)}"></video></div>` : ''}
       </div>` : ''}
       ${screenshots.length ? `<div class="discover-media-section discover-media-section-cast"><h3>Screenshots</h3><div class="discover-media-similar game-media-screenshots">${screenshots.map(img => `<a class="discover-media-similar-card" href="${escAttr(img.image)}" target="_blank" rel="noopener"><img src="${escAttr(img.image)}" alt=""><span>Screenshot</span></a>`).join('')}</div></div>` : ''}
+      ${typeof window.renderUniversalMediaReviewsButton === 'function' ? window.renderUniversalMediaReviewsButton('game', details, rawgId || getGameRawgIdValue(details)) : ''}
       ${renderDeepSeekMoreLikeThisSection('game', details)}
     </div>
   </section>`;
@@ -6140,6 +7281,20 @@ function bindGameMediaProfileActions(overlay) {
     if (!addButton.dataset.discoverId || addButton.disabled) return;
     showDiscoverMediaLibraryDock(addButton);
   });
+}
+
+function hydrateGameMediaProfileTrailerPreview(overlay = document.getElementById('discover-media-profile')) {
+  if (typeof hydrateDiscoverHeroTrailerPreview !== 'function') return;
+  try { hydrateDiscoverHeroTrailerPreview(overlay); } catch (_) {}
+}
+
+async function attachGameTrailerToDetails(details = {}, rawgId = '') {
+  const next = { ...(details || {}) };
+  try {
+    const trailer = await resolveGameMediaProfileTrailer(next, rawgId || getGameRawgIdValue(next));
+    if (trailer) next.gameTrailer = trailer;
+  } catch (_) {}
+  return next;
 }
 
 async function resolveRawgIdForGameSeed(seed = {}) {
@@ -6185,12 +7340,13 @@ async function openGameMediaProfile(event, rawgId = '', seedOverride = null, tra
     const resolvedId = rawgId || await resolveRawgIdForGameSeed(initialSeed);
     if (!resolvedId || !/^\d+$/.test(String(resolvedId))) {
       if (!document.getElementById('discover-media-profile')) return;
-      const mergedGameDetails = await ensureScreenListIgdbCoverOnGameDetails({ ...initialSeed, rawgId: '' });
+      const mergedGameDetails = await attachGameTrailerToDetails(await ensureScreenListIgdbCoverOnGameDetails({ ...initialSeed, rawgId: '' }), '');
       if (typeof window !== 'undefined' && typeof window.traceShelfdGameIdentity === 'function') {
         window.traceShelfdGameIdentity('4 full media profile game object', mergedGameDetails, { routeId: rawgId });
       }
       overlay.innerHTML = renderGameMediaProfileDetailsModern(mergedGameDetails, '');
       bindGameMediaProfileActions(overlay);
+      hydrateGameMediaProfileTrailerPreview(overlay);
       hydrateDeepSeekMoreLikeThis('game', mergedGameDetails);
       return;
     }
@@ -6213,19 +7369,22 @@ async function openGameMediaProfile(event, rawgId = '', seedOverride = null, tra
     if (typeof window !== 'undefined' && typeof window.mergeShelfdGameIdentityLockedItem === 'function') {
       detailsInput = window.mergeShelfdGameIdentityLockedItem(initialSeed, { ...details, rawgId: String(resolvedId) }, 'game-media-profile-rawg-details');
     }
-    const mergedGameDetails = await ensureScreenListIgdbCoverOnGameDetails(detailsInput);
+    const mergedGameDetails = await attachGameTrailerToDetails(await ensureScreenListIgdbCoverOnGameDetails(detailsInput), String(resolvedId));
     if (typeof window !== 'undefined' && typeof window.traceShelfdGameIdentity === 'function') {
       window.traceShelfdGameIdentity('4 full media profile game object', mergedGameDetails, { routeId: rawgId, resolvedId });
     }
     overlay.innerHTML = renderGameMediaProfileDetailsModern(mergedGameDetails, String(resolvedId));
     bindGameMediaProfileActions(overlay);
+    hydrateGameMediaProfileTrailerPreview(overlay);
     hydrateDeepSeekMoreLikeThis('game', mergedGameDetails);
   } catch (e) {
     console.error('Game media profile failed:', e);
     if (!document.getElementById('discover-media-profile')) return;
-    const mergedGameDetails = await ensureScreenListIgdbCoverOnGameDetails({ ...initialSeed, rawgId: rawgId || getGameRawgIdValue(initialSeed) });
-    overlay.innerHTML = renderGameMediaProfileDetailsModern(mergedGameDetails, rawgId || getGameRawgIdValue(initialSeed));
+    const fallbackRawgId = rawgId || getGameRawgIdValue(initialSeed);
+    const mergedGameDetails = await attachGameTrailerToDetails(await ensureScreenListIgdbCoverOnGameDetails({ ...initialSeed, rawgId: fallbackRawgId }), fallbackRawgId);
+    overlay.innerHTML = renderGameMediaProfileDetailsModern(mergedGameDetails, fallbackRawgId);
     bindGameMediaProfileActions(overlay);
+    hydrateGameMediaProfileTrailerPreview(overlay);
     hydrateDeepSeekMoreLikeThis('game', mergedGameDetails);
   }
 }
@@ -6525,6 +7684,86 @@ function showToast(message, options = {}) {
     setTimeout(() => toast.remove(), 240);
   }, Number(options.durationMs || 1500));
 }
+
+/* v10.418: actionable post-add popup used after the user adds an item to
+   their library FROM Universal Search. Instead of auto-navigating them
+   to the My List page (which interrupts the "search → add a bunch" flow
+   most users actually want), we leave the search overlay open and float
+   a "Go to Shelf" popup over it. The popup auto-fades after 3.3s; if the
+   user taps it, we close search + route them straight to the item they
+   just added (album page for music, game profile for games, the section
+   tab otherwise). */
+function isShelfdUniversalSearchOpen() {
+  const page = document.getElementById('shelfd-search-page');
+  return !!(page && page.classList.contains('is-open'));
+}
+window.isShelfdUniversalSearchOpen = isShelfdUniversalSearchOpen;
+
+function showShelfdGoToShelfPopup(options = {}) {
+  const section = String(options.section || 'music').trim();
+  const status = String(options.status || 'watched').trim();
+  const itemId = String(options.itemId || '').trim();
+  const title = String(options.title || '').trim();
+  const messageText = options.message || 'Added to your shelf';
+
+  const existing = document.querySelector('.shelfd-go-to-shelf-popup');
+  if (existing) existing.remove();
+
+  const popup = document.createElement('div');
+  popup.className = 'shelfd-go-to-shelf-popup';
+  popup.setAttribute('role', 'status');
+  popup.setAttribute('aria-live', 'polite');
+  popup.innerHTML = `
+    <span class="shelfd-go-to-shelf-popup-text">${escHtml(messageText)}</span>
+    <button type="button" class="shelfd-go-to-shelf-popup-action" data-shelfd-popup-action>Go to Shelf</button>
+  `;
+  document.body.appendChild(popup);
+
+  let dismissed = false;
+  let dismissTimer = null;
+
+  const dismiss = () => {
+    if (dismissed) return;
+    dismissed = true;
+    if (dismissTimer) { clearTimeout(dismissTimer); dismissTimer = null; }
+    popup.classList.remove('is-open');
+    setTimeout(() => { try { popup.remove(); } catch (_) {} }, 260);
+  };
+
+  const navigate = () => {
+    if (dismissed) return;
+    dismissed = true;
+    if (dismissTimer) { clearTimeout(dismissTimer); dismissTimer = null; }
+    try { popup.remove(); } catch (_) {}
+    /* Close the Universal Search overlay first so the My List page
+       beneath is the surface we navigate on. */
+    try { if (typeof window.closeSearchPage === 'function') window.closeSearchPage(); } catch (_) {}
+    try { if (typeof window.switchMainNav === 'function') window.switchMainNav('mylist'); } catch (_) {}
+    try { if (typeof window.switchSection === 'function') window.switchSection(section); } catch (_) {}
+    try { if (typeof window.switchTab === 'function') window.switchTab(status); } catch (_) {}
+    try { if (typeof window.render === 'function') window.render(); } catch (_) {}
+    /* Section-specific deep-link to the exact item the user just added.
+       Music has a dedicated album page; games have a profile page. For
+       shows/movies/anime we land on the correct section + status tab,
+       where the freshly-added card is in the user's list. */
+    if (itemId) {
+      if (section === 'music' && typeof window.openMyListAlbumPage === 'function') {
+        try { window.openMyListAlbumPage(itemId); } catch (_) {}
+      } else if (section === 'games' && typeof window.openMyListGameProfilePage === 'function') {
+        try { window.openMyListGameProfilePage(itemId); } catch (_) {}
+      }
+    }
+  };
+
+  const actionBtn = popup.querySelector('[data-shelfd-popup-action]');
+  if (actionBtn) actionBtn.addEventListener('click', navigate);
+
+  requestAnimationFrame(() => popup.classList.add('is-open'));
+  /* User-specified: 3.3 seconds on screen before auto-fade. */
+  dismissTimer = setTimeout(dismiss, 3300);
+  return { dismiss, navigate };
+}
+window.showShelfdGoToShelfPopup = showShelfdGoToShelfPopup;
 
 function showDmE2eeMissingKeyWarningToast() {
   const existing = document.querySelector('.app-toast, .dm-e2ee-key-warning-toast');
@@ -7980,14 +9219,81 @@ function deleteItem(eventOrId, maybeId) {
    changed. */
 function updateOverallRatingUI(item = {}, section = activeSection) {
   if (!item || !item.id) return;
-  /* v10.396: music uses the new `.music-rating` widget (introduced v10.395).
-     Pre-v10.396 this function only knew about `.stars` containers, so every
-     rate() on a music card left the `.music-rating-value` label and the lit
-     state of the 10 half-step buttons stale. We now branch on section and
-     repaint every `.music-rating` node matching the item id — that picks
-     up the title card AND the album-shelf "Your rating" widget at once,
-     keeping both surfaces in lockstep with the single source of truth
-     (item.rating, stored as 0–10 int, displayed as 0.5 increments / 5). */
+  /* v10.404: rating BUBBLE on the title card (used by shows/anime/music
+     in the watching/watched/paused statuses). Re-render every bubble
+     matching this item id so the chip's number label + each star's lit
+     state reflect the new rating. We do this BEFORE the section-specific
+     branches because a single item can have only ONE rating bubble on
+     the title card; everything else (FP review, album shelf, etc.) is
+     handled by the .stars / .music-rating branches below. */
+  if (typeof buildRatingBubbleMarkup === 'function') {
+    const idStr = String(item.id);
+    const bubbleNodes = document.querySelectorAll(`.rating-bubble[data-item-id="${CSS.escape(idStr)}"]`);
+    const newRating = Number(item.rating || 0);
+    bubbleNodes.forEach(node => {
+      const cardSection = node.dataset.section || section;
+      /* v10.508: preserve the /5 display mode across rebuild. The album-
+         shelf "Your rating" bubble carries `data-out-of-five="1"`; we
+         pass that through so the re-rendered chip continues to show
+         "X/5" instead of falling back to the section default.
+         v10.516: when the bubble is EXPANDED (mid-rate-gesture), update
+         in-place instead of replaceWith. Tearing down the DOM via
+         replaceWith on an expanded bubble destroys any in-flight
+         `.star-pop` animation queued by `playRatingAnimation` — that
+         was the root cause of the "sometimes the rating bubble's pop
+         animation doesn't fire" bug. The post-rate pop animation
+         needs the slot elements to persist for ~600ms after the rate
+         commits; in-place updates preserve them. Collapsed bubbles
+         still use the full replace path since no animation is in
+         flight on them. */
+      const hasSlotStructure = !!node.querySelector('.rating-bubble-star-slot');
+      if (node.classList.contains('is-expanded') && hasSlotStructure) {
+        const slots = node.querySelectorAll('.rating-bubble-star-slot');
+        slots.forEach((slot, idx) => {
+          const starIdx = idx + 1;
+          const leftV = starIdx * 2 - 1;
+          const rightV = starIdx * 2;
+          let pct = 0;
+          if (newRating >= rightV) pct = 100;
+          else if (newRating >= leftV) pct = 50;
+          slot.style.setProperty('--star-fill', `${pct}%`);
+        });
+        /* Sync the collapsed chip value text + is-rated class so when
+           the bubble auto-collapses 700ms later it reflects the new
+           rating without another rebuild. */
+        const isOutOfFive = node.dataset.outOfFive === '1';
+        let labelText = '';
+        if (newRating > 0) {
+          const fiveValue = newRating / 2;
+          const formatted = fiveValue % 1 === 0 ? String(fiveValue) : fiveValue.toFixed(1);
+          labelText = isOutOfFive ? `${formatted}/5` : formatted;
+        }
+        const chipValue = node.querySelector('.rating-bubble-chip-value');
+        if (labelText) {
+          if (chipValue) {
+            chipValue.textContent = labelText;
+          } else {
+            const icon = node.querySelector('.rating-bubble-chip-icon');
+            if (icon) {
+              const span = document.createElement('span');
+              span.className = 'rating-bubble-chip-value';
+              span.textContent = labelText;
+              icon.insertAdjacentElement('afterend', span);
+            }
+          }
+        } else if (chipValue) {
+          chipValue.remove();
+        }
+        node.classList.toggle('is-rated', newRating > 0);
+        return;
+      }
+      const opts = node.dataset.outOfFive === '1' ? { outOfFive: true } : undefined;
+      const tmp = document.createElement('div');
+      tmp.innerHTML = buildRatingBubbleMarkup(item, cardSection, opts);
+      const replacement = tmp.firstElementChild;
+      if (replacement) node.replaceWith(replacement);
+    });
+  }
   if (section === 'music') {
     if (typeof buildMusicRatingMarkup !== 'function') return;
     const idStr = String(item.id);
@@ -8287,6 +9593,24 @@ function rate(itemId, prefix, score) {
   }
 
   persistMyListEpisodeEdit(item, section, { markEdited: false });
+  /* v10.448: for music section overall ratings, ALSO write to the
+     per-album community-ratings collection so cross-user aggregation
+     reflects this change. The album-shelf page module exposes the
+     persist function at `window.persistAlbumRatingToCommunityDoc`
+     (defined in 27-music-album-shelf-page.js). After write, kick
+     a fetch-and-patch so any currently-open shelf page repaints
+     with the fresh count + average. Tolerates non-music sections
+     and non-overall prefixes by gating on both. */
+  if (section === 'music' && prefix === 'overall'
+      && typeof window.persistAlbumRatingToCommunityDoc === 'function') {
+    try {
+      window.persistAlbumRatingToCommunityDoc(item, Number(item.rating || 0)).then(() => {
+        if (typeof window.fetchAndPatchAlbumCommunityRating === 'function') {
+          window.fetchAndPatchAlbumCommunityRating(item, { force: true });
+        }
+      }).catch(() => {});
+    } catch (_) { /* non-fatal */ }
+  }
   /* v10.69: partial DOM update for overall + season + episode rating instead
      of a full grid render. Season already had `updateSeasonRatingUI`; we now
      do the same for the title's overall stars. Episode rating (prefix `ep:`)
@@ -8395,24 +9719,90 @@ function playRatingAnimation(itemId, prefix) {
   const peakFilter = `drop-shadow(0 0 ${glow}px rgba(${glowR},${glowG},${glowB},${glowAlpha}))`;
 
   requestAnimationFrame(() => {
-    /* v10.395: also pick up music-rating containers so the music widget
-       gets the same pop / glow / label flare on click. The match key is
-       still data-item-id + data-prefix on the container. Inside each
-       container the lit children selector is widened to include
-       .music-rating-half.lit, and the label selector is widened to
-       include .music-rating-value. */
-    const containers = document.querySelectorAll('.stars, .music-rating');
+    /* v10.395: pick up `.music-rating` containers alongside the legacy
+       `.stars` family.
+       v10.400: each star in `.music-rating` is composed of TWO
+       `.music-rating-half` boxes (left + right halves of one ★ glyph).
+       Animating each half independently with a per-element stagger
+       made adjacent halves pop at different times AND scale from their
+       own centers, pulling apart and exposing inner tips. The fix:
+       group lit halves into PAIRS (star units) and apply identical
+       timing to both halves of a star. Combined with the CSS
+       transform-origin on each half (left half: right center, right
+       half: left center — both anchor at the shared boundary), each
+       star now scales outward from its true center as one shape. */
+    /* v10.404: rating bubble widget is also a container we paint into. */
+    const containers = document.querySelectorAll('.stars, .music-rating, .rating-bubble');
     containers.forEach(c => {
       if (c.dataset.itemId !== itemId || c.dataset.prefix !== prefix) return;
-      const lit = [...c.querySelectorAll('.star-btn.lit, .music-rating-half.lit')];
+      const isMusicWidget = c.classList.contains('music-rating');
+      /* v10.407: music widget can now render either half-step (5×2) or
+         10-star integer. Only the half-step variant needs pair-grouping
+         for the unified star-pop animation. */
+      const isHalfStepMusicWidget = isMusicWidget && (
+        c.classList.contains('music-rating--halfstep')
+        /* Pre-v10.407 widgets without the variant class are always
+           half-step (legacy). */
+        || (!c.classList.contains('music-rating--ten') && !c.classList.contains('music-rating--halfstep'))
+      );
+      const isBubble = c.classList.contains('rating-bubble');
+      /* v10.407: half-step bubble = `.rating-bubble--halfstep` (the new
+         scale-driven class) or the legacy `.rating-bubble--music` alias. */
+      const isHalfStepBubble = isBubble && (
+        c.classList.contains('rating-bubble--halfstep')
+        || c.classList.contains('rating-bubble--music')
+      );
+      /* v10.515: detect the new v10.510 slot structure (per-star
+         `.rating-bubble-star-slot` containers wrapping a base + a
+         fill). When present, each lit slot is ONE animation unit —
+         the target is the fill child (the gold star glyph). This
+         restores the star-pop scale + glow effect on the rebuilt
+         rating bubble that was lost when the markup switched away
+         from `.rating-bubble-star.lit` pairs. */
+      const hasSlotStructure = isBubble && !!c.querySelector('.rating-bubble-star-slot');
+      let units;
+      if (hasSlotStructure) {
+        units = [];
+        c.querySelectorAll('.rating-bubble-star-slot').forEach(slot => {
+          const fillPct = parseFloat(slot.style.getPropertyValue('--star-fill')) || 0;
+          if (fillPct > 0) {
+            const fill = slot.querySelector('.rating-bubble-star-fill');
+            if (fill) units.push([fill]);
+          }
+        });
+      } else {
+        /* v10.407: pick up the new 10-star music widget too (.music-rating-full). */
+        const lit = [...c.querySelectorAll('.star-btn.lit, .music-rating-half.lit, .music-rating-full.lit, .rating-bubble-star.lit')];
+
+        /* Build the per-unit animation groups. For half-step variants of
+           the music widget: each unit is a pair of adjacent lit halves
+           (one star). For everything else (10-star music widget,
+           integer rating bubble, .star-btn family): each unit is a
+           single element. */
+        const groupAsPairs = isHalfStepMusicWidget || isHalfStepBubble;
+        units = [];
+        if (groupAsPairs) {
+          for (let i = 0; i < lit.length; i += 2) {
+            const pair = [lit[i]];
+            if (lit[i + 1]) pair.push(lit[i + 1]);
+            units.push(pair);
+          }
+        } else {
+          lit.forEach(el => units.push([el]));
+        }
+      }
 
       // CSS class animation — reliable on all browsers including mobile/PWA
-      lit.forEach((star, i) => {
-        star.classList.remove('star-pop');
-        void star.offsetWidth; // force reflow to restart animation
-        setTimeout(() => star.classList.add('star-pop'), i * stagger);
-        setTimeout(() => star.classList.remove('star-pop'), i * stagger + 500);
+      units.forEach((group, unitIdx) => {
+        group.forEach(star => {
+          star.classList.remove('star-pop');
+          void star.offsetWidth; // force reflow to restart animation
+        });
+        const delay = unitIdx * stagger;
+        setTimeout(() => group.forEach(star => star.classList.add('star-pop')), delay);
+        setTimeout(() => group.forEach(star => star.classList.remove('star-pop')), delay + 500);
       });
+
       const label = c.querySelector('.star-label, .music-rating-value');
       if (label) {
         label.classList.remove('label-pop');
@@ -8420,15 +9810,20 @@ function playRatingAnimation(itemId, prefix) {
         setTimeout(() => { label.classList.add('label-pop'); setTimeout(() => label.classList.remove('label-pop'), 520); }, 100);
       }
 
-      // Web Animations API for intensity-scaled glow (progressive enhancement)
+      // Web Animations API for intensity-scaled glow (progressive enhancement).
+      // Same per-unit timing rule so both halves of a music star share
+      // the exact same `delay` and keyframe schedule.
       if (typeof Element.prototype.animate === 'function') {
-        lit.forEach((star, i) => {
-          star.animate([
-            { transform: 'scale(1)', filter: 'none' },
-            { transform: `scale(${peakScale})`, filter: peakFilter, offset: 0.3 },
-            { transform: `scale(${midScale})`, filter: 'none', offset: 0.6 },
-            { transform: 'scale(1)', filter: 'none' }
-          ], { duration, delay: i * stagger, easing: 'ease-out', fill: 'none' });
+        units.forEach((group, unitIdx) => {
+          const delay = unitIdx * stagger;
+          group.forEach(star => {
+            star.animate([
+              { transform: 'scale(1)', filter: 'none' },
+              { transform: `scale(${peakScale})`, filter: peakFilter, offset: 0.3 },
+              { transform: `scale(${midScale})`, filter: 'none', offset: 0.6 },
+              { transform: 'scale(1)', filter: 'none' }
+            ], { duration, delay, easing: 'ease-out', fill: 'none' });
+          });
         });
         if (label) {
           label.animate([
@@ -8501,17 +9896,22 @@ function starsTouchMove(e) {
   const touch = e.touches[0];
   const dx = Math.abs(touch.clientX - parseFloat(c.dataset.touchStartX || 0));
   const dy = Math.abs(touch.clientY - parseFloat(c.dataset.touchStartY || 0));
-  // Need at least 10px of horizontal-dominant motion before locking in scrub mode
-  // (prevents tap jitter from being misread as a scrub)
+  /* v10.401: tighter scrub thresholds — 18px lock-in (was 10) and
+     midpoint cross-over (was left-edge). See musicRatingTouchMove for
+     the matching change on the music widget. Keeps every star/half-step
+     dwellable so half-ratings don't get skipped by a small finger
+     movement. */
   if (c.dataset.scrubbing !== 'true') {
-    if (dx < 10 || dy > dx) return;
+    if (dx < 18 || dy > dx) return;
   }
   c.dataset.scrubbing = 'true';
   e.preventDefault();
   const stars = [...c.querySelectorAll('.star-btn')];
   let val = 0;
   stars.forEach((btn, i) => {
-    if (touch.clientX >= btn.getBoundingClientRect().left) val = i + 1;
+    const rect = btn.getBoundingClientRect();
+    const midpoint = rect.left + rect.width / 2;
+    if (touch.clientX >= midpoint) val = i + 1;
   });
   if (val >= 1) {
     c.dataset.scrubVal = val;
@@ -9157,8 +10557,38 @@ function isScreenListCompletedTabForCardComment() {
 
 function shouldShowCardCommentFeatureFor(item) {
   if (!item) return false;
+  /* v10.446: items with a saved review (item.reviewText set) ALWAYS
+     pass this gate regardless of which tab is active. Without this,
+     the layers icon never reached friend's planned / watching /
+     paused cards even when the friend had written a review — the
+     watched-tab-only gate below blocked it. Now: any item the friend
+     (or you) has reviewed shows the FPReview entry icon on whatever
+     tab the user is currently browsing on the friend's shelf profile.
+     The downstream `buildCardCommentAddBtnHtml` checks
+     `hasReview || viewingUser` to decide between the layers icon and
+     the legacy `+` add button, so this gate just needs to let the
+     function get called.
+     v10.447: also pass the gate when `item.reviewActivityId` is set,
+     even if `item.reviewText` came down empty (the friend's
+     watchlist sync may have missed the text field, but the
+     reviewActivityId pointer alone tells us a feed post exists and
+     therefore a review exists). The FPReview's async backstop
+     (v10.444's `fetchAndPatchMyListReviewText`) will fetch the
+     post body when the user actually opens the review. */
+  if (String(item?.reviewText || '').trim()) return true;
+  if (String(item?.reviewActivityId || '').trim()) return true;
   if (!isScreenListCompletedTabForCardComment()) return false;
-  if (viewingUser && !item.cardComment?.text) return false;
+  /* v10.444: the viewing-user gate has been removed. Previously this
+     returned `false` whenever `viewingUser && !item.cardComment?.text`,
+     which blocked the layers icon from surfacing on a friend's title
+     card unless they had written a SHORT inline comment — even when
+     they had written a full long-form review or had simply rated the
+     title. The downstream icon path in `buildCardCommentAddBtnHtml`
+     already routes correctly for every viewing-user case (it returns
+     the layers icon under `hasReview || viewingUser`), so trusting
+     it here makes the entry point appear on every watched card a
+     friend has on their list. Owner-side composer behavior is
+     unchanged because the owner path doesn't depend on this branch. */
   return true;
 }
 
@@ -9178,7 +10608,14 @@ function buildCardCommentAddBtnHtml(item) {
   if (!shouldShowCardCommentFeatureFor(item)) return '';
   const itemIdAttr = escAttr(item.id);
   const sectionAttr = escAttr(activeSection);
-  const hasReview = !!String(item.reviewText || '').trim();
+  /* v10.447: `hasReview` now also recognizes the `reviewActivityId`
+     pointer. Friend's data sometimes lands with only the activity-id
+     populated (the watchlist sync round-trip can drop large text
+     fields), so checking only `reviewText` was hiding the icon for
+     reviews that DID exist. Either signal is sufficient evidence
+     that a review post lives in the feed for this item. */
+  const hasReview = !!String(item.reviewText || '').trim()
+    || !!String(item.reviewActivityId || '').trim();
   // v10.221: once a review exists, owner and viewer BOTH see the layers icon —
   // clicking it opens the Full Page Review for that title. Owners can edit
   // their review from there via the 3-dot menu.
@@ -9379,16 +10816,45 @@ function openShelfLogComposer(itemId, sectionHint = '') {
   overlay.setAttribute('role', 'dialog');
   overlay.setAttribute('aria-modal', 'true');
   overlay.setAttribute('aria-label', `${verb} ${title}`);
-  // v10.219: use Shelfd's existing 10-star rating pattern verbatim — same
-  // ★ character buttons, same `.stars .star-btn .lit` classes, same hover/
-  // pop animation. No half-step variants.
+  // v10.521: REBUILT with the canonical 5-star half-step slot pattern.
+  // The v10.520 markup used `.star-btn.half-step.left/right` — the
+  // legacy text-indent-based hack that places two ★ glyphs side-by-
+  // side and clips each to ~54% width. That hack produces a visible
+  // seam at larger glyph sizes (same artifact v10.510 fixed on the
+  // title-card bubble). This rebuild uses the same SLOT structure
+  // that the title-card bubble uses (one slot per visual star, with
+  // a grey base ★ + a gold fill ★ clipped via clip-path to the slot's
+  // fill percent, plus two invisible left/right hit buttons). One
+  // clean glyph per star, no seams.
+  //
+  // `data-shelf-log-star` is preserved on the hit buttons so the
+  // existing event handlers and state.rating semantics (1-10 half-
+  // step units) keep working unchanged. The `--star-fill` CSS variable
+  // on each slot is set per-render based on initialRating; the
+  // refresh handler below updates the same variable on rating change.
+  const computeSlotFillPct = (slotIdx, rating) => {
+    const leftV = slotIdx * 2 - 1;
+    const rightV = slotIdx * 2;
+    if (rating >= rightV) return 100;
+    if (rating >= leftV) return 50;
+    return 0;
+  };
   const starsHtml = (() => {
-    const buttons = [];
-    for (let s = 1; s <= 10; s++) {
-      const lit = s <= initialRating ? ' lit' : '';
-      buttons.push(`<button type="button" class="star-btn${lit}" data-shelf-log-star="${s}" aria-label="Set rating ${s}">&#9733;</button>`);
+    const slots = [];
+    for (let star = 1; star <= 5; star++) {
+      const leftVal = star * 2 - 1;   // 1, 3, 5, 7, 9
+      const rightVal = star * 2;      // 2, 4, 6, 8, 10
+      const fillPct = computeSlotFillPct(star, initialRating);
+      slots.push(
+        `<span class="shelf-log-star-slot" data-shelf-log-slot="${star}" style="--star-fill:${fillPct}%">`
+          + `<span class="shelf-log-star-base" aria-hidden="true">&#9733;</span>`
+          + `<span class="shelf-log-star-fill" aria-hidden="true">&#9733;</span>`
+          + `<button type="button" class="shelf-log-star-hit shelf-log-star-hit-left" data-shelf-log-star="${leftVal}" aria-label="Set rating ${leftVal / 2} out of 5"></button>`
+          + `<button type="button" class="shelf-log-star-hit shelf-log-star-hit-right" data-shelf-log-star="${rightVal}" aria-label="Set rating ${rightVal / 2} out of 5"></button>`
+        + `</span>`
+      );
     }
-    return buttons.join('');
+    return slots.join('');
   })();
   const tagsHtml = initialTags.map(t => (
     `<span class="shelf-log-composer-tag">${escHtml(t)}` +
@@ -9417,7 +10883,7 @@ function openShelfLogComposer(itemId, sectionHint = '') {
         </button>
         <div class="shelf-log-composer-row shelf-log-composer-rate-row">
           <span class="shelf-log-composer-row-label">Rated</span>
-          <div class="stars shelf-log-composer-stars" data-shelf-log-stars role="slider" aria-valuemin="0" aria-valuemax="10" aria-valuenow="${initialRating}" style="--star-size:24px;">${starsHtml}</div>
+          <div class="shelf-log-composer-stars" data-shelf-log-stars role="slider" aria-valuemin="0" aria-valuemax="5" aria-valuenow="${initialRating / 2}" ontouchstart="shelfLogStarsTouchStart(event)" ontouchmove="shelfLogStarsTouchMove(event)" ontouchend="shelfLogStarsTouchEnd(event)" ontouchcancel="shelfLogStarsTouchEnd(event)">${starsHtml}</div>
         </div>
         <div class="shelf-log-composer-row shelf-log-composer-review-row">
           <textarea class="shelf-log-composer-review" data-shelf-log-review rows="6" maxlength="${SHELF_LOG_REVIEW_MAX}" placeholder="Add review...">${escHtml(initialReview)}</textarea>
@@ -9452,14 +10918,138 @@ function openShelfLogComposer(itemId, sectionHint = '') {
 function refreshShelfLogStarUI(overlay) {
   const state = shelfLogComposerState;
   if (!state || !overlay) return;
-  // v10.219: Shelfd's 10-star scale, no half steps. Simple lit-class toggle.
-  overlay.querySelectorAll('[data-shelf-log-star]').forEach(btn => {
-    const v = Number(btn.getAttribute('data-shelf-log-star')) || 0;
-    btn.classList.toggle('lit', v <= state.rating);
+  // v10.521: slot-based half-step rendering. Walk each `.shelf-log-star-
+  // slot` and set its `--star-fill` CSS variable based on state.rating
+  // (1–10 half-step units): rating >= slot's right value → 100%
+  // (full star), rating >= slot's left value → 50% (half star),
+  // else 0% (empty). The CSS clip-path on `.shelf-log-star-fill`
+  // crops the gold glyph to that fill percent.
+  overlay.querySelectorAll('.shelf-log-star-slot').forEach(slot => {
+    const starIdx = Number(slot.getAttribute('data-shelf-log-slot')) || 0;
+    if (!starIdx) return;
+    const leftV = starIdx * 2 - 1;
+    const rightV = starIdx * 2;
+    let pct = 0;
+    if (state.rating >= rightV) pct = 100;
+    else if (state.rating >= leftV) pct = 50;
+    slot.style.setProperty('--star-fill', `${pct}%`);
   });
   const slider = overlay.querySelector('[data-shelf-log-stars]');
-  if (slider) slider.setAttribute('aria-valuenow', String(state.rating));
+  if (slider) slider.setAttribute('aria-valuenow', String(state.rating / 2));
 }
+
+/* v10.523: scrub-to-rate touch handlers for the shelf log composer's
+   rating row. Same gesture model as the title-card bubble's
+   `ratingBubbleTouchStart/Move/End` and the per-track widget's
+   `onMylistAlbumTrackRateTouch*` — 6px horizontal-dominant lock-in,
+   cache hit-zone midpoints on touchstart (no per-event DOM reads),
+   midpoint-crossover for the per-half-step value, update each slot's
+   `--star-fill` CSS variable live during scrub, commit on touchend
+   through the same path a tap would (so state.rating + the refresh
+   re-render + WAAPI pop all stay consistent). The cached hit array
+   lives on the row element under `_scrubCache`. */
+window.shelfLogStarsTouchStart = function(e) {
+  const row = e.currentTarget;
+  const t = e.touches && e.touches[0];
+  if (!t) return;
+  row.dataset.touchStartX = String(t.clientX);
+  row.dataset.touchStartY = String(t.clientY);
+  row.dataset.scrubVal = '0';
+  row.dataset.scrubbing = 'false';
+  const hits = Array.from(row.querySelectorAll('[data-shelf-log-star]'));
+  const hitMidpoints = hits.map(b => {
+    const r = b.getBoundingClientRect();
+    return r.left + r.width / 2;
+  });
+  const slots = Array.from(row.querySelectorAll('.shelf-log-star-slot'));
+  row._scrubCache = { hits, hitMidpoints, slots, lastVal: -1 };
+};
+
+window.shelfLogStarsTouchMove = function(e) {
+  const row = e.currentTarget;
+  const t = e.touches && e.touches[0];
+  if (!t) return;
+  const cache = row._scrubCache;
+  if (!cache) return;
+  const dx = Math.abs(t.clientX - parseFloat(row.dataset.touchStartX || 0));
+  const dy = Math.abs(t.clientY - parseFloat(row.dataset.touchStartY || 0));
+  if (row.dataset.scrubbing !== 'true') {
+    if (dx < 6 || dy > dx) return;
+    /* Rebuild cache at lock-in moment so midpoints reflect any layout
+       that may have settled between touchstart and the first move
+       past threshold (same pattern as the bubble v10.515). */
+    const hits = Array.from(row.querySelectorAll('[data-shelf-log-star]'));
+    cache.hits = hits;
+    cache.hitMidpoints = hits.map(b => {
+      const r = b.getBoundingClientRect();
+      return r.left + r.width / 2;
+    });
+    cache.slots = Array.from(row.querySelectorAll('.shelf-log-star-slot'));
+  }
+  row.dataset.scrubbing = 'true';
+  e.preventDefault();
+  let val = 0;
+  for (let i = 0; i < cache.hitMidpoints.length; i++) {
+    if (t.clientX >= cache.hitMidpoints[i]) val = i + 1;
+  }
+  if (val < 1) return;
+  if (val === cache.lastVal) return;
+  cache.lastVal = val;
+  row.dataset.scrubVal = String(val);
+  /* Live-update each slot's --star-fill so the visual tracks the
+     finger one-to-one. Same fill model used by refreshShelfLogStarUI. */
+  for (let idx = 0; idx < cache.slots.length; idx++) {
+    const starIdx = idx + 1;
+    const leftV = starIdx * 2 - 1;
+    const rightV = starIdx * 2;
+    let pct = 0;
+    if (val >= rightV) pct = 100;
+    else if (val >= leftV) pct = 50;
+    cache.slots[idx].style.setProperty('--star-fill', `${pct}%`);
+  }
+  const slider = row.getAttribute('role') === 'slider' ? row : null;
+  if (slider) slider.setAttribute('aria-valuenow', String(val / 2));
+};
+
+window.shelfLogStarsTouchEnd = function(e) {
+  const row = e.currentTarget;
+  const wasScrubbing = row.dataset.scrubbing === 'true';
+  delete row._scrubCache;
+  if (!wasScrubbing) return;
+  row.dataset.scrubbing = 'false';
+  const val = parseInt(row.dataset.scrubVal || '0', 10);
+  row.dataset.scrubVal = '0';
+  if (val < 1) return;
+  e.preventDefault();
+  /* Commit through state.rating + refresh, mirroring the click-on-hit
+     path. Skip the toggle-off behavior — scrub commits ARE intentional
+     (a tap on the current rating still goes through the inline onclick
+     on the hit button, which DOES toggle off). */
+  const state = shelfLogComposerState;
+  if (!state) return;
+  state.rating = val;
+  const overlay = row.closest('#shelf-log-composer');
+  if (overlay) {
+    refreshShelfLogStarUI(overlay);
+    /* Replay the pop animation on the slots that just became newly lit. */
+    const slots = overlay.querySelectorAll('.shelf-log-star-slot');
+    slots.forEach((slot, idx) => {
+      const starIdx = idx + 1;
+      const leftV = starIdx * 2 - 1;
+      if (val >= leftV) {
+        const fill = slot.querySelector('.shelf-log-star-fill');
+        if (fill && typeof fill.animate === 'function') {
+          fill.animate([
+            { transform: 'scale(1)',    filter: 'brightness(1)' },
+            { transform: 'scale(1.55)', filter: 'brightness(1.5) drop-shadow(0 0 8px rgba(230,199,102,0.9))', offset: 0.3 },
+            { transform: 'scale(1.1)',  filter: 'brightness(1.15)', offset: 0.6 },
+            { transform: 'scale(1)',    filter: 'brightness(1)' }
+          ], { duration: 420, delay: 60 + idx * 35, easing: 'ease-out', fill: 'none' });
+        }
+      }
+    });
+  }
+};
 
 function attachShelfLogComposerEvents(overlay, item, section) {
   const state = shelfLogComposerState;
@@ -9481,30 +11071,42 @@ function attachShelfLogComposerEvents(overlay, item, section) {
     });
   }
 
-  // --- Star rating (Shelfd 10-star, no half steps). Hover preview matches
-  // the existing .star-btn:hover scale, and the picked star plays the same
-  // star-pop animation used elsewhere in the app. Tapping the currently-
-  // selected value clears it back to 0. ---
-  const starButtons = overlay.querySelectorAll('[data-shelf-log-star]');
+  // --- Star rating (5-star half-step, slot pattern). Tap on either
+  // half of a star sets the rating to that half-step value (1–10
+  // internal). Tapping the currently-selected value clears the rating
+  // to 0. Hover preview drives the same --star-fill CSS variable that
+  // refreshShelfLogStarUI uses, so the visual feedback matches the
+  // post-commit state exactly. ---
+  const slots = Array.from(overlay.querySelectorAll('.shelf-log-star-slot'));
+  const hitButtons = overlay.querySelectorAll('[data-shelf-log-star]');
   function previewStars(value) {
-    starButtons.forEach(b => {
-      const v = Number(b.getAttribute('data-shelf-log-star')) || 0;
-      b.classList.toggle('lit', v <= value);
+    slots.forEach(slot => {
+      const starIdx = Number(slot.getAttribute('data-shelf-log-slot')) || 0;
+      if (!starIdx) return;
+      const leftV = starIdx * 2 - 1;
+      const rightV = starIdx * 2;
+      let pct = 0;
+      if (value >= rightV) pct = 100;
+      else if (value >= leftV) pct = 50;
+      slot.style.setProperty('--star-fill', `${pct}%`);
     });
   }
-  starButtons.forEach(btn => {
+  hitButtons.forEach(btn => {
     const value = Number(btn.getAttribute('data-shelf-log-star')) || 0;
     btn.addEventListener('mouseenter', () => previewStars(value));
     btn.addEventListener('mouseleave', () => previewStars(state.rating));
     btn.addEventListener('click', () => {
       state.rating = state.rating === value ? 0 : value;
       refreshShelfLogStarUI(overlay);
-      // Replay the Shelfd star-pop animation on the picked star.
-      btn.classList.remove('star-pop');
-      // Force reflow so the animation restarts even on rapid taps.
-      void btn.offsetWidth;
-      btn.classList.add('star-pop');
-      setTimeout(() => btn.classList.remove('star-pop'), 460);
+      // Replay the Shelfd star-pop animation on the slot's fill glyph.
+      const slot = btn.closest('.shelf-log-star-slot');
+      const fill = slot && slot.querySelector('.shelf-log-star-fill');
+      if (fill) {
+        fill.classList.remove('star-pop');
+        void fill.offsetWidth;
+        fill.classList.add('star-pop');
+        setTimeout(() => fill.classList.remove('star-pop'), 460);
+      }
     });
   });
 
@@ -9602,7 +11204,9 @@ async function saveShelfLogComposer() {
   const reviewText = String(state.review || '').trim().slice(0, SHELF_LOG_REVIEW_MAX);
   const tags = state.tags.slice(0, SHELF_LOG_TAG_MAX_COUNT);
 
-  item.rating = Number(state.rating || 0);
+  const prevRating = Number(item.rating || 0);
+  const nextRating = Number(state.rating || 0);
+  item.rating = nextRating;
   item.reviewText = reviewText;
   item.reviewTags = tags;
   item.firstTimeWatch = !!state.firstTime;
@@ -9617,6 +11221,32 @@ async function saveShelfLogComposer() {
 
   if (typeof markOwnItemLastEdited === 'function') markOwnItemLastEdited(item, state.section);
   else if (typeof touchItem === 'function') touchItem(item);
+
+  /* v10.451: keep the title-card rating UI in sync with the review-page
+     rating. Before this, saving a review changed `item.rating` in
+     memory + Firestore, but the rating bubble / stars on the MyList
+     card behind the composer kept showing the OLD value until a full
+     `render()` rebuild. Now we explicitly refresh the rating widget
+     (same call `rate()` uses after a star click) and — for music
+     section overall ratings — also propagate the change to the
+     community-ratings doc so total / average aggregates update in
+     real time on the album-details page. */
+  if (prevRating !== nextRating) {
+    try {
+      if (typeof updateOverallRatingUI === 'function') {
+        updateOverallRatingUI(item, state.section);
+      }
+    } catch (_) {}
+    if (state.section === 'music' && typeof window.persistAlbumRatingToCommunityDoc === 'function') {
+      try {
+        window.persistAlbumRatingToCommunityDoc(item, nextRating).then(() => {
+          if (typeof window.fetchAndPatchAlbumCommunityRating === 'function') {
+            window.fetchAndPatchAlbumCommunityRating(item, { force: true });
+          }
+        }).catch(() => {});
+      } catch (_) {}
+    }
+  }
 
   const targetItemId = state.itemId;
   const targetSection = state.section;
@@ -10068,3 +11698,70 @@ window.openCardCommentComposer = openCardCommentComposer;
 window.closeCardCommentComposer = closeCardCommentComposer;
 window.saveCardCommentFromComposer = saveCardCommentFromComposer;
 window.confirmDeleteCardComment = confirmDeleteCardComment;
+
+/* v10.550: Report / flag content sheet — App Store guideline 1.2.0.
+   Called from:
+     • Full-page review viewer (non-owner three-dot menu)
+     • DM thread overflow menu
+   Writes a doc to Firestore `reports/{autoId}` and shows a toast.
+   contentType: 'review' | 'dm_user'
+   targetUid:   uid of the person being reported
+   targetId:    itemId (review) or threadId (DM)
+   targetLabel: short human-readable label for the sheet title */
+window.openReportSheet = function(contentType, targetUid, targetId, targetLabel) {
+  if (document.getElementById('shelfd-report-sheet')) return;
+  const reasons = ['Spam', 'Offensive content', 'Harassment', 'Other'];
+  const sheet = document.createElement('div');
+  sheet.id = 'shelfd-report-sheet';
+  sheet.className = 'shelfd-report-sheet-overlay';
+  sheet.innerHTML = `
+    <div class="shelfd-report-sheet-scrim" data-report-dismiss></div>
+    <div class="shelfd-report-sheet-panel" role="dialog" aria-modal="true" aria-label="Report content">
+      <div class="shelfd-report-sheet-handle" aria-hidden="true"></div>
+      <div class="shelfd-report-sheet-title">Report ${escHtml(targetLabel || 'content')}</div>
+      <div class="shelfd-report-sheet-sub">What's the issue?</div>
+      ${reasons.map(r => `
+        <button type="button" class="shelfd-report-sheet-option" data-reason="${escAttr(r)}">${escHtml(r)}</button>
+      `).join('')}
+      <button type="button" class="shelfd-report-sheet-cancel" data-report-dismiss>Cancel</button>
+    </div>
+  `;
+
+  function dismiss() {
+    sheet.classList.remove('is-open');
+    setTimeout(() => { try { sheet.remove(); } catch (_) {} }, 260);
+  }
+
+  sheet.querySelectorAll('[data-report-dismiss]').forEach(el => {
+    el.addEventListener('click', e => { e.stopPropagation(); dismiss(); });
+  });
+
+  sheet.querySelectorAll('[data-reason]').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const reason = btn.getAttribute('data-reason');
+      dismiss();
+      try {
+        if (typeof currentUser !== 'undefined' && currentUser && typeof db !== 'undefined' && db) {
+          await db.collection('reports').add({
+            reportedBy: currentUser.uid,
+            reportedUid: String(targetUid || ''),
+            contentType: String(contentType || ''),
+            contentId: String(targetId || ''),
+            reason: reason,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }
+      } catch (err) {
+        console.warn('[report] Firestore write failed:', err);
+      }
+      if (typeof showToast === 'function') {
+        showToast('Report submitted. Thank you.', { durationMs: 3500 });
+      }
+    });
+  });
+
+  document.body.appendChild(sheet);
+  requestAnimationFrame(() => requestAnimationFrame(() => sheet.classList.add('is-open')));
+};
+

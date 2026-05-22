@@ -4871,11 +4871,19 @@ function normalizeActivityRatingOutOfTen(value = 0) {
   return Math.max(0, Math.min(10, rating));
 }
 
+/* v10.509: activity-card rating score now renders on the 5-point scale
+   with the "X/5" suffix. Internal storage is still 1–10 (each unit =
+   half-star) so we divide by 2 here at the display layer. Examples:
+   stored 7 → "3.5/5", stored 8 → "4/5", stored 9 → "4.5/5". The
+   `normalizeActivityRatingOutOfTen` helper is kept intact because the
+   stars-visual code at `renderActivityUniversalRating` line 4896 still
+   needs the raw 1-10 number to compute per-star fill percentages. */
 function formatActivityRatingScore(value = 0) {
   const rating = normalizeActivityRatingOutOfTen(value);
   if (!rating) return '';
-  const rounded = Math.round(rating * 10) / 10;
-  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1).replace(/\.0$/, '');
+  const fiveValue = rating / 2;
+  const text = Number.isInteger(fiveValue) ? String(fiveValue) : fiveValue.toFixed(1);
+  return `${text}/5`;
 }
 
 function renderActivityRatingStar(fillPercent = 0, index = 0) {
@@ -4900,7 +4908,7 @@ function renderActivityUniversalRating(ratingValue = 0) {
     return renderActivityRatingStar(fill, index);
   }).join('');
   const score = formatActivityRatingScore(rating);
-  return `<div class="sl-activity-rating" aria-label="Rating ${escAttr(score)} out of 10">
+  return `<div class="sl-activity-rating" aria-label="Rating ${escAttr(score)}">
     <span class="sl-activity-stars">${starHtml}</span>
     <span class="sl-activity-score">${escHtml(score)}</span>
   </div>`;
@@ -4913,7 +4921,7 @@ function renderActivityEpisodeRatingCompact(ratingValue = 0) {
   const rating = normalizeActivityRatingOutOfTen(ratingValue);
   if (!rating) return '';
   const score = formatActivityRatingScore(rating);
-  return `<div class="sl-activity-rating sl-activity-rating-compact" aria-label="Episode rating ${escAttr(score)} out of 10">
+  return `<div class="sl-activity-rating sl-activity-rating-compact" aria-label="Episode rating ${escAttr(score)}">
     <span class="sl-activity-stars sl-activity-stars-single">${renderActivityRatingStar(100, 0)}</span>
     <span class="sl-activity-score">${escHtml(score)}</span>
   </div>`;
@@ -5038,6 +5046,118 @@ function getActivityDisplayAction(eventType = '', item = {}, activity = {}) {
   if (eventType === 'removed') return 'removed';
   if (eventType === 'status-changed') return status ? `changed to ${status}` : 'updated';
   return 'added';
+}
+
+/* v10.505: Composed activity-card headline.
+   Returns a single wrappable sentence built from { prefix, title, suffix }.
+   The prefix and suffix render in gold (the action language); the title
+   renders in white. The whole sentence sits in ONE 2-line-clamped
+   container so long sentences wrap to a max of two lines, then ellipsis.
+
+   This replaces the old two-line layout (gold action on row 1, white title
+   on row 2) PLUS the half-implemented `-combined` flag that tried to merge
+   the two but only fired for a single-word action vocabulary that the rest
+   of `getActivityDisplayAction` doesn't produce anymore. Read the file
+   header in 04-activity-feed.css for the matching CSS contract. */
+function buildScreenListActivityComposedSentence(eventType = '', item = {}, activity = {}) {
+  const section = String(item.librarySection || item.mediaCategory || '').toLowerCase();
+  const isGame = section === 'games';
+  const isMovie = section === 'movies';
+  const isMusic = section === 'music';
+  const isShowOrAnime = section === 'shows' || section === 'anime';
+  const status = String(activity?.nextStatus || item?.status || '').toLowerCase();
+  const title = item.title || item.name || 'Untitled';
+
+  /* Pull season number from whichever pointer is populated for this event. */
+  const seasonNum = Number(
+    eventType === 'season-rated'
+      ? (item?.lastSeasonRatingNum || activity?.seasonNum || 0)
+      : (item?.lastSeasonFinishedNum || activity?.seasonNum || 0)
+  );
+
+  /* Episode pointer for episode-* events. */
+  const epRaw = String(item?.lastEpisodeActivityNum || item?.lastEpisodeRatingNum || '').trim();
+  const epNum = epRaw ? Number(epRaw) || 0 : 0;
+
+  /* Helper: completion phrasing varies by section. */
+  function completionPrefix() {
+    if (isGame) return 'Completed ';
+    if (isMovie) return 'Watched ';
+    if (isMusic) return 'Listened to ';
+    if (isShowOrAnime && seasonNum > 0) return `Finished watching season ${seasonNum} of `;
+    return 'Finished watching ';
+  }
+
+  switch (eventType) {
+    case 'completed':
+      return { prefix: completionPrefix(), title, suffix: '' };
+
+    case 'season-finished':
+      if (seasonNum > 0) return { prefix: `Finished watching season ${seasonNum} of `, title, suffix: '' };
+      return { prefix: 'Finished watching ', title, suffix: '' };
+
+    case 'season-rated':
+      if (seasonNum > 0) return { prefix: `Rated season ${seasonNum} of `, title, suffix: '' };
+      return { prefix: 'Rated a season of ', title, suffix: '' };
+
+    case 'episode-watched':
+      if (epNum > 0) return { prefix: `Watched episode ${epNum} of `, title, suffix: '' };
+      return { prefix: 'Watched an episode of ', title, suffix: '' };
+
+    case 'episode-rated':
+      if (epNum > 0) return { prefix: `Rated episode ${epNum} of `, title, suffix: '' };
+      return { prefix: 'Rated an episode of ', title, suffix: '' };
+
+    case 'rated':
+      return { prefix: 'Rated ', title, suffix: '' };
+
+    case 'started':
+      return { prefix: isGame ? 'Started playing ' : 'Started watching ', title, suffix: '' };
+
+    case 'paused':
+      return { prefix: isGame ? 'Put on hold: ' : 'Paused ', title, suffix: '' };
+
+    case 'dropped':
+      return { prefix: 'Dropped ', title, suffix: '' };
+
+    case 'removed':
+      return { prefix: 'Removed ', title, suffix: '' };
+
+    case 'commented':
+      return { prefix: 'Commented on ', title, suffix: '' };
+
+    case 'planned':
+      if (isGame) return { prefix: 'Added ', title, suffix: ' to Backlog' };
+      if (isMusic) return { prefix: 'Added ', title, suffix: ' to Listening List' };
+      return { prefix: 'Added ', title, suffix: ' to Watchlist' };
+
+    case 'status-changed':
+      if (status === 'watched') return { prefix: completionPrefix(), title, suffix: '' };
+      if (status === 'watching') return { prefix: isGame ? 'Started playing ' : 'Started watching ', title, suffix: '' };
+      if (status === 'planned') {
+        if (isGame) return { prefix: 'Added ', title, suffix: ' to Backlog' };
+        return { prefix: 'Added ', title, suffix: ' to Watchlist' };
+      }
+      if (status === 'paused') return { prefix: 'Paused ', title, suffix: '' };
+      if (status === 'dropped') return { prefix: 'Dropped ', title, suffix: '' };
+      return { prefix: 'Updated ', title, suffix: '' };
+
+    case 'added':
+      /* "Added" can be a status-bearing event; defer to the resolved status. */
+      if (status === 'watched') return { prefix: completionPrefix(), title, suffix: '' };
+      if (status === 'watching') return { prefix: isGame ? 'Started playing ' : 'Started watching ', title, suffix: '' };
+      if (status === 'planned') {
+        if (isGame) return { prefix: 'Added ', title, suffix: ' to Backlog' };
+        if (isMusic) return { prefix: 'Added ', title, suffix: ' to Listening List' };
+        return { prefix: 'Added ', title, suffix: ' to Watchlist' };
+      }
+      if (isGame) return { prefix: 'Added ', title, suffix: ' to library' };
+      if (isMusic) return { prefix: 'Added ', title, suffix: ' to library' };
+      return { prefix: 'Added ', title, suffix: ' to shelf' };
+
+    default:
+      return { prefix: 'Updated ', title, suffix: '' };
+  }
 }
 
 function getActivityPreviewComment(activity = {}, item = {}) {
@@ -5326,7 +5446,10 @@ function buildActivityCardHTML(a, activityId, options = {}) {
   const title = item.title || item.name || 'Untitled';
   const displayTitle = getScreenListActivityDisplayTitle(eventType, item, a, title);
   const activityAction = getActivityDisplayAction(eventType, item, a);
-  const useCombinedActionTitleHeadline = !options.compactStackChild && ['watched', 'rated', 'paused', 'added'].includes(String(activityAction || '').toLowerCase());
+  /* v10.505: composed sentence — { prefix, title, suffix } — replaces the
+     old action-verb + title split. See buildScreenListActivityComposedSentence
+     for the per-event-type vocabulary. */
+  const composedHeadline = buildScreenListActivityComposedSentence(eventType, item, a);
 
   const avatarSrc = actor.photo || a.photo || '';
   const initial = getDisplayName(actor, 'F').charAt(0).toUpperCase();
@@ -5444,16 +5567,13 @@ function buildActivityCardHTML(a, activityId, options = {}) {
     : `<button class="sl-activity-name" type="button" onclick="event.stopPropagation(); openActivityUserList('${escAttr(a.uid)}','${escAttr(actor.name || actor.customName || a.name || '')}','${escAttr(avatarSrc)}',event.currentTarget)">${actorName}</button>`;
 
   const userNoteHtml = renderScreenListActivityNoteHTML(a);
-  // Split activityAction into verb (gold) + episode/season detail (subtle).
-  // Patterns like "Watched Episode 10" or "Finished Season 3" split at the
-  // first word; compound phrases like "is watching" stay together as the verb.
-  const actionParts = activityAction.match(/^(\S+)\s+((?:Episode|Season|an episode|a season|a title)\b.*)$/i);
-  const rawActionVerb = actionParts ? actionParts[1] : activityAction;
-  const actionVerb = rawActionVerb
-    ? `${String(rawActionVerb).charAt(0).toUpperCase()}${String(rawActionVerb).slice(1)}`
-    : '';
-  const actionDetail = actionParts ? actionParts[2] : '';
-  /* v10.240: View review moved to the bottom interactions row (see
+  /* v10.505: composed sentence renders as a single 2-line-clamped paragraph.
+     Prefix + suffix carry the gold "action" styling; title carries the white
+     "media" styling. Whitespace flows naturally between parts. Removed: the
+     `actionParts` regex split, the `actionVerb`/`actionDetail` separation,
+     and the `useCombinedActionTitleHeadline` flag (all dead-on-arrival for
+     the current verb vocabulary — see v10.505 assessment notes).
+     v10.240: View review moved to the bottom interactions row (see
      bottomViewReviewHtml above). Body stays clean. */
   const cardOnclick = `handleScreenListActivityCardOpen('${escAttr(activityId)}','activity')`;
 
@@ -5462,11 +5582,10 @@ function buildActivityCardHTML(a, activityId, options = {}) {
         <button class="sl-media-review-title" type="button" onclick="event.stopPropagation(); openMediaReviewFromActivityCard('${escAttr(activityId)}')">${escHtml(displayTitle)}</button>
         <div class="sl-media-review-rating">${ratingHtml}</div>
         ${userNoteHtml}` : `
-        <div class="sl-activity-action-line">
-          <button class="sl-activity-headline sl-activity-title${useCombinedActionTitleHeadline ? ' sl-activity-headline-combined' : ''}" type="button" onclick="event.stopPropagation(); handleActivityMediaClick('${escAttr(activityId)}', this)">
-            <span class="sl-activity-action-verb${useCombinedActionTitleHeadline ? ' sl-activity-action-verb-combined' : ''}">${escHtml(actionVerb)}</span> <span class="sl-activity-title-text${useCombinedActionTitleHeadline ? ' sl-activity-title-text-combined' : ''}">${escHtml(displayTitle)}</span>
+        <div class="sl-activity-action-line sl-activity-action-line-composed">
+          <button class="sl-activity-composed-headline" type="button" onclick="event.stopPropagation(); handleActivityMediaClick('${escAttr(activityId)}', this)">
+            ${composedHeadline.prefix ? `<span class="sl-activity-composed-prefix">${escHtml(composedHeadline.prefix)}</span>` : ''}<span class="sl-activity-composed-title">${escHtml(composedHeadline.title)}</span>${composedHeadline.suffix ? `<span class="sl-activity-composed-suffix">${escHtml(composedHeadline.suffix)}</span>` : ''}
           </button>
-          ${actionDetail ? `<span class="sl-activity-action-detail">${escHtml(actionDetail)}</span>` : ''}
         </div>
         ${ratingHtml}
         ${userNoteHtml}
@@ -5562,6 +5681,12 @@ function renderFriendActivityItems(feed, activities, options = {}) {
      window stays in sync with every re-render. */
   Object.keys(friendActivityClickTargets).forEach(k => { delete friendActivityClickTargets[k]; });
   activities = collapseStackedActivityBurstActivities(Array.isArray(activities) ? activities : []);
+
+  /* v10.552: filter out posts from blocked users instantly — no
+     re-fetch needed, the Set is updated the moment a block is confirmed. */
+  if (window.shelfdBlockedUids && window.shelfdBlockedUids.size > 0) {
+    activities = activities.filter(a => !window.shelfdBlockedUids.has(String(a.uid || '').trim()));
+  }
 
   if (!activities.length) {
     feed.innerHTML = `<div class="activity-feed-empty"><strong>Nothing yet</strong>${options.emptyText || 'Add friends to see what they are watching, playing, and rating.'}</div>`;

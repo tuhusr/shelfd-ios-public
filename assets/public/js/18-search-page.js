@@ -183,7 +183,7 @@
     const kind = isAnime ? 'anime' : (isMovie ? 'movie' : 'tv');
     const displayRating = typeof window.formatDisplayTitleRating === 'function'
       ? window.formatDisplayTitleRating(item)
-      : (Number(item.imdbRating || 0) > 0 ? Number(item.imdbRating).toFixed(1) : '');
+      : (Number(item.imdbRating || 0) > 0 ? (Number(item.imdbRating) / 2).toFixed(1) : '');
     /* v736: popularity signal.
        - Jikan: `members` (MAL trackers) is the strongest popularity proxy.
          Falls back to `favorites`, then to inverse `popularity` (which is
@@ -207,12 +207,37 @@
       const voteCount = Number(item.vote_count || 0);
       popularity = imdbVotes + voteCount;
     }
+    /* v10.492: aliases — alternate titles the bucket scorer should also
+       consider as canonical matches. For Jikan-sourced anime, the
+       English / Japanese / romaji variants count; for TMDB items, the
+       original (foreign-language) title counts. The bucket scorer
+       awards 95 (vs 100 for canonical) on alias hits. */
+    const aliases = [];
+    const seenAliases = new Set();
+    const pushAlias = (val) => {
+      const s = String(val || '').trim();
+      if (!s) return;
+      const k = s.toLowerCase();
+      if (k === String(title || '').toLowerCase() || seenAliases.has(k)) return;
+      seenAliases.add(k);
+      aliases.push(s);
+    };
+    if (isJikan) {
+      pushAlias(item.title_english);
+      pushAlias(item.title_japanese);
+      pushAlias(item.original_name);
+      pushAlias(item.original_title);
+    } else {
+      if (isMovie) pushAlias(item.original_title);
+      else pushAlias(item.original_name);
+    }
     return {
       key: isJikan ? `mal:${item.__mal_id || item.id}` : `tmdb:${item.media_type}:${item.id}`,
       kind,
       tmdbType: isMovie ? 'movie' : 'tv',
       id: item.id,
       title,
+      aliases,
       year,
       rating: displayRating,
       popularity,
@@ -271,22 +296,31 @@
   }
   /* v10.248: primary music search runs Deezer (no key, popularity-ranked
      results, real cover art + tracklists). Returns the SAME shape as the
-     legacy MusicBrainz path so normalizeMusicItem just passes through. */
+     legacy MusicBrainz path so normalizeMusicItem just passes through.
+     v10.466: also fetches /search/track so individual songs surface as
+     first-class results. Deezer's track search is ranked by stream
+     popularity, so the #1 hit for a song-title query is usually the
+     canonical version — fixes the "All the Love" case where searching
+     a song name returned nothing because we only had album + artist. */
   async function fetchMusicSearchResults(query) {
     const q = String(query || '').trim();
     if (!q) return [];
     try {
-      const [albumRes, artistRes] = await Promise.allSettled([
+      const [albumRes, artistRes, trackRes] = await Promise.allSettled([
         fetch(`/api/deezer/search/album?q=${encodeURIComponent(q)}&limit=18`),
-        fetch(`/api/deezer/search/artist?q=${encodeURIComponent(q)}&limit=6`)
+        fetch(`/api/deezer/search/artist?q=${encodeURIComponent(q)}&limit=6`),
+        fetch(`/api/deezer/search/track?q=${encodeURIComponent(q)}&limit=12`)
       ]);
       const albumData = albumRes.status === 'fulfilled' && albumRes.value.ok
         ? await albumRes.value.json().catch(() => null) : null;
       const artistData = artistRes.status === 'fulfilled' && artistRes.value.ok
         ? await artistRes.value.json().catch(() => null) : null;
+      const trackData = trackRes.status === 'fulfilled' && trackRes.value.ok
+        ? await trackRes.value.json().catch(() => null) : null;
 
       const albums = Array.isArray(albumData?.data) ? albumData.data : [];
       const artists = Array.isArray(artistData?.data) ? artistData.data : [];
+      const tracks = Array.isArray(trackData?.data) ? trackData.data : [];
 
       /* Deezer album rows already include `artist.name`, `cover_xl`, plus
          `release_date` once we expand later. Map to a synthetic MB-ish
@@ -326,9 +360,67 @@
           score: 100
         }));
 
-      /* Deezer's search/album already ranks by popularity — keep that order
-         but pull artist rows to the very top of the list. */
-      return [...artistRows, ...albumRows];
+      /* v10.466: track rows. Each track carries its parent album's Deezer ID
+         in `deezerId` so clicking the row opens the album profile (Shelfd
+         tracks albums, not individual songs). Rows are scored against the
+         query — exact / startsWith / contains — so the canonical match
+         (e.g. "All the Love" → Kanye West · Bully) sits above album rows.
+         Dedupe by (normalized-title + normalized-artist) so the same song
+         on a reissue + original album doesn't render twice. */
+      const _normSearchText = s => String(s || '').toLowerCase()
+        .replace(/[^\w\s]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const qNormSearch = _normSearchText(q);
+      const seenTrackKey = new Set();
+      const trackRowsRaw = [];
+      for (const t of tracks) {
+        const trackTitleNorm = _normSearchText(t.title);
+        const artistName = (t.artist && t.artist.name) || '';
+        const dedupeKey = `${trackTitleNorm}|${_normSearchText(artistName)}`;
+        if (!trackTitleNorm || seenTrackKey.has(dedupeKey)) continue;
+        const albumId = String((t.album && t.album.id) || '').trim();
+        if (!albumId) continue;
+        seenTrackKey.add(dedupeKey);
+        const matchScore = trackTitleNorm === qNormSearch ? 1000
+          : trackTitleNorm.startsWith(qNormSearch) ? 700
+          : trackTitleNorm.includes(qNormSearch) ? 500
+          : 100;
+        trackRowsRaw.push({
+          __shelfdDeezer: true,
+          __shelfdDeezerType: 'track',
+          id: 'deezer-track-' + String(t.id),
+          trackDeezerId: String(t.id),
+          deezerId: albumId,                       // parent album → click target
+          title: t.title || '',
+          cover_xl: (t.album && (t.album.cover_xl || t.album.cover_big || t.album.cover_medium)) || '',
+          artistName,
+          artistId: (t.artist && t.artist.id) || '',
+          albumName: (t.album && t.album.title) || '',
+          explicit: !!t.explicit_lyrics,
+          popularity: Number(t.rank || 0),
+          score: matchScore,
+          __queryMatchScore: matchScore
+        });
+      }
+
+      /* Strong matches go ABOVE the album rows; weaker matches go after,
+         capped so they don't dominate the list. */
+      const promotedTracks = trackRowsRaw
+        .filter(t => t.__queryMatchScore >= 500)
+        .sort((a, b) => (b.__queryMatchScore - a.__queryMatchScore) || (b.popularity - a.popularity))
+        .slice(0, 5);
+      const promotedTrackIds = new Set(promotedTracks.map(t => t.trackDeezerId));
+      const backgroundTracks = trackRowsRaw
+        .filter(t => t.__queryMatchScore < 500 && !promotedTrackIds.has(t.trackDeezerId))
+        .slice(0, 4);
+
+      /* Final ordering:
+           1. Strong artist hits   (when the query matches an artist name)
+           2. Promoted tracks      (query matches the song title)
+           3. Albums               (Deezer's popularity order)
+           4. Background tracks    (weaker query matches, still useful) */
+      return [...artistRows, ...promotedTracks, ...albumRows, ...backgroundTracks];
     } catch (_) { /* fall through to MusicBrainz */ }
 
     /* Fallback path: original MusicBrainz combo search (unchanged). */
@@ -497,6 +589,7 @@
           deezerId: dzId,
           deezerSource: true,
           title: item.name || '',
+          aliases: [],
           year: '',
           artist: '',
           artistType: 'Artist',
@@ -509,7 +602,43 @@
           raw: item
         };
       }
+      /* v10.466: Deezer track row. `kind` stays 'music' so the existing
+         click handler + add-to-shelf paths flow through unchanged; the
+         `subkind='track'` flag is what renderResultRow uses to swap the
+         label ("Song" instead of "Album") and the credit line ("By
+         [Artist] · [Album]"). `deezerId` already points at the parent
+         album, so openMusicAlbumProfile lands on the right page. */
+      if (item.__shelfdDeezerType === 'track') {
+        const albumDzId = String(item.deezerId || '').trim();
+        const trackDzId = String(item.trackDeezerId || '').trim();
+        /* v10.492: aliases — artist + album names so a query like
+           "kanye" can match a track row by its artist credit. */
+        const trackAliases = [item.artistName, item.albumName].filter(Boolean);
+        return {
+          key: `music:track:deezer:${trackDzId}:${albumDzId}`,
+          kind: 'music',
+          subkind: 'track',
+          id: albumDzId,
+          deezerId: albumDzId,
+          trackDeezerId: trackDzId,
+          deezerSource: true,
+          title: item.title || '',
+          aliases: trackAliases,
+          year: '',
+          artist: item.artistName || '',
+          artistDeezerId: item.artistId || '',
+          albumName: item.albumName || '',
+          rating: '',
+          popularity: Number(item.popularity || 0),
+          poster: item.cover_xl || '',
+          overview: '',
+          raw: item
+        };
+      }
       const albumDzId = String(item.deezerId || '').trim();
+      /* v10.492: aliases — artist name so a query for the artist also
+         catches their albums. */
+      const albumAliases = item.artistName ? [item.artistName] : [];
       return {
         key: `music:deezer:${albumDzId}`,
         kind: 'music',
@@ -517,6 +646,7 @@
         deezerId: albumDzId,
         deezerSource: true,
         title: item.title || '',
+        aliases: albumAliases,
         year: '',                  // Deezer's search/album doesn't include year; profile hydrate fills it
         artist: item.artistName || '',
         artistDeezerId: item.artistId || '',
@@ -538,6 +668,7 @@
         kind: 'artist',
         id: aMbid,
         title: name,
+        aliases: [],
         year: '',
         artist: '',
         artistType: item.type || 'Artist',
@@ -570,6 +701,7 @@
       kind: 'music',
       id: mbid,
       title,
+      aliases: artist ? [artist] : [],
       year,
       artist,
       rating: '',
@@ -595,11 +727,37 @@
     const popularity = added + ratingsCount + reviewsCount;
     const rawgId = String(item.rawgId || item.rawg_id || (item.source === 'rawg' ? item.id : '') || '').trim();
     const profileId = rawgId || String(item.id || '').trim();
+    /* v10.492: optional alias list — IGDB normalized rows occasionally
+       carry an `alternative_names` array; RAWG search rarely does.
+       v10.494: IGDB now actually returns alternative_names (worker
+       update). Plus we auto-generate safe acronym aliases for common
+       franchise patterns (Grand Theft Auto V → GTA V / GTAV / GTA 5 /
+       GTA5, etc.). */
+    const aliases = [];
+    const canonicalLower = String(item.name || '').toLowerCase();
+    const seenAliases = new Set();
+    const pushAlias = (raw) => {
+      const s = String(raw || '').trim();
+      if (!s) return;
+      const k = s.toLowerCase();
+      if (k === canonicalLower || seenAliases.has(k)) return;
+      seenAliases.add(k);
+      aliases.push(s);
+    };
+    const altNames = Array.isArray(item.alternative_names) ? item.alternative_names
+      : Array.isArray(item.alternativeNames) ? item.alternativeNames
+      : [];
+    for (const alt of altNames) pushAlias(alt?.name || alt);
+    /* v10.494: auto-generate acronym variants. */
+    for (const acronym of shelfdGenerateGameAcronymAliases(item.name || '')) {
+      pushAlias(acronym);
+    }
     return {
       key: `game:${profileId || item.name}`,
       kind: 'game',
       id: profileId,
       title: item.name || '',
+      aliases,
       year,
       rating: rating > 0 ? rating.toFixed(1) : '',
       popularity,
@@ -626,11 +784,29 @@
       .filter(Boolean)
       .slice(0, 3);
     const popularity = Number(item.popularity || 0);
+    /* v10.492: aliases — `also_known_as` from TMDB is the canonical
+       alternate-name list for people (stage names, nicknames). It's
+       only populated on detail endpoints, but if our search response
+       carries it we use it. Otherwise empty. */
+    const aliases = [];
+    if (Array.isArray(item.also_known_as)) {
+      const canonical = String(item.name || '').toLowerCase();
+      const seen = new Set();
+      for (const a of item.also_known_as) {
+        const s = String(a || '').trim();
+        if (!s) continue;
+        const k = s.toLowerCase();
+        if (k === canonical || seen.has(k)) continue;
+        seen.add(k);
+        aliases.push(s);
+      }
+    }
     return {
       key: `person:${item.id}`,
       kind: 'person',
       id: item.id,
       title: item.name || '',
+      aliases,
       year: '',
       rating: popularity > 0 ? popularity.toFixed(1) : '',
       popularity,
@@ -1882,7 +2058,7 @@
     const year = String(getPresetReleaseDate(item) || '').slice(0, 4);
     const rating = typeof window.formatDisplayTitleRating === 'function'
       ? window.formatDisplayTitleRating(item)
-      : (Number(item.imdbRating || 0) > 0 ? Number(item.imdbRating).toFixed(1) : '');
+      : (Number(item.imdbRating || 0) > 0 ? (Number(item.imdbRating) / 2).toFixed(1) : '');
     const meta = [year, type === 'movie' ? 'Movie' : 'TV'].filter(Boolean).join(' · ');
     return `
       <button type="button" class="shelfd-search-preset-title-card" onclick="handleSearchPresetMediaClick(event, '${escAttr(type)}', '${escAttr(item.id)}')" title="${escAttr(title)}">
@@ -1968,6 +2144,428 @@
     }
   };
 
+  /* =========================================================================
+     v10.492 — Bucket-first Universal Search ranking
+     -------------------------------------------------------------------------
+     PROBLEM with the previous v737–v740 scorer (replaced below): it was a
+     FLAT additive model — `final = relevance_tier + log10(popularity) * 200`.
+     The popularity boost (capped at +900) was wide enough to let a popular
+     SUBSTRING match (tier 300 + ~700 boost = ~1000) BEAT an exact match
+     with low popularity (tier 1000 + ~50 boost = ~1050) … actually winning
+     by margin, BUT the gap was thin enough that ordering felt random in
+     the real world. The user reported (and we confirmed) that strong
+     intent matches were getting outranked by mid-quality popular results.
+
+     NEW MODEL — every result first lands in a discrete MATCH BUCKET:
+       100 = exact canonical title/name match
+        95 = exact alias / alternate-title match
+        90 = title/name starts with the query
+        85 = all query words present in order
+        80 = all query words present out of order
+        70 = strong partial / word-boundary match
+        60 = typo / fuzzy match (reserved — no impl yet, costly)
+        40 = weak substring match
+         0 = no useful match → DROPPED
+
+     Popularity NEVER lets a weaker bucket beat a stronger bucket. Within
+     a bucket we order by:
+       1. intent match  (All-tab only; query words like "movie"/"actor"/etc.)
+       2. text sub-score (length-of-title vs query, prefix tightness, etc.)
+       3. authority signal (log10 of source-specific popularity)
+       4. rating / vote confidence
+       5. release year (newer wins)
+       6. quality / completeness (poster + id + year + overview)
+       7. title alphabetical (last resort)
+
+     Aliases are exposed on every normalized row via `aliases: []`. The
+     scorer checks canonical first, then each alias; an alias-only exact
+     match downgrades 100 → 95 so a true canonical match still beats it.
+
+     MUSIC IS PRESERVED: the music filter's existing artist→promoted-tracks
+     →albums→background-tracks ordering (from fetchMusicSearchResults) is
+     the best-performing music model, so for activeFilter === 'music' we
+     SKIP the universal sort entirely. We still dedupe and filter zero-
+     bucket items but we honor source order.
+     ========================================================================= */
+  const SHELFD_SEARCH_INTENT_PATTERNS = [
+    { kind: 'movie',  rx: /\b(movie|movies|film|films|flick|flicks)\b/i },
+    { kind: 'tv',     rx: /\b(show|shows|series|tv|episode|episodes|season|seasons|sitcom)\b/i },
+    { kind: 'anime',  rx: /\b(anime|manga|otaku|shounen|shonen|seinen|isekai)\b/i },
+    { kind: 'game',   rx: /\b(game|games|gaming|videogame|video\s*game)\b/i },
+    { kind: 'music',  rx: /\b(song|songs|track|tracks|album|albums|artist|artists|band|bands)\b/i },
+    { kind: 'person', rx: /\b(actor|actress|actors|actresses|director|cast|star|stars)\b/i }
+  ];
+
+  function shelfdSearchNormalize(s) {
+    return String(s == null ? '' : s)
+      .toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')   /* strip accents */
+      .replace(/[‘’‚‛]/g, "'")        /* normalize quotes */
+      .replace(/[“”„‟]/g, '"')
+      .replace(/[-_:.,/'"!?&()\[\]{}|\\]/g, ' ')           /* punctuation→space */
+      .replace(/\s+/g, ' ').trim();
+  }
+
+  /* v10.494: stop-word fallback. Queries like "the Batman" should still
+     surface major Batman entries (Batman 1989, Batman Begins, …) even
+     though those titles don't literally contain "the". The fallback
+     re-scores with stop words stripped and caps the result at bucket 70
+     so true exact / prefix matches still win the top slot. */
+  const SHELFD_SEARCH_STOP_WORDS = new Set(['the', 'a', 'an']);
+  function shelfdStripStopWords(q) {
+    if (!q) return '';
+    return q.split(' ').filter(w => w && !SHELFD_SEARCH_STOP_WORDS.has(w)).join(' ');
+  }
+
+  /* v10.494: bounded Levenshtein for fuzzy-bucket (60) rescue. Uses
+     Wagner–Fischer with an early bail-out when the running row-min
+     exceeds `maxAllowed`, so worst-case cost is bounded by the
+     allowed edit budget — fast enough to run per-result at typing
+     speed. Returns Infinity when the strings are too different. */
+  function shelfdEditDistance(a, b, maxAllowed = 2) {
+    const sA = String(a || ''); const sB = String(b || '');
+    if (sA === sB) return 0;
+    if (!sA || !sB) return Math.max(sA.length, sB.length);
+    const m = sA.length, n = sB.length;
+    if (Math.abs(m - n) > maxAllowed) return Infinity;
+    const prev = new Array(n + 1);
+    const curr = new Array(n + 1);
+    for (let j = 0; j <= n; j++) prev[j] = j;
+    for (let i = 1; i <= m; i++) {
+      curr[0] = i;
+      let rowMin = i;
+      for (let j = 1; j <= n; j++) {
+        const cost = sA.charCodeAt(i - 1) === sB.charCodeAt(j - 1) ? 0 : 1;
+        const d = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost);
+        curr[j] = d;
+        if (d < rowMin) rowMin = d;
+      }
+      if (rowMin > maxAllowed) return Infinity;
+      for (let j = 0; j <= n; j++) prev[j] = curr[j];
+    }
+    return prev[n];
+  }
+
+  /* v10.494: bucket-60 fuzzy scoring. ONLY called when no higher
+     bucket matched (the main scorer returned 0). Two strategies:
+       (1) full-string edit distance against the normalized title
+           — catches single-typo cases like "spder man" → "spider man"
+       (2) per-word edit distance — every query word must fuzzy-match
+           a title word, total edits across all words ≤ a small budget
+     We require query length ≥ 4 to avoid swamping short queries with
+     noise (a 2-char query would fuzzy-match almost anything). */
+  function shelfdFuzzyScore(rawText, q, qWords) {
+    if (!q || q.length < 4) return { bucket: 0, sub: 0 };
+    const t = shelfdSearchNormalize(rawText);
+    if (!t) return { bucket: 0, sub: 0 };
+
+    /* Full-string fuzzy. Tight budget so we don't match unrelated titles. */
+    const fullBudget = q.length >= 7 ? 2 : 1;
+    const fullDist = shelfdEditDistance(t, q, fullBudget);
+    if (fullDist <= fullBudget) {
+      return { bucket: 60, sub: 200 - fullDist * 50 };  /* sub 150 or 100 */
+    }
+
+    /* Per-word fuzzy. Every query word must fuzzy-match some title
+       word; total edits across words ≤ 2. Skip query words < 3 chars
+       (they're too noisy under any edit budget). */
+    if (qWords.length >= 1) {
+      const tWords = t.split(' ').filter(Boolean);
+      let totalDist = 0;
+      let allMatched = true;
+      for (const qw of qWords) {
+        if (qw.length < 3) { allMatched = false; break; }
+        const wordBudget = qw.length >= 6 ? 2 : 1;
+        let bestWord = Infinity;
+        for (const tw of tWords) {
+          const d = shelfdEditDistance(qw, tw, wordBudget);
+          if (d < bestWord) bestWord = d;
+          if (bestWord === 0) break;
+        }
+        if (bestWord > wordBudget) { allMatched = false; break; }
+        totalDist += bestWord;
+        if (totalDist > 2) { allMatched = false; break; }
+      }
+      if (allMatched && totalDist > 0) {
+        return { bucket: 60, sub: 180 - totalDist * 40 };  /* 140 / 100 */
+      }
+    }
+    return { bucket: 0, sub: 0 };
+  }
+
+  /* v10.494: safe acronym generator. Only used by GAMES (the canonical
+     abbreviation user case — players say "GTA", "RDR2", "TLOZ"). Movie
+     and music acronyms aren't idiomatic and would just noise the index.
+     Rules:
+       • Skip titles with fewer than 3 tokens.
+       • Detect a terminal roman numeral (I–X) or 1–2 digit number;
+         strip it as the "suffix", build the acronym from the
+         remaining tokens, and emit:
+           [letters][suffix]                          (GTAV)
+           [letters] [suffix]                         (GTA V)
+           [letters][arabicSuffix]   (if roman)       (GTA5)
+           [letters] [arabicSuffix]  (if roman)       (GTA 5)
+       • No terminal suffix → only the bare acronym (GTA, RDR, COD,
+         TLOZ). Require ≥ 3 chars (skip "FF", "CC", etc — too noisy).
+       • Acronyms are case-preserved-uppercase; the bucket scorer
+         normalizes both sides to lowercase before comparing. */
+  function shelfdGenerateGameAcronymAliases(title) {
+    const out = [];
+    const raw = String(title || '').trim();
+    if (!raw) return out;
+    const tokens = raw.split(/\s+/).filter(Boolean);
+    if (tokens.length < 3) return out;
+
+    const ROMAN_NUMERALS = { i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6, vii: 7, viii: 8, ix: 9, x: 10 };
+    const last = tokens[tokens.length - 1];
+    const lastLow = last.toLowerCase().replace(/[^a-z0-9]+/g, '');
+    const isRoman = Object.prototype.hasOwnProperty.call(ROMAN_NUMERALS, lastLow);
+    const isNumeric = /^\d{1,2}$/.test(lastLow);
+
+    let coreTokens, suffix, arabicSuffix;
+    if (isRoman || isNumeric) {
+      coreTokens = tokens.slice(0, -1);
+      suffix = last;
+      arabicSuffix = isRoman ? String(ROMAN_NUMERALS[lastLow]) : null;
+    } else {
+      coreTokens = tokens;
+      suffix = '';
+      arabicSuffix = null;
+    }
+    if (coreTokens.length < 2) return out;
+
+    /* Build letter acronym — keep stop words inside (Call of Duty → COD,
+       The Legend of Zelda → TLOZ). Strip leading non-alphanumerics from
+       each token so things like "(2025)" don't poison the letters. */
+    const letters = coreTokens
+      .map(t => String(t || '').replace(/^[^a-z0-9]+/i, '').charAt(0).toUpperCase())
+      .filter(c => /[A-Z0-9]/.test(c))
+      .join('');
+    if (letters.length > 6) return out;  /* 7+ letter "acronyms" are noise */
+
+    if (suffix) {
+      /* Suffix variant: allow 2-letter base (FF VII → FFVII / FF7) */
+      if (letters.length < 2) return out;
+      out.push(`${letters}${suffix}`);
+      out.push(`${letters} ${suffix}`);
+      if (arabicSuffix && arabicSuffix !== suffix) {
+        out.push(`${letters}${arabicSuffix}`);
+        out.push(`${letters} ${arabicSuffix}`);
+      }
+    } else {
+      /* Bare acronym: require 3+ letters to avoid noisy 2-char matches. */
+      if (letters.length < 3) return out;
+      out.push(letters);
+    }
+    return out;
+  }
+
+  function shelfdScoreCandidate(rawText, q, qNoSpace, qWords) {
+    const t = shelfdSearchNormalize(rawText);
+    if (!t || !q) return { bucket: 0, sub: 0 };
+    const tNoSpace = t.replace(/\s+/g, '');
+    const tWords = t.split(' ').filter(Boolean);
+
+    /* 100 — exact match (space-collapsed forms compared too, so
+       "spiderman" === "spider man") */
+    if (t === q || tNoSpace === qNoSpace) {
+      return { bucket: 100, sub: 1000 };
+    }
+    /* 90 — prefix match. Sub-score favors shorter titles (the closer
+       the title length to the query length, the tighter the prefix). */
+    if (t.startsWith(q + ' ') || tNoSpace.startsWith(qNoSpace)) {
+      const lenRatio = q.length / Math.max(1, t.length);
+      return { bucket: 90, sub: Math.round(500 + 500 * lenRatio) };
+    }
+    /* 85 — all query words present IN ORDER (each query word matches a
+       title word at a later index than the previous). Multi-word
+       queries only. */
+    if (qWords.length > 1) {
+      let pos = -1, ok = true;
+      for (const qw of qWords) {
+        const idx = tWords.findIndex((tw, i) => i > pos && (tw === qw || tw.startsWith(qw)));
+        if (idx < 0) { ok = false; break; }
+        pos = idx;
+      }
+      if (ok) return { bucket: 85, sub: 700 };
+    }
+    /* 80 — all query words present out of order. */
+    if (qWords.length && qWords.every(qw => tWords.some(tw => tw === qw || tw.startsWith(qw)))) {
+      return { bucket: 80, sub: 600 };
+    }
+    /* 70 — word-boundary substring (query as a phrase appears within
+       the title with a space before or after). */
+    if (t.includes(' ' + q) || t.includes(q + ' ')) {
+      return { bucket: 70, sub: 500 };
+    }
+    /* 40 — weak substring match (query appears anywhere). */
+    if (t.includes(q) || tNoSpace.includes(qNoSpace)) {
+      return { bucket: 40, sub: 300 };
+    }
+    /* 40 (weaker) — every query word appears somewhere as substring. */
+    if (qWords.length && qWords.every(qw => t.includes(qw))) {
+      return { bucket: 40, sub: 100 };
+    }
+    return { bucket: 0, sub: 0 };
+  }
+
+  function shelfdBestBucketAcross(row, q, qNoSpace, qWords) {
+    let best = { bucket: 0, sub: 0, isAlias: false };
+    /* Canonical first. */
+    const canon = shelfdScoreCandidate(row.title, q, qNoSpace, qWords);
+    if (canon.bucket > best.bucket || (canon.bucket === best.bucket && canon.sub > best.sub)) {
+      best = { bucket: canon.bucket, sub: canon.sub, isAlias: false };
+    }
+    /* Aliases — exact (100) downgrades to 95 to keep canonical priority. */
+    const aliases = Array.isArray(row.aliases) ? row.aliases : [];
+    for (const a of aliases) {
+      const s = shelfdScoreCandidate(a, q, qNoSpace, qWords);
+      let bucket = s.bucket;
+      if (bucket === 100) bucket = 95;
+      if (bucket > best.bucket || (bucket === best.bucket && s.sub > best.sub)) {
+        best = { bucket, sub: s.sub, isAlias: true };
+      }
+    }
+    /* v10.494: stop-word-tolerant fallback. If the main scorer found
+       nothing (or only a weak ≤40 bucket), try again with stop words
+       stripped from the query. Cap the rescued bucket at 70 so true
+       exact/prefix matches still dominate (e.g. "The Batman" still
+       puts The Batman (2022) #1 at bucket 100, while Batman (1989)
+       gets rescued at bucket 70 instead of being dropped). */
+    if (best.bucket < 70) {
+      const strippedQ = shelfdStripStopWords(q);
+      if (strippedQ && strippedQ !== q && strippedQ.length >= 2) {
+        const sQNoSpace = strippedQ.replace(/\s+/g, '');
+        const sQWords = strippedQ.split(' ').filter(Boolean);
+        const trySrc = (text, isAlias) => {
+          const s = shelfdScoreCandidate(text, strippedQ, sQNoSpace, sQWords);
+          let bucket = s.bucket;
+          /* Cap at 70 regardless of how strong the stripped match was —
+             stop-word removal can never beat a true match in the
+             original query. */
+          if (bucket > 70) bucket = 70;
+          if (bucket > best.bucket) {
+            best = { bucket, sub: Math.max(0, s.sub - 200), isAlias };
+          }
+        };
+        trySrc(row.title, false);
+        for (const a of aliases) trySrc(a, true);
+      }
+    }
+    /* v10.494: bucket-60 fuzzy fallback. Only when no stronger bucket
+       matched at all — never lets fuzzy out-rank exact / prefix /
+       all-word / word-boundary / stop-word-rescued / weak-substring. */
+    if (best.bucket === 0) {
+      const fz = shelfdFuzzyScore(row.title, q, qWords);
+      if (fz.bucket > 0) {
+        best = { bucket: fz.bucket, sub: fz.sub, isAlias: false };
+      } else {
+        for (const a of aliases) {
+          const fzA = shelfdFuzzyScore(a, q, qWords);
+          if (fzA.bucket > 0) {
+            best = { bucket: fzA.bucket, sub: fzA.sub, isAlias: true };
+            break;
+          }
+        }
+      }
+    }
+    return best;
+  }
+
+  function shelfdDetectIntent(query) {
+    const out = new Set();
+    if (!query) return out;
+    for (const p of SHELFD_SEARCH_INTENT_PATTERNS) {
+      if (p.rx.test(query)) out.add(p.kind);
+    }
+    return out;
+  }
+
+  function shelfdKindIntent(row) {
+    if (!row) return null;
+    if (row.kind === 'movie' || row.kind === 'tv' || row.kind === 'anime' || row.kind === 'game' || row.kind === 'person') {
+      return row.kind;
+    }
+    if (row.kind === 'music' || row.kind === 'artist') return 'music';
+    return null;
+  }
+
+  function shelfdAuthority(row) {
+    const n = Math.max(0, Number(row?.popularity) || 0);
+    return n ? Math.log10(n + 1) : 0;   /* 0..~6 for our sources */
+  }
+
+  function shelfdQualityScore(row) {
+    let q = 0;
+    if (row?.poster) q += 2;            /* having an image matters most */
+    if (row?.id) q += 1;                /* provider id present */
+    if (row?.year) q += 1;
+    if (row?.overview && row.overview.length > 10) q += 1;
+    return q;
+  }
+
+  function shelfdIsIncomplete(row) {
+    /* Rows with no poster AND no provider id are usually garbage — keep
+       only when they're an exact canonical match. */
+    return !row?.poster && !row?.id;
+  }
+
+  function shelfdDedupeRows(rows) {
+    const seenIds = new Set();
+    const seenSig = new Map();
+    const out = [];
+    for (const r of rows) {
+      if (!r) continue;
+      if (r.id) {
+        const k = `${r.kind || ''}:${r.id}`;
+        if (seenIds.has(k)) continue;
+        seenIds.add(k);
+      }
+      /* Soft dedupe on (kind|normalized title|year) — catches the case
+         where IGDB + RAWG both returned the same game under different
+         ids. Keep the higher-quality survivor. */
+      const sig = `${r.kind || ''}|${shelfdSearchNormalize(r.title)}|${r.year || ''}|${r.subkind || ''}`;
+      const existing = seenSig.get(sig);
+      if (existing) {
+        if (shelfdQualityScore(r) > shelfdQualityScore(existing)) {
+          const idx = out.indexOf(existing);
+          if (idx >= 0) out.splice(idx, 1);
+          seenSig.set(sig, r);
+          out.push(r);
+        }
+        continue;
+      }
+      seenSig.set(sig, r);
+      out.push(r);
+    }
+    return out;
+  }
+
+  function shelfdCompareRows(a, b) {
+    /* Bucket-first. NEVER lets popularity flip a bucket. */
+    if (a._bucket !== b._bucket) return b._bucket - a._bucket;
+    /* Intent match within bucket. */
+    if ((a._intent || 0) !== (b._intent || 0)) return (b._intent || 0) - (a._intent || 0);
+    /* Text sub-score within bucket+intent. */
+    if (a._sub !== b._sub) return b._sub - a._sub;
+    /* Authority — log popularity. */
+    const aAuth = a._authority || 0, bAuth = b._authority || 0;
+    if (aAuth !== bAuth) return bAuth - aAuth;
+    /* Rating confidence. */
+    const ar = parseFloat(a.rating || '0') || 0;
+    const br = parseFloat(b.rating || '0') || 0;
+    if (ar !== br) return br - ar;
+    /* Year — newer wins. */
+    const ay = parseInt(a.year || '0', 10) || 0;
+    const by = parseInt(b.year || '0', 10) || 0;
+    if (ay !== by) return by - ay;
+    /* Completeness. */
+    const aq = shelfdQualityScore(a), bq = shelfdQualityScore(b);
+    if (aq !== bq) return bq - aq;
+    /* Alphabetical last resort. */
+    return (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' });
+  }
+
   /* ---------- Search ---------- */
   async function runSearch(rawQuery) {
     const query = String(rawQuery || '').trim();
@@ -2002,15 +2600,18 @@
       /* v654: anime filter no longer pulls TMDB. Only the 'all' tab and the
          non-anime TMDB filters touch TMDB. Anime is fetched from Jikan in
          parallel for both 'all' and 'anime'.
-         v732: 'person' is its own filter — Actors chip — and only pulls TMDB
-         search/person. The 'all' tab does NOT include people (would dilute
-         media results); switch to the chip explicitly to find people.
          v10.232: music filter — MusicBrainz release-group search via the
-         existing Cloudflare Worker proxy. */
+         existing Cloudflare Worker proxy.
+         v10.494: people ARE now fetched in the All tab. The v732 rule that
+         excluded them was overly aggressive — the bucket-first scorer +
+         flood guard (max 2 person rows in top 10) make person rows
+         additive rather than dilutive. Queries like "Tom Holland" now
+         surface the actor in All, and "tom holland actor" gets person
+         rows boosted by intent detection. */
       const wantTmdb = activeFilter === 'all' || activeFilter === 'movie' || activeFilter === 'tv';
       const wantJikanAnime = activeFilter === 'all' || activeFilter === 'anime';
       const wantGames = activeFilter === 'all' || activeFilter === 'game';
-      const wantPeople = activeFilter === 'person';
+      const wantPeople = activeFilter === 'all' || activeFilter === 'person';
       const wantMusic = activeFilter === 'all' || activeFilter === 'music';
 
       if (wantTmdb && typeof window.fetchTmdbSearchResults === 'function') {
@@ -2058,7 +2659,12 @@
         ...dropAnimeFromTmdb(tmdbItems).map(normalizeTmdbItem),
         ...jikanItems.map(normalizeTmdbItem),  /* same shape — just routes id/poster from Jikan */
         ...gameItems.map(normalizeGameItem),
-        ...musicItems.map(normalizeMusicItem)
+        ...musicItems.map(normalizeMusicItem),
+        /* v10.494: include people in All. Flood guard caps person rows
+           at 2 in top 10 unless the query has explicit person intent
+           ("actor", "actress", "director", etc.) so name-collision
+           queries like "Drake" don't push 4 random Drakes to the top. */
+        ...personItems.map(normalizePersonItem)
       ];
     } else if (activeFilter === 'movie') {
       rows = tmdbItems.filter(x => x.media_type === 'movie').map(normalizeTmdbItem);
@@ -2074,75 +2680,84 @@
       rows = musicItems.map(normalizeMusicItem);
     }
 
-    /* v737: Sort = letter-for-letter relevance + popularity boost.
-       Two real bugs were demoting popular titles:
-         1. "spiderman" wasn't matching "Spider-Man" because the hyphen
-            broke the prefix check. Fix: normalize both query and title
-            (strip hyphens/colons/apostrophes/accents/punctuation).
-         2. Popularity was only used as a within-tier tie-breaker, so an
-            obscure title that happened to spell its name as an exact
-            match always beat a hugely popular partial match. Fix: bake
-            a logarithmic popularity boost (up to +500) into the score,
-            so e.g. an obscure game scored 1000 + 30 = 1030 loses to
-            "Marvel's Spider-Man" scored 600 + 480 = 1080. */
-    function normalizeMatchText(s) {
-      return String(s || '')
-        .toLowerCase()
-        .normalize('NFD').replace(/[̀-ͯ]/g, '')   /* strip accents     */
-        .replace(/[-_:.,/'"!?&()\[\]]/g, ' ')                /* punctuation→space */
-        .replace(/\s+/g, ' ').trim();
-    }
-    const qN = normalizeMatchText(query);
+    /* v10.492: NEW bucket-first ranking pipeline.
+       See the block-comment above this function for the full design
+       rationale (replaces the v737–v740 flat additive scorer that let
+       popularity overpower stronger text matches). */
+    const qN = shelfdSearchNormalize(query);
     const qNoSpace = qN.replace(/\s+/g, '');
     const qWords = qN.split(' ').filter(Boolean);
-    function relevanceScore(title) {
-      const t = normalizeMatchText(title);
-      if (!t || !qN) return 0;
-      const tNoSpace = t.replace(/\s+/g, '');
-      /* "spiderman" vs "spider man" should both match Spider-Man → compare
-         space-collapsed forms first, then the spaced forms. */
-      if (t === qN || tNoSpace === qNoSpace) return 1000;        // exact
-      if (t.startsWith(qN) || tNoSpace.startsWith(qNoSpace)) return 800; // prefix
-      const tWords = t.split(' ').filter(Boolean);
-      if (qWords.length && qWords.every(qw => tWords.some(tw => tw.startsWith(qw)))) return 600;
-      if (t.includes(' ' + qN)) return 500;                       // word-boundary substring
-      if (t.includes(qN) || tNoSpace.includes(qNoSpace)) return 300; // substring anywhere
-      if (qWords.length && qWords.every(qw => t.includes(qw))) return 100;
-      return 0;
-    }
-    /* v740: heavier popularity boost. The relevance tier gap between an
-       exact match (1000) and a word-prefix match (600) is 400 — and a
-       low-popularity exact-match (e.g. obscure indie titled "Spiderman")
-       must lose to a hugely popular partial-match (e.g. Marvel's
-       Spider-Man with 50K+ adds / 600K+ IMDb votes). Multiplier 200 with
-       a 900 cap means: ~50K engagement → +940 → wins by ~140 over an
-       exact match with ~50 engagement (boost ~340). */
-    function popularityBoost(p) {
-      const n = Math.max(0, Number(p) || 0);
-      if (!n) return 0;
-      return Math.min(900, Math.log10(n + 1) * 200);
-    }
-    rows = rows
-      .map(row => {
-        const textScore = relevanceScore(row.title);
-        return { ...row, _searchTextScore: textScore, _searchRankScore: textScore + popularityBoost(row.popularity) };
-      })
-      .filter(row => row._searchTextScore > 0);
+    const intents = activeFilter === 'all' ? shelfdDetectIntent(query) : new Set();
 
-    rows.sort((a, b) => {
-      const as = Number(a._searchRankScore || 0);
-      const bs = Number(b._searchRankScore || 0);
-      if (as !== bs) return bs - as;
-      const ar = parseFloat(a.rating || '0') || 0;
-      const br = parseFloat(b.rating || '0') || 0;
-      if (ar !== br) return br - ar;
-      const ay = parseInt(a.year || '0', 10) || 0;
-      const by = parseInt(b.year || '0', 10) || 0;
-      if (ay !== by) return by - ay;                              // newer wins
-      return (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' });
-    });
-    rows = rows.slice(0, SEARCH_LIMIT);
-    lastResultRows = rows;
+    /* Music filter: PRESERVE source order from fetchMusicSearchResults
+       (artists → promoted tracks → albums → background tracks). The
+       existing per-source promotion model is the best music ranking
+       we have — flattening it through the universal scorer makes
+       results worse. We still dedupe + drop zero-bucket items. */
+    if (activeFilter === 'music') {
+      rows = shelfdDedupeRows(rows)
+        .map(row => {
+          const m = shelfdBestBucketAcross(row, qN, qNoSpace, qWords);
+          row._bucket = m.bucket;
+          row._sub = m.sub;
+          return row;
+        })
+        .filter(row => row._bucket > 0)
+        .slice(0, SEARCH_LIMIT);
+      lastResultRows = rows;
+    } else {
+      /* Score every row → bucket + sub + intent + authority. */
+      rows = shelfdDedupeRows(rows)
+        .map(row => {
+          const m = shelfdBestBucketAcross(row, qN, qNoSpace, qWords);
+          row._bucket = m.bucket;
+          row._sub = m.sub;
+          row._intent = intents.size ? (intents.has(shelfdKindIntent(row)) ? 1 : 0) : 0;
+          row._authority = shelfdAuthority(row);
+          return row;
+        })
+        /* Drop zero-bucket garbage. */
+        .filter(row => row._bucket > 0)
+        /* Demote incomplete rows (no image AND no provider id) unless
+           they were a canonical exact match (bucket 100). */
+        .filter(row => row._bucket >= 100 || !shelfdIsIncomplete(row));
+
+      rows.sort(shelfdCompareRows);
+
+      /* All-tab category-flood guard: when no explicit intent, prevent
+         a single kind from filling the entire top of the result list.
+         We softly cap any one kind at N in the top 10 by relegating
+         excess copies to after the diverse band. Kinds that match a
+         detected intent are exempt (we skip the guard entirely).
+         v10.494: per-kind caps — `person` is tighter (2) because name
+         collisions are common (search "Drake" matches many people).
+         Music/artist also tighter (3) because Drake-style alias hits
+         can push many albums up. */
+      if (activeFilter === 'all' && rows.length > 6 && intents.size === 0) {
+        const TOP_WINDOW = 10;
+        const DEFAULT_CAP = 4;
+        const PER_KIND_CAP = { person: 2, music: 3, artist: 1 };
+        const counts = {};
+        const top = [];
+        const tail = [];
+        for (const r of rows) {
+          if (top.length >= TOP_WINDOW) { tail.push(r); continue; }
+          const k = r.kind || 'x';
+          const cap = Object.prototype.hasOwnProperty.call(PER_KIND_CAP, k) ? PER_KIND_CAP[k] : DEFAULT_CAP;
+          counts[k] = (counts[k] || 0) + 1;
+          if (counts[k] > cap) {
+            counts[k] -= 1;
+            tail.push(r);
+          } else {
+            top.push(r);
+          }
+        }
+        rows = top.concat(tail);
+      }
+
+      rows = rows.slice(0, SEARCH_LIMIT);
+      lastResultRows = rows;
+    }
 
     if (!rows.length) {
       status.hidden = false;
@@ -2188,7 +2803,7 @@
       : r.kind === 'tv' ? 'TV Show'
       : r.kind === 'anime' ? 'Anime'
       : r.kind === 'game' ? 'Game'
-      : r.kind === 'music' ? 'Album'
+      : r.kind === 'music' ? (r.subkind === 'track' ? 'Song' : 'Album')
       : r.kind === 'artist' ? (r.artistType || 'Artist')
       : r.kind === 'person' ? (r.role || 'Actor')
       : '';
@@ -2208,10 +2823,19 @@
     } else if (r.kind === 'music') {
       /* v10.232: music rows render the artist immediately — MusicBrainz
          returns artist-credit inline in the search response, no lazy fetch
-         needed. */
-      credHtml = r.artist
-        ? `<span class="shelfd-search-row-credit"><span class="shelfd-search-row-credit-prefix">By </span><span class="shelfd-search-row-credit-name">${escHtml(r.artist)}</span></span>`
-        : '';
+         needed.
+         v10.466: track rows append the parent album so the user knows
+         where the tap will land. Reads as "By Kanye West · Bully". */
+      if (r.subkind === 'track') {
+        const parts = [r.artist, r.albumName].filter(Boolean).join(' · ');
+        credHtml = parts
+          ? `<span class="shelfd-search-row-credit"><span class="shelfd-search-row-credit-prefix">By </span><span class="shelfd-search-row-credit-name">${escHtml(parts)}</span></span>`
+          : '';
+      } else {
+        credHtml = r.artist
+          ? `<span class="shelfd-search-row-credit"><span class="shelfd-search-row-credit-prefix">By </span><span class="shelfd-search-row-credit-name">${escHtml(r.artist)}</span></span>`
+          : '';
+      }
     } else if (r.kind === 'artist') {
       /* v10.234: artist rows show disambiguation/country as a subtitle. */
       const sub = r.disambiguation || r.country || '';
@@ -2574,19 +3198,18 @@
 
     /* v646: filter chips hidden until the user focuses the search composer.
        Stays visible while there's a query in the box; disappears again once
-       the box is blurred AND empty. */
+       the box is blurred AND empty.
+       v10.490: REVERSED per user spec — chips are now ALWAYS visible. The
+       old conditional caused the chips to disappear when the user tapped
+       a filter (because the tap blurred the empty input, which fired the
+       blur listener, which removed the visible class). Locked to always-
+       on so the composer can be focused AND a filter tapped in any
+       order. */
     const chipsRow2 = document.querySelector('.shelfd-search-chips');
     function updateChipsVisibility() {
       if (!chipsRow2) return;
-      const focused = document.activeElement === input;
-      const hasQuery = !!(input.value && input.value.trim().length);
-      if (focused || hasQuery) chipsRow2.classList.add('shelfd-search-chips--visible');
-      else chipsRow2.classList.remove('shelfd-search-chips--visible');
+      chipsRow2.classList.add('shelfd-search-chips--visible');
     }
-    input.addEventListener('focus', updateChipsVisibility);
-    input.addEventListener('blur', updateChipsVisibility);
-    input.addEventListener('input', updateChipsVisibility);
-    /* Sync once on init in case input has a stored value */
     updateChipsVisibility();
 
     const onInput = () => {
@@ -2621,11 +3244,38 @@
     }
 
     if (chipsRow) {
+      /* v10.490: Prevent the chip tap from blurring the composer input.
+         v10.491: REGRESSION FIX. The v10.490 version called
+         `preventDefault()` on `touchstart` for chips — which on iOS
+         blocks the entire synthesized click chain. Result: tapping a
+         filter on TestFlight did nothing (filter stayed on All).
+
+         The correct split:
+           • Desktop (mouse): preventDefault on `mousedown` is the
+             standard pattern to prevent focus loss without blocking
+             the click.
+           • iOS / touch: do NOT preventDefault. Let the click fire
+             naturally. The keyboard may collapse momentarily, but the
+             click handler below immediately refocuses the input so
+             the user can keep typing. This is also how Instagram and
+             Twitter handle composer filter buttons on iOS. */
+      chipsRow.addEventListener('mousedown', (e) => {
+        const target = e.target.closest && e.target.closest('.shelfd-search-chip');
+        if (!target) return;
+        try { e.preventDefault(); } catch (_) {}
+      });
       chipsRow.addEventListener('click', (e) => {
         const target = e.target.closest('.shelfd-search-chip');
         if (!target) return;
         const filter = target.getAttribute('data-search-filter') || 'all';
         setActiveFilter(filter);
+        /* Refocus the composer so the keyboard stays up and the user
+           can keep typing right after picking a filter. Wrapped in rAF
+           so it fires AFTER iOS has finished processing the click and
+           any default blur. */
+        requestAnimationFrame(() => {
+          try { input.focus({ preventScroll: true }); } catch (_) { try { input.focus(); } catch (_) {} }
+        });
       });
     }
 

@@ -318,15 +318,34 @@
   }
   /* Login screen */
   .login-screen {
-    min-height: 100vh; display: flex; flex-direction: column;
+    height: 100dvh; display: flex; flex-direction: column;
     align-items: center; background: #050410;
-    padding: 0; overflow-x: hidden;
+    padding: 0;
+    overflow: hidden;
     font-family: 'Sohne', 'Sohne', sans-serif;
+    touch-action: manipulation;
+  }
+  /* In sign-in mode the form card may need scroll on small devices */
+  #login-screen.signin-mode {
+    overflow-y: auto;
   }
   .login-hero {
     display: flex; flex-direction: column; align-items: center;
-    justify-content: center; padding: 60px 20px 20px; width: 100%;
+    justify-content: center;
+    /* v10.579: use margin-top instead of padding-top on the container —
+       avoids the iOS initial-paint bug where large container padding
+       causes content to appear at the wrong position until pull-down. */
+    margin-top: 30dvh;
+    padding: 0 20px 16px; width: 100%;
     text-align: center;
+  }
+  .login-hero-slogan {
+    margin: 2px 0 0;
+    font-size: 12px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.90);
+    font-family: 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: 0.01em;
   }
   .login-logo {
     font-size: 42px; font-family: 'Sohne', sans-serif; font-weight: 700;
@@ -362,8 +381,8 @@
     font-family: 'Sohne', sans-serif;
   }
   .login-cta {
-    display: flex; flex-direction: column; align-items: center; gap: 12px;
-    padding: 0 20px 80px;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 0 20px 60px;
   }
   .login-cta-label {
     font-size: 13px; color: #9990b3; font-family: 'Sohne', sans-serif;

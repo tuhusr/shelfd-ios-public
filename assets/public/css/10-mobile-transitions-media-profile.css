@@ -1,4 +1,4 @@
-/* v82: mobile main-tab swap polish — one identical 120Hz-targeted path, shorter duration */
+﻿/* v82: mobile main-tab swap polish â€” one identical 120Hz-targeted path, shorter duration */
 @media (max-width: 700px) {
   #mylist-header,
   #mylist-view,
@@ -203,7 +203,7 @@ body.media-profile-swipe-reveal-active .mobile-bottom-nav {
 .discover-media-profile-overlay.media-profile-swipe-revealing .discover-media-page,
 .game-media-profile-overlay.media-profile-swipe-revealing .discover-media-page {
   transform-origin: left center !important;
-  /* v950: dropped `border-radius, box-shadow` from will-change — neither is compositable,
+  /* v950: dropped `border-radius, box-shadow` from will-change â€” neither is compositable,
      so they only allocated wasted GPU layers. Only transform stays. */
   will-change: transform !important;
   transform-style: preserve-3d !important;
@@ -701,7 +701,7 @@ body.light-mode .login-scroll-top-btn {
   color: #a99dc6;
 }
 .profile-page.landing-public-profile .profile-topbar-sub::after {
-  content: ' · Read only';
+  content: ' Â· Read only';
   color: #67e8f9;
 }
 body.light-mode .landing-profile-btn {
@@ -940,7 +940,7 @@ body:not(.light-mode):not(.true-dark-mode) #games-discover-view .discover-card-g
   }
 
   #mylist-view #mylist-toolbar .tab-count {
-    /* v776: removed `display: inline-flex !important;` here — its higher
+    /* v776: removed `display: inline-flex !important;` here â€” its higher
        specificity (2 IDs + 1 class) was overriding the v598 active/inactive
        rules in 16-light-mode-contrast.css, which kept inactive count badges
        visible. The v598 rules now control visibility correctly. */
@@ -1163,7 +1163,7 @@ body:not(.light-mode):not(.true-dark-mode) #mylist-view .tab-btn.active[data-tab
 }
 
 #mylist-view #mylist-toolbar .tab-count {
-  /* v776: removed `display: inline-flex !important;` here — its higher
+  /* v776: removed `display: inline-flex !important;` here â€” its higher
      specificity (2 IDs + 1 class) was overriding the v598 active/inactive
      rules in 16-light-mode-contrast.css, which kept inactive count badges
      visible. The v598 rules now control visibility correctly. */
@@ -1514,7 +1514,7 @@ body.viewing-other-user .mylist-rating-duel-header-btn {
     justify-content: center;
     position: fixed;
     right: max(14px, calc(env(safe-area-inset-right, 0px) + 14px));
-    top: max(76px, calc(env(safe-area-inset-top, 0px) + 76px));
+    top: max(76px, calc(var(--shelfd-safe-top, 0px) + 76px));
     z-index: 2600;
     width: 42px;
     height: 42px;
@@ -1575,7 +1575,7 @@ body.viewing-other-user .mylist-rating-duel-header-btn {
   z-index: 5620;
   overflow-y: auto;
   background: linear-gradient(135deg, #050410 0%, #15102d 50%, #050410 100%);
-  padding: max(26px, calc(env(safe-area-inset-top, 0px) + 18px)) 16px 92px;
+  padding: max(26px, calc(var(--shelfd-safe-top, 0px) + 18px)) 16px 92px;
 }
 .discover-category-full-shell {
   max-width: 1120px;
@@ -1583,7 +1583,7 @@ body.viewing-other-user .mylist-rating-duel-header-btn {
 }
 .discover-category-full-back {
   position: sticky;
-  top: max(12px, env(safe-area-inset-top, 0px));
+  top: max(12px, var(--shelfd-safe-top, 0px));
   z-index: 3;
   border: 1px solid rgba(196,181,253,0.22);
   background: rgba(11,8,26,0.86);
@@ -1645,14 +1645,14 @@ body.light-mode .discover-category-full-back {
     padding: 4px 7px;
   }
   .discover-category-full-page {
-    padding: max(18px, calc(env(safe-area-inset-top, 0px) + 12px)) 12px calc(96px + env(safe-area-inset-bottom, 0px));
+    padding: max(18px, calc(var(--shelfd-safe-top, 0px) + 12px)) 12px calc(96px + env(safe-area-inset-bottom, 0px));
   }
   .discover-category-full-head {
     margin: 44px 0 14px;
   }
   .discover-category-full-back {
     position: fixed;
-    top: max(12px, calc(env(safe-area-inset-top, 0px) + 8px));
+    top: max(12px, calc(var(--shelfd-safe-top, 0px) + 8px));
     right: 14px;
     left: auto;
     background: rgba(11,8,26,0.60);

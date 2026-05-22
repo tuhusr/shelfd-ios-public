@@ -565,13 +565,37 @@
         }, status);
         if (ok) {
           closeMusicAlbumProfile();
-          try { if (typeof window.closeSearchPage === 'function') window.closeSearchPage(); } catch (_) {}
-          callGlobalFn('switchSection', 'music');
-          /* Default the active tab to match the status they picked. */
-          try {
-            if (typeof window.switchTab === 'function') window.switchTab(status === 'planned' ? 'planned' : 'watched');
-          } catch (_) {}
-          callGlobalFn('render');
+          /* v10.418: when the album add originated from Universal Search,
+             don't auto-navigate to the My List page. Leave the search
+             overlay open so the user can keep adding more titles, and
+             float a "Go to Shelf" popup for 3.3s — tap it to deep-link
+             into the freshly added album, ignore it and keep searching.
+             Non-search origins (artist profile, activity feed) keep the
+             original auto-navigate behavior so those entry points still
+             feel like a commit + jump-to-shelf. */
+          const fromUniversalSearch = typeof window.isShelfdUniversalSearchOpen === 'function'
+            ? window.isShelfdUniversalSearchOpen()
+            : false;
+          if (fromUniversalSearch && typeof window.showShelfdGoToShelfPopup === 'function') {
+            const liveData = (typeof window !== 'undefined') ? window.data : null;
+            /* addAlbumToShelf unshifts the new item to data.music[0], so
+               that index is the just-added album's id we deep-link to. */
+            const addedItem = Array.isArray(liveData?.music) ? liveData.music[0] : null;
+            window.showShelfdGoToShelfPopup({
+              section: 'music',
+              status: status === 'planned' ? 'planned' : 'watched',
+              itemId: addedItem?.id || '',
+              title: addedItem?.title || state.title || ''
+            });
+          } else {
+            try { if (typeof window.closeSearchPage === 'function') window.closeSearchPage(); } catch (_) {}
+            callGlobalFn('switchSection', 'music');
+            /* Default the active tab to match the status they picked. */
+            try {
+              if (typeof window.switchTab === 'function') window.switchTab(status === 'planned' ? 'planned' : 'watched');
+            } catch (_) {}
+            callGlobalFn('render');
+          }
         }
       });
     });

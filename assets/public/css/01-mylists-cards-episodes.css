@@ -1,4 +1,165 @@
-:root { --shelfd-mylist-css-patch: "v374-footer-desktop-mobile-layout-fix"; }
+﻿:root { --shelfd-mylist-css-patch: "v374-footer-desktop-mobile-layout-fix"; }
+
+/* ============================================================================
+   v10.409: Rating Guide overlay â€” slides down from the top of the
+   screen when the user taps the Shelfd logo (or wordmark) in the header.
+   Read-only reference page; back button + share button in the top bar;
+   editorial dark styling, charcoal black background.
+   ============================================================================ */
+.rating-guide-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  pointer-events: none;
+  transform: translate3d(0, -100%, 0);
+  transition: transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+  /* Belt-and-suspenders: visually hide ancestors aren't always reliable
+     with iOS WebView animations, so keep aria-hidden + pointer-events
+     in sync. */
+}
+.rating-guide-overlay.is-open {
+  pointer-events: auto;
+  transform: translate3d(0, 0, 0);
+}
+.rating-guide-surface {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  /* Charcoal black â€” matches the existing app shell + media-review /
+     episode-page overlays. */
+  background: #0e0e0e;
+  color: #f5f2ff;
+  font-family: 'Sohne', 'DM Sans', sans-serif;
+}
+.rating-guide-topbar {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  align-items: center;
+  gap: 8px;
+  /* Capacitor iOS safe-area top + a little extra so the back button
+     clears the Dynamic Island. */
+  padding:
+    max(var(--shelfd-safe-top, 0px), 12px)
+    14px
+    10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  flex: 0 0 auto;
+}
+.rating-guide-back,
+.rating-guide-share {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  color: #f5f2ff;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 150ms ease, transform 120ms ease;
+}
+.rating-guide-back:active,
+.rating-guide-share:active {
+  transform: scale(0.92);
+  opacity: 0.78;
+}
+.rating-guide-share {
+  justify-self: end;
+}
+.rating-guide-title {
+  text-align: center;
+  font: 800 18px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+.rating-guide-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 26px 20px max(28px, calc(env(safe-area-inset-bottom, 0px) + 18px));
+}
+.rating-guide-intro {
+  margin: 0 0 18px;
+  color: rgba(245, 242, 255, 0.82);
+  font: 500 14px/1.55 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+}
+.rating-guide-intro--secondary {
+  margin-bottom: 30px;
+  color: rgba(245, 242, 255, 0.62);
+  font-style: italic;
+  font-weight: 400;
+}
+.rating-guide-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.rating-guide-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 0 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.rating-guide-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.rating-guide-row-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+.rating-guide-num {
+  color: #ffffff;
+  font: 800 18px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: -0.02em;
+  min-width: 22px;
+}
+.rating-guide-stars {
+  color: #F5B301;
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: 1px;
+  /* Keep wrap behavior natural â€” glyphs wrap to a second line on
+     narrow phones, which is fine. */
+  word-break: break-word;
+}
+/* v10.539: half-star glyph shown at reduced opacity so it reads as
+   "halfway filled" compared to the full gold stars beside it. */
+.rating-guide-half-star {
+  color: #F5B301;
+  opacity: 0.35;
+}
+.rating-guide-row-body {
+  color: rgba(245, 242, 255, 0.82);
+  font: 500 13.5px/1.55 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+}
+.rating-guide-row-body strong {
+  color: #ffffff;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+/* Lock page scrolling while the guide is open. */
+body.rating-guide-open {
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+}
   /* Section toggle */
   .section-toggle {
     display: flex; margin-top: 20px; background: rgba(255,255,255,0.035); border-radius: 999px;
@@ -229,6 +390,42 @@
   .sort-btn-icon { font-size: 16px; line-height: 1; color: #9990b3; transition: color 0.15s; }
   .sort-btn-icon.sort-active { color: #a78bfa; }
   .sort-btn-label { font-size: 11px; color: #a78bfa; max-width: 100px; overflow: hidden; text-overflow: ellipsis; }
+
+  /* v10.508: pencil-icon badge on the OWN-shelf profile picture. Signals
+     to the user that their avatar is editable. The badge is rendered
+     inside the `.mylist-own-profile-shortcut` button, which is only
+     emitted when `viewingUser` is falsy (see 15-profile-settings.js line
+     264-271) â€” so this badge automatically never appears on someone
+     else's shelf. The parent button has `overflow: hidden` in
+     11-patch-notes-friends-refinements.css:697 (to clip the rectangular
+     <img> to the circular border-radius). We override that to `visible`
+     specifically WHEN the pencil child is present so the badge can sit
+     at the visible edge of the circle; the <img> itself stays circular
+     via its `border-radius: inherit` rule. */
+  #mylist-view .mylist-own-profile-shortcut:has(.mylist-own-profile-edit-pencil) {
+    overflow: visible;
+  }
+  .mylist-own-profile-edit-pencil {
+    position: absolute;
+    right: -2px;
+    bottom: -2px;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: #c4b5fd;
+    color: #0E0E0E;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.45), 0 0 0 2px #0E0E0E;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .mylist-own-profile-edit-pencil svg {
+    width: 12px;
+    height: 12px;
+    color: #0E0E0E;
+  }
   .sort-dropdown-menu {
     position: absolute; z-index: 9999;
     background: #000;
@@ -398,16 +595,16 @@
   .card-cover.no-img { background: linear-gradient(135deg, #2a1f5e 0%, #2d1b4e 100%); }
   /* v10.236: album art is always square. Lock the cover element to a 1:1
      aspect ratio when the card is a music section item so it visually reads
-     as an album, not a portrait poster. The base .card-cover sets a 1400×2100
-     (2:3) portrait ratio for movies/TV/games — this rule overrides it. */
+     as an album, not a portrait poster. The base .card-cover sets a 1400Ã—2100
+     (2:3) portrait ratio for movies/TV/games â€” this rule overrides it. */
   .card-cover.card-cover-music {
     aspect-ratio: 1 / 1 !important;
     background-position: center center !important;
   }
-  /* v10.237 / v10.241: music my-list cards are visually shorter — collapse
+  /* v10.237 / v10.241: music my-list cards are visually shorter â€” collapse
      the internal padding + unused slot heights so the card hugs the square
      art. Movies/TV/games keep their taller layout. v10.241 bumps the cover
-     to 100×100 and removes the status-pill selector + tabs toolbar so the
+     to 100Ã—100 and removes the status-pill selector + tabs toolbar so the
      section reads like a single "Albums" surface. */
   #mylist-view .card[data-library-section="music"] .card-header {
     padding: 10px 12px !important;
@@ -418,21 +615,522 @@
     padding-top: 6px !important;
     padding-bottom: 6px !important;
   }
-  /* v10.241 / v10.243: 120×120 px cover on the my-lists music card (was 100).
-     v10.393: bumped DOWN 18px (120 -> 102) per Musicboard mimic spec —
-     square art reads tighter against the title/artist/rating column. */
+  /* v10.241 / v10.243: 120Ã—120 px cover on the my-lists music card.
+     v10.393: bumped DOWN 18px (120 -> 102).
+     v10.410: bumped BACK UP 18px (102 -> 120) per spec. Action row's
+     `left` value in the absolute-positioning rule below is recalculated
+     to match the new cover width. */
   #mylist-view .card[data-library-section="music"] .card-cover.card-cover-music {
-    width: 102px !important;
+    width: 120px !important;
   }
-  /* v10.393: music section places the overall rating at the bottom-left
-     of the card, aligned with the album cover's left edge. The action row
-     defaults to a 146/104px left padding to clear the poster column for
-     movies/TV/games; for music we pull that back to match the header's
-     12px so the rating sits directly under the poster. The `margin-right:
-     auto` on the slot itself pushes the comments + tracklist buttons to
-     the far right. */
+  /* v10.393 / v10.408 / v10.410: music section action row is HOISTED UP
+     into the card-info column, aligned with the BOTTOM of the album
+     cover. Implementation:
+       - Card is `position: relative`.
+       - Action row is `position: absolute`, anchored at:
+           bottom: 10px  (= card-header bottom-padding, so the row's
+                          bottom edge sits exactly at the cover's
+                          bottom y-position)
+           left:   137px (v10.410: 12 padding + 120 cover + 14 gap = 146
+                          (card-info's left edge), minus 9px to cancel
+                          the rating-bubble chip's internal padding-left
+                          so the bubble's â˜… glyph lands at x=146 â€” i.e.
+                          flush left with the title text. Without that
+                          -9px offset, the chip border sat at card-info
+                          left but the visible â˜… glyph appeared 9px
+                          indented from the title.)
+           right:  12px  (= card-header padding-right)
+       - Width auto + min-height 0 + zero padding/margin so nothing
+         from the legacy bottom-row layout interferes. */
+  #mylist-view .card[data-library-section="music"] {
+    position: relative;
+  }
   #mylist-view .card[data-library-section="music"] .card-action-row {
-    padding-left: 12px !important;
+    position: absolute !important;
+    bottom: 10px !important;
+    left: 137px !important;
+    right: 12px !important;
+    top: auto !important;
+    width: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 0 !important;
+    background: transparent !important;
+  }
+  /* v10.413 / v10.414: TV SHOWS section gets the same action-row hoist
+     as music (v10.408 / v10.410). v10.414 corrects the left position â€”
+     was 119px (which pulled the bubble's BORDER 9px to the LEFT of the
+     title text to put the chip's â˜… glyph at the title's x). Per user
+     feedback that read as the bubble being "too far left." New rule
+     puts the bubble BORDER flush with card-info's left edge so the
+     gold pill outline visually aligns with the title text. The â˜… glyph
+     itself ends up 9px inside the bubble â€” that's fine, the user wants
+     the bubble box outline to match the meta-column edge.
+       - `.card-header { padding: 14px; gap: 14px; }` defaults
+       - `.card-cover { width: 100px; aspect-ratio: 1400/2100; }`
+         => 100px wide Ã— 150px tall (2:3 portrait)
+       - Card-info left edge: 14 padding + 100 cover + 14 gap = 128px
+       - left: 128px (bubble border aligned with title text)
+       - bottom: 14px (card-header bottom padding) places the row's
+         bottom edge at 178 â€“ 14 = 164px = poster's bottom edge. */
+  #mylist-view .card[data-library-section="shows"] {
+    position: relative;
+  }
+  #mylist-view .card[data-library-section="shows"] .card-action-row {
+    position: absolute !important;
+    bottom: 14px !important;
+    left: 128px !important;
+    right: 14px !important;
+    top: auto !important;
+    width: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 0 !important;
+    background: transparent !important;
+  }
+  /* v10.442: mobile-cover math fix â€” on screens â‰¤ 700px the
+     `05-messages-early-polish.css` rule bumps `.card-cover` width to
+     120px AND `.card-header` gap to 13px, so the meta-column edge
+     shifts from `14 + 100 + 14 = 128` to `14 + 120 + 13 = 147`. The
+     desktop `left: 128px` above pulls the entire action row ~19px
+     left of the meta column on mobile, which was visible as the
+     watchlist priority widget sitting too far left of the title
+     text on TV shows + planned. Same fix that was applied to games
+     in v10.427 â€” extend to TV shows here so the rating bubble (on
+     watching/watched/paused) and the priority widget (on planned)
+     both line up with the metadata column on phones. */
+  @media (max-width: 700px) {
+    #mylist-view .card[data-library-section="shows"] .card-action-row {
+      left: 147px !important;
+    }
+  }
+  /* v10.438: MOVIES gets the SAME action-row hoist as TV Shows so the
+     Watched movie cards display the rating bubble + Comments + plus
+     button cluster aligned with the cover's bottom-left, identical
+     to shows-watching. Cover dimensions match shows (100Ã—150 portrait
+     on desktop, 120Ã—180 on mobile via the 05-messages-early-polish.css
+     override), so the same `bottom: 14px / left: 128px / right: 14px`
+     values land the row at the correct anchor without a separate
+     mobile media query.
+     Movies-planned (watchlist) cards also pick this up â€” they have an
+     action row too (Comments + priority widget). The new positioning
+     hoists their action row up onto the cover-bottom line as well,
+     which keeps the watchlist + watched surfaces visually consistent. */
+  #mylist-view .card[data-library-section="movies"] {
+    position: relative;
+  }
+  #mylist-view .card[data-library-section="movies"] .card-action-row {
+    position: absolute !important;
+    bottom: 14px !important;
+    left: 128px !important;
+    right: 14px !important;
+    top: auto !important;
+    width: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 0 !important;
+    background: transparent !important;
+  }
+  /* v10.442: same mobile-cover math fix as TV shows above â€” at
+     â‰¤ 700px the meta-column edge shifts to 147px, so the action
+     row needs to follow. Keeps the watched-state rating bubble
+     and the watchlist priority widget aligned with the title
+     text on phones. */
+  @media (max-width: 700px) {
+    #mylist-view .card[data-library-section="movies"] .card-action-row {
+      left: 147px !important;
+    }
+  }
+  /* v10.426: GAMES section gets the SAME action-row hoist as TV Shows
+     for every status that uses the rating bubble â€” Playing (single),
+     Playing (live), Playing (competitive), and Played. Scoped to
+     `.card-uses-rating-bubble` so it ONLY fires on the four statuses
+     that use the bubble (filtered in `useRatingBubble`) â€” wishlist +
+     Backloggd cards keep their existing layout (Backloggd never gets
+     the action row markup at all, see the `!isGameBackloggdCard` JS
+     gate).
+     v10.427: split into desktop + mobile media-query branches because
+     the card cover changes width across breakpoints. Desktop base
+     (.card-cover width:100, .card-header padding:14, gap:14) puts the
+     meta-column edge at 14 + 100 + 14 = 128. Mobile override in
+     05-messages-early-polish.css (max-width:700) bumps the cover to
+     120 and the gap to 13, shifting the meta-column edge to
+     14 + 120 + 13 = 147. Without this split the bubble's border sat
+     ~19px LEFT of the title text on mobile â€” visibly under the
+     cover's right edge rather than flush with the title. Both branches
+     anchor the action row's bottom at card-header padding-bottom so
+     the row lines up with the cover's bottom edge. */
+  #mylist-view .card[data-library-section="games"].card-uses-rating-bubble {
+    position: relative;
+  }
+  #mylist-view .card[data-library-section="games"].card-uses-rating-bubble .card-action-row {
+    position: absolute !important;
+    bottom: 14px !important;
+    left: 128px !important;
+    right: 14px !important;
+    top: auto !important;
+    width: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 0 !important;
+    background: transparent !important;
+    display: flex !important;
+  }
+  @media (max-width: 700px) {
+    #mylist-view .card[data-library-section="games"].card-uses-rating-bubble .card-action-row {
+      left: 147px !important;
+    }
+  }
+
+  /* v10.429: GAMES â€” universal cover aspect with 12px corners. The
+     base `.card-cover` rule sets `aspect-ratio: 1400/2100` (a 2:3
+     portrait poster meant for movies/TV). Game covers get their own
+     ratio + softer "platform tile" rounding.
+     v10.431: aspect bumped 5:4 (landscape) â†’ 5:6.38 (portrait) per
+     spec. This matches the native Steam/IGDB box-art ratio so the
+     cover frames the title art the way the publisher intended. */
+  #mylist-view .card[data-library-section="games"] .card-cover {
+    aspect-ratio: 5 / 6.38 !important;
+    border-radius: 12px !important;
+  }
+
+  /* v10.429: GAMES action-row anchored to the COVER's bottom edge,
+     not the card's bottom. Technique: anchor the row's TOP at
+     `cover-bottom-Y` from card top, then `transform: translateY(-100%)`
+     lifts the row up by its own rendered height so its BOTTOM edge
+     lands at that Y. This is robust to variable row heights â€” no
+     fixed-height assumption.
+     v10.431: recomputed for the new 5:6.38 portrait aspect.
+     Desktop cover: 100 Ã— (100 Ã— 6.38/5) = 100 Ã— 127.6 â†’ cover-
+     bottom-Y = 14 (card-header padding-top) + 127.6 â‰ˆ 142. Mobile
+     cover: 120 Ã— (120 Ã— 6.38/5) = 120 Ã— 153.12 â†’ cover-bottom-Y =
+     14 + 153.12 â‰ˆ 167. Rounded to whole pixels because subpixel
+     `top` values get smeared by sub-pixel anti-aliasing on iOS. */
+  #mylist-view .card[data-library-section="games"].card-uses-rating-bubble .card-action-row {
+    top: 142px !important;
+    bottom: auto !important;
+    transform: translateY(-100%) !important;
+  }
+  @media (max-width: 700px) {
+    #mylist-view .card[data-library-section="games"].card-uses-rating-bubble .card-action-row {
+      top: 167px !important;
+    }
+  }
+
+  /* v10.429: FULL-PAGE game profile cover (`.mylist-game-profile-cover`)
+     â€” used on the dedicated MyList â†’ game profile route (opened from
+     competitive title cards via `openMyListGameProfilePage`). The
+     existing rules across this file set `aspect-ratio: 3 / 4`
+     (portrait) and `border-radius: 8pxâ€“10px`. Override for visual
+     consistency with the title cards. `!important` on every
+     property because the existing rules use it too â€” without it
+     the cascade ties at multiple specificities and source order
+     would decide.
+     v10.431: aspect updated to 5:6.38 (native Steam/IGDB box-art
+     ratio) per spec. */
+  .mylist-game-profile-cover {
+    aspect-ratio: 5 / 6.38 !important;
+    border-radius: 12px !important;
+  }
+
+  /* v10.429: Discover-style game media profile poster
+     (`.game-media-profile-overlay .discover-media-poster`) â€” the
+     route opened when a game is tapped from outside MyList. Was
+     2:3 portrait + 8px radius.
+     v10.431: aspect updated to 5:6.38 to match the title-card
+     cover and the MyList profile cover. */
+  .game-media-profile-overlay .discover-media-poster {
+    aspect-ratio: 5 / 6.38 !important;
+    border-radius: 12px !important;
+  }
+
+  /* v10.430: ANIME â€” mirror the TV SHOWS layout exactly across the
+     three statuses the user listed (watching / watched / paused).
+     Every shows-specific style above gets a parallel rule keyed on
+     `data-library-section="anime"` or `body.mylist-section-anime`
+     so anime cards render identically to shows cards.
+     Companion JS change (`shouldShiftTvShowRatingLayout` extended
+     to include anime) drives the `.tv-show-progress-rating-shift-card`
+     class + inline-next-episode slot for watching/paused; the rules
+     below add the same action-row hoist, text-only status pill,
+     status hue palette, popped-out option chrome, and tray strip
+     that v10.413â€“v10.425 introduced for the shows surface. */
+  #mylist-view .card[data-library-section="anime"] {
+    position: relative;
+  }
+  #mylist-view .card[data-library-section="anime"] .card-action-row {
+    position: absolute !important;
+    bottom: 14px !important;
+    left: 128px !important;
+    right: 14px !important;
+    top: auto !important;
+    width: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 0 !important;
+    background: transparent !important;
+  }
+  /* v10.442: same mobile-cover math fix as TV shows + movies â€” at
+     â‰¤ 700px the meta-column edge shifts to 147px. Without this,
+     the anime priority widget on planned + the rating bubble on
+     watching/watched/paused sit ~19px left of where the title
+     text starts. */
+  @media (max-width: 700px) {
+    #mylist-view .card[data-library-section="anime"] .card-action-row {
+      left: 147px !important;
+    }
+  }
+
+  /* v10.445: zero the padding-left on bubble-using shows/anime/movies
+     action rows. Root cause: the older rule
+     `#mylist-view .card.card-uses-rating-bubble .card-action-row {
+        padding-left: 12px !important; }`
+     (line ~1281, declared LATER in this file with !important and the
+     same (1, 3, 0) specificity as the section-only rules above) was
+     winning the source-order tiebreak and pushing the bubble + every
+     other action-row child 12px right of the `left: 128px / 147px`
+     anchor. Adding `.card-uses-rating-bubble` to the selector below
+     bumps the specificity to (1, 4, 0) so it wins regardless of
+     source order. Targets watching/watched/paused (shows, anime),
+     watched (movies) â€” the four statuses that get the bubble class.
+     Planned/wishlist cards never get the bubble class so the v10.405
+     rule never applies to them; their action-row padding stays 0
+     from the section-only rule above.
+     v10.453: there's ANOTHER padding-left override in
+     17-auth-flow-setup.css (v10.380) that uses TWO IDs in its
+     selector (`#mylist-view #cards-grid .card.tv-show-progress-rating-shift-card .card-action-row`)
+     â€” specificity (2, 3, 0). My v10.445 rule at (1, 4, 0) was
+     losing the ID-count comparison to that rule, so for any card
+     that gets the `.tv-show-progress-rating-shift-card` class
+     (shows watching/paused + anime watching/paused via v10.430)
+     the bubble was still being shifted 14px right. Fix: split
+     into two rule blocks. The first (1, 4, 0) still handles
+     watched cards. The second adds `#cards-grid` for (2, 4, 0)
+     to beat the v10.380 rule on shift-layout cards. */
+  #mylist-view .card[data-library-section="shows"].card-uses-rating-bubble .card-action-row,
+  #mylist-view .card[data-library-section="anime"].card-uses-rating-bubble .card-action-row,
+  #mylist-view .card[data-library-section="movies"].card-uses-rating-bubble .card-action-row {
+    padding-left: 0 !important;
+  }
+  #mylist-view #cards-grid .card[data-library-section="shows"].card-uses-rating-bubble .card-action-row,
+  #mylist-view #cards-grid .card[data-library-section="anime"].card-uses-rating-bubble .card-action-row,
+  #mylist-view #cards-grid .card[data-library-section="movies"].card-uses-rating-bubble .card-action-row {
+    padding-left: 0 !important;
+  }
+
+  /* Text-only status pill â€” drops the border/background chrome so
+     the label sits flush in the meta column. */
+  body.mylist-section-anime #mylist-view .status-pill,
+  body.mylist-section-anime #mylist-view .game-status-current-pill,
+  body.mylist-section-anime #mylist-view .game-status-options .status-pill {
+    border: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+    padding: 0 6px 0 0 !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    box-shadow: none !important;
+  }
+  /* Pull the status-pill wrap tight against the line above. */
+  #mylist-view .card[data-library-section="anime"] .status-pills,
+  #mylist-view .card[data-library-section="anime"] .status-pills-selector-wrap {
+    margin-top: 0 !important;
+  }
+  /* Per-status hue palette mirrors shows. */
+  body.mylist-section-anime #mylist-view .status-pill.watching-active {
+    color: #a78bfa !important; /* lavender â€” Watching */
+  }
+  body.mylist-section-anime #mylist-view .status-pill.watched-active {
+    color: #67e8f9 !important; /* cyan â€” Watched */
+  }
+  body.mylist-section-anime #mylist-view .status-pill.planned-active {
+    color: #fbbf24 !important; /* amber â€” Planned */
+  }
+  body.mylist-section-anime #mylist-view .status-pill.paused-active {
+    color: #f97316 !important; /* orange â€” Paused */
+  }
+  /* Unselected pop-out options stay muted so the active one stands out. */
+  body.mylist-section-anime #mylist-view .game-status-options .status-pill:not(.watching-active):not(.watched-active):not(.planned-active):not(.paused-active) {
+    color: rgba(216, 208, 233, 0.55) !important;
+  }
+  /* Restore PILL CHROME on the popped-out alternatives (matches the
+     v10.423 fix for music + shows). Without this the alternatives
+     fuse visually into a single text block. */
+  body.mylist-section-anime #mylist-view .game-status-selector .game-status-options .status-pill {
+    border: 1px solid rgba(216, 208, 233, 0.22) !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+    border-radius: 999px !important;
+    padding: 4px 10px !important;
+  }
+  body.mylist-section-anime #mylist-view .game-status-selector .game-status-options .status-pill:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(216, 208, 233, 0.34) !important;
+  }
+  body.mylist-section-anime #mylist-view .game-status-selector.expanded .game-status-options {
+    gap: 6px;
+  }
+  /* Strip the gray container tray off the popped-out options (matches
+     the v10.425 fix). Uses `.game-status-selector` parent in the chain
+     so specificity beats the 06-profile.css true-dark-mode rule. */
+  body.mylist-section-anime #mylist-view .game-status-selector .game-status-options {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* v10.430: title clamped to 2 lines + ellipsis. Spec was anime-
+     specific in phrasing but the rule is intentionally universal
+     since the same overflow happens on any section with long
+     titles (Mubi, Final Fantasy XIV: Endwalker, etc.). The flex
+     parent (`.card-title-row`) is unaffected because line-clamp
+     is a CONTENT-LEVEL clamp â€” it doesn't change the box model
+     of the flex item, so existing min-width:0 + flex sizing
+     still works. Both the `.card-title` wrapper AND the inner
+     button/span need to be the webkit-box for the clamp to
+     propagate through the nested element. */
+  .card-title,
+  .card-title .card-title-profile-btn,
+  .card-title .media-title-profile-btn,
+  .card-title .game-title-profile-btn,
+  .card-title > span {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
+  }
+  /* v10.433: COMPETITIVE game cards drop the title clamp from 2
+     lines to 1. The competitive surface has dense secondary content
+     (status pill, platform line, dedicated competitive-stats card,
+     rating bubble) below the title, so allocating two lines to the
+     title makes the card overly tall and pushes everything down.
+     Single line + ellipsis keeps the card compact regardless of
+     title length. Hooks the new `.game-competitive-card` class
+     added to the card markup whenever `isCompetitiveGameCard` is
+     true. */
+  .game-competitive-card .card-title,
+  .game-competitive-card .card-title .card-title-profile-btn,
+  .game-competitive-card .card-title .media-title-profile-btn,
+  .game-competitive-card .card-title .game-title-profile-btn,
+  .game-competitive-card .card-title > span {
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+  }
+
+  /* v10.428: GAMES â€” move the status pill directly under the title for
+     EVERY status (Single Player / Live / Competitive / Played /
+     Backloggd / Wishlist). `.card-info` is already a flex column
+     (set in 05-messages-early-polish.css line 2558+), so we don't
+     need to move JS markup â€” flex `order` reorders the children
+     visually without touching the DOM. Default order is 0 for
+     every child; bumping every direct child to `order: 2` and then
+     pinning `.card-title-row` + `.status-pills-selector-wrap` to
+     `order: 1` lifts both to the top of the column. When two flex
+     children share the same `order`, the spec resolves the tie by
+     DOM order â€” and `.card-title-row` is declared before
+     `.status-pills-selector-wrap` in the markup, so the title
+     stays first and the status pill lands directly beneath it.
+     All other meta (year, artist, genre, game stats, progress,
+     next-episode line, etc.) flow below as `order: 2`.
+     v10.432: status-pill margin-top tightened from the default 6px
+     down to 2px per spec ("0.5 spacing"). Without this override the
+     `.game-status-pills-wrap, .status-pills-selector-wrap` rule
+     elsewhere in this file applies a 6px top margin meant for the
+     legacy non-stacked layout â€” visibly too airy when the pill
+     sits directly beneath the title. 2px reads as a tight, almost-
+     touching break that still gives the pill room to render its
+     own click-target without the title text appearing to crash
+     into it. Scoped to games only; music / shows / anime keep
+     their existing `margin-top: 0` flush-against-meta treatment. */
+  #mylist-view .card[data-library-section="games"] .card-info > * {
+    order: 2;
+  }
+  #mylist-view .card[data-library-section="games"] .card-info > .card-title-row,
+  #mylist-view .card[data-library-section="games"] .card-info > .status-pills-selector-wrap {
+    order: 1;
+  }
+  #mylist-view .card[data-library-section="games"] .status-pills,
+  #mylist-view .card[data-library-section="games"] .status-pills-selector-wrap {
+    /* v10.436: line spacing reverted from 0.9px (v10.434) to 6px
+       per spec ("change back the spacing... 1 line spacing"). 6px
+       matches the original `.game-status-pills-wrap,
+       .status-pills-selector-wrap { margin-top: 6px }` default and
+       reads as a single line break between meta rows. Applies
+       across every game status (playing / backlog / played /
+       wishlist). */
+    margin-top: 6px !important;
+  }
+
+  /* v10.434: 0.9px gap between game-card stat rows.
+     v10.436: reverted to 6px / 3px per spec ("1 line spacing") â€”
+     same one-line-break feel as the titleâ†’status gap above.
+     - margin-top 6px: status â†’ hours-played gap
+     - gap 3px: between stat rows inside the block (currently only
+       one row exists after the v10.434 trim, but reserved for
+       future row additions to stay in rhythm). */
+  #mylist-view .card[data-library-section="games"] .game-card-stats-inline {
+    margin-top: 6px !important;
+    gap: 3px !important;
+  }
+
+  /* v10.436: vertically center every child of the games action row
+     so the rating bubble (min-height 30px) and the + button
+     (height 32px) line up on the same horizontal axis. Without
+     this, the default flex `align-items: stretch` was producing
+     subtle vertical drift on the Played surface because the
+     bubble's intrinsic height differed from the +'s explicit
+     height. Center-alignment keeps both items pegged to the row's
+     midline regardless of their individual heights. */
+  #mylist-view .card[data-library-section="games"].card-uses-rating-bubble .card-action-row {
+    align-items: center !important;
+  }
+
+  /* v10.436: reduce the horizontal width of every status pill on
+     game cards so the chip hugs its label instead of carrying the
+     legacy 10px side padding. Applies to the current-pill (visible
+     in the meta column) AND each alternative in the pop-out
+     flyout. Padding 3px 10px -> 3px 5px snugs the border around
+     short labels like "Played" / "Live" / "Backloggd" without
+     ever clipping longer ones because `white-space: nowrap` is
+     already in place. */
+  #mylist-view .card[data-library-section="games"] .game-status-current-pill,
+  #mylist-view .card[data-library-section="games"] .game-status-options .status-pill {
+    padding-left: 5px !important;
+    padding-right: 5px !important;
+  }
+
+  /* v10.436: hide the wishlist-specific meta lines (genre,
+     platforms, release date) so the wishlist card's vertical
+     length matches the playing / live game cards. Without this
+     the wishlist card-info column ran an extra ~50px past the
+     other surfaces' meta heights and the card visibly stretched
+     down past the cover's natural bottom. The wishlist priority
+     bubble (rendered at the end of card-info via
+     `gamesWishlistPriorityHtml`) is preserved â€” only the
+     descriptive meta lines are dropped. */
+  #mylist-view .games-wishlist-card .games-wishlist-card-genre,
+  #mylist-view .games-wishlist-card .games-wishlist-card-platforms,
+  #mylist-view .games-wishlist-card .games-wishlist-card-release {
+    display: none !important;
+  }
+
+  /* v10.438: 8.4px line spacing between every meta line on movies
+     cards (watchlist surface specifically per spec, but applied
+     universally to movies since the meta layout is the same across
+     watching / watched / planned and a consistent rhythm reads
+     better than per-tab branching). Targets the elements that
+     stack vertically in the card-info column: card-year (year
+     line), card-genre, card-availability-line (Where to Watch /
+     release date), and the status-pill wrap. card-title-row is
+     skipped (it's the first child, no top gap needed). */
+  #mylist-view .card[data-library-section="movies"] .card-year,
+  #mylist-view .card[data-library-section="movies"] .card-genre,
+  #mylist-view .card[data-library-section="movies"] .card-availability-line,
+  #mylist-view .card[data-library-section="movies"] .mylist-availability-where-to-watch,
+  #mylist-view .card[data-library-section="movies"] .status-pills-selector-wrap {
+    margin-top: 8.4px !important;
   }
   #mylist-view .card[data-library-section="music"] .music-bottom-rating-slot {
     flex: 0 1 auto;
@@ -448,6 +1146,381 @@
     max-width: none;
     overflow: visible;
   }
+  /* v10.403: music title-card rating label = 12px (matches the TV-show
+     `.star-label` override at 17-auth-flow-setup.css line 2352). Without
+     this rule the `.music-rating-value` would inherit the calc(--music-
+     star-size * 0.7) which at the new 16px star size yields ~11px. */
+  #mylist-view .card[data-library-section="music"] .music-bottom-rating-slot .music-rating-value {
+    font-size: 12px !important;
+    margin-left: 5px !important;
+  }
+  /* ============================================================================
+     v10.404 / v10.405: RATING BUBBLE â€” unified pill.
+     ----------------------------------------------------------------------------
+     v10.404 originally placed the popout as a SEPARATE floating pill
+     anchored next to the chip. v10.405 collapses the two into ONE pill:
+     the chip icon + value sit at the LEFT, and the star strip lives
+     inside the SAME container, hidden by default. On `.is-expanded` the
+     stars track animates from max-width:0 â†’ its natural width, pushing
+     the right edge of the pill outward. There's no separate popout
+     anymore â€” it's all one continuous bubble that just grows.
+
+     Color: pulled from the bright amber #fbbf24 / pale #f8d973 to a more
+     muted pale gold (#d4b86a). Less saturated, reads softer against the
+     dark card background.
+     ============================================================================ */
+  .rating-bubble {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    border: 1px solid rgba(212, 184, 106, 0.30);
+    /* v10.411: tried solid background to hide the Details/+ buttons
+       behind the expanded bubble.
+       v10.412: REVERTED â€” keeping the original 72% rgba and instead
+       fading out the Details / + / Comments cluster when the bubble
+       expands (see rule below). Cleaner UX â€” the buttons disappear,
+       reappear smoothly, and the bubble retains its translucent feel. */
+    background: rgba(15, 15, 15, 0.72);
+    color: #d4b86a;
+    border-radius: 999px;
+    /* v10.439: vertical height reduced 30px -> 29.5px per spec
+       ("slightly reduced... by zero point five p x"). Half-pixel
+       value is intentional â€” on DPR >= 2 displays this renders as a
+       crisp 29.5 logical-px tap target; on integer-DPR screens it
+       rounds visually but the cascaded 0.5px still tightens the
+       overall row rhythm noticeably. Applies to every surface that
+       uses `.rating-bubble` (games / anime / music / TV shows
+       title cards + the music album-details "Your rating"
+       widget). */
+    min-height: 29.5px;
+    min-width: 44px;
+    padding: 0 9px;
+    font-family: 'Sohne', 'DM Sans', sans-serif;
+    line-height: 1;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+    transform: translateZ(0);
+    transition:
+      transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+      border-color 220ms ease,
+      background 180ms ease;
+  }
+  .rating-bubble:active {
+    transform: translateZ(0) scale(0.97);
+  }
+  .rating-bubble[aria-disabled="true"] {
+    cursor: default;
+    color: rgba(212, 184, 106, 0.72);
+    background: rgba(15, 15, 15, 0.48);
+  }
+  /* v10.419: when the title hasn't been rated yet, the bubble collapses
+     down to a snug square around just the star icon so the padding is
+     visually identical on both sides. Previously the bubble inherited
+     `min-width: 44px` + `justify-content: flex-start` from the rated
+     state, which (with a ~13px-wide star glyph and a 9px left pad)
+     left ~22px of empty space to the right of the star. By dropping
+     the floor to match `min-height` (30px) and recentering the
+     contents only while unrated, the closed pill becomes a round-ish
+     chip with equal breathing room either side of the star. This
+     applies to every surface that uses the rating bubble (TV shows /
+     anime / movies / games / music) because the `.is-rated` class is
+     applied universally by `buildRatingBubbleMarkup` whenever rating
+     > 0. The rule reverts itself the instant a rating is committed
+     (the markup re-renders with `.is-rated`), so the bubble grows back
+     out to its rated-state width without any extra JS. Expanded state
+     is unaffected â€” once the inner stars track grows, the bubble's
+     content width far exceeds the 30px floor so the justify-content
+     rule is a no-op on that surface. */
+  .rating-bubble:not(.is-rated) {
+    /* v10.439: paired with the v10.439 height reduction (30 -> 29.5)
+       above, the unrated bubble's square floor was 30Ã—30. Keeping
+       min-width at 30 so the chip stays close-to-circular even
+       though min-height is now 29.5; the 0.5px difference is
+       imperceptible vs. preserving the round-pill silhouette. */
+    min-width: 30px;
+    justify-content: center;
+    /* v10.421: when the title is unrated, swap the muted gold border
+       + glyph color for a neutral lavender-tinted gray. The original
+       gold color implied "this title has a rating" even when it
+       didn't â€” only the missing chip value hinted at the empty
+       state. The grayed-out treatment makes the empty state read as
+       intentionally inert, matching the same muted-gray treatment
+       the per-track widget uses for unrated rows
+       (`rgba(216, 208, 233, 0.42)`). The instant a rating is
+       committed the markup re-renders with `.is-rated`, which drops
+       these overrides and restores the gold treatment. */
+    border-color: rgba(216, 208, 233, 0.22);
+    color: rgba(216, 208, 233, 0.42);
+  }
+  .rating-bubble:not(.is-rated) .rating-bubble-chip-icon {
+    /* v10.513: replaced the 42% alpha gray with a SOLID neutral grey so
+       the empty-state star icon renders at 100% opacity (no semi-
+       transparency) per the spec that all rating-bubble glyphs must be
+       fully opaque. The visual weight matches what `rgba(216,208,233,
+       0.42)` produced against the dark page background â€” just without
+       the alpha channel. */
+    color: #6e6880;
+    opacity: 1;
+  }
+  .rating-bubble-chip-icon {
+    color: #d4b86a;
+    font-size: 13px;
+    line-height: 1;
+    /* v10.513: explicit 100% opacity guard so nothing in the cascade
+       (parent transitions, hover dims, etc.) can ever fade the star
+       icon during a rate/scrub gesture or at rest. */
+    opacity: 1;
+  }
+  .rating-bubble-chip-value {
+    /* v10.514: tightened from 4px â†’ 3px so the star glyph and the
+       rating value sit one pixel closer together inside the chip.
+       v10.515: tightened again 3px â†’ 2px per spec.
+       v10.516: tightened again 2px â†’ 0px per spec (another 2px
+       closer). Star glyph and value now sit flush. */
+    margin-left: 0;
+    color: #d4b86a;
+    font-size: 12px;
+    /* v10.513b: weight 800 â†’ 700 per spec (one weight step lighter). */
+    font-weight: 700;
+    line-height: 1;
+    /* v10.513: explicit 100% opacity guard, paired with the chip-icon
+       rule above. The rating value text must always render fully solid. */
+    opacity: 1;
+    /* v10.512: reserve enough width for the widest possible 5-star
+       half-step display ("4.5" = 3 characters) so the chip â€” and the
+       whole bubble â€” doesn't reflow / resize while the user scrubs
+       across half-step crossovers. Without this, the chip text shifted
+       between "3" (1 char) and "3.5" (3 chars) and the bubble's inline-
+       flex width changed on every half-step, producing the visible
+       "growing pop-out" the user reported. `tabular-nums` keeps digit
+       glyph widths constant so the integerâ†’half transition doesn't
+       shift the number column either. text-align:center holds the
+       value centered inside the reserved space at all values. */
+    min-width: 2.6ch;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    display: inline-block;
+  }
+  /* v10.512: when the bubble carries the "/5" suffix (album-shelf "Your
+     rating" pill), reserve enough width for "X.X/5" â€” the widest
+     possible display in that mode. Without this override, the bubble
+     would still grow during scrub on the album-shelf path. */
+  .rating-bubble[data-out-of-five="1"] .rating-bubble-chip-value {
+    min-width: 4.6ch;
+  }
+  /* The stars track lives INSIDE the pill. Collapsed = zero-width slot,
+     hidden + pointer-events:none so taps fall through to the outer
+     toggle. Expanded = grows to fit, slides in via the same cubic-
+     bezier the season-card popout used. */
+  .rating-bubble-stars-track {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    max-width: 0;
+    margin-left: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    /* v10.516: smoother expand-on-tap. Old timing was 280ms /
+       cubic-bezier(0.22, 1, 0.36, 1) â€” the curve is quart-out, which
+       front-loads the motion and produces a slightly snappy/abrupt
+       feel as the stars track snaps into place. New timing extends
+       the duration to 340ms and switches to a softer curve
+       cubic-bezier(0.32, 0.72, 0, 1) that distributes the motion
+       more evenly across the duration â€” reads as more gradual and
+       polished. The opacity transition is also lengthened in lockstep
+       so the fade-in and the slide-out finish together rather than
+       the opacity completing first. */
+    transition:
+      max-width 340ms cubic-bezier(0.32, 0.72, 0, 1),
+      margin-left 340ms cubic-bezier(0.32, 0.72, 0, 1),
+      opacity 260ms ease;
+  }
+  .rating-bubble.is-expanded .rating-bubble-stars-track {
+    /* v10.509: widened from 240px â†’ 280px to comfortably hold the 10
+       half-step buttons at their new 11px width (110px total) plus the
+       collapsed chip's value padding. */
+    max-width: 280px;
+    margin-left: 8px;
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .rating-bubble-star {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 0;
+    background: transparent;
+    color: rgba(245, 242, 255, 0.30);
+    width: 18px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transform: translateZ(0);
+    transition: color 130ms ease, transform 130ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  /* v10.510: REBUILT half-step star visuals.
+     Old approach used two side-by-side â˜… glyph buttons per visual star
+     with `text-indent` and `overflow:hidden` to fake a "left half / right
+     half" split. The seam between the two halves became visible at
+     larger sizes (v10.509 bump), producing the doubled-star artifact.
+     New approach mirrors the activity card pattern: ONE slot per visual
+     star containing a grey base â˜… + a gold fill â˜… clipped via clip-path
+     to the per-slot fill percent (0/50/100). Two invisible
+     `.rating-bubble-star-hit` buttons absolutely positioned as left and
+     right half hit zones carry the data-score values the existing
+     rate() pipeline expects (1â€“10 half-units), so the storage and
+     commit semantics are unchanged. */
+  .rating-bubble-star-slot {
+    position: relative;
+    display: inline-flex;
+    width: 18px;
+    height: 22px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .rating-bubble-star-base,
+  .rating-bubble-star-fill {
+    position: absolute;
+    inset: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    line-height: 1;
+    pointer-events: none;
+    transition: opacity 130ms ease;
+  }
+  .rating-bubble-star-base {
+    color: rgba(245, 242, 255, 0.30);
+    z-index: 1;
+  }
+  .rating-bubble-star-fill {
+    color: #d4b86a;
+    z-index: 2;
+    /* clip-path crops the gold glyph to the fill percent from the LEFT.
+       0% = nothing visible, 50% = left half only, 100% = whole glyph. */
+    clip-path: inset(0 calc(100% - var(--star-fill, 0%)) 0 0);
+    -webkit-clip-path: inset(0 calc(100% - var(--star-fill, 0%)) 0 0);
+    /* v10.511: clip-path transition gated to NON-scrubbing state. During
+       scrub, every touchmove updates --star-fill, and a CSS transition
+       would interpolate FROM the current mid-animation value to the
+       new target over 140ms â€” producing a visual that constantly chases
+       the finger and never catches up (the "itchy/glitchy" feel the
+       user reported). Disabled during scrub via the
+       `[data-scrubbing="true"]` selector below; re-enabled in the
+       resting state so external commits (post-rate re-render edge
+       cases, future preview-tap state changes) still feel smooth. */
+    transition: clip-path 140ms cubic-bezier(0.16, 1, 0.3, 1),
+                -webkit-clip-path 140ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .rating-bubble[data-scrubbing="true"] .rating-bubble-star-fill {
+    transition: none !important;
+  }
+  .rating-bubble-star-hit {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 50%;
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    z-index: 3;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .rating-bubble-star-hit-left { left: 0; }
+  .rating-bubble-star-hit-right { right: 0; }
+  /* When the bubble expands, the slots grow so half-star taps are easier
+     to land â€” the same intent as the v10.509 size bump, but applied to
+     the new clean structure. The fill glyph scales in lockstep via its
+     font-size override. */
+  .rating-bubble.is-expanded .rating-bubble-star-slot {
+    width: 26px;
+    height: 30px;
+  }
+  .rating-bubble.is-expanded .rating-bubble-star-base,
+  .rating-bubble.is-expanded .rating-bubble-star-fill {
+    font-size: 22px;
+  }
+  .rating-bubble-star.lit,
+  .rating-bubble-star:active {
+    color: #d4b86a;
+  }
+  .rating-bubble-star:active {
+    transform: translateZ(0) scale(1.18);
+  }
+  .rating-bubble-star.star-pop {
+    animation: star-pop 0.42s ease-out;
+  }
+  /* v10.515: star-pop animation hook for the new v10.510 fill element.
+     `playRatingAnimation` in 06-mylists-render-episodes-ratings.js
+     toggles `.star-pop` on each lit slot's `.rating-bubble-star-fill`
+     after a rate commits; this rule wires that class to the same
+     keyframe the legacy `.rating-bubble-star.star-pop` rule used, so
+     the scale + brightness pop runs on the new slot structure too.
+     The intensity-scaled glow + magenta shift is applied via WAAPI
+     `Element.animate()` in the same playRatingAnimation, so this CSS
+     rule is the CSS-fallback half of the unified bubble-rates pop
+     effect (matching the per-track widget). */
+  .rating-bubble-star-fill.star-pop {
+    animation: star-pop 0.42s ease-out;
+  }
+  /* v10.405 / v10.407: half-step variant â€” used to render 10 side-by-
+     side â˜… glyph buttons (5 visual stars Ã— 2 halves) with text-indent
+     and overflow:hidden to fake the half-fill.
+     v10.510: REMOVED â€” the half-step bubble now uses the clean
+     `.rating-bubble-star-slot` + `.rating-bubble-star-base` +
+     `.rating-bubble-star-fill` (clip-path) + `.rating-bubble-star-hit`
+     pattern defined above. The `.rating-bubble-star-half-*` selectors
+     no longer match any rendered markup and are removed.
+     The legacy `.rating-bubble-star` rules (without `-half`) are kept
+     for the dormant 10-scale rollback path. */
+  /* Bottom-left slot in the card action row â€” pushed flush-left,
+     `margin-right: auto` shoves the action row's right cluster
+     (Comments, Tracklist/+, etc.) to the far right. Action row padding
+     is also pulled tight so the bubble sits aligned with the card
+     poster's left edge (matches what the music section already does
+     via .music-bottom-rating-slot). */
+  .rating-bubble-bottom-left-slot {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-right: auto;
+    overflow: visible;
+  }
+  #mylist-view .card.card-uses-rating-bubble .card-action-row {
+    padding-left: 12px !important;
+  }
+  /* v10.412: when the rating bubble is expanded, fade out everything
+     else in the action row (Comments button, Details, +, etc.) so the
+     bubble's popout has clean space to expand into. Uses CSS `:has()`
+     so no JS hooks needed â€” when `.rating-bubble.is-expanded` is
+     present anywhere inside the action row, every direct child of the
+     row that ISN'T the bubble's own slot gets opacity:0 +
+     pointer-events:none with a 200ms ease transition.
+     Supported on iOS Safari 15.4+ / Chrome 105+, both of which the
+     Capacitor WKWebView matches on iOS 16+. */
+  #mylist-view .card.card-uses-rating-bubble .card-action-row > * {
+    transition: opacity 200ms ease;
+  }
+  #mylist-view .card.card-uses-rating-bubble .card-action-row:has(.rating-bubble.is-expanded) > *:not(.rating-bubble-bottom-left-slot) {
+    opacity: 0;
+    pointer-events: none;
+  }
+
   /* v10.395: dedicated music rating widget. v10.394's specificity-based
      override lost to a `:not(:first-of-type)` pseudo-class in
      17-auth-flow-setup.css (their (1,7,0) beat our (1,6,0)). Switching
@@ -498,11 +1571,22 @@
     text-align: left;
     text-indent: 0;
     justify-content: flex-start;
+    /* v10.400: anchor scale animations at the right edge of this box â€”
+       i.e. the shared boundary between this half and its pair-mate.
+       When the pair-mate's right half has transform-origin: left center
+       (the same boundary in document coords), both halves scale outward
+       from one shared anchor point. That's what makes a star pop as a
+       single unified shape instead of pulling apart into two half-stars
+       with their own tips. */
+    transform-origin: right center;
   }
   .music-rating-half.music-rating-half-right {
     text-align: left;
     text-indent: calc(var(--music-half-width, 10px) * -1);
     justify-content: flex-start;
+    /* v10.400: paired with .music-rating-half-left's `right center` â€”
+       see comment above. */
+    transform-origin: left center;
   }
   .music-rating-half.lit,
   .music-rating-half.lit-hover {
@@ -520,6 +1604,63 @@
   .music-rating-half.star-pop {
     animation: star-pop 0.42s ease-out;
   }
+  /* v10.407: full-star button used by the 10-star music variant
+     (`.music-rating--ten`). Same sizing model as `.music-rating-half`
+     (driven by the `--music-star-size` CSS variable) but no text-indent
+     trick â€” each button renders a full â˜… glyph at its native size. */
+  .music-rating-full {
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    width: var(--music-star-size, 20px);
+    min-width: var(--music-star-size, 20px);
+    height: calc(var(--music-star-size, 20px) + 4px);
+    line-height: 1;
+    font-size: var(--music-star-size, 20px);
+    font-family: inherit;
+    color: #443d60;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 150ms ease, transform 150ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .music-rating-full.lit,
+  .music-rating-full.lit-hover {
+    color: #F5B301;
+  }
+  .music-rating-full:hover {
+    transform: scale(1.18);
+  }
+  .music-rating-full:active {
+    transform: scale(0.95);
+  }
+  .music-rating-full.star-pop {
+    animation: star-pop 0.42s ease-out;
+  }
+  /* v10.407: per-track collapsed full â˜… â€” rendered when music is in
+     10-star mode (no half-step composition needed for the collapsed
+     icon). */
+  .mylist-album-shelf-track-rate-star--full {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--music-star-size, 22px);
+    min-width: var(--music-star-size, 22px);
+    height: var(--music-star-size, 22px);
+    font-size: var(--music-star-size, 22px);
+    line-height: 1;
+    color: #443d60;
+    transition: color 150ms ease;
+  }
+  .mylist-album-shelf-track-rate-star--full.lit {
+    color: #F5B301;
+  }
+
   .music-rating-value {
     margin-left: 8px;
     color: #ffffff;
@@ -527,16 +1668,147 @@
     letter-spacing: -0.01em;
     white-space: nowrap;
   }
-  /* v10.261: music tab order — Planned → In Rotation → Listened. The
-     static HTML order is Watching · Planned · Watched, so we use CSS flex
-     order to reposition them visually when active section is music. */
-  body.mylist-section-music #mylist-toolbar .tab-btn[data-tab="planned"]  { order: 1; }
-  body.mylist-section-music #mylist-toolbar .tab-btn[data-tab="watching"] { order: 2; }
-  body.mylist-section-music #mylist-toolbar .tab-btn[data-tab="watched"]  { order: 3; }
+  /* v10.261 / v10.403: music tab order is now In Rotation â†’ Listened
+     â†’ Planned (was Planned â†’ In Rotation â†’ Listened). The static HTML
+     order is Watching Â· Planned Â· Watched; CSS flex order maps them
+     to the new visual sequence when active section is music. */
+  body.mylist-section-music #mylist-toolbar .tab-btn[data-tab="watching"] { order: 1; }
+  body.mylist-section-music #mylist-toolbar .tab-btn[data-tab="watched"]  { order: 2; }
+  body.mylist-section-music #mylist-toolbar .tab-btn[data-tab="planned"]  { order: 3; }
+
+  /* v10.403: music status pill = JUST TEXT â€” no outline, no background.
+     The status hue (purple for In Rotation, cyan for Listened, amber for
+     Planned) is preserved as the TEXT color so the pill still reads as
+     colored even without chrome. Applies to:
+       - the current pill on the card (`.game-status-current-pill`)
+       - each option in the pop-out (`.game-status-options .status-pill`)
+       - any bare `.status-pill` rendered on a music card */
+  /* v10.414: same text-only status-pill treatment now applied to TV
+     SHOWS in addition to music. The selectors below double up so the
+     ruleset fires under both `body.mylist-section-music` and
+     `body.mylist-section-shows`. Status-color â†’ text color preserves
+     the per-status hue without the border/background chrome. TV adds
+     a `paused-active` orange that music doesn't have. */
+  body.mylist-section-music #mylist-view .status-pill,
+  body.mylist-section-music #mylist-view .game-status-current-pill,
+  body.mylist-section-music #mylist-view .game-status-options .status-pill,
+  body.mylist-section-shows #mylist-view .status-pill,
+  body.mylist-section-shows #mylist-view .game-status-current-pill,
+  body.mylist-section-shows #mylist-view .game-status-options .status-pill {
+    border: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+    /* v10.408: padding-left = 0 so the status pill TEXT lines up with
+       the title/artist text in the meta column. Right padding kept at
+       6px so the pop-out options have a small visual gap before the
+       next pill in the list.
+       v10.410: top/bottom padding dropped from 4px -> 0 so the pill
+       hugs the next meta line tighter (paired with the wrap margin-top
+       reset below). */
+    padding: 0 6px 0 0 !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    box-shadow: none !important;
+  }
+  /* v10.410 / v10.414: pull the status pill UP closer to the artist /
+     meta line so the gap reads as a single line break rather than the
+     legacy 6px margin. Applies to both music and TV shows now. */
+  #mylist-view .card[data-library-section="music"] .status-pills,
+  #mylist-view .card[data-library-section="music"] .status-pills-selector-wrap,
+  #mylist-view .card[data-library-section="shows"] .status-pills,
+  #mylist-view .card[data-library-section="shows"] .status-pills-selector-wrap {
+    margin-top: 0 !important;
+  }
+  /* Status-color â†’ text color (replaces the bg/border-driven coloring).
+     Shared between music + shows. */
+  body.mylist-section-music #mylist-view .status-pill.watching-active,
+  body.mylist-section-shows #mylist-view .status-pill.watching-active {
+    color: #a78bfa !important; /* lavender (music: In Rotation / shows: Watching) */
+  }
+  body.mylist-section-music #mylist-view .status-pill.watched-active,
+  body.mylist-section-shows #mylist-view .status-pill.watched-active {
+    color: #67e8f9 !important; /* cyan (music: Listened / shows: Watched) */
+  }
+  body.mylist-section-music #mylist-view .status-pill.planned-active,
+  body.mylist-section-shows #mylist-view .status-pill.planned-active {
+    color: #fbbf24 !important; /* amber (Planned) */
+  }
+  /* TV-only status: Paused gets the existing brand orange. */
+  body.mylist-section-shows #mylist-view .status-pill.paused-active {
+    color: #f97316 !important;
+  }
+  /* Unselected pop-out options stay in the standard muted color so the
+     active one visually stands out. */
+  body.mylist-section-music #mylist-view .game-status-options .status-pill:not(.watching-active):not(.watched-active):not(.planned-active),
+  body.mylist-section-shows #mylist-view .game-status-options .status-pill:not(.watching-active):not(.watched-active):not(.planned-active):not(.paused-active) {
+    color: rgba(216, 208, 233, 0.55) !important;
+  }
+
+  /* v10.423: restore PILL CHROME to popped-out status options on music
+     + TV cards. The v10.408 / v10.414 "text-only pill" override above
+     (border: 0 + background: transparent + padding: 0 6px 0 0) was
+     intentional for the ACTIVE pill so its label sits flush with the
+     title/artist meta line. But that same rule cascaded onto every
+     pill inside `.game-status-options`, so the popped-out "In Rotation"
+     and "Planned" alternatives lost their borders and backgrounds and
+     visually fused into a single block of text. By scoping THIS rule
+     to `.game-status-selector .game-status-options .status-pill`, we
+     add one more class to the selector (4 classes vs. 3) and win the
+     specificity battle without `!important`-stacking â€” but we add it
+     anyway since the upstream uses `!important` for every property.
+     Each alternative now reads as its own tappable button: rounded
+     hairline border, faint translucent background, equal padding all
+     around, and a hover state that lifts the surface slightly. The
+     `gap: 4px` already set on `.game-status-options` adds spatial
+     separation between the chips. */
+  body.mylist-section-music #mylist-view .game-status-selector .game-status-options .status-pill,
+  body.mylist-section-shows #mylist-view .game-status-selector .game-status-options .status-pill {
+    border: 1px solid rgba(216, 208, 233, 0.22) !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+    border-radius: 999px !important;
+    padding: 4px 10px !important;
+  }
+  body.mylist-section-music #mylist-view .game-status-selector .game-status-options .status-pill:hover,
+  body.mylist-section-shows #mylist-view .game-status-selector .game-status-options .status-pill:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(216, 208, 233, 0.34) !important;
+  }
+  /* Widen the gap a touch now that the chips have their own visible
+     edges â€” 4px reads tight when chrome is present. */
+  body.mylist-section-music #mylist-view .game-status-selector.expanded .game-status-options,
+  body.mylist-section-shows #mylist-view .game-status-selector.expanded .game-status-options {
+    gap: 6px;
+  }
+
+  /* v10.424: strip the gray container surface off the popped-out
+     options on music + TV cards. The true-dark-mode override in
+     06-profile.css (line 1588) sets background: #2c2c2c and a
+     hairline border on `.game-status-options`, which is the right
+     treatment for Games cards (whose pop-out lives inline next to a
+     dense stat block and needs a contrasting tray to read) but on
+     music + TV the alternative pills now have their own chrome
+     (v10.423) and that outer tray duplicates them as a single gray
+     rectangle.
+     v10.425: first attempt at this override used the same specificity
+     as the upstream rule (1 id + 2 classes + 1 type) â€” they tied, and
+     `06-profile.css` loads AFTER `01-mylists-cards-episodes.css` in
+     `index.html`, so the upstream still won despite both having
+     `!important`. Fix: insert `.game-status-selector` (the immediate
+     parent of `.game-status-options` in the markup) into the chain
+     so the selector becomes 1 id + 3 classes + 1 type, beating the
+     upstream's 1 id + 2 classes + 1 type regardless of file load
+     order. `!important` kept on every property so any later cascade
+     layer still loses. */
+  body.mylist-section-music #mylist-view .game-status-selector .game-status-options,
+  body.mylist-section-shows #mylist-view .game-status-selector .game-status-options {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
 
   /* v10.241 / v10.258 / v10.259: music title card now shows the status pill
      (so the user can swap between Listened / Planned), the artist line, and
-     the rating. Year + genre are hidden — only title + artist + status +
+     the rating. Year + genre are hidden â€” only title + artist + status +
      rating + cover. */
   #mylist-view .card[data-library-section="music"] .card-year.mylist-watchlist-year {
     display: none !important;
@@ -545,20 +1817,24 @@
     display: none !important;
   }
   /* v10.241 / v10.254: music section now shows the status toolbar again
-     with two tabs only (Listened + Planned) — JS label logic in
+     with two tabs only (Listened + Planned) â€” JS label logic in
      06-mylists-render-episodes-ratings.js handles the per-section text. */
 
-  /* v10.245 / v10.259: "Tracklist" pill on the music my-list card. Black
-     fill + white-rgba border to match the existing "+" plus-button style. */
+  /* v10.245 / v10.259 / v10.402: "Details" pill (formerly "Tracklist")
+     on the music my-list card. Black fill + white-rgba border to match
+     the "+" plus-button style. v10.402 retunes the pill to fit the new
+     10px font (was 6px via the 17-auth-flow-setup.css override): height
+     32 -> 24 and padding 12 -> 9 so the border hugs the text more
+     tightly. */
   #mylist-view .card-action-row .card-tracklist-btn {
     appearance: none;
     -webkit-appearance: none;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 32px;
+    height: 24px;
     min-width: 0;
-    padding: 0 12px;
+    padding: 0 9px;
     border-radius: 999px;
     border: 1px solid rgba(255,255,255,0.30);
     background: rgba(5,5,10,0.94);
@@ -577,7 +1853,7 @@
   }
   #mylist-view .card-action-row .card-tracklist-btn:active { transform: scale(0.94); }
 
-  /* v10.245: My-List Album Shelf Page — full-screen slide-in-from-right
+  /* v10.245: My-List Album Shelf Page â€” full-screen slide-in-from-right
      overlay. Hero (cover + title + artist) centered, tracklist below with
      pop-out rating row to the LEFT of each track's star toggle. Shelfd
      palette + same .star-btn animations as every other rating surface. */
@@ -608,16 +1884,19 @@
   .mylist-album-shelf-topbar {
     flex: 0 0 auto;
     min-height: 56px;
-    padding: max(12px, env(safe-area-inset-top, 0px)) 16px 10px;
+    padding: max(12px, var(--shelfd-safe-top, 0px)) 16px 10px;
     display: grid;
     grid-template-columns: 40px minmax(0, 1fr) auto;
     align-items: center;
     border-bottom: 1px solid rgba(255,255,255,0.08);
     background: #0f0f12;
+    /* v10.508: anchor so the absolutely-positioned title can center on the
+       full topbar width (not the asymmetric middle grid column). */
+    position: relative;
   }
   html.shelfd-capacitor-ios .mylist-album-shelf-topbar {
     min-height: 46px;
-    padding: max(calc(env(safe-area-inset-top, 0px) - 18px), 10px) 14px 6px;
+    padding: max(calc(var(--shelfd-safe-top, 0px) - 18px), 10px) 14px 6px;
   }
   .mylist-album-shelf-back {
     width: 38px;
@@ -639,6 +1918,23 @@
     text-align: center;
     font: 500 14px/1 'Sohne', 'DM Sans', sans-serif;
     color: #f8f4ff;
+    /* v10.508: float the "Album" label absolutely on the topbar so it sits
+       at the exact horizontal center of the viewport. Without this, the
+       grid layout (40px back | 1fr title | auto actions) makes the middle
+       column visually off-center because the right "actions" column is
+       wider than the left "back" column. pointer-events: none so the label
+       can't intercept taps meant for the back / action buttons below it. */
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    /* Keep the label compact so it never overlaps the back/actions even on
+       narrow phones. */
+    max-width: calc(100% - 120px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .mylist-album-shelf-actions {
     display: inline-flex;
@@ -680,6 +1976,25 @@
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
     padding: 24px 18px max(28px, calc(env(safe-area-inset-bottom, 0px) + 24px));
+    /* v10.507: hide the right-edge scroll indicator on the album details
+       overlay. WebKit (iOS Capacitor + Safari) honors the ::-webkit-scrollbar
+       block; Firefox honors scrollbar-width; legacy IE honors ms-overflow-style.
+       Scroll behavior itself is unchanged â€” content still scrolls, just
+       without the visible indicator. */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .mylist-album-shelf-content::-webkit-scrollbar { display: none; width: 0 !important; height: 0 !important; }
+
+  /* v10.507: disable iOS double-tap-to-zoom on the album details overlay.
+     `touch-action: manipulation` specifically suppresses the 300ms double-
+     tap-to-zoom gesture while still permitting pinch-zoom (if the user
+     wants to pinch) and normal panning. Applied to the page shell so the
+     hero, tracklist, rating buttons, and footer all share the behavior. */
+  .mylist-album-shelf-page,
+  .mylist-album-shelf-shell,
+  .mylist-album-shelf-content {
+    touch-action: manipulation;
   }
   html.shelfd-capacitor-ios .mylist-album-shelf-content {
     padding-top: 8px;
@@ -699,7 +2014,14 @@
     background-size: cover;
     background-position: center center;
     background-color: #1c1535;
-    box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+    /* v10.402 / v10.403: outer 1px @ 30% white outline (first shadow,
+       was 54% in v10.402 â€” softened per spec) stacked with the existing
+       drop shadow (second shadow). Multiple box-shadows draw layered
+       from front to back â€” the hairline lives on top of the drop shadow
+       so it's visible even when the cover image itself is fully black. */
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.30),
+      0 24px 60px rgba(0,0,0,0.5);
     display: grid;
     place-items: center;
     font-size: 56px;
@@ -728,7 +2050,7 @@
   }
   .mylist-album-shelf-album-artist:hover { color: #f8f4ff; }
   .mylist-album-shelf-album-artist:active { opacity: 0.7; }
-  /* v10.257: year · genre meta line under the artist. */
+  /* v10.257: year Â· genre meta line under the artist. */
   .mylist-album-shelf-album-meta {
     color: rgba(216,208,233,0.55);
     font: 400 13px/1.3 'Sohne', 'DM Sans', sans-serif;
@@ -756,17 +2078,37 @@
      right is the new collapsible 5-star toggle. */
   .mylist-album-shelf-track {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    /* v10.440: 3-column grid â€” [track number] [title] [rating widget].
+       The track number sits flush-left, the title fills the middle
+       (with min-width:0 so it ellipses cleanly), and the widget
+       hangs off the right edge. */
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
     gap: 12px;
-    padding: 10px 0;
+    /* v10.435: vertical padding tightened 10 -> 7 per spec ("track
+       list titles thirty percent closer"). 10 Ã— 0.7 = 7, applied
+       symmetrically top + bottom so each track row is 30% more
+       condensed without disturbing the inner title/widget grid
+       cells. The 1px bottom-border separator is preserved for
+       visual rhythm â€” the title rows just sit closer to it. */
+    padding: 7px 0;
     border-bottom: 1px solid rgba(255,255,255,0.05);
   }
   .mylist-album-shelf-track:last-child { border-bottom: 0; }
-  /* Legacy track-number element kept in the DOM in case other code
-     queries it, but visually removed. */
-  .mylist-album-shelf-track-num { display: none !important; }
-  /* v10.398: track title bumped DOWN 1px (14 -> 13) per spec — pulls
+  /* v10.440: track-number element re-shown after the v10.397 hide.
+     Muted lavender-gray color so it reads as secondary metadata
+     alongside the title; min-width keeps double-digit numbers
+     (10+) aligned with single-digit ones. */
+  .mylist-album-shelf-track-num {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 16px;
+    color: rgba(216, 208, 233, 0.55);
+    font: 500 12px/1 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: 0;
+  }
+  /* v10.398: track title bumped DOWN 1px (14 -> 13) per spec â€” pulls
      the tracklist into tighter visual rhythm with the now-smaller
      "Your rating" widget and the per-track value text. */
   .mylist-album-shelf-track-title {
@@ -775,9 +2117,50 @@
     overflow: hidden;
     text-overflow: ellipsis;
     word-break: break-word;
+    /* v10.440: prep the title for the gradient-fade behavior below.
+       When the per-track rating popout opens (`.mylist-album-shelf-track-rate.is-expanded`),
+       the title gets a left-to-right alpha mask so the leftmost
+       characters stay fully opaque while the right edge fades to
+       transparent BEFORE running into the popout's rating widget.
+       Mask transition lets the fade-in / fade-out match the
+       popout's slide animation tempo. */
+    transition: -webkit-mask-image 240ms cubic-bezier(0.22, 1, 0.36, 1),
+                mask-image 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  /* When the sibling rating widget is in `.is-expanded`, mask the
+     title from full-opaque on the left to fully transparent on the
+     right. The 40%/100% stops give the title's first ~40% safe-zone
+     of 100% opacity, then a gradient fade across the remaining 60%
+     of the title's natural width, blending behind the popout. */
+  .mylist-album-shelf-track:has(.mylist-album-shelf-track-rate.is-expanded) .mylist-album-shelf-track-title {
+    -webkit-mask-image: linear-gradient(to right, #000 0%, #000 40%, transparent 100%);
+            mask-image: linear-gradient(to right, #000 0%, #000 40%, transparent 100%);
+  }
+  /* v10.440: live scrub-value readout â€” the number that updates as
+     the user drags across stars in the 10-star popout. Hidden until
+     `.is-active` is set by the scrub handler, then fades in with
+     champagne color matching the lit stars. Sits flush-right of the
+     last star with a small gap. */
+  .music-rating-scrub-value {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 8px;
+    min-width: 22px;
+    color: #E6C766;
+    font: 700 13px/1 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: -0.01em;
+    line-height: 1;
+    opacity: 0;
+    transition: opacity 120ms ease;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .music-rating-scrub-value.is-active {
+    opacity: 1;
   }
   .mylist-album-shelf-track-length { display: none !important; }
-  /* v10.253: simple favorite-toggle button (now hidden by v10.397 — kept
+  /* v10.253: simple favorite-toggle button (now hidden by v10.397 â€” kept
      as a defensive style guard for any cached HTML still in flight). */
   .mylist-album-shelf-track-fav { display: none !important; }
 
@@ -820,19 +2203,119 @@
   .mylist-album-shelf-track-rate-toggle.is-rated {
     color: #F5B301;
   }
+  /* v10.399: collapsed-state star is now a flex wrapper holding TWO
+     `.music-rating-half` boxes (left + right halves of one â˜… glyph),
+     mirroring the album-level rendering. The boxes inside derive their
+     size from the `--music-star-size` CSS variable set inline on this
+     wrapper, so identical glyph shape / pointer tips as the
+     "Your rating" widget above the tracklist. */
   .mylist-album-shelf-track-rate-star {
-    font-size: 20px;
+    display: inline-flex;
+    align-items: center;
     line-height: 1;
   }
-  /* v10.398: per-track "4.5 / 5" label — weight 700 -> 600 (lighter by
+  /* The .music-rating-half default rule below (in the same file) sets
+     cursor: pointer and a hover transform. We DON'T want either of those
+     on the collapsed star â€” it's just a static composed glyph. */
+  .mylist-album-shelf-track-rate-star .music-rating-half {
+    cursor: default;
+    pointer-events: none;
+    transition: color 150ms ease;
+  }
+  .mylist-album-shelf-track-rate-star .music-rating-half:hover,
+  .mylist-album-shelf-track-rate-star .music-rating-half:active {
+    transform: none;
+  }
+  /* v10.398: per-track "4.5 / 5" label â€” weight 700 -> 600 (lighter by
      one weight step / 100) and font 13 -> 12 (1px smaller). Star icon
-     in the same toggle keeps its 20px size; only the value text shrinks. */
+     in the same toggle keeps its 20px size; only the value text shrinks.
+     v10.418: pinned to a fixed width with left-anchored text. Without
+     this, "10 / 10" rendered ~6â€“8px wider than "9 / 10" / "8 / 10",
+     which (combined with the toggle being right-justified in its
+     container) pushed the star tip on those narrower-numeric rows to
+     the right of the "10 / 10" rows' tips. With a fixed value-slot,
+     the toggle's overall width is constant and every row's star tip
+     sits on the same invisible vertical line. The min-width was sized
+     to fit the widest case ("10 / 10") at Sohne 600 12px with a
+     small safety margin. */
   .mylist-album-shelf-track-rate-value {
     color: #ffffff;
-    font: 600 12px/1 'Sohne', 'DM Sans', sans-serif;
+    /* v10.420: dropped font-weight 600 -> 500 (one weight step / 100
+       lighter) per spec. The number reads as a quieter companion to
+       the star glyph now instead of competing with it visually. */
+    font: 500 12px/1 'Sohne', 'DM Sans', sans-serif;
     letter-spacing: -0.01em;
     white-space: nowrap;
+    display: inline-block;
+    /* v10.420: with the "/ 10" denominator gone, the widest possible
+       value is "10" (2 chars at Sohne 500 12px â‰ˆ 14px) and the
+       narrowest is "0" or empty. Shrunk the min-width floor from 44px
+       to 18px so the bubble doesn't have a wide dead zone next to
+       the star, while still being just wide enough that the
+       single-digit "9" and the two-digit "10" rows keep the star tip
+       aligned on a single invisible vertical line.
+       v10.422: text-align flipped left -> center so the numbers
+       themselves stack vertically on a single centered axis down the
+       column. With left-align the digits sat flush against the
+       slot's left edge, which meant "9" (one char) ended ~7px before
+       "10"'s right edge â€” the rows lined up on the star but the
+       numbers looked ragged. Center-align in a fixed 18px slot puts
+       each number's visual center at the slot's midpoint regardless
+       of digit count, so both axes (star tip + number center) are
+       column-aligned now. */
+    min-width: 18px;
+    text-align: center;
   }
+
+  /* v10.418: actionable post-add popup shown after the user adds an
+     item from Universal Search. Floats above the search overlay so
+     they can keep adding without losing context, fades on its own
+     after 3.3s, or routes them to the just-added item on tap. */
+  .shelfd-go-to-shelf-popup {
+    position: fixed;
+    left: 50%;
+    bottom: max(env(safe-area-inset-bottom, 20px), 28px);
+    transform: translate(-50%, 18px);
+    z-index: 9500;
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 10px 10px 18px;
+    background: #181c20;
+    border: 1px solid rgba(196,181,253,0.22);
+    border-radius: 999px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.55), 0 0 0 0.5px rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.92);
+    font: 600 14px/1.2 Aptos, 'Aptos Display', 'Segoe UI', sans-serif;
+    opacity: 0;
+    transition: opacity 0.22s ease, transform 0.26s cubic-bezier(0.22,1,0.36,1);
+    pointer-events: auto;
+    max-width: min(92vw, 420px);
+  }
+  .shelfd-go-to-shelf-popup.is-open {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  .shelfd-go-to-shelf-popup-text {
+    white-space: nowrap;
+    color: rgba(255,255,255,0.85);
+  }
+  .shelfd-go-to-shelf-popup-action {
+    appearance: none;
+    -webkit-appearance: none;
+    background: rgba(196,181,253,0.18);
+    border: 1px solid rgba(196,181,253,0.32);
+    color: #d8c9ff;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font: 600 13px/1 Aptos, 'Aptos Display', 'Segoe UI', sans-serif;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: background 0.15s ease, transform 0.12s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .shelfd-go-to-shelf-popup-action:hover { background: rgba(196,181,253,0.24); }
+  .shelfd-go-to-shelf-popup-action:active { background: rgba(196,181,253,0.30); transform: scale(0.97); }
   /* Expanded view: anchored to the right edge of the container, scales
      in from a right origin so it visually GLIDES LEFTWARD as it opens.
      Pill background + hairline lavender border give it visual weight
@@ -868,8 +2351,15 @@
     pointer-events: none;
   }
 
-  /* v10.253: album-level rating widget — sits between hero and tracklist.
-     Uses the standard Shelfd `.stars .star-btn` pattern. */
+  /* v10.253: album-level rating widget â€” sits between hero and tracklist.
+     Uses the standard Shelfd `.stars .star-btn` pattern.
+     v10.435: layout flipped from column â†’ 3-column row to host
+     [Number of ratings] | [Your rating] | [Average rating]. Each
+     column stacks its label above its value; the row centers in
+     the section so the three blocks read as a balanced trio. The
+     legacy single-column `.mylist-album-shelf-rating` (without the
+     `--three-col` modifier) is no longer emitted; keeping the base
+     rule above as a safety net for any stale read-only paths. */
   .mylist-album-shelf-rating {
     margin: 6px 0 22px;
     padding-top: 18px;
@@ -878,6 +2368,82 @@
     flex-direction: column;
     align-items: center;
     gap: 8px;
+  }
+  .mylist-album-shelf-rating.mylist-album-shelf-rating--three-col {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .mylist-album-shelf-rating-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .mylist-album-shelf-rating-col--count,
+  .mylist-album-shelf-rating-col--avg {
+    /* Side columns are narrower so the center "Your rating" bubble
+       sits as the visual anchor â€” they hold their label + a single
+       compact value (number-of-votes or "â˜… 4.6").
+       v10.439: smooth fade + collapse transitions added here so
+       when the user taps the center bubble to expand into the 10-
+       star rate widget, the side columns gracefully fade to 0
+       opacity AND collapse to 0 width â€” freeing horizontal space
+       for the expanded bubble and giving the rate gesture sole
+       visual focus. Same UX pattern as the title-card v10.412 fade
+       of Details / + / Comments siblings when the bubble expands. */
+    flex: 0 1 auto;
+    transition:
+      opacity 220ms ease,
+      max-width 280ms cubic-bezier(0.22, 1, 0.36, 1),
+      margin 280ms cubic-bezier(0.22, 1, 0.36, 1);
+    overflow: hidden;
+  }
+  /* When the center bubble is in the `.is-expanded` state, fade
+     out the count + average side columns and collapse their width
+     to 0 so the expanded bubble has the full row to fan its 10
+     stars into. Uses `:has()` for parent-aware selection â€” same
+     pattern as the v10.412 title-card fade rule. On `.is-expanded`
+     removal (rating committed or user taps outside), the rules
+     reverse: opacity returns to 1, max-width grows back to its
+     natural content size, and the columns spring back. */
+  .mylist-album-shelf-rating:has(.rating-bubble.is-expanded) .mylist-album-shelf-rating-col--count,
+  .mylist-album-shelf-rating:has(.rating-bubble.is-expanded) .mylist-album-shelf-rating-col--avg {
+    opacity: 0;
+    pointer-events: none;
+    max-width: 0;
+    margin: 0;
+  }
+  /* The center column itself grows to claim the freed space when
+     the bubble expands, giving the stars track a wide canvas. */
+  .mylist-album-shelf-rating:has(.rating-bubble.is-expanded) .mylist-album-shelf-rating-col--your {
+    flex: 1 1 100%;
+  }
+  .mylist-album-shelf-rating-count-val {
+    color: rgba(255,255,255,0.92);
+    font: 600 18px/1 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+  .mylist-album-shelf-rating-avg-val {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: rgba(255,255,255,0.92);
+    font: 600 18px/1 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+  .mylist-album-shelf-rating-avg-star {
+    color: #d4b86a;
+    font-size: 18px;
+    line-height: 1;
+  }
+  .mylist-album-shelf-rating-avg-num {
+    color: rgba(255,255,255,0.92);
   }
   .mylist-album-shelf-rating-label {
     color: rgba(216,208,233,0.62);
@@ -896,15 +2462,23 @@
   }
   /* v10.255: favorite-ratio readout below the rating widget. Lives inside
      the same `.mylist-album-shelf-rating` block so the section reads as one
-     "your engagement" cluster. Lavender accent on the star, muted text. */
+     "your engagement" cluster. Lavender accent on the star, muted text.
+     v10.417: now displays "Avg rating <value>" â€” pair the muted label with
+     the same-weight value, small gap between them so the row stays compact
+     under the star widget. */
   .mylist-album-shelf-fav-ratio {
     margin-top: 2px;
     display: inline-flex;
-    align-items: center;
-    gap: 0;
+    align-items: baseline;
+    gap: 6px;
     color: rgba(216,208,233,0.72);
     font: 600 13px/1.2 'Sohne', 'DM Sans', sans-serif;
     letter-spacing: 0;
+  }
+  .mylist-album-shelf-avg-rating-label {
+    color: rgba(216,208,233,0.55);
+    font-weight: 500;
+    letter-spacing: 0.01em;
   }
   .mylist-album-shelf-track-empty {
     padding: 14px 0;
@@ -945,9 +2519,9 @@
     .mylist-album-shelf-cover { width: 300px; }
   }
 
-  /* v10.246: Music Artist Profile page — full-screen slide-in. Hero =
+  /* v10.246: Music Artist Profile page â€” full-screen slide-in. Hero =
      name + disambig + facts grid (type / DOB / age / place). Below =
-     discography list. Tap any album → opens the existing Album Profile. */
+     discography list. Tap any album â†’ opens the existing Album Profile. */
   body.music-artist-profile-open { overflow: hidden; }
   .music-artist-profile-page {
     position: fixed;
@@ -975,7 +2549,7 @@
   .music-artist-profile-topbar {
     flex: 0 0 auto;
     min-height: 56px;
-    padding: max(12px, env(safe-area-inset-top, 0px)) 16px 10px;
+    padding: max(12px, var(--shelfd-safe-top, 0px)) 16px 10px;
     display: grid;
     grid-template-columns: 40px minmax(0, 1fr) 40px;
     align-items: center;
@@ -1001,7 +2575,7 @@
     color: #f8f4ff;
   }
   /* v10.258: heart-favorite button in the artist profile topbar. Mirrors the
-     actor/actress heart pattern — outline when unfav, filled rose when fav. */
+     actor/actress heart pattern â€” outline when unfav, filled rose when fav. */
   .music-artist-profile-fav {
     width: 38px;
     height: 38px;
@@ -1128,6 +2702,9 @@
     -webkit-tap-highlight-color: transparent;
   }
   .music-artist-profile-album:last-child { border-bottom: 0; }
+  /* v10.403: removed the v10.402 hairline outline here. Per spec the
+     outline belongs only on the album shelf cover (My List Full Page
+     Album Details). */
   .music-artist-profile-album-cover {
     width: 56px;
     height: 56px;
@@ -1191,7 +2768,7 @@
     word-break: break-word;
   }
   /* v10.247: tracklist dropdown on the FPReview music hero. Sits below the
-     rating chip. Closed by default — tap to expand. */
+     rating chip. Closed by default â€” tap to expand. */
   .mylist-review-tracklist {
     margin-top: 14px;
   }
@@ -1265,8 +2842,8 @@
     line-height: 1;
   }
 
-  /* v10.237 / v10.241: music FPReview + composer covers — 1:1 square,
-     0.9px corners. v10.241 bumps the FPR cover to 150×150 px (same on
+  /* v10.237 / v10.241: music FPReview + composer covers â€” 1:1 square,
+     0.9px corners. v10.241 bumps the FPR cover to 150Ã—150 px (same on
      mobile and the desktop breakpoint, since music art doesn't need the
      extra portrait height that movies do). */
   .mylist-media-review-page.is-music-review .mylist-media-review-poster {
@@ -1438,7 +3015,7 @@
     display: none;
   }
   /* v10.390: unify title-card rating star color to #F5B301. Two rules
-     drive this — the collapsed-state forced first star (here), and a
+     drive this â€” the collapsed-state forced first star (here), and a
      scoped `.star-btn.lit` override below. Both share the same value so
      the collapsed badge and every expanded lit star match exactly. */
   #cards-grid .card .rating-area .stars[data-prefix="overall"]:not(.is-expanded) .star-btn:first-of-type {
@@ -1534,7 +3111,7 @@
   .mylist-media-review-topbar {
     flex: 0 0 auto;
     min-height: 56px;
-    padding: max(12px, env(safe-area-inset-top, 0px)) 16px 10px;
+    padding: max(12px, var(--shelfd-safe-top, 0px)) 16px 10px;
     display: grid;
     grid-template-columns: 40px minmax(0, 1fr) 40px;
     align-items: center;
@@ -1599,7 +3176,7 @@
     grid-template-columns: minmax(0, 1fr) 104px;
     gap: 18px;
     align-items: start;
-    /* v10.263: composer-style meta strip — `#17171b` slate plate behind the
+    /* v10.263: composer-style meta strip â€” `#17171b` slate plate behind the
        title/poster/rating block, hairline divider below. Mirrors the
        `.shelf-log-composer-meta` look. */
     background: #17171b;
@@ -1663,6 +3240,48 @@
   .mylist-review-filled-star {
     font-size: 17px;
     line-height: 1;
+  }
+  /* v10.516: full-page review rating row â€” give the star cluster and the
+     numeric label breathing room. Without this, the spans rendered
+     inline with effectively zero gap (no parent flex / no margin) so the
+     stars sat flush against the number ("â˜…â˜…â˜…3.5"). The 10px gap matches
+     the rest of the review page's compact-row rhythm. */
+  .mylist-review-rating {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 6px;
+  }
+  .mylist-review-rating .mylist-review-filled-stars {
+    margin-right: 0;
+  }
+
+  /* v10.516: disable iOS WKWebView auto-zoom on the shelf-page bio.
+     iOS Safari + Capacitor WebView auto-zoom into any focusable text
+     control whose computed `font-size` is < 16px. The bio is styled
+     at 11px in `/css/16-light-mode-contrast.css:1060` (and that file
+     is in the do-not-edit list per project memory), so when the user
+     taps the bio the WebView snaps the viewport to it and zooms in.
+     Workaround: override the computed font-size to 16px (above the
+     auto-zoom threshold) and visually shrink the rendered text via
+     a fractional `transform: scale()`. The text reads at the same
+     visual size as before but iOS sees a 16px target â†’ no auto-zoom.
+     `transform-origin: top center` keeps the bio centered under the
+     name. `text-size-adjust: 100%` prevents iOS from re-scaling on
+     top. The selector body-prefix gives this rule enough specificity
+     to win over the do-not-touch base rule without `!important`
+     wars. */
+  body #mylist-view #mylist-profile-controls .mylist-own-profile-bio {
+    font-size: 16px !important;
+    transform: scale(0.6875);
+    transform-origin: top center;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    /* Compensate for the scaled-down visual: the element's box still
+       reports the 16px height, but the rendered text only takes ~11px
+       vertically. A negative margin-bottom claws back the empty space
+       below the scaled text so the layout matches the pre-fix rhythm. */
+    margin-bottom: -6px;
   }
   .mylist-review-rating-label,
   .mylist-review-rating-empty {
@@ -2026,7 +3645,7 @@
   /* v10.217 / v10.218: "I Watched..." / "I Played..." intermediate log
      composer. Slides in from the right when a user taps the + on a
      Watched/Played title card. On Save, hands off to .mylist-media-review-page.
-     v10.218 — repalleted to match the Shelfd app scheme used in the FPReview:
+     v10.218 â€” repalleted to match the Shelfd app scheme used in the FPReview:
        - page bg #0f0f12 (deep near-black) instead of slate
        - meta strip #17171b (Shelfd action-sheet surface) with subtle border
        - lavender #c4b5fd accents (Save, focused chips)
@@ -2062,7 +3681,7 @@
   /* ----- Topbar ----- */
   .shelf-log-composer-topbar {
     flex: 0 0 auto;
-    padding: max(12px, env(safe-area-inset-top, 0px)) 18px 12px;
+    padding: max(12px, var(--shelfd-safe-top, 0px)) 18px 12px;
     display: grid;
     grid-template-columns: auto 1fr auto;
     align-items: center;
@@ -2204,15 +3823,81 @@
      hover scale, and `star-pop` animation match the rest of the app exactly.
      We just scope a few size + color tweaks for the composer surface. */
   .shelf-log-composer-stars {
-    --star-size: 24px;
-    gap: 4px;
+    --star-size: 28px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
-  .shelf-log-composer-stars .star-btn {
+  /* v10.521: canonical 5-star half-step slot pattern (matches the
+     title-card bubble's v10.510 rebuild). One slot per visual star,
+     containing a grey base â˜… + a gold fill â˜… clipped via clip-path
+     to the slot's `--star-fill` percent, plus two invisible left/right
+     half-zone hit buttons. Clean single-glyph rendering â€” no
+     side-by-side glyph stacking, no seam between halves. */
+  .shelf-log-star-slot {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--star-size);
+    height: calc(var(--star-size) + 4px);
+    flex-shrink: 0;
+    line-height: 1;
+  }
+  .shelf-log-star-base,
+  .shelf-log-star-fill {
+    position: absolute;
+    inset: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     font-size: var(--star-size);
     line-height: 1;
-    color: rgba(248,244,255,0.18);
+    pointer-events: none;
   }
-  .shelf-log-composer-stars .star-btn.lit { color: #f59e0b; }
+  .shelf-log-star-base {
+    /* v10.523: match the canonical empty-star grey used by the title-
+       card bubble's `.rating-bubble-star-base` (line 1455) so empty
+       stars read consistently across all surfaces. */
+    color: rgba(245, 242, 255, 0.30);
+    z-index: 1;
+  }
+  .shelf-log-star-fill {
+    /* v10.523: switched to the canonical champagne gold `#E6C766`
+       per the project spec (see 01-mylists-cards-episodes.css:8631
+       comment: "every rating bubble / star / lit star all share ONE
+       color: #E6C766 â€” soft champagne. 100% opacity per spec"). The
+       earlier `#f59e0b` (amber) was inconsistent with the bubble,
+       the album-shelf rating, and the full-page review stars. */
+    color: #E6C766;
+    z-index: 2;
+    clip-path: inset(0 calc(100% - var(--star-fill, 0%)) 0 0);
+    -webkit-clip-path: inset(0 calc(100% - var(--star-fill, 0%)) 0 0);
+    transition: clip-path 140ms cubic-bezier(0.16, 1, 0.3, 1),
+                -webkit-clip-path 140ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .shelf-log-star-hit {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 50%;
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    z-index: 3;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .shelf-log-star-hit-left  { left: 0; }
+  .shelf-log-star-hit-right { right: 0; }
+  /* Pop animation on the fill glyph after commit â€” same keyframe as
+     the title-card bubble's `.rating-bubble-star-fill.star-pop`. */
+  .shelf-log-star-fill.star-pop {
+    animation: star-pop 0.42s ease-out;
+  }
 
   /* ----- Review textarea ----- */
   .shelf-log-composer-review-row {
@@ -2336,7 +4021,7 @@
     }
   }
 
-  /* v10.233: Music Album Profile — slide-in-from-right overlay for albums
+  /* v10.233: Music Album Profile â€” slide-in-from-right overlay for albums
      surfaced by the universal-search Music chip. Shelfd palette: #0f0f12
      base, lavender accents, gold rating, rose for danger. Compositor-only
      transforms for ProMotion smoothness. */
@@ -2371,7 +4056,7 @@
   .music-album-profile-topbar {
     flex: 0 0 auto;
     min-height: 56px;
-    padding: max(12px, env(safe-area-inset-top, 0px)) 16px 10px;
+    padding: max(12px, var(--shelfd-safe-top, 0px)) 16px 10px;
     display: grid;
     grid-template-columns: 40px minmax(0, 1fr) 40px;
     align-items: center;
@@ -2418,7 +4103,7 @@
   .music-album-profile-cover {
     width: min(72vw, 240px);
     aspect-ratio: 1 / 1;
-    /* v10.234: 0px corners per spec — sharp/square album art. */
+    /* v10.234: 0px corners per spec â€” sharp/square album art. */
     border-radius: 0;
     background-size: cover;
     background-position: center;
@@ -2556,9 +4241,9 @@
   }
   /* v10.258 / v10.262: progressive add zone.
      - Default: full-width "Add to Shelf" pill (`.music-album-profile-add-btn`).
-     - Tap it → row of three small status buttons (Listened / Planned / In
+     - Tap it â†’ row of three small status buttons (Listened / Planned / In
        Rotation) fits the same row width.
-     - When album is already in the library → "Already Added · {status}"
+     - When album is already in the library â†’ "Already Added Â· {status}"
        check pill replaces both states. */
   .music-album-profile-add-zone {
     margin: 16px 0 0;
@@ -2593,7 +4278,7 @@
     transform: scale(0.96);
   }
   .music-album-profile-add-btn[hidden] { display: none !important; }
-  /* v10.262: "Already Added" state — green-tinted pill with check icon. */
+  /* v10.262: "Already Added" state â€” green-tinted pill with check icon. */
   .music-album-profile-already-added {
     background: rgba(52,211,153,0.10) !important;
     border-color: rgba(52,211,153,0.32) !important;
@@ -2602,7 +4287,7 @@
     color: #34d399 !important;
   }
   /* v10.251: swap which icon shows based on data-add-state. + (plus) shows
-     when the album is not yet in the shelf; ✓ (check) shows when it's
+     when the album is not yet in the shelf; âœ“ (check) shows when it's
      already saved. */
   .music-album-profile-add-icon-add,
   .music-album-profile-add-icon-check { display: none; }
@@ -2651,13 +4336,13 @@
   }
   .ep-arrow.open { transform: rotate(180deg); color: #c4b5fd; }
   .ep-list {
-    /* v444: REMOVED the transform: translateY(-6px) ↔ translateY(0) animation.
+    /* v444: REMOVED the transform: translateY(-6px) â†” translateY(0) animation.
        It was running on the SAME element being height-animated, which made the
        inner content visually slide UP at the same time the box was being
        CLIPPED by the shrinking/growing height. Those two effects compounded
        and produced the visible "shake/jitter" on collapse and on expand
        (especially obvious when the scroll-to-top did not fire to mask it).
-       Now using ONLY a height transition for opening/closing — opacity also
+       Now using ONLY a height transition for opening/closing â€” opacity also
        removed because it caused another sub-pixel render shift on close. */
     height: 0;
     overflow: hidden;
@@ -2671,7 +4356,7 @@
     padding: 4px 14px 14px;
   }
   .ep-actions { display: flex; gap: 8px; margin-bottom: 10px; justify-content: space-between; align-items: center; }
-  /* v445/v446: episode scroll container — no visible scrollbar. */
+  /* v445/v446: episode scroll container â€” no visible scrollbar. */
   .ep-scroll {
     max-height: 340px;
     overflow-y: auto;
@@ -2691,7 +4376,7 @@
     background: transparent;
   }
 
-  /* ── v446/v447/v448/v450: Focused-season mode (FLEX REBUILD) ───────────────
+  /* â”€â”€ v446/v447/v448/v450: Focused-season mode (FLEX REBUILD) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
      Diagnosis from prior iterations:
        - When .ep-scroll had overflow: hidden, iOS Safari refused to pass touch
          to the inner .season-eps scroll. (v446 issue)
@@ -2702,7 +4387,7 @@
          (v448 residual issue)
      Fix: in focused mode the .ep-list-inner becomes a fixed-height flex
      column. .ep-scroll inside it has flex:1 + overflow: visible, which means
-     it is NO LONGER a scroll container at all — iOS skips straight past it
+     it is NO LONGER a scroll container at all â€” iOS skips straight past it
      and lands on .season-eps as the only scroll container in the chain.
      .season-eps is also a flex item with flex:1 and min-height:0 so it owns
      all remaining vertical space and scrolls episodes internally. */
@@ -2717,7 +4402,7 @@
   .ep-list.ep-list-focused-host > .ep-list-inner > .ep-actions {
     flex: 0 0 auto !important;
   }
-  /* .ep-scroll is no longer a scroll container in focused mode — it just
+  /* .ep-scroll is no longer a scroll container in focused mode â€” it just
      stretches to fill the remaining height and lets .season-eps scroll. */
   .ep-list.ep-list-focused-host .ep-scroll.ep-season-focused {
     flex: 1 1 auto !important;
@@ -2790,7 +4475,7 @@
   }
   .season-eps::-webkit-scrollbar { display: none; width: 0; height: 0; }
 
-  /* Season rating bar — sits between the season header and episode list.
+  /* Season rating bar â€” sits between the season header and episode list.
      In focused mode (above) it is held fixed by the .season-body flex layout. */
   .season-rating-bar {
     display: flex;
@@ -2971,7 +4656,7 @@
   .ep-rating-popup .star-btn { font-size: 16px; }
 
 
-/* V266: Games card platform / hours / Tracker Stats details — clean mobile-first lines, no heavy capsules. */
+/* V266: Games card platform / hours / Tracker Stats details â€” clean mobile-first lines, no heavy capsules. */
 .game-library-card {
   position: relative;
   padding-bottom: 8px;
@@ -2979,7 +4664,13 @@
 .games-wishlist-card .games-wishlist-card-info {
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  /* v10.434: `min-height: 100%` removed â€” paired with the priority
+     row's `margin-top: auto` (also removed below), the old layout
+     forced the card-info column to stretch to match the cover and
+     pushed the priority bubble to the very bottom. That made
+     wishlist cards visibly taller than the playing-card variants
+     even when they had less content. Now the column sizes to its
+     natural content height like the playing cards do. */
 }
 .games-wishlist-card .games-wishlist-card-genre,
 .games-wishlist-card .games-wishlist-card-platforms {
@@ -2987,14 +4678,20 @@
   font-weight: 500;
 }
 .games-wishlist-card .games-wishlist-card-priority {
-  margin-top: auto;
-  padding-top: 10px;
+  /* v10.434: `margin-top: auto` dropped so the priority bubble flows
+     directly after the meta lines instead of being pinned to the
+     card-info column's bottom edge. With this + the parent
+     `min-height: 100%` removal above, wishlist cards now match the
+     vertical size of playing cards. Padding-top reduced 10 -> 4 to
+     give the bubble a tight single-line gap from the meta above
+     (still uses default flex flow, no auto stretching). */
+  padding-top: 4px;
   display: flex;
   justify-content: flex-start;
   align-items: flex-end;
 }
 .games-wishlist-card .games-wishlist-card-priority .watchlist-priority-slot {
-  min-height: 26px;
+  min-height: 22px;
 }
 .game-library-card .card-action-row {
   padding-right: 0;
@@ -3213,7 +4910,7 @@ body.light-mode .game-card-tracker-icon-link:hover { color: #241640; }
   left: 0;
   right: 0;
   bottom: 0;
-  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 18px);
+  max-height: calc(100dvh - var(--shelfd-safe-top, 0px) - 18px);
   padding: 10px 16px calc(18px + env(safe-area-inset-bottom, 0px));
   border-radius: 18px 18px 0 0;
   background: #0b0b0f;
@@ -3263,7 +4960,7 @@ body.light-mode .game-card-tracker-icon-link:hover { color: #241640; }
 .tracker-link-secondary { background: rgba(255,255,255,0.08); color: #efeaff; }
 .tracker-link-primary { background: linear-gradient(135deg, #8b5cf6, #06b6d4); color: #ffffff; }
 .tracker-stats-page { background: #050507; overflow: auto; }
-.tracker-stats-shell { min-height: 100dvh; padding: calc(14px + env(safe-area-inset-top, 0px)) 16px calc(32px + env(safe-area-inset-bottom, 0px)); transform: translate3d(0, 12px, 0); transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1); }
+.tracker-stats-shell { min-height: 100dvh; padding: calc(14px + var(--shelfd-safe-top, 0px)) 16px calc(32px + env(safe-area-inset-bottom, 0px)); transform: translate3d(0, 12px, 0); transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1); }
 .tracker-stats-page.is-open .tracker-stats-shell { transform: translate3d(0, 0, 0); }
 .tracker-stats-edit { min-width: 58px; color: #c4b5fd; }
 .tracker-stats-hero { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 14px; align-items: end; margin-top: 22px; }
@@ -3303,13 +5000,13 @@ body.mylist-game-profile-open { overflow: hidden; }
 .mylist-game-profile-topbar {
   flex: 0 0 auto;
   min-height: 58px;
-  padding: calc(12px + env(safe-area-inset-top, 0px)) 22px 8px;
+  padding: calc(12px + var(--shelfd-safe-top, 0px)) 22px 8px;
   display: grid;
   grid-template-columns: 46px minmax(0, 1fr) auto;
   align-items: center;
 }
 html.shelfd-capacitor-ios .mylist-game-profile-topbar {
-  padding-top: max(10px, calc(env(safe-area-inset-top, 0px) - 6px));
+  padding-top: max(10px, calc(var(--shelfd-safe-top, 0px) - 6px));
 }
 .mylist-game-profile-back,
 .mylist-game-profile-edit {
@@ -3552,14 +5249,14 @@ body.light-mode .game-card-more-btn {
 }
 .mylist-game-profile-topbar {
   min-height: 56px;
-  padding: max(12px, env(safe-area-inset-top, 0px)) 16px 10px;
+  padding: max(12px, var(--shelfd-safe-top, 0px)) 16px 10px;
   grid-template-columns: 40px minmax(0, 1fr) auto;
   border-bottom: 1px solid rgba(255,255,255,0.08);
   background: rgba(15,15,18,0.86);
   backdrop-filter: blur(18px);
 }
 html.shelfd-capacitor-ios .mylist-game-profile-topbar {
-  padding-top: max(10px, calc(env(safe-area-inset-top, 0px) - 6px));
+  padding-top: max(10px, calc(var(--shelfd-safe-top, 0px) - 6px));
 }
 .mylist-game-profile-topbar > span {
   text-align: center;
@@ -3878,7 +5575,7 @@ body.light-mode .mylist-game-profile-meta-row span {
     gap: 8px;
   }
 }
-/* v10.349: ShelfLine pass for game profiles — no rounded bubble cards. */
+/* v10.349: ShelfLine pass for game profiles â€” no rounded bubble cards. */
 .mylist-game-profile-scroll {
   padding-left: 0;
   padding-right: 0;
@@ -4094,7 +5791,7 @@ body.light-mode .mylist-game-profile-meta-row span {
 /* v10.351: game profile keeps the user's draft hierarchy, rendered with ShelfLine. */
 html.shelfd-capacitor-ios .mylist-game-profile-topbar {
   min-height: 44px;
-  padding-top: max(calc(env(safe-area-inset-top, 0px) - 24px), 6px);
+  padding-top: max(calc(var(--shelfd-safe-top, 0px) - 24px), 6px);
   padding-bottom: 4px;
 }
 .mylist-game-profile-topbar {
@@ -4342,7 +6039,7 @@ body.light-mode .tracker-auto-stats-head small { color: rgba(20,20,20,0.58); }
   .tracker-card-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* v311: hide pencil edit btn when the details panel is in edit mode — it overlaps the Save button */
+/* v311: hide pencil edit btn when the details panel is in edit mode â€” it overlaps the Save button */
 .game-details-panel.editing ~ .game-card-edit-btn {
   display: none;
   pointer-events: none;
@@ -4812,13 +6509,18 @@ body.light-mode .game-platform-option:active {
 }
 
 #mylist-view .watchlist-priority-slot {
-  min-height: 28px;
-  min-width: 68px;
+  /* v10.434: bubble shrunk now that the "Priority" word is gone
+     from the markup. Min-width dropped 68 -> 24 so the slot hugs
+     the input. Min-height 28 -> 22 for a more compact pill.
+     Padding 0 8px -> 0 6px. Gap removed since there's no longer a
+     label adjacent to the input. */
+  min-height: 22px;
+  min-width: 24px;
   display: inline-flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 5px;
-  padding: 0 8px;
+  justify-content: center;
+  gap: 0;
+  padding: 0 6px;
   border-radius: 999px;
   background: rgba(5,5,10,0.72);
   border: 1px solid rgba(255,255,255,0.16);
@@ -4835,14 +6537,28 @@ body.light-mode .game-platform-option:active {
   pointer-events: none;
 }
 #mylist-view .watchlist-priority-input {
-  width: 24px;
-  min-width: 24px;
+  width: 18px;
+  min-width: 18px;
   border: 0;
   outline: 0;
   padding: 0;
   background: transparent;
   color: #fbbf24;
-  font: 800 11px/1 'Sohne', 'DM Sans', sans-serif;
+  /* v10.434: per spec â€” number is 11px @ weight 400 (was 800).
+     Lighter weight reads as a softer affordance now that the
+     "Priority" label is gone and the bubble shrunk around the
+     number.
+     v10.436: each property now carries `!important` because the
+     17-auth-flow-setup.css cover-picker rule was previously
+     bundling this selector with `font-size: 6px !important` /
+     `font-weight: 550 !important`. The conflicting selector has
+     been removed from that bundle in v10.436, but the !important
+     here doubles as defense against any future rule that tries
+     to re-bundle it. */
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  line-height: 1 !important;
   text-align: center;
   appearance: textfield;
   -moz-appearance: textfield;
@@ -5169,7 +6885,7 @@ body.light-mode #mylist-view .games-playing-toggle small {
   letter-spacing: 0.01em;
 }
 
-/* v434: Watch List availability line — release date / In theaters / Where to watch.
+/* v434: Watch List availability line â€” release date / In theaters / Where to watch.
    Year sits between title and genre, then the availability line sits between genre
    and the status pill. Mobile/PWA-first sizing. */
 #mylist-view .card-year.mylist-watchlist-year {
@@ -5183,10 +6899,13 @@ body.light-mode #mylist-view .games-playing-toggle small {
 body.light-mode #mylist-view .card-year.mylist-watchlist-year {
   color: rgba(60, 40, 110, 0.78);
 }
-/* v10.231: artist line under album title for music section cards. */
+/* v10.231 / v10.403 / v10.408: artist line under album title for music
+   cards. v10.408 bumps opacity 60% -> 75% so the artist name reads
+   slightly more present against the dark card. Cascade-winning override
+   at 17-auth-flow-setup.css mirrors this value. */
 #mylist-view .card-artist {
-  font-size: 13px;
-  color: rgba(232, 222, 255, 0.82);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.75);
   font-weight: 500;
   letter-spacing: 0;
   margin-top: 3px;
@@ -5387,7 +7106,7 @@ body.screenlist-game-cover-picker-open { overflow: hidden !important; }
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: max(16px, env(safe-area-inset-top, 0px)) 16px 10px;
+  padding: max(16px, var(--shelfd-safe-top, 0px)) 16px 10px;
   border-bottom: 1px solid rgba(255,255,255,0.13);
 }
 .screenlist-game-cover-picker-back,
@@ -5553,7 +7272,7 @@ body.screenlist-game-cover-picker-open { overflow: hidden !important; }
   cursor: default;
 }
 
-/* v427: My Lists category pager — click-driven horizontal slide between sections.
+/* v427: My Lists category pager â€” click-driven horizontal slide between sections.
    Touch swipe is intentionally disabled. The pager is composited (transform + opacity)
    for ProMotion 120Hz smoothness. */
 .mylist-stage {
@@ -5613,7 +7332,7 @@ body.screenlist-game-cover-picker-open { overflow: hidden !important; }
 }
 
 /* ==========================================================================
-   v800/v803: Title-card comment feature — composer modal + card body display.
+   v800/v803: Title-card comment feature â€” composer modal + card body display.
    + button sits far-right in card-right-controls. Posted text floats on card
    above the action row as flat white text; tap to edit (owner only).
    ========================================================================== */
@@ -5688,7 +7407,7 @@ body.screenlist-game-cover-picker-open { overflow: hidden !important; }
   #mylist-view .card-action-row .card-review-layers-btn { width: 30px; height: 30px; min-width: 30px; min-height: 30px; }
 }
 
-/* v10.220: media-review activity card body stack — username on top (handled
+/* v10.220: media-review activity card body stack â€” username on top (handled
    by the existing meta row), then "wrote a review", then the title, then the
    star rating. Poster still floats on the right via the existing .sl-activity-poster
    absolute positioning. */
@@ -5725,7 +7444,7 @@ body.screenlist-game-cover-picker-open { overflow: hidden !important; }
   align-items: center;
 }
 
-/* v803/v817: Comment body — flat white text floated on the card, above the
+/* v803/v817: Comment body â€” flat white text floated on the card, above the
    action row. Tap to edit for owner; read-only for others.
 
    v817: owner-edit element is now a native <button type="button">, not a
@@ -5807,7 +7526,7 @@ button.card-comment-body,
   word-break: break-word;
   overflow-wrap: break-word;
   transition: opacity 140ms ease;
-  /* v817: ensure clicks always land on the parent button — not the span —
+  /* v817: ensure clicks always land on the parent button â€” not the span â€”
      so the inline onclick fires reliably even when the user taps a
      specific character of the comment text. */
   pointer-events: none;
@@ -5836,7 +7555,7 @@ button.card-comment-body,
 }
 
 @media (max-width: 600px) {
-  /* v846: mobile comment body — 12px, 90% opacity, weight 300. No
+  /* v846: mobile comment body â€” 12px, 90% opacity, weight 300. No
      block padding (it now lives inline at the far left of the action
      row; padding pushed it onto its own line in older versions). */
   #mylist-view .card-comment-body {
@@ -5850,8 +7569,8 @@ button.card-comment-body,
   #mylist-view .card-action-row .card-comment-add-btn svg { width: 15px; height: 15px; }
 }
 
-/* Composer modal — bottom-sheet style on mobile, centered card on desktop. */
-/* Card-comment composer modal — centered floating card matching Add to Shelf style.
+/* Composer modal â€” bottom-sheet style on mobile, centered card on desktop. */
+/* Card-comment composer modal â€” centered floating card matching Add to Shelf style.
    visualViewport JS keeps it visible above keyboard on mobile. */
 .card-comment-composer-overlay {
   position: fixed;
@@ -5860,7 +7579,7 @@ button.card-comment-body,
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: max(20px, env(safe-area-inset-top, 20px)) 16px max(20px, env(safe-area-inset-bottom, 20px));
+  padding: max(20px, var(--shelfd-safe-top, 0px)) 16px max(20px, env(safe-area-inset-bottom, 20px));
   pointer-events: none;
   opacity: 0;
   transition: opacity 180ms ease;
@@ -5877,16 +7596,16 @@ button.card-comment-body,
      compositor layer in iOS PWA WKWebView. With the sheet rendered as
      a non-promoted sibling, iOS's compositor hit-tester then routes
      taps that visually hit the sheet's child buttons (specifically the
-     primary action button at the far right of the actions row — Save /
+     primary action button at the far right of the actions row â€” Save /
      Post) BACK to the promoted backdrop layer, where they hit nothing
      actionable. Result: Cancel button works (left side of actions),
-     Save button does NOT — clicks register on the backdrop layer's
+     Save button does NOT â€” clicks register on the backdrop layer's
      "empty" area underneath. Solid darker background gives the same
      "dimmed underlying screen" effect without GPU-promoting the
      backdrop into a separate layer. */
   background: rgba(0,0,0,0.78);
 }
-/* v844 — modern charcoal/lavender redesign.
+/* v844 â€” modern charcoal/lavender redesign.
    Matches the auth-flow visual language (shelfd-auth-page in
    17-auth-flow-setup.css): charcoal surface, soft lavender accents,
    rounded 18px corners, pill-shape primary action, 16px inputs (also
@@ -5907,7 +7626,7 @@ button.card-comment-body,
   gap: 14px;
   font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif;
   color: #ffffff;
-  /* v838 — opacity-only entry animation (transform causes iOS PWA
+  /* v838 â€” opacity-only entry animation (transform causes iOS PWA
      WKWebView to promote the sheet into its own compositor layer,
      which breaks button hit-testing). */
   opacity: 0;
@@ -5971,7 +7690,7 @@ button.card-comment-body,
   border-radius: 12px;
   color: #ffffff;
   font-family: inherit;
-  /* 16px — skips iOS focus auto-zoom which can fight `user-scalable=no`. */
+  /* 16px â€” skips iOS focus auto-zoom which can fight `user-scalable=no`. */
   font-size: 16px;
   font-weight: 400;
   line-height: 1.5;
@@ -6051,10 +7770,10 @@ button.card-comment-body,
 }
 
 /* ============================================================================
-   v10.353 — Game profile page reskin to "Editorial Dark"
+   v10.353 â€” Game profile page reskin to "Editorial Dark"
    ----------------------------------------------------------------------------
-   Aligns the competitive game profile (opened from My Lists → Games →
-   Playing → Competitive → "More") with the Editorial Dark style guide
+   Aligns the competitive game profile (opened from My Lists â†’ Games â†’
+   Playing â†’ Competitive â†’ "More") with the Editorial Dark style guide
    (feedback_design_style.md):
      - Flat #0E0E0E surface, no radial gradient wash
      - No backdrop-filter on topbar, no border-bottom seam
@@ -6079,7 +7798,7 @@ button.card-comment-body,
   -webkit-backdrop-filter: none !important;
   border-bottom: 0 !important;
   box-shadow: none !important;
-  padding: max(12px, env(safe-area-inset-top, 0px)) 18px 14px !important;
+  padding: max(12px, var(--shelfd-safe-top, 0px)) 18px 14px !important;
 }
 .mylist-game-profile-topbar > span {
   font: 600 13px/1 'Sohne', 'DM Sans', sans-serif !important;
@@ -6305,7 +8024,7 @@ a.mylist-game-profile-link-row strong::after {
   color: rgba(255,255,255,0.35) !important;
 }
 
-/* Light mode equivalents — same structure, flipped palette */
+/* Light mode equivalents â€” same structure, flipped palette */
 body.light-mode .mylist-game-profile-page,
 body.light-mode .mylist-game-profile-shell {
   background: #ffffff !important;
@@ -6378,15 +8097,15 @@ body.light-mode .mylist-game-profile-link-row.is-disabled strong {
 }
 
 /* ============================================================================
-   v10.357 — Game profile FULL REDESIGN in Editorial Dark
+   v10.357 â€” Game profile FULL REDESIGN in Editorial Dark
    ----------------------------------------------------------------------------
    Layout rebuild (no JS changes; pure CSS restructure via flex/order):
      - Cover MOVES to the top of the summary as the hero element, centered,
-       larger (190px → up to 240px on desktop), with editorial drop shadow.
+       larger (190px â†’ up to 240px on desktop), with editorial drop shadow.
      - Identity (kicker / title / year) stacks UNDER the cover, centered.
      - Facts (Platform / Hours / Genre) collapse into a single inline meta
-       strip with mid-dot separators under the title — like Letterboxd's
-       "year · runtime · director" line.
+       strip with mid-dot separators under the title â€” like Letterboxd's
+       "year Â· runtime Â· director" line.
      - Stats invert to figure-first: HUGE bold value on top, small uppercase
        label below. Reads like Letterboxd / Apple Music stat figures.
      - Section eyebrows (small uppercase muted) appear above each section
@@ -6437,7 +8156,7 @@ body.light-mode .mylist-game-profile-link-row.is-disabled strong {
   gap: 12px !important;
 }
 
-/* Eyebrow "Competitive" — sits above title */
+/* Eyebrow "Competitive" â€” sits above title */
 .mylist-game-profile-kicker {
   margin: 0 !important;
   color: rgba(255,255,255,0.48) !important;
@@ -6457,7 +8176,7 @@ body.light-mode .mylist-game-profile-link-row.is-disabled strong {
   max-width: 100% !important;
 }
 
-/* Year — muted caption directly under title */
+/* Year â€” muted caption directly under title */
 .mylist-game-profile-meta-row {
   gap: 0 !important;
   margin: 0 !important;
@@ -6473,7 +8192,7 @@ body.light-mode .mylist-game-profile-link-row.is-disabled strong {
   letter-spacing: 0 !important;
 }
 
-/* Facts inline meta strip — under identity, mid-dot separators */
+/* Facts inline meta strip â€” under identity, mid-dot separators */
 .mylist-game-profile-facts {
   order: 1 !important;
   grid-column: auto !important;
@@ -6500,7 +8219,7 @@ body.light-mode .mylist-game-profile-link-row.is-disabled strong {
   display: none !important;
 }
 .mylist-game-profile-facts div + div::before {
-  content: '·';
+  content: 'Â·';
   margin: 0 9px;
   color: rgba(255,255,255,0.32);
   font-weight: 500;
@@ -6647,22 +8366,22 @@ body.light-mode .mylist-game-profile-cover {
 }
 
 /* ============================================================================
-   v10.358 — Games sub-filter (Single Player / Live Games / Competitive)
+   v10.358 â€” Games sub-filter (Single Player / Live Games / Competitive)
               reskin to Editorial Dark
    ----------------------------------------------------------------------------
    The pill-shaped tab card used radial+linear gradient, backdrop blur,
-   inset glow, drop shadow, and gradient pill chrome on the active state —
+   inset glow, drop shadow, and gradient pill chrome on the active state â€”
    all heavy chrome that violates Editorial Dark.
    New design mirrors the sub-tabs above it (Watching / Watchlist / Watched /
    Paused):
-     - No container chrome — flat row, hairline divider underneath
+     - No container chrome â€” flat row, hairline divider underneath
      - Inactive tabs: muted 13px text, no background
      - Active tab: white text, thin lavender underline below
      - Count badge: small lavender-tinted pill next to active label
      - No transform, no box-shadow, no backdrop blur, no gradient pill
    ============================================================================ */
 
-/* Container — strip ALL chrome, become a flat row with hairline beneath */
+/* Container â€” strip ALL chrome, become a flat row with hairline beneath */
 .games-playing-subfilter-card,
 #mylist-view .games-playing-subfilter-card,
 body.light-mode #mylist-view .games-playing-subfilter-card,
@@ -6687,7 +8406,7 @@ body.light-mode .games-playing-subfilter-card {
   padding: 0 !important;
 }
 
-/* Toggle button — flat text tab with bottom-border accent on active */
+/* Toggle button â€” flat text tab with bottom-border accent on active */
 .games-playing-toggle,
 #mylist-view .games-playing-toggle,
 body.light-mode #mylist-view .games-playing-toggle {
@@ -6713,7 +8432,7 @@ body.light-mode #mylist-view .games-playing-toggle {
   letter-spacing: 0 !important;
 }
 
-/* Active state — white text + thin lavender underline */
+/* Active state â€” white text + thin lavender underline */
 .games-playing-toggle.active,
 #mylist-view .games-playing-toggle.active,
 body.light-mode #mylist-view .games-playing-toggle.active {
@@ -6726,7 +8445,7 @@ body.light-mode #mylist-view .games-playing-toggle.active {
   box-shadow: none !important;
 }
 
-/* Count badge — small lavender-tinted pill, only shown on active */
+/* Count badge â€” small lavender-tinted pill, only shown on active */
 .games-playing-toggle small,
 #mylist-view .games-playing-toggle small,
 body.light-mode #mylist-view .games-playing-toggle small {
@@ -6746,13 +8465,13 @@ body.light-mode #mylist-view .games-playing-toggle small {
   display: inline-flex !important;
 }
 
-/* Inactive hover — subtle text brighten, no background */
+/* Inactive hover â€” subtle text brighten, no background */
 .games-playing-toggle:not(.active):hover {
   color: rgba(255,255,255,0.8) !important;
   background: transparent !important;
 }
 
-/* Tap state — no scale, no transform */
+/* Tap state â€” no scale, no transform */
 .games-playing-toggle:active {
   opacity: 0.78;
   transform: none !important;
@@ -6785,5 +8504,116 @@ body.light-mode #mylist-view .games-playing-toggle small {
     font-size: 11px !important;
     padding: 0 6px 11px !important;
   }
+}
+
+/* ============================================================================
+   v10.437: CHAMPAGNE (#E6C766) â€” unified rating-star color.
+
+   â˜… APP DEFAULT RATING COLOR â˜…
+   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   #E6C766 ("soft champagne gold") is the canonical Shelfd rating
+   star color from v10.437 onward. Any new rating widget, badge,
+   star glyph, or rating-themed accent added after this point
+   should use this hex by default. If you find yourself reaching
+   for #d4b86a / #F5B301 / #f59e0b / #fbbf24 / #f59e0b in a
+   rating-adjacent context, swap to #E6C766. Border alphas may
+   use rgba(230, 199, 102, 0.30); the glyph fill itself is always
+   100% opacity.
+   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   ----------------------------------------------------------------------------
+   Per spec: every rating bubble on a MyList title card (games / anime /
+   music / TV shows, wherever the bubble applies), every star on the
+   music album-details surface (Your rating / Average rating star /
+   per-track collapsed + popout), and every lit star on the full-page
+   media review widget all share ONE color: #E6C766 ("soft champagne").
+   Replaces the prior muted-gold (#d4b86a), bright-yellow (#F5B301),
+   and amber (#f59e0b) shades. 100% opacity per spec â€” no rgba alpha
+   on the glyph color itself. The bubble's BORDER keeps a low-alpha
+   variant of the same color for visual weight, since a 100%-opacity
+   solid border would read as way too heavy.
+   Block placed at end-of-file so source order wins against the prior
+   `!important` declarations of the same specificity scattered above;
+   each rule below carries its own `!important` for belt-and-suspenders.
+   v10.419's gray unrated treatment (`.rating-bubble:not(.is-rated)`)
+   is intentionally NOT overridden â€” empty bubbles still read as
+   gray so they don't fake an existing rating.
+   ============================================================================ */
+
+/* â€” Rating bubble chrome + glyphs (rated state) â€” */
+.rating-bubble.is-rated {
+  color: #E6C766 !important;
+  /* v10.515: border 30% alpha â†’ solid 100% opacity per spec. The
+     bubble's outline now matches the glyph color at full strength. */
+  border-color: #E6C766 !important;
+}
+.rating-bubble.is-rated .rating-bubble-chip-icon,
+.rating-bubble.is-rated .rating-bubble-chip-value {
+  color: #E6C766 !important;
+}
+/* `.rating-bubble` (without `.is-rated`) â€” applies to the bubble when
+   it's IN THE EXPANDED state mid-rate. The unrated:not(.is-rated)
+   override from v10.419 still wins for the fully-empty state via its
+   one-extra-class specificity. */
+.rating-bubble .rating-bubble-star.lit,
+.rating-bubble .rating-bubble-star:active {
+  color: #E6C766 !important;
+  opacity: 1 !important;
+}
+/* Make sure the expanded bubble's BORDER + base color match the rated
+   look even before a rating is committed, so the expanded-while-rating
+   state reads cohesively. */
+.rating-bubble.is-expanded {
+  color: #E6C766 !important;
+  /* v10.515: border 30% alpha â†’ solid 100% opacity (pairs with the
+     `.is-rated` border-color above). */
+  border-color: #E6C766 !important;
+}
+.rating-bubble.is-expanded .rating-bubble-chip-icon,
+.rating-bubble.is-expanded .rating-bubble-chip-value {
+  color: #E6C766 !important;
+}
+
+/* â€” Music album-details widget (Your rating, both 5-star half-step
+     and 10-star full-star variants) â€” */
+.music-rating-half.lit,
+.music-rating-half.lit-hover,
+.music-rating-full.lit,
+.music-rating-full.lit-hover {
+  color: #E6C766 !important;
+  opacity: 1 !important;
+}
+
+/* â€” Per-track rating widget: collapsed star (when rated) + popout
+     expanded widget. Stationary toggle's gold-when-rated state +
+     the 10-star variant's lit collapsed star both flip to
+     champagne. */
+.mylist-album-shelf-track-rate-toggle.is-rated,
+.mylist-album-shelf-track-rate-star--full.lit {
+  color: #E6C766 !important;
+  opacity: 1 !important;
+}
+
+/* â€” Album-details "Average rating" star glyph (3-column header) â€” */
+.mylist-album-shelf-rating-avg-star {
+  color: #E6C766 !important;
+  opacity: 1 !important;
+}
+
+/* â€” Full-page review / details widget â€” `.star-btn.lit` is the lit
+     state for the main expandable star widget that surfaces on the
+     full-page media profile / review page. Was `#f59e0b` (amber)
+     and `#F5B301` (yellow) via two separate stylesheets; both flip
+     to champagne. The forced-first-star (collapsed badge) variant
+     under `#cards-grid .card .rating-area .stars[data-prefix="overall"]`
+     also flips so the title-card collapsed badge matches the
+     expanded lit star color exactly. */
+.star-btn.lit {
+  color: #E6C766 !important;
+  opacity: 1 !important;
+}
+#cards-grid .card .rating-area .stars[data-prefix="overall"]:not(.is-expanded) .star-btn:first-of-type,
+#cards-grid .card .rating-area .stars[data-prefix="overall"] .star-btn.lit {
+  color: #E6C766 !important;
+  opacity: 1 !important;
 }
 

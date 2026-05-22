@@ -152,8 +152,14 @@ function getDefaultSortKeyFor(section = activeSection, tab = activeTab) {
   // (Manual sort selections from the dropdown are still respected — sessionSortState
   // overrides this default.) The hybrid key is intentionally not in GAME_SORT_OPTIONS,
   // so it only ever appears as the default; user-pickable options stay clean.
+  // v10.438: switched the default for both Playing tabs from `live-recent-hybrid`
+  // to `last-edited` per spec. The hybrid sort is still available manually via
+  // the dropdown (its key remains valid in `applySortOrder`), but the surface
+  // now opens to "most recently touched first" by default — matching the
+  // shows/anime watching default and read as a more predictable starting
+  // order across the Playing tabs.
   if (normalizedSection === 'games' && (normalizedTab === 'watching' || normalizedTab === 'live')) {
-    return 'live-recent-hybrid';
+    return 'last-edited';
   }
   if ((normalizedSection === 'shows' || normalizedSection === 'anime') && normalizedTab === 'watching') {
     return 'last-edited';
@@ -1058,15 +1064,15 @@ function enterPreviewMode() {
     bio: 'Testing ScreenList in preview mode. Build your shelves, rate titles, pin favorites, and customize your profile.',
     pinnedFavorites: {
       overallMedia: [
-        { id: '569094', source: 'tmdb', type: 'movie', title: 'Spider-Man: Across the Spider-Verse', image: 'https://image.tmdb.org/t/p/w500/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg', rating: '★ 9/10', meta: '2023 · Movie' },
-        { id: '1399', source: 'tmdb', type: 'tv', title: 'Game of Thrones', image: 'https://image.tmdb.org/t/p/w500/u3bZgnGQ9T01sWNhyveQz0wH0Hl.jpg', rating: '★ 9/10', meta: '2011 · TV / Anime' },
-        { id: '209867', source: 'tmdb', type: 'tv', title: 'Frieren: Beyond Journey’s End', image: 'https://image.tmdb.org/t/p/w500/dqZENchTd7lp5zht7BdlqM7RBhN.jpg', rating: '★ 9/10', meta: '2023 · TV / Anime' }
+        { id: '569094', source: 'tmdb', type: 'movie', title: 'Spider-Man: Across the Spider-Verse', image: 'https://image.tmdb.org/t/p/w500/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg', rating: '★ 4.5/5', meta: '2023 · Movie' },
+        { id: '1399', source: 'tmdb', type: 'tv', title: 'Game of Thrones', image: 'https://image.tmdb.org/t/p/w500/u3bZgnGQ9T01sWNhyveQz0wH0Hl.jpg', rating: '★ 4.5/5', meta: '2011 · TV / Anime' },
+        { id: '209867', source: 'tmdb', type: 'tv', title: 'Frieren: Beyond Journey’s End', image: 'https://image.tmdb.org/t/p/w500/dqZENchTd7lp5zht7BdlqM7RBhN.jpg', rating: '★ 4.5/5', meta: '2023 · TV / Anime' }
       ],
-      movies: [{ id: '569094', source: 'tmdb', type: 'movie', title: 'Spider-Man: Across the Spider-Verse', image: 'https://image.tmdb.org/t/p/w500/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg', rating: '★ 9/10', meta: '2023' }, {}, {}],
-      shows: [{ id: '1399', source: 'tmdb', type: 'tv', title: 'Game of Thrones', image: 'https://image.tmdb.org/t/p/w500/u3bZgnGQ9T01sWNhyveQz0wH0Hl.jpg', rating: '★ 9/10', meta: '2011' }, {}, {}],
-      anime: [{ id: '209867', source: 'tmdb', type: 'tv', title: 'Frieren: Beyond Journey’s End', image: 'https://image.tmdb.org/t/p/w500/dqZENchTd7lp5zht7BdlqM7RBhN.jpg', rating: '★ 9/10', meta: '2023' }, {}, {}],
-      games: [{ id: '3498', source: 'rawg', type: 'game', title: 'Grand Theft Auto V', image: 'https://media.rawg.io/media/games/20a/20aa03a18ad10d5f05a16bc6ce0bb570.jpg', rating: '★ 10/10', meta: '2013' }, {}, {}],
-      singlePlayerGames: [{ id: '3498', source: 'rawg', type: 'game', title: 'Grand Theft Auto V', image: 'https://media.rawg.io/media/games/20a/20aa03a18ad10d5f05a16bc6ce0bb570.jpg', rating: '★ 10/10', meta: '2013' }, {}, {}],
+      movies: [{ id: '569094', source: 'tmdb', type: 'movie', title: 'Spider-Man: Across the Spider-Verse', image: 'https://image.tmdb.org/t/p/w500/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg', rating: '★ 4.5/5', meta: '2023' }, {}, {}],
+      shows: [{ id: '1399', source: 'tmdb', type: 'tv', title: 'Game of Thrones', image: 'https://image.tmdb.org/t/p/w500/u3bZgnGQ9T01sWNhyveQz0wH0Hl.jpg', rating: '★ 4.5/5', meta: '2011' }, {}, {}],
+      anime: [{ id: '209867', source: 'tmdb', type: 'tv', title: 'Frieren: Beyond Journey’s End', image: 'https://image.tmdb.org/t/p/w500/dqZENchTd7lp5zht7BdlqM7RBhN.jpg', rating: '★ 4.5/5', meta: '2023' }, {}, {}],
+      games: [{ id: '3498', source: 'rawg', type: 'game', title: 'Grand Theft Auto V', image: 'https://media.rawg.io/media/games/20a/20aa03a18ad10d5f05a16bc6ce0bb570.jpg', rating: '★ 5/5', meta: '2013' }, {}, {}],
+      singlePlayerGames: [{ id: '3498', source: 'rawg', type: 'game', title: 'Grand Theft Auto V', image: 'https://media.rawg.io/media/games/20a/20aa03a18ad10d5f05a16bc6ce0bb570.jpg', rating: '★ 5/5', meta: '2013' }, {}, {}],
       actors: [{ id: '31', source: 'tmdb', type: 'person', title: 'Tom Hanks', image: 'https://image.tmdb.org/t/p/w500/xndWFsBlClOJFRdhSt4NBwiPq2o.jpg', rating: 'Favorite', meta: 'TMDB person' }, {}, {}],
       directors: [{ id: '488', source: 'tmdb', type: 'person', title: 'Steven Spielberg', image: 'https://image.tmdb.org/t/p/w500/tZxcg19YQ3e8fJ0pOs7hjlnmmr6.jpg', rating: 'Favorite', meta: 'TMDB person' }, {}, {}]
     },
@@ -1329,3 +1335,66 @@ function openPreviewCommunityProfile(uid) {
   activeTab = normalizeVisibleMyListStatusTab(initialView.tab, activeSection);
   render();
 }
+
+/* v10.547: Universal Link / deep-link handler for Capacitor iOS.
+   When the app is opened via a myshelfd.com share link (tapped in
+   iMessage, WhatsApp, Safari, etc.), Capacitor fires 'appUrlOpen'.
+   We parse the path and open the correct media profile or album page
+   directly — the user lands right inside the app on the right screen.
+
+   IMPORTANT — Xcode side also required (one-time, cannot web-deploy):
+     1. Xcode → Signing & Capabilities → "+ Capability" → Associated Domains
+     2. Add: applinks:myshelfd.com  and  applinks:myscreenlist.com
+   Without those entitlements iOS will open the link in Safari instead. */
+(function initCapacitorUniversalLinkHandler() {
+  function handleAppUrlOpen(event) {
+    const rawUrl = event && (event.url || event.detail?.url);
+    if (!rawUrl) return;
+    try {
+      const parsed = new URL(String(rawUrl));
+
+      /* /media/{kind}/{id} — movie / tv / anime / game profile */
+      const mediaMatch = parsed.pathname.match(/^\/media\/(movie|tv|anime|game)\/([^/?#]+)/i);
+      if (mediaMatch) {
+        const route = {
+          kind: mediaMatch[1].toLowerCase(),
+          id: decodeURIComponent(mediaMatch[2] || '').trim()
+        };
+        if (route.id && typeof openSharedMediaProfileRoute === 'function') {
+          /* Wait for the app to be ready before navigating */
+          if (document.readyState === 'complete') {
+            openSharedMediaProfileRoute(route);
+          } else {
+            window.addEventListener('load', () => openSharedMediaProfileRoute(route), { once: true });
+          }
+        }
+        return;
+      }
+    } catch (e) {
+      try { console.warn('[universalLink] parse failed:', e); } catch (_) {}
+    }
+  }
+
+  function wireCapacitorListener() {
+    try {
+      const Cap = window.Capacitor;
+      if (!Cap) return;
+      /* Modern Capacitor: Capacitor.Plugins.App.addListener */
+      const AppPlugin = Cap.Plugins && Cap.Plugins.App;
+      if (AppPlugin && typeof AppPlugin.addListener === 'function') {
+        AppPlugin.addListener('appUrlOpen', handleAppUrlOpen);
+        return;
+      }
+      /* Fallback: some builds expose window.Capacitor.addListener directly */
+      if (typeof Cap.addListener === 'function') {
+        Cap.addListener('appUrlOpen', handleAppUrlOpen);
+      }
+    } catch (e) {}
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', wireCapacitorListener);
+  } else {
+    wireCapacitorListener();
+  }
+})();

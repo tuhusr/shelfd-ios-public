@@ -1,4 +1,4 @@
-/* v280: Live deploy update splash screen restored for PWA deploy refresh. */
+﻿/* v280: Live deploy update splash screen restored for PWA deploy refresh. */
 .screenlist-live-update-splash {
   position: fixed;
   inset: 0;
@@ -6,7 +6,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: max(24px, env(safe-area-inset-top, 0px)) 24px max(24px, env(safe-area-inset-bottom, 0px));
+  padding: max(24px, var(--shelfd-safe-top, 0px)) 24px max(24px, env(safe-area-inset-bottom, 0px));
   background:
     radial-gradient(circle at 50% 30%, #5A466F 0%, rgba(90,70,111,0.0) 60%),
     linear-gradient(160deg, #1e1428 0%, #0E0E0E 60%, #0E0E0E 100%);
@@ -104,7 +104,7 @@ body.screenlist-live-update-active {
 #mylist-view #mylist-toolbar .tab-btn[data-tab="watched"] { order: 3 !important; }
 #mylist-view #mylist-toolbar .tab-btn[data-tab="paused"] { order: 4 !important; }
 
-/* Category tab underline — glowing white line with soft purple halo */
+/* Category tab underline â€” glowing white line with soft purple halo */
 #mylist-view .section-sliding-pill {
   background: #ffffff !important;
   box-shadow: 0 0 6px 1px rgba(255,255,255,0.9), 0 0 14px 2px rgba(167,139,250,0.55) !important;
@@ -116,7 +116,7 @@ body.screenlist-live-update-active {
   box-shadow: none !important;
 }
 
-/* Active category button — transparent bg, bright white text */
+/* Active category button â€” transparent bg, bright white text */
 #mylist-view #mylist-header .section-btn.active,
 body:not(.light-mode):not(.true-dark-mode) #mylist-view .section-btn.active,
 body.light-mode #mylist-view #mylist-header .section-btn.active,
@@ -127,7 +127,7 @@ body.true-dark-mode #mylist-view #mylist-header .section-btn.active {
   color: #ffffff !important;
 }
 
-/* Active status button — transparent bg, bright white text */
+/* Active status button â€” transparent bg, bright white text */
 #mylist-view #mylist-toolbar .tab-btn.active,
 body:not(.light-mode):not(.true-dark-mode) #mylist-view .tab-btn.active,
 body:not(.light-mode):not(.true-dark-mode) #mylist-view .tab-btn.active[data-tab],
@@ -619,7 +619,7 @@ body.light-mode .lb-activity-comment {
   #feed-post-page .overlay-page-header {
     min-height: 56px;
     padding: 12px 14px;
-    padding-top: max(12px, calc(env(safe-area-inset-top, 0px) + 8px));
+    padding-top: max(12px, calc(var(--shelfd-safe-top, 0px) + 8px));
   }
   #feed-post-page .overlay-page-title {
     font-size: 18px;
@@ -655,7 +655,7 @@ body.light-mode .lb-activity-comment {
 /* v232: Discover View All mobile header + bottom-up filter sheet */
 .discover-category-full-topbar {
   position: sticky;
-  top: max(12px, env(safe-area-inset-top, 0px));
+  top: max(12px, var(--shelfd-safe-top, 0px));
   z-index: 8;
   display: flex;
   align-items: center;
@@ -941,7 +941,7 @@ body.light-mode .discover-category-filter-rule {
   }
   .discover-category-full-topbar {
     position: sticky;
-    top: max(10px, calc(env(safe-area-inset-top, 0px) + 8px));
+    top: max(10px, calc(var(--shelfd-safe-top, 0px) + 8px));
     margin: 0 0 10px;
   }
   .discover-category-full-back {
@@ -955,7 +955,7 @@ body.light-mode .discover-category-filter-rule {
     box-shadow: 0 10px 26px rgba(0,0,0,0.28);
   }
   .discover-category-filter-drawer {
-    height: calc(92vh - env(safe-area-inset-top, 0px));
+    height: calc(92vh - var(--shelfd-safe-top, 0px));
     border-radius: 24px 24px 0 0;
   }
   .discover-category-filter-panel {
@@ -992,14 +992,14 @@ body.light-mode .discover-category-filter-rule {
   display: none !important;
 }
 .discover-category-full-topbar {
-  top: max(8px, calc(env(safe-area-inset-top, 0px) + 4px));
+  top: max(8px, calc(var(--shelfd-safe-top, 0px) + 4px));
 }
 @media (max-width: 700px) {
   .discover-category-full-page {
-    padding-top: max(12px, calc(env(safe-area-inset-top, 0px) + 6px));
+    padding-top: max(12px, calc(var(--shelfd-safe-top, 0px) + 6px));
   }
   .discover-category-full-topbar {
-    top: max(6px, calc(env(safe-area-inset-top, 0px) + 2px));
+    top: max(6px, calc(var(--shelfd-safe-top, 0px) + 2px));
     margin-bottom: 6px;
   }
   .discover-category-full-head {
@@ -1173,10 +1173,10 @@ body.light-mode .discover-category-filter-rule {
 
 /* v246: Lift Discover View All controls above the category header with cleaner spacing. */
 .discover-category-full-page {
-  padding-top: max(8px, calc(env(safe-area-inset-top, 0px) + 4px));
+  padding-top: max(8px, calc(var(--shelfd-safe-top, 0px) + 4px));
 }
 .discover-category-full-topbar {
-  top: max(4px, calc(env(safe-area-inset-top, 0px) + 1px)) !important;
+  top: max(4px, calc(var(--shelfd-safe-top, 0px) + 1px)) !important;
   margin-bottom: 18px !important;
 }
 .discover-category-full-head {
@@ -1184,10 +1184,10 @@ body.light-mode .discover-category-filter-rule {
 }
 @media (max-width: 700px) {
   .discover-category-full-page {
-    padding-top: max(8px, calc(env(safe-area-inset-top, 0px) + 4px)) !important;
+    padding-top: max(8px, calc(var(--shelfd-safe-top, 0px) + 4px)) !important;
   }
   .discover-category-full-topbar {
-    top: max(4px, calc(env(safe-area-inset-top, 0px) + 1px)) !important;
+    top: max(4px, calc(var(--shelfd-safe-top, 0px) + 1px)) !important;
     margin-bottom: 18px !important;
   }
   .discover-category-full-head {
@@ -1236,8 +1236,8 @@ body.main-tab-discover .edit-profile-btn {
    Island safe-area-inset-top (~59px) created ~80+px of empty space above
    the Import / Logo / Search row. Dropping the header's own padding to
    4px each side pulls the row way up under the status bar with no
-   functional change — safe-area-inset is still respected on body.
-   v10.277: extended from main-tab-discover only → all top-level tabs
+   functional change â€” safe-area-inset is still respected on body.
+   v10.277: extended from main-tab-discover only â†’ all top-level tabs
    (Discover, Community, MyList) so the entire app's header sits at the
    same tight position. */
 body.main-tab-discover .header,
@@ -1252,7 +1252,7 @@ body.main-tab-mylist .header {
    right under the header. Drop it to 6px on Discover + Community.
    MyList is unchanged.
    v10.281: reverted the sticky-header positioning that lived here in
-   v10.280 — user only wanted the iOS native top safe-area bar (which
+   v10.280 â€” user only wanted the iOS native top safe-area bar (which
    is already stationary because it sits outside the WebView in
    Capacitor's `contentInset: "always"` mode) to be stationary, NOT the
    in-page Import/Shelfd/search row. Sticky positioning removed.
@@ -1334,7 +1334,7 @@ body.main-tab-community .main-content {
 }
 
 
-/* v797: Discover title-card title — 14px / weight 400 across desktop + mobile.
+/* v797: Discover title-card title â€” 14px / weight 400 across desktop + mobile.
    This rule controls size and weight. Specificity (0,1,1) wins over 16-light-mode-contrast.css. */
 #discover-view .discover-card-title,
 #anime-discover-view .discover-card-title,
@@ -1442,11 +1442,11 @@ body.main-tab-community .main-content {
 
 @media (display-mode: standalone) and (max-width: 700px) {
   body.main-tab-mylist #mylist-view #mylist-profile-controls {
-    margin-top: calc(env(safe-area-inset-top, 0px) - 88px) !important;
+    margin-top: calc(var(--shelfd-safe-top, 0px) - 88px) !important;
   }
 }
 
-/* v282: ShelfLine Filter UI — Letterboxd-style View All filters for Movies / TV / Anime */
+/* v282: ShelfLine Filter UI â€” Letterboxd-style View All filters for Movies / TV / Anime */
 .discover-category-filter-sheet-letterboxd .discover-category-filter-scrim {
   background: rgba(0, 0, 0, 0.56);
   transition: opacity 220ms ease;
@@ -1491,7 +1491,7 @@ body.main-tab-community .main-content {
   width: min(720px, 100%);
   min-width: 0;
   margin: 0 auto;
-  padding: max(14px, calc(env(safe-area-inset-top, 0px) + 10px)) 18px calc(32px + env(safe-area-inset-bottom, 0px));
+  padding: max(14px, calc(var(--shelfd-safe-top, 0px) + 10px)) 18px calc(32px + env(safe-area-inset-bottom, 0px));
   background: #08070d;
   color: #fff;
 }
@@ -1770,7 +1770,7 @@ body.light-mode .discover-friends-full-page #discover-friends-full-grid.discover
   box-shadow: inset 0 0 0 1px rgba(18, 8, 46, 0.025) !important;
 }
 
-/* v794: Discover title-card grid spacing — Movies/TV + Games at 15px.
+/* v794: Discover title-card grid spacing â€” Movies/TV + Games at 15px.
    Anime section (#anime-discover-view) is intentionally excluded. */
 #discover-view .discover-grid,
 #games-discover-view .discover-grid {
@@ -1780,12 +1780,12 @@ body.light-mode .discover-friends-full-page #discover-friends-full-grid.discover
   row-gap: 15px !important;
 }
 
-/* v858: cap each category section preview to 2 rows (6 cards — 3 columns
-   × 2 rows) on both the Movies & TV and Games Discover pages.
+/* v858: cap each category section preview to 2 rows (6 cards â€” 3 columns
+   Ã— 2 rows) on both the Movies & TV and Games Discover pages.
    Selector scoped to prevent any bleed onto the View All page:
-   — .discover-category-full-grid is the View All grid (it has both a
-     class AND id of that name) — :not() ensures it is never matched.
-   — #discover-universal-search-grid is also a plain .discover-grid but
+   â€” .discover-category-full-grid is the View All grid (it has both a
+     class AND id of that name) â€” :not() ensures it is never matched.
+   â€” #discover-universal-search-grid is also a plain .discover-grid but
      lives outside .discover-section, so the .discover-section ancestor
      requirement also keeps it safe. */
 #discover-view .discover-section .discover-grid:not(.discover-category-full-grid) .discover-card:nth-child(n+7),
@@ -1811,9 +1811,9 @@ body.light-mode .discover-friends-full-page #discover-friends-full-grid.discover
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   v859 — Anime "Top Anime" subtab + Gaming poster tweaks
-   ═══════════════════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   v859 â€” Anime "Top Anime" subtab + Gaming poster tweaks
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 /* 1. Top Anime column gap 7.5px.
    Scoped with :not(#anime-discover-seasonal-section) so the Seasonal
@@ -1825,14 +1825,14 @@ body.light-mode .discover-friends-full-page #discover-friends-full-grid.discover
 }
 
 /* 2. Remove "Add to Library" button from Top Anime cards.
-   Only targets .discover-add-btn — the Seasonal Anime add button uses
+   Only targets .discover-add-btn â€” the Seasonal Anime add button uses
    a different class (.anime-seasonal-card-add-btn) and is untouched.
    Double-scoped via :not(#anime-discover-seasonal-section) for safety. */
 #anime-discover-view .discover-section:not(#anime-discover-seasonal-section) .discover-add-btn {
   display: none !important;
 }
 
-/* 3. Gaming card poster — 5:6 aspect ratio.
+/* 3. Gaming card poster â€” 5:6 aspect ratio.
    Applies to the main Gaming Discover page (#games-discover-view) and
    the View All / Show All overlay page (.discover-category-full-page).
    Only the .discover-poster inside .games-discover-card is changed;
@@ -1842,7 +1842,7 @@ body.light-mode .discover-friends-full-page #discover-friends-full-grid.discover
   aspect-ratio: 6 / 7 !important;
 }
 
-/* v792: Discover section vertical spacing — Movies/TV + Games only.
+/* v792: Discover section vertical spacing â€” Movies/TV + Games only.
    45px between the bottom of one category's card grid and the top
    of the next category header. Anime (#anime-discover-view) and all
    non-Discover pages are intentionally excluded. */
@@ -1851,7 +1851,7 @@ body.light-mode .discover-friends-full-page #discover-friends-full-grid.discover
   margin-bottom: 36px !important;
 }
 
-/* v796: Newest Releases card — release-date anchored to bottom of metadata area.
+/* v796: Newest Releases card â€” release-date anchored to bottom of metadata area.
    Applies to Movies, TV, and Games new-release cards. */
 .discover-new-release-card .discover-card-body {
   flex: 1 1 auto !important;

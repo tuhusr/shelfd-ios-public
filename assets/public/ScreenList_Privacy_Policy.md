@@ -1,192 +1,264 @@
-# ScreenList Privacy Policy
+# Shelfd Privacy Policy
 
-**Effective Date:** April 30, 2026
+This Privacy Policy explains how **Shelfd** collects, uses, stores, shares, and protects information when you use the Shelfd app, website, and related services (collectively, the "Service").
 
-This Privacy Policy explains how **ScreenList** collects, uses, stores, shares, and protects information when you use the ScreenList website, app, and related services.
+By using Shelfd, you agree to this Privacy Policy. This Policy applies to all users worldwide, regardless of country, state, province, or territory of residence. Where local law grants you additional non-waivable rights, those rights continue to apply.
 
-By using ScreenList, you agree to this Privacy Policy.
+---
 
 ## 1. Information We Collect
 
-ScreenList may collect the following categories of information.
+Shelfd collects the following categories of information.
 
 ### Account Information
 
-When you sign in with Google or another supported login provider, we may receive:
+When you sign in with email and password, Sign in with Apple, or Sign in with Google, we may receive or store:
 
-- Name
-- Email address
-- Profile photo
-- Login/authentication ID
-- Basic account information needed to sign you in
+- Email address (or Apple-provided private relay email)
+- Display name
+- Profile photo (when provided by you or your sign-in provider)
+- Authentication identifier (Firebase UID)
+- Sign-in provider type (email, Apple, Google)
+- Account creation date and last-sign-in timestamps
 
 ### Profile Information
 
 You may choose to provide:
 
-- Display name
+- Display name and nickname
 - Profile picture
-- Bio or profile details
-- Social links
-- Export links
-- User preferences
-- Public profile information
+- Bio
+- Linked social profiles (Instagram, X, Letterboxd, IMDb, Spotify, Apple Music, YouTube, Steam, etc.)
+- Display preferences (theme, rating scale, anime title language)
+- Profile showcase favorites
+- Custom Top 3 character cards
+- Public profile visibility settings
 
 ### Media Tracking Information
 
-ScreenList stores information you add or interact with, including:
+Shelfd stores information you create about media, including:
 
-- Movies, TV shows, anime, manga, books, and games in your lists
-- Ratings
-- Watch, play, read, and completion status
-- Episode progress
-- Favorites, comments, notes, tags, and list organization
-- Imported titles, ratings, or progress data
+- Movies, TV shows, anime, manga, books, video games, and music in your shelves
+- Ratings (0.5–5 stars, half-step)
+- Watch / play / read / listen status (watching, watched, paused, planned, dropped, etc.)
+- Episode and season progress
+- Track ratings, favorite tracks, and album reviews
+- Personal reviews and review text
+- Comments on titles
+- Tier list placements
+- Imported titles or progress data from Steam, Letterboxd, IMDb, MyAnimeList, AniList, Backloggd, and similar services
+- Tags, notes, and list organization
 
 ### Social and Community Information
 
-ScreenList may collect and store:
+Shelfd stores:
 
-- Friend requests
-- Friends and mutual connections
-- Shared watch/play/read activity
-- Public comments
+- Friend requests, friends, and mutual connections
+- Public reviews, comments, and replies
 - Direct messages and message requests
-- Profile views or interactions where needed for app functionality
-- Activity feed events, such as added titles, ratings, comments, completed titles, or progress updates
+- Activity feed events (added to shelf, rated, watched, completed, etc.)
+- Watch Together / shared session data
+- Reports you submit about other users or content
+- Users you have blocked
+- Push notification tokens (for activity and message alerts)
 
 ### Technical and Usage Information
 
-ScreenList may collect technical information such as:
+We may collect:
 
-- Device type
-- Browser type
-- Operating system
-- IP address
-- App pages viewed
-- Login/session data
-- Error logs
-- Security logs
-- Performance information
-- Basic usage activity
+- Device type and model
+- Operating system and version
+- Browser type and version (web users)
+- App version
+- IP address (used transiently for security and routing)
+- Login and session timestamps
+- Error logs and crash reports
+- Performance and load timing
+- Basic usage activity (which pages opened, which sections used)
+- Service worker / cache state
+- Capacitor / native platform identifiers (iOS / Android)
 
-This information helps operate, secure, debug, and improve the app.
+### Cookies, Local Storage, and Device Storage
 
-### Cookies and Local Storage
-
-ScreenList may use cookies, local storage, IndexedDB, or similar technologies to:
+Shelfd uses cookies, `localStorage`, `IndexedDB`, and similar technologies to:
 
 - Keep you signed in
-- Save preferences
-- Remember interface settings
-- Support offline or cached app behavior
-- Improve loading and performance
+- Save preferences (theme, rating scale, terms agreement)
+- Cache app shell for fast loading and offline support (service worker / PWA)
+- Improve performance
 - Prevent fraud, spam, and abuse
 - Maintain security
 
-You can clear cookies or local storage through your browser, but some features may stop working correctly.
+You can clear cookies and local storage through your browser or device settings, but some features may stop working correctly.
+
+---
 
 ## 2. How We Use Information
 
-ScreenList uses information to:
+Shelfd uses information to:
 
 - Create and manage your account
-- Sign you in and authenticate you
+- Authenticate you (email/password, Apple, Google)
 - Let you track media, games, books, ratings, and progress
 - Display your profile, lists, comments, ratings, and activity
-- Power friend, social, activity feed, and messaging features
+- Power friend, social, activity feed, and direct messaging features
 - Save preferences and app settings
-- Process imports and match titles with media metadata
-- Display media posters, covers, descriptions, and third-party metadata
+- Process imports and match titles to media metadata
+- Display posters, covers, trailers, descriptions, and third-party metadata
+- Send push notifications (when you have opted in) for friend activity, replies, comments, and direct messages
 - Debug errors and improve performance
 - Prevent spam, abuse, fraud, and security threats
-- Moderate content and enforce Terms
+- Moderate content (including reports submitted by users)
+- Enforce these Terms of Service
 - Respond to support, privacy, and deletion requests
 - Comply with legal obligations
 
-## 3. Legal Bases for Processing
+---
 
-Where required by law, ScreenList processes personal information based on one or more of the following legal bases:
+## 3. Legal Bases for Processing (EU/UK/EEA)
+
+Where required by law, Shelfd processes personal information based on one or more of the following legal bases:
 
 - Your consent
-- Performance of a contract with you
-- Legitimate interests, such as operating, improving, securing, and protecting ScreenList
+- Performance of a contract with you (providing the Service you signed up for)
+- Legitimate interests, such as operating, improving, securing, and protecting Shelfd
 - Legal compliance
-- Protection of users, ScreenList, or the public
+- Protection of users, Shelfd, or the public
+
+---
 
 ## 4. Public and Social Visibility
 
-ScreenList is social by design. Depending on your settings and the feature used, other users may see:
+Shelfd is social by design. Depending on your settings and the feature used, other users may see:
 
-- Display name
-- Profile picture
-- Public profile
-- Ratings
-- Lists
-- Comments
-- Watch/play/read status
-- Episode progress
-- Activity feed items
+- Your display name and profile picture
+- Your bio and linked social profiles
+- Your ratings, reviews, comments, and tier lists
+- Your shelves and progress (when visible)
+- Activity feed items (added to shelf, rated, completed, etc.)
 - Friend-related activity
 
-Private or restricted features may limit visibility, but no system is guaranteed to be perfect. Do not add content you would not want visible to others.
+Some features are private or restricted by default (direct messages, blocked users, account settings). However, no online privacy setting is guaranteed perfect. Do not post or share anything you would not want others to see.
+
+---
 
 ## 5. Direct Messages
 
-Direct messages are stored so the messaging feature can work.
+Direct messages are stored on our servers so the messaging feature can function across your devices.
 
-ScreenList may access, review, restrict, or remove messages when necessary for safety, abuse prevention, moderation, technical support, legal compliance, or enforcement of the Terms.
+Shelfd may access, review, restrict, or remove messages when necessary for safety, abuse prevention, moderation, technical support, legal compliance, or enforcement of these Terms.
 
-## 6. Third-Party Services
+---
 
-ScreenList may use third-party services to operate the app, including:
+## 6. Reports, Blocks, and Content Moderation
 
-- Google Sign-In
-- Firebase authentication and database services
-- Cloudflare hosting, Workers, security, and performance services
-- Media and game data providers such as TMDB, RAWG, Trakt, or similar APIs
+When you submit a report about another user or piece of content, we store:
 
-These services may process information according to their own privacy policies and terms.
+- Your user ID (the reporter)
+- The reported user's ID and the content type (review, message, etc.)
+- The content identifier
+- The reason you selected (Spam, Offensive content, Harassment, Other)
+- A timestamp
 
-ScreenList does not control third-party services, websites, APIs, or platforms.
+When you block another user, we store the blocked user's UID in your account record so the activity feed and DM system can filter accordingly.
 
-## 7. Google User Data
+We use this information to review reports within 24 hours, take action on confirmed violations, and protect users from abuse.
 
-If you sign in with Google, ScreenList uses Google account information only to authenticate your account, identify you in the app, display your profile information, and operate ScreenList features.
+---
 
-ScreenList does not sell Google user data.
+## 7. Third-Party Services
 
-ScreenList does not use Google user data for unrelated advertising.
+Shelfd uses third-party services to operate, including:
 
-ScreenList does not transfer Google user data except as necessary to operate the app, comply with law, protect users, or with your consent.
+- **Firebase (Google)** — authentication, Firestore database, storage, push notifications
+- **Cloudflare** — hosting, Workers, edge security, image and asset delivery
+- **Apple** — Sign in with Apple, App Store distribution, push notifications (APNs)
+- **Google** — Sign in with Google, Google Identity Services
+- **TMDB, OMDb, IMDb (via OMDb)** — movie and TV metadata, posters, ratings
+- **IGDB / Twitch** — video game metadata, covers, screenshots
+- **RAWG** — supplementary game data
+- **Trakt** — TV show progress and import support
+- **AniList / Jikan (MyAnimeList)** — anime and manga metadata
+- **Deezer** — music metadata and previews
+- **Steam (via OpenID)** — Steam library import (optional)
+- **Tavily** — image search for character cards
+- **YouTube** — trailer embeds
 
-## 8. How We Share Information
+These services may process information according to their own privacy policies and terms. Shelfd does not control third-party services, websites, APIs, or platforms.
 
-ScreenList does not sell your personal information.
+---
 
-ScreenList may share information only when needed to:
+## 8. Apple User Data
 
-- Operate the app through service providers
-- Display public, social, friend, or messaging features
-- Store data through authentication, database, hosting, and infrastructure providers
-- Comply with laws, legal requests, or court orders
-- Protect ScreenList, users, or the public
+If you sign in with Apple, Shelfd uses Apple account information only to:
+
+- Authenticate your account
+- Identify you in the app
+- Display your name (if shared) on your profile
+- Operate Shelfd features
+
+If you use Apple's private email relay, we never see your real email. We comply with Apple's Sign in with Apple guidelines and do not use Apple user data for advertising.
+
+---
+
+## 9. Google User Data
+
+If you sign in with Google, Shelfd uses Google account information only to:
+
+- Authenticate your account
+- Identify you in the app
+- Display your profile information
+- Operate Shelfd features
+
+Shelfd does not sell Google user data, does not use it for unrelated advertising, and does not transfer it except as necessary to operate the app, comply with law, protect users, or with your consent.
+
+---
+
+## 10. How We Share Information
+
+Shelfd does not sell your personal information.
+
+Shelfd may share information only when needed to:
+
+- Operate the app through service providers (Firebase, Cloudflare, Apple APNs)
+- Display public, social, friend, or messaging features (e.g., your username appears in another user's activity feed)
+- Comply with laws, legal requests, court orders, or subpoenas
+- Protect Shelfd, users, or the public
 - Investigate abuse, spam, fraud, security incidents, or Terms violations
 - Complete a business transfer, merger, restructuring, or similar event, if applicable
 
-## 9. Sale, Sharing, and Targeted Advertising
+---
 
-ScreenList does not currently sell personal information.
+## 11. Sale, Sharing, and Targeted Advertising
 
-ScreenList does not currently share personal information for cross-context behavioral advertising or targeted advertising.
+Shelfd does not currently sell personal information.
 
-If ScreenList ever adds advertising, analytics, or data-sharing practices that legally require opt-out rights, this Privacy Policy will be updated and applicable opt-out tools will be provided.
+Shelfd does not currently share personal information for cross-context behavioral advertising or targeted advertising.
 
-## 10. Data Retention
+Shelfd does not engage in profiling or automated decision-making that produces legal or similarly significant effects.
 
-ScreenList keeps information for as long as needed to:
+If Shelfd ever adds advertising, analytics partners, or data-sharing practices that legally require opt-out rights, this Privacy Policy will be updated and applicable opt-out tools will be provided.
 
-- Provide the service
+---
+
+## 12. Push Notifications
+
+If you enable push notifications, Shelfd stores your Apple Push Notification service (APNs) device token so we can send you:
+
+- Activity notifications (friend activity, completed titles, etc.)
+- Comment replies
+- Direct messages and message requests
+- Friend requests
+
+You can disable push notifications at any time in your device's system settings.
+
+---
+
+## 13. Data Retention
+
+Shelfd keeps information for as long as needed to:
+
+- Provide the Service
 - Maintain your account
 - Operate social and tracking features
 - Resolve disputes
@@ -195,30 +267,42 @@ ScreenList keeps information for as long as needed to:
 - Maintain security
 - Comply with legal obligations
 
-When information is deleted, some data may remain for a limited time in backups, logs, cache, moderation records, legal records, or where another user’s content or activity includes it.
+When you delete your account via **Profile → Settings → Account → Delete Account**, your Shelfd profile document and associated personal data are removed from our active systems. Some information may remain for a limited time in encrypted backups, security logs, moderation records, legal records, cached data, or where another user's content or activity already includes it (for example, a direct message you sent to another user remains in their inbox).
 
-## 11. Security
+---
 
-ScreenList uses reasonable technical and organizational safeguards to help protect user information.
+## 14. Security
 
-However, no website, app, database, or internet transmission is completely secure. You use ScreenList at your own risk.
+Shelfd uses reasonable technical and organizational safeguards to help protect user information, including:
 
-## 12. International Users
+- HTTPS / TLS encryption in transit
+- Encrypted storage at rest via Firebase and Cloudflare
+- Firebase Authentication for password security
+- Firestore security rules to enforce per-user data access
+- Server-side validation for sensitive operations
 
-ScreenList may be accessed from different countries. Your information may be processed in the United States or other countries where ScreenList’s service providers operate.
+However, no website, app, database, or internet transmission is completely secure. You use Shelfd at your own risk.
 
-By using ScreenList, you understand that your information may be transferred to and processed in countries that may have different privacy laws than your country.
+---
 
-Where required, ScreenList will rely on appropriate legal mechanisms for international data transfers.
+## 15. International Data Transfers
 
-## 13. Your Privacy Rights
+Shelfd may be accessed from any country. Your information may be processed in the United States and other countries where Shelfd's service providers operate (Firebase data centers, Cloudflare global edge network, Apple APNs servers).
+
+By using Shelfd, you understand that your information may be transferred to and processed in countries that may have different privacy laws than your country.
+
+Where required for users in the European Union, United Kingdom, or European Economic Area, we rely on Standard Contractual Clauses or equivalent legal mechanisms approved by relevant data protection authorities for international transfers.
+
+---
+
+## 16. Your Privacy Rights
 
 Depending on where you live, you may have rights to:
 
-- Access personal information we have about you
+- Access the personal information we have about you
 - Request correction of inaccurate information
-- Request deletion of your information
-- Request a copy of your information
+- Request deletion of your information (you can also do this yourself in-app)
+- Request a copy of your information (data portability)
 - Object to or restrict certain processing
 - Withdraw consent where processing is based on consent
 - Opt out of sale, sharing, targeted advertising, or certain profiling where applicable
@@ -227,74 +311,143 @@ Depending on where you live, you may have rights to:
 
 To make a privacy request, contact:
 
-**kingkooom@gmail.com**
+**Shelfd@proton.me**
 
 We may need to verify your identity before completing a request.
 
-## 14. California Privacy Notice
+---
 
-If you are a California resident, you may have rights under California privacy law, including the right to know, access, delete, correct, opt out of sale or sharing, limit certain sensitive personal information uses where applicable, and not be discriminated against for exercising your rights.
+## 17. California Privacy Notice (CCPA/CPRA)
 
-ScreenList does not currently sell personal information.
+If you are a California resident, you have rights under California privacy law, including:
 
-ScreenList does not currently share personal information for cross-context behavioral advertising.
+- Right to know what personal information we collect and how it is used
+- Right to access your personal information
+- Right to delete your personal information
+- Right to correct inaccurate personal information
+- Right to opt out of the sale or sharing of personal information
+- Right to limit the use of sensitive personal information
+- Right to not be discriminated against for exercising your rights
 
-To exercise California privacy rights, contact:
+Shelfd does not currently sell personal information.
 
-**kingkooom@gmail.com**
+Shelfd does not currently share personal information for cross-context behavioral advertising.
 
-## 15. U.S. State Privacy Rights
+To exercise California privacy rights, contact **Shelfd@proton.me**.
 
-Residents of certain U.S. states may have additional privacy rights under state privacy laws. These may include rights to access, delete, correct, obtain a copy of personal information, opt out of certain processing, opt out of targeted advertising, opt out of sale of personal information, opt out of certain profiling, and appeal a privacy decision.
+---
 
-To exercise these rights, contact:
+## 18. U.S. State Privacy Rights
 
-**kingkooom@gmail.com**
+Residents of Virginia, Colorado, Connecticut, Utah, Texas, Oregon, Montana, Florida, Iowa, Indiana, Tennessee, Delaware, New Hampshire, New Jersey, Minnesota, Maryland, Kentucky, Nebraska, Rhode Island, and other U.S. states with comprehensive privacy laws may have additional rights, including:
 
-## 16. European Union, United Kingdom, and Similar International Rights
+- Right to access, delete, correct, and obtain a copy of personal information
+- Right to opt out of targeted advertising
+- Right to opt out of sale of personal information
+- Right to opt out of certain profiling
+- Right to appeal a privacy decision
 
-If you are in the European Union, United Kingdom, European Economic Area, Switzerland, or another region with similar privacy laws, you may have rights to access, rectify, erase, restrict, object to processing, request portability, withdraw consent, and lodge a complaint with a data protection authority.
+To exercise these rights, contact **Shelfd@proton.me**.
 
-To exercise these rights, contact:
+---
 
-**kingkooom@gmail.com**
+## 19. European Union, United Kingdom, and EEA Rights (GDPR / UK GDPR)
 
-## 17. Children’s Privacy
+If you are in the EU, UK, EEA, Switzerland, or another region with similar privacy laws, you have rights to:
 
-ScreenList is not intended for children under 13.
+- Access your personal data
+- Rectify inaccurate personal data
+- Erase personal data ("right to be forgotten")
+- Restrict processing
+- Object to processing (including direct marketing)
+- Data portability
+- Withdraw consent at any time where processing is based on consent
+- Lodge a complaint with a supervisory authority (e.g., your national Data Protection Authority)
 
-ScreenList does not knowingly collect personal information from children under 13. If we learn that a child under 13 has provided personal information, we will take reasonable steps to delete it.
+The data controller for the purposes of GDPR is the creator of Shelfd. To exercise these rights, contact **Shelfd@proton.me**.
 
-Users under 18 should use ScreenList only with permission from a parent or legal guardian.
+---
 
-## 18. Sensitive Information
+## 20. Brazil Privacy Rights (LGPD)
 
-Do not submit sensitive personal information through ScreenList, including government ID numbers, financial account numbers, medical information, precise location information, passwords, or private personal details.
+Residents of Brazil have rights under the Lei Geral de Proteção de Dados (LGPD), including the right to confirmation of processing, access, correction, anonymization, blocking, deletion, portability, information about data sharing, and revocation of consent. Contact **Shelfd@proton.me** to exercise these rights.
 
-ScreenList is not designed to store sensitive personal information.
+---
 
-## 19. Account Deletion
+## 21. Canada, Australia, and Other International Rights
 
-You may request account deletion by contacting:
+Residents of Canada (PIPEDA), Australia (Privacy Act), Japan (APPI), South Korea (PIPA), and other jurisdictions with national privacy laws may exercise applicable rights by contacting **Shelfd@proton.me**.
 
-**kingkooom@gmail.com**
+---
 
-After deletion, some information may remain where allowed or required, including backups, logs, fraud prevention records, legal records, moderation records, cached data, or content already shared with or visible to other users.
+## 22. Children's Privacy
 
-## 20. Do Not Track and Global Privacy Controls
+Shelfd is not intended for children under 13 (or the higher minimum age set by your local law, such as 16 in parts of the European Economic Area).
 
-Some browsers send “Do Not Track” or Global Privacy Control signals.
+Shelfd does not knowingly collect personal information from children below the applicable minimum age. If we learn that a child below that age has provided personal information, we will take reasonable steps to delete it.
 
-ScreenList does not currently sell personal information or share personal information for cross-context behavioral advertising. If ScreenList begins using practices that require honoring opt-out signals, this Privacy Policy will be updated.
+Users under 18 (or the age of majority in their jurisdiction) should use Shelfd only with permission from a parent or legal guardian.
 
-## 21. Changes to This Privacy Policy
+---
 
-ScreenList may update this Privacy Policy from time to time. If changes are important, we may notify users through the app, website, or updated effective date.
+## 23. Sensitive Information
 
-Continuing to use ScreenList after changes means you accept the updated Privacy Policy.
+Do not submit sensitive personal information through Shelfd, including government ID numbers, financial account numbers, payment card information, medical information, biometric data, precise geolocation, passwords, or other private personal details.
 
-## 22. Contact
+Shelfd is not designed to store sensitive personal information.
 
-For privacy questions, account deletion, or data requests, contact:
+---
 
-**kingkooom@gmail.com**
+## 24. Account Deletion
+
+You can delete your account at any time directly inside the app:
+
+**Profile → Settings → Account → Delete Account**
+
+Deletion is one tap and does not require contacting support or sending an email.
+
+If you would prefer to delete via email, you can also contact **Shelfd@proton.me**.
+
+After deletion, some information may remain where legally allowed or technically necessary, including encrypted backups, security logs, fraud-prevention records, legal records, moderation records, cached data, or content already shared with or visible to other users.
+
+---
+
+## 25. Do Not Track and Global Privacy Controls
+
+Some browsers send "Do Not Track" or Global Privacy Control (GPC) signals.
+
+Shelfd does not currently sell personal information or share personal information for cross-context behavioral advertising, so these signals have no effect on our current practices. If Shelfd begins using practices that require honoring opt-out signals, this Privacy Policy will be updated and applicable opt-out tools will be provided.
+
+---
+
+## 26. Automated Decision-Making and Profiling
+
+Shelfd does not use automated decision-making or profiling that produces legal or similarly significant effects on users.
+
+Activity feed ranking, recommendations, and content sorting use simple algorithmic rules (recency, friends list, ratings) and do not involve sensitive automated decision-making.
+
+---
+
+## 27. Apple-Specific Disclosures (App Store)
+
+If you use Shelfd on an Apple device:
+
+- Shelfd's App Privacy disclosures on the App Store list the categories of data we collect, link those categories to their purposes, and indicate whether the data is linked to your identity.
+- We do not use App Tracking Transparency for cross-app tracking and do not track you across other apps and websites.
+- Apple devices may collect anonymous crash and diagnostic reports unless you have opted out in iOS Settings.
+
+---
+
+## 28. Changes to This Privacy Policy
+
+Shelfd may update this Privacy Policy from time to time. If changes are material, we will notify users through the app or website.
+
+Continuing to use Shelfd after changes means you accept the updated Privacy Policy.
+
+---
+
+## 29. Contact
+
+For privacy questions, account deletion, data requests, copyright complaints, or any other concern, contact:
+
+**Shelfd@proton.me**

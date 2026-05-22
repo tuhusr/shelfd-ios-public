@@ -29,7 +29,8 @@
       "/profile-card/*",
       "/profile-card-og.svg",
       "/media/*",
-      "/album/*"
+      "/album/*",
+      "/.well-known/apple-app-site-association"
     ]
   },
   "ai": {

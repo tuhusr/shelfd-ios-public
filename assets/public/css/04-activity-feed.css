@@ -1,4 +1,4 @@
-  /* -- Activity Tab Feed --------------------------------- */
+﻿  /* -- Activity Tab Feed --------------------------------- */
   #activity-tab-view { padding-bottom: 32px; }
 
   .activity-unread-badge {
@@ -97,7 +97,7 @@
     gap: 0;
   }
 
-  /* v10.223: diagnostic red outline removed — was meant to be temporary. */
+  /* v10.223: diagnostic red outline removed â€” was meant to be temporary. */
 
   /* -- Group labels -- */
   .activity-group-label {
@@ -460,7 +460,7 @@
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    /* v950: was `transition: all 0.2s` — explicit list avoids animating layout props */
+    /* v950: was `transition: all 0.2s` â€” explicit list avoids animating layout props */
     transition: opacity 0.2s, transform 0.2s, color 0.2s, background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
     font-family: 'DM Sans', sans-serif;
   }
@@ -658,13 +658,13 @@
   .overlay-page-header {
     position: sticky;
     top: 0;
-    /* v950: dropped `backdrop-filter: blur(12px)` — element is position:sticky so
+    /* v950: dropped `backdrop-filter: blur(12px)` â€” element is position:sticky so
        Safari was rasterizing the blur on every scroll frame. The rgba background
        was raised to 0.95 already so the visual identity is preserved without GPU cost. */
     background: rgba(10, 8, 24, 0.95);
     border-bottom: 1px solid #17142e;
     padding: 16px;
-    padding-top: max(16px, calc(env(safe-area-inset-top) + 8px));
+    padding-top: max(16px, calc(var(--shelfd-safe-top, 0px) + 8px));
     display: flex;
     align-items: center;
     gap: 16px;
@@ -858,7 +858,7 @@
     
     .overlay-page-header {
       padding: 12px 16px;
-      padding-top: max(12px, calc(env(safe-area-inset-top) + 8px));
+      padding-top: max(12px, calc(var(--shelfd-safe-top, 0px) + 8px));
     }
     .overlay-page-title {
       font-size: 18px;
@@ -1988,17 +1988,10 @@
   line-height: 1.34 !important;
   white-space: normal !important;
 }
-#community-view #activity-tab-view .shelfd-social-card .sl-activity-headline.sl-activity-title.sl-activity-headline-combined,
-.activity-page .shelfd-social-card .sl-activity-headline.sl-activity-title.sl-activity-headline-combined {
-  display: -webkit-box !important;
-  flex-basis: 100% !important;
-  -webkit-box-orient: vertical !important;
-  -webkit-line-clamp: 2 !important;
-  white-space: normal !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  line-height: 1.34 !important;
-}
+/* v10.505: REMOVED â€” `.sl-activity-headline-combined` block was gated on a
+   JS flag (`useCombinedActionTitleHeadline`) that effectively never fired
+   given the current `getActivityDisplayAction` return vocabulary. Replaced
+   by the new `.sl-activity-composed-headline` selector below. */
 /* Action verb ? gold */
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-verb,
 .activity-page .shelfd-social-card .sl-activity-action-verb {
@@ -2008,12 +2001,8 @@
   display: block !important;
   white-space: nowrap !important;
 }
-#community-view #activity-tab-view .shelfd-social-card .sl-activity-action-verb.sl-activity-action-verb-combined,
-.activity-page .shelfd-social-card .sl-activity-action-verb.sl-activity-action-verb-combined {
-  display: inline !important;
-  white-space: normal !important;
-  margin-right: 0.2em !important;
-}
+/* v10.505: REMOVED â€” `.sl-activity-action-verb-combined` was a sibling
+   class to the dead `.sl-activity-headline-combined`. Removed together. */
 /* Media title ? milky white, slightly larger than verb */
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-title,
 .activity-page .shelfd-social-card .sl-activity-title {
@@ -2048,9 +2037,73 @@
   white-space: nowrap !important;
   min-width: 0 !important;
 }
-#community-view #activity-tab-view .shelfd-social-card .sl-activity-title-text.sl-activity-title-text-combined,
-.activity-page .shelfd-social-card .sl-activity-title-text.sl-activity-title-text-combined {
+/* v10.505: REMOVED â€” `.sl-activity-title-text-combined` was the third
+   half of the same dead trio. Removed. */
+
+/* v10.505: Composed-sentence headline. Replaces the old 2-line layout
+   ("gold action on row 1, white title on row 2") with a single
+   flowing paragraph that reads naturally â€” e.g. "Finished watching
+   season 5 of The Boys" or "Added Michael Jackson: The Verdict to
+   Watchlist".
+
+   Layout contract: the whole sentence sits in ONE button styled as a
+   `-webkit-box` with `line-clamp: 2`. Any of the three inline spans
+   (prefix / title / suffix) may be empty. Prefix + suffix render in
+   gold (the action language); the title renders in white. If the
+   sentence overflows two lines, the standard line-clamp ellipsis
+   kicks in.
+
+   Class family is `sl-activity-composed-*` â€” chosen specifically so
+   the new layout doesn't collide with the ~6 stacked override blocks
+   for the legacy `.sl-activity-headline` / `.sl-activity-title` /
+   `.sl-activity-action-verb` selectors elsewhere in this file. */
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-action-line-composed,
+.activity-page .shelfd-social-card .sl-activity-action-line-composed {
+  display: block !important;
+  margin: 0 0 9px !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-composed-headline,
+.activity-page .shelfd-social-card .sl-activity-composed-headline {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  text-align: left !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  line-height: 1.34 !important;
+  letter-spacing: -0.012em !important;
+  cursor: pointer !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: anywhere !important;
+  font: 400 clamp(16px, 1.35vw, 17px)/1.34 'Sohne', 'DM Sans', sans-serif !important;
+  color: rgba(255,255,255,0.97) !important;
+}
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-composed-prefix,
+.activity-page .shelfd-social-card .sl-activity-composed-prefix,
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-composed-suffix,
+.activity-page .shelfd-social-card .sl-activity-composed-suffix {
   display: inline !important;
+  color: #ffd84c !important;
+  font-weight: 700 !important;
+  white-space: normal !important;
+}
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-composed-title,
+.activity-page .shelfd-social-card .sl-activity-composed-title {
+  display: inline !important;
+  color: rgba(255,255,255,0.97) !important;
+  font-weight: 400 !important;
   white-space: normal !important;
 }
 /* Episode/season detail ? subtle milky white */
@@ -2505,7 +2558,7 @@ body.light-mode .activity-page .shelfd-social-card .sl-activity-plain-note {
   z-index: 1;
   width: min(100%, 560px);
   min-height: 60vh;
-  max-height: calc(100vh - max(42px, env(safe-area-inset-top, 0px)));
+  max-height: calc(100vh - max(42px, var(--shelfd-safe-top, 0px)));
   padding: 10px 16px calc(16px + env(safe-area-inset-bottom, 0px));
   border-radius: 28px 28px 0 0;
   border: 1px solid rgba(255,255,255,.12);
@@ -2758,7 +2811,7 @@ body.light-mode .activity-page .shelfd-social-card .sl-activity-plain-note {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: max(18px, env(safe-area-inset-top, 0px)) 14px max(18px, env(safe-area-inset-bottom, 0px));
+  padding: max(18px, var(--shelfd-safe-top, 0px)) 14px max(18px, env(safe-area-inset-bottom, 0px));
   background: rgba(3, 2, 10, 0);
   opacity: 0;
   pointer-events: none;
@@ -2951,7 +3004,7 @@ body.light-mode .activity-page .shelfd-social-card .sl-activity-plain-note {
     rgba(8, 7, 18, 0.66) !important;
   color: #fff3c6 !important;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3), 0 0 18px rgba(255, 216, 127, 0.14) !important;
-  /* v950: blur(12px) -> blur(8px) — GPU cap */
+  /* v950: blur(12px) -> blur(8px) â€” GPU cap */
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
@@ -3176,7 +3229,7 @@ body.light-mode .activity-page .activity-card {
   max-height: none !important;
   height: 100dvh !important;
   border-radius: 0 !important;
-  padding: max(12px, env(safe-area-inset-top, 0px)) 14px calc(26px + env(safe-area-inset-bottom, 0px)) !important;
+  padding: max(12px, var(--shelfd-safe-top, 0px)) 14px calc(26px + env(safe-area-inset-bottom, 0px)) !important;
   background: #080618 !important;
 }
 
@@ -3440,7 +3493,7 @@ body.light-mode .activity-page .activity-card {
   font-size: 11px !important;
   font-weight: 900 !important;
   cursor: pointer !important;
-  /* v950: blur(12px) -> blur(8px) — GPU cap */
+  /* v950: blur(12px) -> blur(8px) â€” GPU cap */
   backdrop-filter: blur(8px) !important;
   -webkit-backdrop-filter: blur(8px) !important;
   box-shadow: 0 8px 20px rgba(0,0,0,0.22) !important;
@@ -3740,11 +3793,11 @@ body.light-mode .activity-page .activity-card {
 }
 
 /* ============================================================================
-   v10.272 — Inline stacked-activity CAROUSEL (replaces the vertical list).
+   v10.272 â€” Inline stacked-activity CAROUSEL (replaces the vertical list).
    ----------------------------------------------------------------------------
    When the inline-inner has the .sl-activity-stack-carousel class, swap the
    flex-column layout for a horizontal scroll-snap container. Each child is
-   wrapped in .sl-activity-stack-carousel-item — one snap point per card.
+   wrapped in .sl-activity-stack-carousel-item â€” one snap point per card.
    The full-screen "Show all" page is still available as the deep-dive.
    ============================================================================ */
 #community-view #activity-tab-view .sl-activity-stack-inline-inner.sl-activity-stack-carousel,
@@ -3780,7 +3833,7 @@ body.light-mode .activity-page .activity-card {
   scroll-snap-align: start !important;
   scroll-snap-stop: always !important;
   /* Each item contains exactly one .sl-activity-stack-compact-card. The
-     card's own margin/padding does the visual breathing room — the item
+     card's own margin/padding does the visual breathing room â€” the item
      wrapper is layout-only. */
 }
 
@@ -3844,9 +3897,11 @@ body.light-mode .sl-activity-stack-carousel-showall {
   color: rgba(124, 58, 237, 0.88) !important;
 }
 
+/* v10.586: poster moved to LEFT, metadata to RIGHT, poster 40% smaller */
 #community-view #activity-tab-view .sl-activity-stack-compact-card,
 .activity-page .sl-activity-stack-compact-card {
-  grid-template-columns: minmax(0, 1fr) clamp(74px, 22vw, 94px) !important;
+  grid-template-columns: clamp(40px, 11.4vw, 49px) minmax(0, 1fr) !important;
+  column-gap: clamp(8px, 2vw, 10px) !important;
   grid-template-rows: minmax(52px, auto) 20px !important;
   min-height: clamp(78px, 21vw, 96px) !important;
   padding: clamp(6px, 1.6vw, 8px) clamp(8px, 2vw, 11px) 0 clamp(11px, 2.8vw, 14px) !important;
@@ -3870,9 +3925,8 @@ body.light-mode .sl-activity-stack-carousel-showall {
 
 #community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-main,
 .activity-page .sl-activity-stack-compact-card .sl-activity-main {
-  /* v10.273: avatar is hidden on stack carousel children (it's already
-     shown on the parent card up top, repeating it on every page felt
-     redundant). Single content column now spans the whole left side. */
+  /* v10.586: moved to column 2 (right of poster) */
+  grid-column: 2 !important;
   grid-template-columns: minmax(0, 1fr) !important;
   gap: 0 !important;
   padding-right: 4px !important;
@@ -3916,8 +3970,8 @@ body.light-mode .sl-activity-stack-carousel-showall {
 #community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-title,
 .activity-page .sl-activity-stack-compact-card .sl-activity-title {
   font-size: clamp(16px, 4.7vw, 21px) !important;
-  /* v10.270: halved the vertical gap between Rated → title → rating stars.
-     margin-bottom 3px → 1px AND tightened line-height so the visual gap
+  /* v10.270: halved the vertical gap between Rated â†’ title â†’ rating stars.
+     margin-bottom 3px â†’ 1px AND tightened line-height so the visual gap
      drops by roughly half. */
   margin-bottom: 1px !important;
   line-height: 1.12 !important;
@@ -3933,15 +3987,14 @@ body.light-mode .sl-activity-stack-carousel-showall {
 
 #community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-poster,
 .activity-page .sl-activity-stack-compact-card .sl-activity-poster {
-  width: clamp(66px, 19vw, 82px) !important;
-  height: clamp(58px, 17vw, 72px) !important;
+  /* v10.586: moved to column 1 (left), 40% smaller than original */
+  grid-column: 1 !important;
+  grid-row: 1 / span 2 !important;
+  width: clamp(40px, 11.4vw, 49px) !important;
+  height: clamp(35px, 10.2vw, 43px) !important;
   border-radius: 3px !important;
-  /* v10.268 / v10.269 used a translateY hack to push the poster down off
-     the top edge. v10.271: replaced with the right fix — center it vertically
-     across both grid rows it spans (grid-row 1/3 on base). align-self: center
-     is the correct property; the translate is removed entirely so it's an
-     honest centering, not a manual nudge. */
   align-self: center !important;
+  justify-self: start !important;
   transform: none !important;
 }
 
@@ -3952,14 +4005,9 @@ body.light-mode .sl-activity-stack-carousel-showall {
 
 #community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-bottom-safe,
 .activity-page .sl-activity-stack-compact-card .sl-activity-bottom-safe {
+  /* v10.586: action row also in column 2 (right of poster) */
+  grid-column: 2 !important;
   min-height: 20px !important;
-  /* v10.270: raise the action row (heart / comment / dots) up 3px from the
-     bottom edge by increasing the row's bottom padding 3px → 6px. The
-     children sit at top of the padding box so adding padding-bottom pushes
-     them up.
-     v10.273: padding-left was previously matching the avatar column width;
-     since the avatar is hidden now, drop it so the action row aligns flush
-     with the card's content edge. */
   padding-left: 0 !important;
   padding-bottom: 6px !important;
 }
@@ -4265,7 +4313,7 @@ body.light-mode .sl-activity-stack-carousel-showall {
   white-space: nowrap;
 }
 .sl-activity-view-review-bottom::after {
-  content: '›';
+  content: 'â€º';
   margin-left: 2px;
   color: rgba(196,181,253,0.7);
   font-weight: 400;
@@ -4276,7 +4324,7 @@ body.light-mode .sl-activity-stack-carousel-showall {
 /* v10.236 / v10.241: music activity-card posters render as 1:1 square
    album art. v10.241 bumps the square +9px in every dimension so the album
    art reads bolder on the feed. Width is normally constrained by the card's
-   right grid column — overriding with !important forces the cell to grow. */
+   right grid column â€” overriding with !important forces the cell to grow. */
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-poster--music,
 .activity-page .shelfd-social-card .sl-activity-poster--music {
   aspect-ratio: 1 / 1 !important;
@@ -4292,7 +4340,7 @@ body.light-mode .sl-activity-stack-carousel-showall {
 }
 
 /* v10.260: tighten the vertical spacing inside stacked-child media-review
-   cards by ~25% (action → title and title → rating gaps), and add breathing
+   cards by ~25% (action â†’ title and title â†’ rating gaps), and add breathing
    room between the rating row and the heart/comment icon row. */
 #community-view #activity-tab-view .sl-activity-stack-compact-card .sl-media-review-action,
 .activity-page .sl-activity-stack-compact-card .sl-media-review-action {
@@ -4317,14 +4365,14 @@ body.light-mode .sl-activity-stack-carousel-showall {
   object-position: center center !important;
 }
 
-/* v10.223 / v10.227 / v10.228: flat activity feed — remove rounded card
+/* v10.223 / v10.227 / v10.228: flat activity feed â€” remove rounded card
    chrome and use the SAME full-bleed hairline divider trick used by the
    friends page + FPReview. A plain border-bottom gets inset by the ancestor
    .container/.main-content padding; an absolutely positioned ::after pinned
    to `left: 50%; transform: translateX(-50%); width: 100vw` bleeds past
    every level of padding so the divider spans the entire viewport width.
    v10.228: ALSO override the existing `overflow: hidden !important` on the
-   card — it was previously there to clip the rounded corners, but with the
+   card â€” it was previously there to clip the rounded corners, but with the
    flat redesign there's no radius to clip and the overflow:hidden was
    actually slicing the full-bleed pseudo-element divider down to card width.
    That was the missing piece. */

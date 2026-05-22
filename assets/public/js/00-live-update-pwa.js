@@ -193,6 +193,33 @@ window.__shelfdSplitChunkVersion = '364-force-fresh';
     else window.addEventListener('DOMContentLoaded', run, { once: true });
   }
 
+  /* v10.506: Capacitor iOS cold-launch splash. The inline boot-hold script
+     in index.html sets `window.__shelfdNeedsColdLaunchSplash = true` when
+     it detects the WebView is running inside Capacitor native. Without this
+     path, the boot-hold would just leave a blank black background between
+     the iOS native LaunchScreen dismiss and full JS hydration (which can
+     take a few seconds because Firebase auth + Firestore reads + the
+     hydration of `body.main-tab-mylist` + `#mylist-profile-controls` +
+     `render()` all need to complete first). Instead, we render the same
+     branded Shelfd splash (logo + lavender pulsing loader) that the live-
+     update flow uses, providing seamless visual continuity from the iOS
+     native splash → web splash → hydrated shelf. The wait-and-hide cycle
+     reuses the existing `waitForScreenListAppReadyThenHide` which already
+     listens for the `shelfd:app-ready` event fired from every auth-
+     resolution path in 17-comments-auth-init.js. */
+  function finishColdLaunchSplashIfNeeded() {
+    if (!window.__shelfdNeedsColdLaunchSplash) return;
+    /* Don't re-show if a live-update splash already ran for this boot. */
+    if (document.body && document.body.classList.contains('screenlist-live-update-active')) return;
+    const run = () => {
+      const startedAt = Date.now();
+      showLiveUpdateSplash();
+      waitForScreenListAppReadyThenHide(startedAt, LIVE_UPDATE_AFTER_LOAD_HOLD_MS);
+    };
+    if (document.body) run();
+    else window.addEventListener('DOMContentLoaded', run, { once: true });
+  }
+
   function reloadAfterVisibleSplash() {
     if (isCriticalOverlayOpen()) {
       scheduleDeferredReloadCheck();
@@ -313,6 +340,12 @@ window.__shelfdSplitChunkVersion = '364-force-fresh';
       return;
     }
     finishReloadSplashIfNeeded();
+    /* v10.506: fire the Capacitor cold-launch splash AFTER the live-update
+       splash check so a live-update reload (sessionStorage flag set) takes
+       precedence and we don't double-show. The function itself is a no-op
+       unless `window.__shelfdNeedsColdLaunchSplash` was set by the inline
+       boot-hold script in index.html (i.e. only on Capacitor native). */
+    finishColdLaunchSplashIfNeeded();
     forceRefreshServiceWorker();
     showStartupSplashIfNeeded();
     window.checkScreenListDeployUpdate = () => checkForScreenListDeployUpdate(true);

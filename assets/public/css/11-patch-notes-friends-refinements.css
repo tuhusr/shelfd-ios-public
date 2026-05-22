@@ -1,4 +1,4 @@
-/* v139 Pass 3: shared mobile-first Patch Notes link and page. */
+﻿/* v139 Pass 3: shared mobile-first Patch Notes link and page. */
 .screenlist-bottom-link-wrap {
   display: flex;
   justify-content: center;
@@ -29,7 +29,7 @@
   overflow-y: auto;
   background: var(--sl-default-page-bg, linear-gradient(135deg, #050410 0%, #15102d 50%, #050410 100%));
   color: #f8f4ff;
-  padding: max(22px, calc(env(safe-area-inset-top, 0px) + 16px)) 14px calc(96px + env(safe-area-inset-bottom, 0px));
+  padding: max(22px, calc(var(--shelfd-safe-top, 0px) + 16px)) 14px calc(96px + env(safe-area-inset-bottom, 0px));
 }
 .screenlist-patch-notes-shell {
   width: min(760px, 100%);
@@ -51,7 +51,7 @@
 }
 .screenlist-patch-notes-floating-back {
   position: fixed;
-  top: max(14px, env(safe-area-inset-top, 0px));
+  top: max(14px, var(--shelfd-safe-top, 0px));
   right: 14px;
   z-index: 6110;
   box-shadow: 0 14px 34px rgba(0,0,0,0.32), 0 0 18px rgba(167,139,250,0.12);
@@ -131,7 +131,7 @@ body.light-mode .screenlist-patch-note-card ul {
     padding: 15px;
   }
   .screenlist-patch-notes-floating-back {
-    top: max(12px, env(safe-area-inset-top, 0px));
+    top: max(12px, var(--shelfd-safe-top, 0px));
     right: 12px;
     min-height: 40px;
     padding: 9px 14px;
@@ -354,18 +354,18 @@ body.light-mode .login-screen .google-btn {
 
 
 /* v146 media-profile share menu/action row + profile swipe-back */
-/* v10.127: top-right action row reworked into a VERTICAL stack — order
-   from top to bottom is "+" → Share → Trailer → Mute. Source order is
+/* v10.127: top-right action row reworked into a VERTICAL stack â€” order
+   from top to bottom is "+" â†’ Share â†’ Trailer â†’ Mute. Source order is
    set by renderMediaProfileTopActions (add first, share second, extra
-   trailer-stack last). flex-direction: column flows them top→bottom,
+   trailer-stack last). flex-direction: column flows them topâ†’bottom,
    align-items: flex-end aligns the pill (Trailer) and circles to the
    same right edge. The Trailer CTA and sound toggle used to live as
-   absolutely-positioned children inside .discover-media-hero — moved
+   absolutely-positioned children inside .discover-media-hero â€” moved
    into the action row, their position:absolute is neutralized below
    to make them flex items. */
 .discover-media-action-row {
   position: fixed;
-  top: max(14px, env(safe-area-inset-top, 0px));
+  top: max(14px, var(--shelfd-safe-top, 0px));
   right: max(14px, calc(50% - 366px));
   z-index: 45;
   display: inline-flex;
@@ -438,9 +438,9 @@ body.profile-swipe-back-active #app-container { display: block !important; }
 body.profile-swipe-back-active .profile-page { z-index: 1600; }
 @media (max-width: 700px) {
   /* v10.127: dropped the horizontal-row tweaks (max-width clamps, padding,
-     font-size 11px) — they were sized for the old side-by-side layout
+     font-size 11px) â€” they were sized for the old side-by-side layout
      where the add pill held "+ Add to Library" text. The vertical
-     stack uses icon-only 38×38 circles for "+" and Share so we let the
+     stack uses icon-only 38Ã—38 circles for "+" and Share so we let the
      base rules from 05-messages-early-polish.css set the dimensions.
      Only mobile-specific right-edge offset stays. */
   .discover-media-action-row { right: 12px; gap: 7px; }
@@ -1097,7 +1097,7 @@ body.light-mode .header-dm-btn:hover {
   transform: translateY(-1px);
 }
 
-/* v494: Quick-add "+" button — replaces DM icon, same grid slot, same minimal style */
+/* v494: Quick-add "+" button â€” replaces DM icon, same grid slot, same minimal style */
 .header-add-quick-btn {
   display: flex;
   align-items: center;
@@ -1117,14 +1117,14 @@ body.light-mode .header-dm-btn:hover {
 .header-add-quick-btn:active { transform: scale(0.92); opacity: 1; }
 body.light-mode .header-add-quick-btn { color: #2a1d52; }
 
-/* v645: Reverted v494 + v502 — DM icon always in the top-right header slot
+/* v645: Reverted v494 + v502 â€” DM icon always in the top-right header slot
    (where it lived before v494). The "+" Quick-Add button is removed from
    the header entirely; "Add to Shelf" lives back under the status pills
    (#add-btn in index.html toolbar-right). */
 .header-add-quick-btn { display: none !important; }
 .header-dm-btn { display: inline-flex !important; }
 
-/* v495/v498: mobile grid positioning — align-self: end so bottom edge
+/* v495/v498: mobile grid positioning â€” align-self: end so bottom edge
    meets the top of the profile picture */
 @media (max-width: 700px) {
   .header-add-quick-btn {
@@ -1691,7 +1691,7 @@ body.main-tab-mylist .header-dm-icon svg {
     transform: translateX(-6px) !important;
   }
 
-  /* v501: header padding back to original — DO NOT use padding-top to
+  /* v501: header padding back to original â€” DO NOT use padding-top to
      shift icons because it also pushes the profile picture below it down.
      Icons are shifted via transform on themselves (see cogwheel, +, import
      rules below), which moves them visually without affecting layout flow. */
@@ -1816,14 +1816,14 @@ body.main-tab-mylist .header-dm-icon svg {
   border: 0 !important;
 }
 
-/* v161: iOS Add-to-Home-Screen top surface — one continuous background behind the status area, header, and page */
+/* v161: iOS Add-to-Home-Screen top surface â€” one continuous background behind the status area, header, and page */
 @media (display-mode: standalone) {
   body {
     padding-top: 0 !important;
   }
 
   .header {
-    padding-top: calc(18px + env(safe-area-inset-top, 0px)) !important;
+    padding-top: calc(18px + var(--shelfd-safe-top, 0px)) !important;
     background: transparent !important;
     border-bottom-color: transparent !important;
     box-shadow: none !important;
@@ -1834,7 +1834,7 @@ body.main-tab-mylist .header-dm-icon svg {
 
 @media (display-mode: standalone) and (max-width: 700px) {
   .header {
-    padding-top: calc(10px + env(safe-area-inset-top, 0px)) !important;
+    padding-top: calc(10px + var(--shelfd-safe-top, 0px)) !important;
   }
 }
 
@@ -2042,7 +2042,7 @@ body.light-mode .import-activity-card {
   color: #ffffff !important;
 }
 
-/* v430: import activity card refactor — heart/comment action row + right cluster
+/* v430: import activity card refactor â€” heart/comment action row + right cluster
    (count + max 3 preview posters), with inline 3-col grid expansion that reuses the
    same setScreenListInlineActivityStackExpanded animation pipeline (transform/opacity). */
 .import-activity-card.sl-import-activity-stack-wrap {
