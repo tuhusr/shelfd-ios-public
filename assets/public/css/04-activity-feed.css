@@ -2280,6 +2280,13 @@
   appearance: none !important;
   transform: translateZ(0) !important;
 }
+/* Game posters: 5×6.38 ratio (wider than movie 2:3).
+   Width stays at the base clamp; height is driven by aspect-ratio. */
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-poster[data-activity-game-poster="1"],
+.activity-page .shelfd-social-card .sl-activity-poster[data-activity-game-poster="1"] {
+  height: auto !important;
+  aspect-ratio: 5 / 6.38 !important;
+}
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-poster-img,
 .activity-page .shelfd-social-card .sl-activity-poster-img {
   display: block !important;
@@ -2753,6 +2760,11 @@ body.light-mode .activity-page .shelfd-social-card .sl-activity-plain-note {
     height: clamp(125px, 36.5vw, 149px) !important;
     border-radius: 3px !important;
   }
+  #community-view #activity-tab-view .shelfd-social-card .sl-activity-poster[data-activity-game-poster="1"],
+  .activity-page .shelfd-social-card .sl-activity-poster[data-activity-game-poster="1"] {
+    height: auto !important;
+    aspect-ratio: 5 / 6.38 !important;
+  }
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-bottom-safe,
   .activity-page .shelfd-social-card .sl-activity-bottom-safe {
     min-height: 35px !important;
@@ -2800,6 +2812,11 @@ body.light-mode .activity-page .shelfd-social-card .sl-activity-plain-note {
   .activity-page .shelfd-social-card .sl-activity-poster {
     width: 76px !important;
     height: 122px !important;
+  }
+  #community-view #activity-tab-view .shelfd-social-card .sl-activity-poster[data-activity-game-poster="1"],
+  .activity-page .shelfd-social-card .sl-activity-poster[data-activity-game-poster="1"] {
+    height: auto !important;
+    aspect-ratio: 5 / 6.38 !important;
   }
 }
 
