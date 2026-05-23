@@ -2103,7 +2103,16 @@
 .activity-page .shelfd-social-card .sl-activity-composed-title {
   display: inline !important;
   color: rgba(255,255,255,0.97) !important;
-  font-weight: 400 !important;
+  font-weight: 600 !important;
+  white-space: normal !important;
+}
+/* verbContext: the connector between verb and title (e.g. "season 4 of") —
+   white, light weight so the golden verb and bold title stand out */
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-composed-verb-context,
+.activity-page .shelfd-social-card .sl-activity-composed-verb-context {
+  display: inline !important;
+  color: rgba(255,255,255,0.97) !important;
+  font-weight: 300 !important;
   white-space: normal !important;
 }
 /* Episode/season detail ? subtle milky white */
@@ -4312,7 +4321,7 @@ body.light-mode .sl-activity-stack-carousel-showall {
   white-space: nowrap;
 }
 .sl-activity-view-review-bottom::after {
-  content: 'â€º';
+  content: '\203A';
   margin-left: 2px;
   color: rgba(196,181,253,0.7);
   font-weight: 400;

@@ -5023,8 +5023,8 @@ function getActivityDisplayAction(eventType = '', item = {}, activity = {}) {
   }
 
   if (eventType === 'import-batch' || activity.type === 'import-batch') return 'imported titles';
-  /* v10.220: media-review post type — verb reads "wrote a review". */
-  if (eventType === 'review' || activity.type === 'media-review') return 'wrote a review';
+  /* v10.220: media-review post type — verb reads "Wrote a Review". */
+  if (eventType === 'review' || activity.type === 'media-review') return 'Wrote a Review';
   /* v10.238: music section completion verb. Music storage uses status='watched'
      internally (single-status model), so 'completed' / 'status-changed→watched'
      / 'added→watched' all surface here as "listened". */
@@ -5079,46 +5079,47 @@ function buildScreenListActivityComposedSentence(eventType = '', item = {}, acti
   const epRaw = String(item?.lastEpisodeActivityNum || item?.lastEpisodeRatingNum || '').trim();
   const epNum = epRaw ? Number(epRaw) || 0 : 0;
 
-  /* Helper: completion phrasing varies by section. */
-  function completionPrefix() {
-    if (isGame) return 'Completed ';
-    if (isMovie) return 'Watched ';
-    if (isMusic) return 'Listened to ';
-    if (isShowOrAnime && seasonNum > 0) return `Finished watching season ${seasonNum} of `;
-    return 'Finished watching ';
+  /* Helper: completion phrasing — verb (gold) + verbContext (white 300) */
+  function completionParts() {
+    if (isGame) return { verb: 'Completed ', ctx: '' };
+    if (isMovie) return { verb: 'Watched ', ctx: '' };
+    if (isMusic) return { verb: 'Listened to ', ctx: '' };
+    if (isShowOrAnime && seasonNum > 0) return { verb: 'Finished Watching', ctx: ` season ${seasonNum} of ` };
+    return { verb: 'Finished Watching ', ctx: '' };
   }
 
   switch (eventType) {
-    case 'completed':
-      return { prefix: completionPrefix(), title, suffix: '' };
-
+    case 'completed': {
+      const { verb, ctx } = completionParts();
+      return { prefix: verb, verbContext: ctx, title, suffix: '' };
+    }
     case 'season-finished':
-      if (seasonNum > 0) return { prefix: `Finished watching season ${seasonNum} of `, title, suffix: '' };
-      return { prefix: 'Finished watching ', title, suffix: '' };
+      if (seasonNum > 0) return { prefix: 'Finished Watching', verbContext: ` season ${seasonNum} of `, title, suffix: '' };
+      return { prefix: 'Finished Watching ', verbContext: '', title, suffix: '' };
 
     case 'season-rated':
-      if (seasonNum > 0) return { prefix: `Rated season ${seasonNum} of `, title, suffix: '' };
-      return { prefix: 'Rated a season of ', title, suffix: '' };
+      if (seasonNum > 0) return { prefix: 'Rated', verbContext: ` season ${seasonNum} of `, title, suffix: '' };
+      return { prefix: 'Rated ', verbContext: '', title, suffix: '' };
 
     case 'episode-watched':
-      if (epNum > 0) return { prefix: `Watched episode ${epNum} of `, title, suffix: '' };
-      return { prefix: 'Watched an episode of ', title, suffix: '' };
+      if (epNum > 0) return { prefix: 'Watched', verbContext: ` episode ${epNum} of `, title, suffix: '' };
+      return { prefix: 'Watched ', verbContext: 'an episode of ', title, suffix: '' };
 
     case 'episode-rated':
-      if (epNum > 0) return { prefix: `Rated episode ${epNum} of `, title, suffix: '' };
-      return { prefix: 'Rated an episode of ', title, suffix: '' };
+      if (epNum > 0) return { prefix: 'Rated', verbContext: ` episode ${epNum} of `, title, suffix: '' };
+      return { prefix: 'Rated ', verbContext: 'an episode of ', title, suffix: '' };
 
     case 'rated':
-      return { prefix: 'Rated ', title, suffix: '' };
+      return { prefix: 'Rated ', verbContext: '', title, suffix: '' };
 
     case 'started':
-      return { prefix: isGame ? 'Started playing ' : 'Started watching ', title, suffix: '' };
+      return { prefix: isGame ? 'Started Playing ' : 'Started Watching ', verbContext: '', title, suffix: '' };
 
     case 'paused':
-      return { prefix: isGame ? 'Put on hold: ' : 'Paused ', title, suffix: '' };
+      return { prefix: isGame ? 'Put on Hold: ' : 'Paused ', verbContext: '', title, suffix: '' };
 
     case 'dropped':
-      return { prefix: 'Dropped ', title, suffix: '' };
+      return { prefix: 'Dropped ', verbContext: '', title, suffix: '' };
 
     case 'removed':
       return { prefix: 'Removed ', title, suffix: '' };
@@ -5544,7 +5545,7 @@ function buildActivityCardHTML(a, activityId, options = {}) {
   );
   const _showBottomViewReview = isMediaReview || _isCompletionRouteBottom;
   const bottomViewReviewHtml = _showBottomViewReview
-    ? `<button type="button" class="sl-activity-view-review-bottom" data-activity-action="view-review" onclick="event.stopPropagation(); openMediaReviewFromActivityCard('${escAttr(activityId)}')" aria-label="View review">View review</button>`
+    ? `<button type="button" class="sl-activity-view-review-bottom" data-activity-action="view-review" onclick="event.stopPropagation(); openMediaReviewFromActivityCard('${escAttr(activityId)}')" aria-label="Full Review">Full Review</button>`
     : '';
 
   const interactionsHtml = options.hideInteractions ? '' : `
@@ -5578,13 +5579,13 @@ function buildActivityCardHTML(a, activityId, options = {}) {
   const cardOnclick = `handleScreenListActivityCardOpen('${escAttr(activityId)}','activity')`;
 
   const bodyHtml = isMediaReview ? `
-        <div class="sl-media-review-action">wrote a review</div>
+        <div class="sl-media-review-action">Wrote a Review</div>
         <button class="sl-media-review-title" type="button" onclick="event.stopPropagation(); openMediaReviewFromActivityCard('${escAttr(activityId)}')">${escHtml(displayTitle)}</button>
         <div class="sl-media-review-rating">${ratingHtml}</div>
         ${userNoteHtml}` : `
         <div class="sl-activity-action-line sl-activity-action-line-composed">
           <button class="sl-activity-composed-headline" type="button" onclick="event.stopPropagation(); handleActivityMediaClick('${escAttr(activityId)}', this)">
-            ${composedHeadline.prefix ? `<span class="sl-activity-composed-prefix">${escHtml(composedHeadline.prefix)}</span>` : ''}<span class="sl-activity-composed-title">${escHtml(composedHeadline.title)}</span>${composedHeadline.suffix ? `<span class="sl-activity-composed-suffix">${escHtml(composedHeadline.suffix)}</span>` : ''}
+            ${composedHeadline.prefix ? `<span class="sl-activity-composed-prefix">${escHtml(composedHeadline.prefix)}</span>` : ''}${composedHeadline.verbContext ? `<span class="sl-activity-composed-verb-context">${escHtml(composedHeadline.verbContext)}</span>` : ''}<span class="sl-activity-composed-title">${escHtml(composedHeadline.title)}</span>${composedHeadline.suffix ? `<span class="sl-activity-composed-suffix">${escHtml(composedHeadline.suffix)}</span>` : ''}
           </button>
         </div>
         ${ratingHtml}

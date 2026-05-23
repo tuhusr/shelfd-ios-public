@@ -41,7 +41,7 @@
   /* Capacitor iOS safe-area top + a little extra so the back button
      clears the Dynamic Island. */
   padding:
-    max(var(--shelfd-safe-top, 0px), 12px)
+    max(env(safe-area-inset-top, 0px), 12px)
     14px
     10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
@@ -1884,7 +1884,7 @@ body.rating-guide-open {
   .mylist-album-shelf-topbar {
     flex: 0 0 auto;
     min-height: 56px;
-    padding: max(12px, var(--shelfd-safe-top, 0px)) 16px 10px;
+    padding: max(12px, env(safe-area-inset-top, 0px)) 16px 10px;
     display: grid;
     grid-template-columns: 40px minmax(0, 1fr) auto;
     align-items: center;
@@ -1896,7 +1896,7 @@ body.rating-guide-open {
   }
   html.shelfd-capacitor-ios .mylist-album-shelf-topbar {
     min-height: 46px;
-    padding: max(calc(var(--shelfd-safe-top, 0px) - 18px), 10px) 14px 6px;
+    padding: max(calc(env(safe-area-inset-top, 0px) - 18px), 10px) 14px 6px;
   }
   .mylist-album-shelf-back {
     width: 38px;
@@ -2549,7 +2549,7 @@ body.rating-guide-open {
   .music-artist-profile-topbar {
     flex: 0 0 auto;
     min-height: 56px;
-    padding: max(12px, var(--shelfd-safe-top, 0px)) 16px 10px;
+    padding: max(12px, env(safe-area-inset-top, 0px)) 16px 10px;
     display: grid;
     grid-template-columns: 40px minmax(0, 1fr) 40px;
     align-items: center;
@@ -3111,7 +3111,7 @@ body.rating-guide-open {
   .mylist-media-review-topbar {
     flex: 0 0 auto;
     min-height: 56px;
-    padding: max(12px, var(--shelfd-safe-top, 0px)) 16px 10px;
+    padding: max(12px, env(safe-area-inset-top, 0px)) 16px 10px;
     display: grid;
     grid-template-columns: 40px minmax(0, 1fr) 40px;
     align-items: center;
@@ -3681,7 +3681,7 @@ body.rating-guide-open {
   /* ----- Topbar ----- */
   .shelf-log-composer-topbar {
     flex: 0 0 auto;
-    padding: max(12px, var(--shelfd-safe-top, 0px)) 18px 12px;
+    padding: max(12px, env(safe-area-inset-top, 0px)) 18px 12px;
     display: grid;
     grid-template-columns: auto 1fr auto;
     align-items: center;
@@ -4056,7 +4056,7 @@ body.rating-guide-open {
   .music-album-profile-topbar {
     flex: 0 0 auto;
     min-height: 56px;
-    padding: max(12px, var(--shelfd-safe-top, 0px)) 16px 10px;
+    padding: max(12px, env(safe-area-inset-top, 0px)) 16px 10px;
     display: grid;
     grid-template-columns: 40px minmax(0, 1fr) 40px;
     align-items: center;
@@ -4910,7 +4910,7 @@ body.light-mode .game-card-tracker-icon-link:hover { color: #241640; }
   left: 0;
   right: 0;
   bottom: 0;
-  max-height: calc(100dvh - var(--shelfd-safe-top, 0px) - 18px);
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 18px);
   padding: 10px 16px calc(18px + env(safe-area-inset-bottom, 0px));
   border-radius: 18px 18px 0 0;
   background: #0b0b0f;
@@ -4960,7 +4960,7 @@ body.light-mode .game-card-tracker-icon-link:hover { color: #241640; }
 .tracker-link-secondary { background: rgba(255,255,255,0.08); color: #efeaff; }
 .tracker-link-primary { background: linear-gradient(135deg, #8b5cf6, #06b6d4); color: #ffffff; }
 .tracker-stats-page { background: #050507; overflow: auto; }
-.tracker-stats-shell { min-height: 100dvh; padding: calc(14px + var(--shelfd-safe-top, 0px)) 16px calc(32px + env(safe-area-inset-bottom, 0px)); transform: translate3d(0, 12px, 0); transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1); }
+.tracker-stats-shell { min-height: 100dvh; padding: calc(14px + env(safe-area-inset-top, 0px)) 16px calc(32px + env(safe-area-inset-bottom, 0px)); transform: translate3d(0, 12px, 0); transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1); }
 .tracker-stats-page.is-open .tracker-stats-shell { transform: translate3d(0, 0, 0); }
 .tracker-stats-edit { min-width: 58px; color: #c4b5fd; }
 .tracker-stats-hero { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 14px; align-items: end; margin-top: 22px; }
@@ -5000,13 +5000,13 @@ body.mylist-game-profile-open { overflow: hidden; }
 .mylist-game-profile-topbar {
   flex: 0 0 auto;
   min-height: 58px;
-  padding: calc(12px + var(--shelfd-safe-top, 0px)) 22px 8px;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 22px 8px;
   display: grid;
   grid-template-columns: 46px minmax(0, 1fr) auto;
   align-items: center;
 }
 html.shelfd-capacitor-ios .mylist-game-profile-topbar {
-  padding-top: max(10px, calc(var(--shelfd-safe-top, 0px) - 6px));
+  padding-top: max(10px, calc(env(safe-area-inset-top, 0px) - 6px));
 }
 .mylist-game-profile-back,
 .mylist-game-profile-edit {
@@ -5249,14 +5249,14 @@ body.light-mode .game-card-more-btn {
 }
 .mylist-game-profile-topbar {
   min-height: 56px;
-  padding: max(12px, var(--shelfd-safe-top, 0px)) 16px 10px;
+  padding: max(12px, env(safe-area-inset-top, 0px)) 16px 10px;
   grid-template-columns: 40px minmax(0, 1fr) auto;
   border-bottom: 1px solid rgba(255,255,255,0.08);
   background: rgba(15,15,18,0.86);
   backdrop-filter: blur(18px);
 }
 html.shelfd-capacitor-ios .mylist-game-profile-topbar {
-  padding-top: max(10px, calc(var(--shelfd-safe-top, 0px) - 6px));
+  padding-top: max(10px, calc(env(safe-area-inset-top, 0px) - 6px));
 }
 .mylist-game-profile-topbar > span {
   text-align: center;
@@ -5791,7 +5791,7 @@ body.light-mode .mylist-game-profile-meta-row span {
 /* v10.351: game profile keeps the user's draft hierarchy, rendered with ShelfLine. */
 html.shelfd-capacitor-ios .mylist-game-profile-topbar {
   min-height: 44px;
-  padding-top: max(calc(var(--shelfd-safe-top, 0px) - 24px), 6px);
+  padding-top: max(calc(env(safe-area-inset-top, 0px) - 24px), 6px);
   padding-bottom: 4px;
 }
 .mylist-game-profile-topbar {
@@ -7106,7 +7106,7 @@ body.screenlist-game-cover-picker-open { overflow: hidden !important; }
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: max(16px, var(--shelfd-safe-top, 0px)) 16px 10px;
+  padding: max(16px, env(safe-area-inset-top, 0px)) 16px 10px;
   border-bottom: 1px solid rgba(255,255,255,0.13);
 }
 .screenlist-game-cover-picker-back,
@@ -7413,10 +7413,10 @@ body.screenlist-game-cover-picker-open { overflow: hidden !important; }
    absolute positioning. */
 .shelfd-social-card.shelfd-media-review-card .sl-media-review-action {
   margin-top: 4px;
-  color: #c4b5fd;
+  color: #ffd84c;
   font-family: 'Sohne', 'DM Sans', sans-serif;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 700;
   letter-spacing: 0;
   line-height: 1.2;
 }
@@ -7579,7 +7579,7 @@ button.card-comment-body,
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: max(20px, var(--shelfd-safe-top, 0px)) 16px max(20px, env(safe-area-inset-bottom, 20px));
+  padding: max(20px, env(safe-area-inset-top, 0px)) 16px max(20px, env(safe-area-inset-bottom, 20px));
   pointer-events: none;
   opacity: 0;
   transition: opacity 180ms ease;
@@ -7798,7 +7798,7 @@ button.card-comment-body,
   -webkit-backdrop-filter: none !important;
   border-bottom: 0 !important;
   box-shadow: none !important;
-  padding: max(12px, var(--shelfd-safe-top, 0px)) 18px 14px !important;
+  padding: max(12px, env(safe-area-inset-top, 0px)) 18px 14px !important;
 }
 .mylist-game-profile-topbar > span {
   font: 600 13px/1 'Sohne', 'DM Sans', sans-serif !important;
