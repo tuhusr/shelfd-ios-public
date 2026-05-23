@@ -205,28 +205,28 @@
   })();
 </script>
 <link rel="stylesheet" href="/css/sohne-fonts.css?v=576_sohne_font_setup">
-<link rel="stylesheet" href="/css/00-base-layout.css?v=10590_safe_area_var_unify">
-<link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=10590_safe_area_var_unify">
+<link rel="stylesheet" href="/css/00-base-layout.css?v=10593_restore_rubberband_js_fix">
+<link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=10592_revert_var_keep_disable_bounce">
 <link rel="stylesheet" href="/css/02-comments-login-theme.css?v=10579_landing_margin_pos">
-<link rel="stylesheet" href="/css/03-friends-discovery-base.css?v=10590_safe_area_var_unify">
-<link rel="stylesheet" href="/css/04-activity-feed.css?v=10590_safe_area_var_unify">
-<link rel="stylesheet" href="/css/05-messages-early-polish.css?v=10590_safe_area_var_unify">
-<link rel="stylesheet" href="/css/06-profile.css?v=10590_safe_area_var_unify">
-<link rel="stylesheet" href="/css/07-imports-discover-rankings.css?v=10590_safe_area_var_unify">
+<link rel="stylesheet" href="/css/03-friends-discovery-base.css?v=10592_revert_var_keep_disable_bounce">
+<link rel="stylesheet" href="/css/04-activity-feed.css?v=10608_revert_to_v10606">
+<link rel="stylesheet" href="/css/05-messages-early-polish.css?v=10592_revert_var_keep_disable_bounce">
+<link rel="stylesheet" href="/css/06-profile.css?v=10592_revert_var_keep_disable_bounce">
+<link rel="stylesheet" href="/css/07-imports-discover-rankings.css?v=10592_revert_var_keep_disable_bounce">
 <link rel="stylesheet" href="/css/08-watch-together.css?v=404-shared-watch-copy-underline">
-<link rel="stylesheet" href="/css/09-direct-messages.css?v=10590_safe_area_var_unify">
-<link rel="stylesheet" href="/css/10-mobile-transitions-media-profile.css?v=10590_safe_area_var_unify">
-<link rel="stylesheet" href="/css/11-patch-notes-friends-refinements.css?v=10590_safe_area_var_unify">
-<link rel="stylesheet" href="/css/12-pwa-header-continuity.css?v=10590_safe_area_var_unify">
-<link rel="stylesheet" href="/css/13-e2ee-activity-post.css?v=10590_safe_area_var_unify">
-<link rel="stylesheet" href="/css/14-live-update-discover-controls.css?v=10590_safe_area_var_unify">
-<link rel="stylesheet" href="/css/15-universal-discovery-search.css?v=10590_safe_area_var_unify">
-<link rel="stylesheet" href="/css/16-light-mode-contrast.css?v=10590_safe_area_var_unify">
-<link rel="stylesheet" href="/css/17-auth-flow-setup.css?v=10590_safe_area_var_unify">
-<link rel="stylesheet" href="/css/18-dm-instagram-rebuild.css?v=10590_safe_area_var_unify">
+<link rel="stylesheet" href="/css/09-direct-messages.css?v=10592_revert_var_keep_disable_bounce">
+<link rel="stylesheet" href="/css/10-mobile-transitions-media-profile.css?v=10592_revert_var_keep_disable_bounce">
+<link rel="stylesheet" href="/css/11-patch-notes-friends-refinements.css?v=10592_revert_var_keep_disable_bounce">
+<link rel="stylesheet" href="/css/12-pwa-header-continuity.css?v=10592_revert_var_keep_disable_bounce">
+<link rel="stylesheet" href="/css/13-e2ee-activity-post.css?v=10592_revert_var_keep_disable_bounce">
+<link rel="stylesheet" href="/css/14-live-update-discover-controls.css?v=10592_revert_var_keep_disable_bounce">
+<link rel="stylesheet" href="/css/15-universal-discovery-search.css?v=10592_revert_var_keep_disable_bounce">
+<link rel="stylesheet" href="/css/16-light-mode-contrast.css?v=10592_revert_var_keep_disable_bounce">
+<link rel="stylesheet" href="/css/17-auth-flow-setup.css?v=10594_content_inset_always">
+<link rel="stylesheet" href="/css/18-dm-instagram-rebuild.css?v=10592_revert_var_keep_disable_bounce">
 
-<meta name="screenlist-build-version" content="2026-05-22-v10.590_safe_area_var_unify">
-<script>window.SCREENLIST_BUILD_VERSION = "2026-05-22-v10.590_safe_area_var_unify"; window.SCREENLIST_DISPLAY_VERSION = "v10.590-May 22nd, 2026";</script>
+<meta name="screenlist-build-version" content="2026-05-22-v10.608_revert_to_v10606">
+<script>window.SCREENLIST_BUILD_VERSION = "2026-05-22-v10.608_revert_to_v10606"; window.SCREENLIST_DISPLAY_VERSION = "v10.608-May 22nd, 2026";</script>
 <script>
   /* v10.588: cleanup â€” removed dead window.continueWithoutSignIn
      (button deleted v10.544), [data-landing-creator-action] (removed
@@ -252,57 +252,9 @@
     input.focus();
   };
 
-  /* v10.581: JS-based safe area detection for Capacitor native.
-     env(safe-area-inset-top) returns 0 in this WKWebView setup despite
-     viewport-fit=cover, so we probe it via element positioning and fall
-     back to a screen-height heuristic for native iOS builds.
-     Runs immediately + again on DOMContentLoaded to catch late viewport. */
-  (function applyShelfdSafeArea() {
-    function probe() {
-      var el = document.createElement('div');
-      el.setAttribute('style',
-        'position:fixed;pointer-events:none;visibility:hidden;' +
-        'top:env(safe-area-inset-top,0px);left:0;width:0;height:0;');
-      document.documentElement.appendChild(el);
-      var val = parseFloat(window.getComputedStyle(el).top) || 0;
-      document.documentElement.removeChild(el);
-      return val;
-    }
-    function apply() {
-      var safeTop = probe();
-      /* If env() returned 0 in Capacitor native, estimate from screen height */
-      if (safeTop === 0 && /ShelfdNativeNoInset/.test(navigator.userAgent || '')) {
-        /* iPhone safe area by CSS screen height (portrait, logical pixels):
-           932 = 15 Pro Max, 15 Plus, 14 Pro Max        â†’ Dynamic Island 59px
-           926 = 13 Pro Max, 12 Pro Max, 14 Plus        â†’ Notch 47px
-           852 = 15, 15 Pro, 14 Pro                     â†’ Dynamic Island 59px
-           844 = 14, 13 Pro, 13, 12 Pro, 12             â†’ Notch 47px
-           812 = X, XS, 11 Pro                          â†’ Notch 44px
-           780 = 13 mini, 12 mini                       â†’ Notch 50px
-           667 = SE 2nd/3rd gen                         â†’ No notch 20px */
-        var h = window.screen.height;
-        if      (h >= 932) safeTop = 59;
-        else if (h >= 926) safeTop = 47;
-        else if (h >= 852) safeTop = 59;
-        else if (h >= 844) safeTop = 47;
-        else if (h >= 812) safeTop = 44;
-        else if (h >= 780) safeTop = 50;
-        else               safeTop = 20;
-      }
-      if (safeTop > 0) {
-        /* v10.585: apply via CSS variable only â€” do NOT set body.paddingTop
-           directly. body padding adds to scroll height which causes the
-           iOS rubber-band bounce to settle in the wrong position.
-           Instead, the CSS applies the variable to the .header element
-           only, keeping the body scroll height natural. */
-        document.documentElement.style.setProperty('--shelfd-safe-top', safeTop + 'px');
-      }
-    }
-    apply();
-    document.addEventListener('DOMContentLoaded', apply);
-    window.addEventListener('load', apply);
-  })();
-
+  /* v10.594: removed JS safe-area probe and rubber-band fix -- no longer
+     needed now that contentInset is "always". iOS positions the WebView
+     below the Dynamic Island natively; no CSS or JS compensation required. */
   document.addEventListener('DOMContentLoaded', function() {
     window.scrollTo(0, 0);
     document.documentElement.scrollTop = 0;
