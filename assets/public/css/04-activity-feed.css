@@ -4473,6 +4473,15 @@ body.light-mode .sl-activity-stack-carousel-showall {
   padding-top: 9px !important;
 }
 
+/* Game posters — 5:6.38 ratio on activity feed cards only.
+   Chained class (2,3,0) beats media-query fixed-height overrides (2,2,0).
+   height:auto lets aspect-ratio drive the height from the fixed width. */
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-poster[data-activity-game-poster="1"],
+.activity-page .shelfd-social-card .sl-activity-poster[data-activity-game-poster="1"] {
+  height: auto !important;
+  aspect-ratio: 5 / 6.38 !important;
+}
+
 /* Poster 96×96px — chained class beats media-query overrides (2,3,0) > (2,2,0) */
 #community-view #activity-tab-view .shelfd-social-card.sl-activity-stack-compact-card,
 .activity-page .shelfd-social-card.sl-activity-stack-compact-card {
