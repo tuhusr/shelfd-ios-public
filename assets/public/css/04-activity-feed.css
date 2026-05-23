@@ -3914,6 +3914,49 @@ body.light-mode .activity-page .activity-card {
   height: 24px !important;
 }
 
+/* Flat-card reset: strip the rounded-card appearance so the activity feed
+   uses full-bleed hairline dividers (::after below) instead of bordered cards. */
+#community-view #activity-tab-view .shelfd-social-card,
+.activity-page .shelfd-social-card,
+.activity-card {
+  position: relative !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  overflow: visible !important;
+}
+/* Relax contain so the full-bleed 100vw ::after can paint past feed padding */
+#community-view #activity-tab-view:not(.activity-subtab-transitioning) {
+  overflow-x: visible !important;
+  contain: none !important;
+}
+#community-view #activity-tab-view:not(.activity-subtab-transitioning) #friend-activity-feed,
+#community-view #activity-tab-view:not(.activity-subtab-transitioning) .activity-feed-list {
+  overflow: visible !important;
+  contain: none !important;
+}
+/* Full-bleed hairline divider between feed cards */
+#community-view #activity-tab-view .shelfd-social-card::after,
+.activity-page .shelfd-social-card::after,
+.activity-card::after {
+  content: '' !important;
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 100vw !important;
+  height: 1px !important;
+  background: rgba(255,255,255,0.08) !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+}
+#community-view #activity-tab-view .activity-feed-list .shelfd-social-card:last-child::after,
+.activity-page .activity-feed-list .shelfd-social-card:last-child::after,
+.activity-card:last-child::after {
+  display: none !important;
+}
 /* chained class = specificity (2,2,1) beats original (2,1,1) */
 #community-view #activity-tab-view .shelfd-social-card.sl-activity-stack-compact-card::after,
 .activity-page .shelfd-social-card.sl-activity-stack-compact-card::after,
