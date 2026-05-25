@@ -160,7 +160,8 @@ html:has(body.dm-fullscreen-open) {
    a v2 thread is open)
    --------------------------------------------------------------------------- */
 .direct-messages-topbar {
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 1250;
   min-height: 64px;
   padding: calc(var(--shelfd-safe-top, 0px) + 8px) 14px 10px;

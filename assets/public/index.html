@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -82,7 +82,7 @@
         || sessionStorage.getItem('screenlist-live-update-splash-v2') === '1'
         || sessionStorage.getItem('screenlist-live-update-splash-v1') === '1'
         || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
-        /* v10.506: also hold on iOS Capacitor cold launch — `display-mode:
+        /* v10.506: also hold on iOS Capacitor cold launch â€” `display-mode:
            standalone` returns false inside Capacitor WKWebView, so without
            this the un-hydrated shelf paints visibly for several seconds
            between iOS native splash dismiss and full JS hydration. */
@@ -161,16 +161,16 @@
      zone, we have to call the plugin AT RUNTIME after the bridge is ready.
 
      What this does:
-     1. `setStyle({ style: 'DARK' })` — tells iOS to render the status bar
+     1. `setStyle({ style: 'DARK' })` â€” tells iOS to render the status bar
         in "dark style" mode (light/white icons). Important: in Capacitor
         terminology, "Dark" means dark BACKGROUND (so light icons), not
         dark icons. This is what every dark-themed app uses.
-     2. `setOverlaysWebView({ overlay: true })` — confirms the WebView
+     2. `setOverlaysWebView({ overlay: true })` â€” confirms the WebView
         extends UNDER the status bar. With this true, there's no iOS-drawn
         opaque status bar background; iOS only renders the icons on top
         of our WebView content. Whatever color our HTML/CSS paints at
         y=0..safe-area-top is what shows.
-     3. (Skipping `setBackgroundColor` — iOS no-op, only matters for
+     3. (Skipping `setBackgroundColor` â€” iOS no-op, only matters for
         Android builds.)
 
      Retries are wrapped in setTimeout because the plugins object isn't
@@ -218,7 +218,7 @@
 <link rel="stylesheet" href="/css/06-profile.css?v=10714_other_profile_icon_back">
 <link rel="stylesheet" href="/css/07-imports-discover-rankings.css?v=10645_ios_apple_music_icon_asset">
 <link rel="stylesheet" href="/css/08-watch-together.css?v=10719_buttons_27_paired_both_rules">
-<link rel="stylesheet" href="/css/09-direct-messages.css?v=10754_dm_swipe_inbox_reveal">
+<link rel="stylesheet" href="/css/09-direct-messages.css?v=10792_dm_topbar_sticky">
 <link rel="stylesheet" href="/css/10-mobile-transitions-media-profile.css?v=10592_revert_var_keep_disable_bounce">
 <link rel="stylesheet" href="/css/11-patch-notes-friends-refinements.css?v=10737_actor_page_shift_39">
 <link rel="stylesheet" href="/css/12-pwa-header-continuity.css?v=10592_revert_var_keep_disable_bounce">
@@ -232,14 +232,14 @@
 <meta name="screenlist-build-version" content="2026-05-25-v10.791_safe_area_bar_color_181c20">
 <script>window.SHELFD_SHARE_ORIGIN = "https://myshelfd.com"; window.SCREENLIST_BUILD_VERSION = "2026-05-25-v10.791_safe_area_bar_color_181c20"; window.SCREENLIST_DISPLAY_VERSION = "v10.791-May 25th, 2026";</script>
 <script>
-  /* v10.588: cleanup — removed dead window.continueWithoutSignIn
+  /* v10.588: cleanup â€” removed dead window.continueWithoutSignIn
      (button deleted v10.544), [data-landing-creator-action] (removed
      v10.541), and window.handleLandingTermsChange no-op (gate moved
      to Create Account v10.577). */
   var _eyeToggleLock = false;
 
   window.toggleShelfdPasswordVisibility = function() {
-    /* Debounce — ontouchstart + onclick both fire on iOS; skip the second */
+    /* Debounce â€” ontouchstart + onclick both fire on iOS; skip the second */
     if (_eyeToggleLock) { _eyeToggleLock = false; return; }
     _eyeToggleLock = true;
     setTimeout(function() { _eyeToggleLock = false; }, 300);
@@ -252,7 +252,7 @@
     input.type = isPassword ? 'text' : 'password';
     if (eyeShow) eyeShow.style.display = isPassword ? 'none' : '';
     if (eyeHide) eyeHide.style.display = isPassword ? '' : 'none';
-    /* Keep keyboard open — refocus the input */
+    /* Keep keyboard open â€” refocus the input */
     input.focus();
   };
 
@@ -301,7 +301,7 @@
         <svg width="14" height="18" viewBox="0 0 384 512" aria-hidden="true" style="flex-shrink:0" fill="currentColor"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
         Sign in with Apple
       </button>
-      <!-- Disclaimer for Google/Apple — implied consent on sign-in -->
+      <!-- Disclaimer for Google/Apple â€” implied consent on sign-in -->
       <p class="landing-social-disclaimer">By continuing, you agree to our <button type="button" class="landing-terms-link" onclick="openLoginTermsPage()">Terms of Service</button> and <button type="button" class="landing-terms-link" onclick="openLoginPrivacyPage()">Privacy Policy</button></p>
     </div>
     <!-- v835: PWA-safe inline sign-in form. Rendered directly in the
@@ -332,7 +332,7 @@
         <button class="shelfd-landing-inline-link" type="button" onclick="openShelfdResetPage()">Reset password</button>
       </div>
     </form>
-    <!-- Google sign-in removed per App Store guideline 4.8.0 —
+    <!-- Google sign-in removed per App Store guideline 4.8.0 â€”
          will be re-added alongside Sign in with Apple in a future
          build once the native SIWA implementation is complete. -->
     <!-- v758: email buttons disabled until email auth is fully tested. -->
@@ -550,7 +550,7 @@
         </div>
       </div>
       <div class="shelfd-auth-error" id="shelfd-signup-error" role="alert" hidden></div>
-      <!-- v10.577: Terms agreement — required before account creation -->
+      <!-- v10.577: Terms agreement â€” required before account creation -->
       <div class="shelfd-signup-terms-row">
         <label class="shelfd-signup-terms-label" for="shelfd-signup-terms-check">
           <input type="checkbox" id="shelfd-signup-terms-check" onchange="document.getElementById('shelfd-signup-submit').disabled=!this.checked">
@@ -1534,7 +1534,7 @@
         </div>
       </div>
       <div class="profile-topbar-actions">
-        <!-- v10.552: three-dot menu — only visible on other users' profiles
+        <!-- v10.552: three-dot menu â€” only visible on other users' profiles
              (.viewing-other-profile class toggled by renderProfilePage).
              Contains Report user + Block user. -->
         <div class="profile-more-wrap" id="profile-more-wrap">
@@ -1626,10 +1626,10 @@
           <div class="profile-settings-card-title">Username</div>
         </div>
         <div class="profile-settings-handle-row" id="profile-settings-handle-row">
-          <span class="profile-settings-handle-display" id="profile-settings-handle-display">@—</span>
+          <span class="profile-settings-handle-display" id="profile-settings-handle-display">@â€”</span>
           <button class="profile-settings-edit-btn" type="button" id="profile-settings-handle-edit-btn" onclick="openUsernameHandleEdit()">Edit</button>
         </div>
-        <!-- v10.775: cooldown message — shown when user taps Edit during the 14-day lock -->
+        <!-- v10.775: cooldown message â€” shown when user taps Edit during the 14-day lock -->
         <div class="profile-settings-handle-locked-msg" id="profile-settings-handle-locked-msg" hidden></div>
         <div class="profile-settings-handle-edit" id="profile-settings-handle-edit" hidden>
           <div class="profile-settings-handle-input-wrap">
@@ -1651,7 +1651,7 @@
           <div class="profile-settings-card-title">Display Name</div>
         </div>
         <div class="profile-settings-displayname-row" id="profile-settings-displayname-row">
-          <span class="profile-settings-displayname-display" id="profile-settings-displayname-display">—</span>
+          <span class="profile-settings-displayname-display" id="profile-settings-displayname-display">â€”</span>
           <button class="profile-settings-edit-btn" type="button" onclick="openDisplayNameEdit()">Edit</button>
         </div>
         <div class="profile-settings-displayname-edit" id="profile-settings-displayname-edit" hidden>
@@ -1697,7 +1697,7 @@
            rating card. Kept Anime Title Display + Account. Username +
            Display Name moved to TOP of the page above Anime Title Display. -->
 
-      <!-- v10.543: Account danger zone — required by App Store guideline
+      <!-- v10.543: Account danger zone â€” required by App Store guideline
            5.1.1(v). One-tap permanent deletion of the user's Firestore
            profile doc + Firebase Auth account. -->
       <div class="profile-settings-card profile-settings-card-floating profile-settings-danger-card">
@@ -1717,7 +1717,7 @@
 
 <!-- v10.695: Firebase 10.12.0 SDKs bundled locally instead of fetched from
      gstatic.com on every cold start. Saves ~550 KB of parser-blocking
-     network on app launch — the single biggest cold-start win.
+     network on app launch â€” the single biggest cold-start win.
      If you bump Firebase version, re-download all 4 files from
      https://www.gstatic.com/firebasejs/<version>/firebase-<name>-compat.js
      into /vendor/firebase/ and bump the ?v= cache-bust below. -->
@@ -1878,7 +1878,7 @@
   } catch (e) {}
 </script>
 
-<!-- v10.409: Rating Guide overlay — slides down from the top when the
+<!-- v10.409: Rating Guide overlay â€” slides down from the top when the
      logo is tapped. Read-only reference page so users can see what each
      1-10 rating "weight" means. Back button top-left, share button
      top-right (system share sheet via navigator.share, which gives DMs /
@@ -1912,7 +1912,7 @@
 </div>
 <script>
 /* v10.409: Rating Guide rows + open/close/share handlers. Kept inline
-   so the overlay is fully self-contained — one place to read and edit. */
+   so the overlay is fully self-contained â€” one place to read and edit. */
 (function () {
   /* v10.539: updated to the app-wide 5-star half-step scale. Nine
      entries covering each whole and half value from 1 to 5. */
@@ -1932,13 +1932,13 @@
     var host = document.getElementById('rating-guide-list');
     if (!host) return;
     host.innerHTML = RATING_GUIDE_ENTRIES.map(function (entry) {
-      /* Full ★ glyphs for each whole star; a dimmed ★ for the half-
+      /* Full â˜… glyphs for each whole star; a dimmed â˜… for the half-
          star (styled via .rating-guide-half-star at 35% opacity). */
       var fullCount = Math.floor(entry.n);
       var hasHalf = (entry.n % 1) >= 0.4;
       var stars = '';
-      for (var i = 0; i < fullCount; i++) stars += '★';
-      if (hasHalf) stars += '<span class="rating-guide-half-star" aria-hidden="true">★</span>';
+      for (var i = 0; i < fullCount; i++) stars += 'â˜…';
+      if (hasHalf) stars += '<span class="rating-guide-half-star" aria-hidden="true">â˜…</span>';
       /* Display the numeric value as "1", "1.5", "2" etc. */
       var numDisplay = Number.isInteger(entry.n) ? String(entry.n) : entry.n.toFixed(1);
       return ''
@@ -1990,7 +1990,7 @@
   window.shareRatingGuide = async function () {
     var url = (window.location && window.location.origin) ? (window.location.origin + '/?rating-guide') : '';
     var shareData = {
-      title: 'Shelfd — Rating Guide',
+      title: 'Shelfd â€” Rating Guide',
       text: "Here's how I weigh ratings on Shelfd. My 5-star breakdown:",
       url: url
     };
