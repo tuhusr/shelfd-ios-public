@@ -1660,7 +1660,8 @@
   function buildAlbumShareUrl(item = {}, options = {}) {
     const ownerUid = getAlbumOwnerUid(options);
     const albumKey = options.albumKey || getAlbumStableKey(item);
-    const url = new URL(`/album/${encodeURIComponent(ownerUid)}/${encodeURIComponent(albumKey)}`, window.location.origin);
+    const shareOrigin = window.SHELFD_SHARE_ORIGIN || 'https://myshelfd.com';
+    const url = new URL(`/album/${encodeURIComponent(ownerUid)}/${encodeURIComponent(albumKey)}`, shareOrigin);
     const title = String(item.title || '').trim();
     const artist = String(item.artist || '').trim();
     const cover = getAlbumCover(item);

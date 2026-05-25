@@ -1,151 +1,6 @@
-﻿/* v221 - Shelfd Secure Key E2EE recovery modal */
-.dm-e2ee-recovery-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 2147483647;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 22px;
-  background: rgba(3, 2, 10, 0.74);
-  backdrop-filter: blur(10px);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 180ms ease;
-}
-.dm-e2ee-recovery-modal.open {
-  opacity: 1;
-  pointer-events: auto;
-}
-.dm-e2ee-recovery-card {
-  width: min(92vw, 430px);
-  border-radius: 26px;
-  border: 1px solid rgba(34, 211, 238, 0.28);
-  background: linear-gradient(145deg, rgba(13, 10, 31, 0.98), rgba(27, 18, 58, 0.98));
-  box-shadow: 0 26px 80px rgba(0,0,0,0.58), 0 0 30px rgba(34,211,238,0.08);
-  padding: 24px 20px 20px;
-  color: #f8f4ff;
-  position: relative;
-}
-.dm-e2ee-recovery-x {
-  position: absolute;
-  top: 12px;
-  right: 14px;
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.05);
-  color: #d8cff3;
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-}
-.dm-e2ee-recovery-kicker {
-  display: inline-flex;
-  align-items: center;
-  height: 24px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(34, 211, 238, 0.38);
-  color: #67e8f9;
-  background: rgba(34, 211, 238, 0.08);
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 1.2px;
-  margin-bottom: 12px;
-}
-.dm-e2ee-recovery-card h3 {
-  margin: 0 36px 10px 0;
-  font-size: 24px;
-  line-height: 1.08;
-  letter-spacing: -0.5px;
-  font-weight: 900;
-}
-.dm-e2ee-recovery-card p {
-  margin: 0 0 16px;
-  color: #b8afd1;
-  font-size: 14px;
-  line-height: 1.45;
-  font-weight: 650;
-}
-.dm-e2ee-recovery-label {
-  display: block;
-  margin: 10px 0 7px;
-  color: #e8e3f3;
-  font-size: 12px;
-  font-weight: 900;
-}
-.dm-e2ee-recovery-input {
-  width: 100%;
-  min-height: 48px;
-  border-radius: 15px;
-  border: 1px solid rgba(167,139,250,0.28);
-  background: rgba(0,0,0,0.34);
-  color: #ffffff;
-  padding: 0 14px;
-  font-size: 16px;
-  font-family: 'DM Sans', sans-serif;
-  outline: none;
-  margin-bottom: 10px;
-}
-.dm-e2ee-recovery-input:focus {
-  border-color: rgba(34,211,238,0.62);
-  box-shadow: 0 0 0 3px rgba(34,211,238,0.10);
-}
-.dm-e2ee-recovery-error {
-  min-height: 18px;
-  color: #fca5a5;
-  font-size: 12px;
-  font-weight: 800;
-  margin-top: -2px;
-}
-.dm-e2ee-recovery-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  margin-top: 14px;
-}
-.dm-e2ee-recovery-actions button {
-  min-height: 42px;
-  border-radius: 999px;
-  padding: 0 16px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
-  font-weight: 900;
-  cursor: pointer;
-}
-.dm-e2ee-recovery-secondary {
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(255,255,255,0.05);
-  color: #d8cff3;
-}
-.dm-e2ee-recovery-primary {
-  border: 1px solid rgba(255,255,255,0.14);
-  background: linear-gradient(135deg, #06b6d4, #8b5cf6);
-  color: #ffffff;
-  box-shadow: 0 10px 24px rgba(34,211,238,0.18);
-}
-@media (max-width: 600px) {
-  .dm-e2ee-recovery-modal {
-    align-items: flex-end;
-    padding: 14px 14px max(14px, env(safe-area-inset-bottom));
-  }
-  .dm-e2ee-recovery-card {
-    width: 100%;
-    border-radius: 24px;
-    padding: 22px 18px 18px;
-  }
-  .dm-e2ee-recovery-card h3 {
-    font-size: 22px;
-  }
-  .dm-e2ee-recovery-actions {
-    flex-direction: column-reverse;
-  }
-  .dm-e2ee-recovery-actions button {
-    width: 100%;
-  }
-}
+﻿/* v10.761: All .dm-e2ee-recovery-* rules removed - E2EE recovery modal
+   was deprecated in v280. Filename kept (loaded from index.html). The
+   activity-post bottom-sheet rules from v430 onward live below. */
 
 /* v430: feed-post-page rendered as an Instagram-style bottom sheet (81vh).
    Slide-up uses transform/translateY only (composited, ProMotion-ready). The
@@ -165,12 +20,20 @@
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
   opacity: 0;
-  transition: opacity 280ms cubic-bezier(.22, 1, .36, 1);
+  /* v10.690: 120Hz-tuned animation pair. Base transition timing is the
+     CLOSE/release timing (600ms, deep ease-out) — applies when .is-open
+     is removed. The .is-open override below uses the OPEN timing —
+     applies when .is-open is added.
+     v10.693: open bumped 360ms → 600ms to match the close, feels less
+     snappy / more native-iOS on tap. */
+  transition: opacity 600ms cubic-bezier(.16, 1, .3, 1);
   pointer-events: none;
 }
 #feed-post-page.is-open .feed-post-bottom-sheet-backdrop {
   opacity: 1;
   pointer-events: auto;
+  /* v10.694: open 600ms → 450ms (split the difference vs 360/600). */
+  transition: opacity 450ms cubic-bezier(.22, 1, .36, 1);
 }
 #feed-post-page .overlay-page-inner {
   position: absolute !important;
@@ -194,12 +57,16 @@
   overflow: hidden !important;
   box-shadow: 0 -32px 64px rgba(0, 0, 0, 0.54), 0 -1px 0 rgba(255, 255, 255, 0.06) !important;
   transform: translate3d(-50%, 100%, 0) !important;
-  transition: transform 360ms cubic-bezier(.22, 1, .36, 1) !important;
+  /* v10.690: 600ms gradual release on close (deep ease-out), 360ms snappy
+     open. See backdrop above for the rationale on the open/close pair. */
+  transition: transform 600ms cubic-bezier(.16, 1, .3, 1) !important;
   will-change: transform !important;
   touch-action: pan-y !important;
 }
 #feed-post-page.is-open .overlay-page-inner {
   transform: translate3d(-50%, 0, 0) !important;
+  /* v10.694: open 600ms → 450ms */
+  transition: transform 450ms cubic-bezier(.22, 1, .36, 1) !important;
 }
 #feed-post-page.is-dragging .overlay-page-inner {
   transition: none !important;
@@ -250,8 +117,14 @@
   padding-top: 8px !important;
   padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
   transform: translate3d(-50%, 110%, 0) !important;
-  transition: transform 360ms cubic-bezier(.22, 1, .36, 1) !important;
-  will-change: transform !important;
+  /* v10.690 / v10.691: Instagram-style gradual fade. Composer slides DOWN
+     AND fades OPACITY → 0 on close (600ms ease-out). Both properties
+     animate together so the composer dissolves rather than just sliding
+     out. Will-change includes both for GPU optimization. */
+  opacity: 0 !important;
+  transition: transform 600ms cubic-bezier(.16, 1, .3, 1),
+              opacity 600ms cubic-bezier(.16, 1, .3, 1) !important;
+  will-change: transform, opacity !important;
 }
 #feed-post-page #feed-post-replies-composer.feed-post-floating-composer .feed-reply-composer {
   width: 100% !important;
@@ -263,6 +136,10 @@
 }
 #feed-post-page.is-open #feed-post-replies-composer.feed-post-floating-composer {
   transform: translate3d(-50%, 0, 0) !important;
+  opacity: 1 !important;
+  /* v10.694: open 600ms → 450ms */
+  transition: transform 450ms cubic-bezier(.22, 1, .36, 1),
+              opacity 450ms cubic-bezier(.22, 1, .36, 1) !important;
 }
 #feed-post-page.is-dragging #feed-post-replies-composer.feed-post-floating-composer {
   transition: none !important;
@@ -288,10 +165,12 @@
   -webkit-backdrop-filter: blur(10px);
 }
 #feed-post-page .overlay-page-title {
-  font-size: 16px;
-  font-weight: 700;
+  /* v10.690: polished to match the modern app type system (matches the
+     activity card username's 500 weight + pure white). */
+  font-size: 15px;
+  font-weight: 500;
   letter-spacing: -0.01em;
-  color: #ececee;
+  color: #ffffff;
   margin: 0;
   line-height: 1.1;
 }
@@ -421,6 +300,26 @@
   height: 100%;
   object-fit: cover;
   display: block;
+}
+/* v10.710: section-specific overrides so the comment-sheet poster matches
+   the activity card's poster the user just tapped from. Music = 1:1 square
+   (album-art convention) at the same clamp width the card uses. Games keep
+   2:3 portrait but pick up the card's exact clamp width/height and the
+   3.6px corner radius. Without this, music was rendering as a stretched
+   2:3 poster and games' corners + size didn't match the activity card. */
+.x-post-media-poster.x-post-media-poster--music {
+  aspect-ratio: 1 / 1 !important;
+  flex: 0 0 clamp(106px, 16.5vw, 139px) !important;
+  width: clamp(106px, 16.5vw, 139px) !important;
+  height: clamp(106px, 16.5vw, 139px) !important;
+  border-radius: 1.2px !important;
+}
+.x-post-media-poster.x-post-media-poster--games {
+  aspect-ratio: 2 / 3 !important;
+  flex: 0 0 clamp(97px, 15.1vw, 130px) !important;
+  width: clamp(97px, 15.1vw, 130px) !important;
+  height: clamp(149px, 20.7vw, 199px) !important;
+  border-radius: 3.6px !important;
 }
 .x-post-trailer-card {
   width: 100%;
@@ -1260,7 +1159,10 @@ body.true-dark-mode #mylist-view #mylist-header .section-toggle > .section-btn.s
   height: 24px;
   display: block;
 }
+/* v10.722: compose with the My-List page's -15px shift (see 17-auth-flow-setup.css)
+   so hover-rotate doesn't snap the cog back down to its un-shifted Y on desktop. */
 .mylist-header-cog:hover { color: rgba(255,255,255,0.7); transform: rotate(60deg); }
+body.main-tab-mylist .mylist-header-cog:hover { transform: translateY(-9px) rotate(60deg) !important; }
 body.main-tab-mylist .mylist-header-cog { display: inline-flex !important; }
 body.main-tab-mylist .header-import-btn { display: none !important; }
 

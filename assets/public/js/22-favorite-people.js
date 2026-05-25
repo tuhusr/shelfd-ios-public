@@ -89,37 +89,27 @@
       detail: { id, isFavorite: !wasFav }
     }));
 
-    /* Persist with a dot-path update — preserves the rest of the map. */
+    /* v10.730: simplified persistence — use set+merge ALWAYS so the
+       first-time-favorite case (no `favoritePeople` map exists on the
+       user doc yet) doesn't go through a failing update() pre-call.
+       Also DO NOT revert local state on transient Firestore error —
+       Firebase's offline persistence will queue the write and replay it
+       when the connection restores, AND we want the heart to stay
+       filled visually even on a flaky network. Previously the revert
+       caused the documented "heart fills then disappears shortly"
+       bug whenever a write took too long or hit a transient error. */
     try {
-      const fieldPath = `favoritePeople.${id}`;
-      const update = wasFav
-        ? { [fieldPath]: firebase.firestore.FieldValue.delete() }
-        : { [fieldPath]: map[id] };
-      await db.collection('users').doc(currentUser.uid).update(update);
+      const payload = wasFav
+        ? { favoritePeople: { [id]: firebase.firestore.FieldValue.delete() } }
+        : { favoritePeople: { [id]: map[id] } };
+      await db.collection('users').doc(currentUser.uid).set(payload, { merge: true });
       return true;
     } catch (e) {
-      /* update() fails if the doc doesn't exist yet — fall back to set+merge. */
-      try {
-        const merge = wasFav
-          ? { favoritePeople: { [id]: firebase.firestore.FieldValue.delete() } }
-          : { favoritePeople: { [id]: map[id] } };
-        await db.collection('users').doc(currentUser.uid).set(merge, { merge: true });
-        return true;
-      } catch (e2) {
-        console.error('Failed to save favoritePerson toggle, reverting local state:', e2);
-        /* Revert optimistic state on hard failure. */
-        if (wasFav) {
-          map[id] = personData; /* restore */
-        } else {
-          delete map[id];
-        }
-        window.shelfdFavoritePeople = map;
-        window.dispatchEvent(new CustomEvent('shelfd:fav-person-changed', {
-          detail: { id, isFavorite: wasFav }
-        }));
-        if (typeof showToast === 'function') showToast('Could not save favorite');
-        return false;
-      }
+      console.warn('[v10.730] favoritePerson save deferred — local state retained:', e?.code || e?.message || e);
+      /* Surface a soft toast but KEEP the optimistic local update.
+         Firestore offline queue will retry; no revert. */
+      if (typeof showToast === 'function') showToast('Saved locally — will sync when online');
+      return false;
     }
   }
 

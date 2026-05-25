@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -21,7 +21,7 @@
 
 <!-- PWA / Icons / Social sharing -->
 <meta name="description" content="Shelfd ? track your shows, movies, anime, games, music, and more.">
-<meta name="theme-color" content="#0E0E0E">
+<meta name="theme-color" content="#181c20">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -36,8 +36,8 @@
 <meta property="og:title" content="Shelfd">
 <meta property="og:description" content="Track your shows, movies, anime, games, music, and more.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://myscreenlist.com/">
-<meta property="og:image" content="https://myscreenlist.com/og-image-v216.png">
+<meta property="og:url" content="https://myshelfd.com/">
+<meta property="og:image" content="https://myshelfd.com/og-image-v216.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Shelfd ? Track your shows, movies, anime, games, music, and more.">
@@ -45,8 +45,12 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Shelfd">
 <meta name="twitter:description" content="Track your shows, movies, anime, games, music, and more.">
-<meta name="twitter:image" content="https://myscreenlist.com/og-image-v216.png">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Sora:wght@600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<meta name="twitter:image" content="https://myshelfd.com/og-image-v216.png">
+<!-- v10.697: Google Fonts (DM Sans, Sora, Space Grotesk) bundled locally
+     instead of fetched from fonts.googleapis.com on every cold start.
+     Eliminates 1 render-blocking <link> + ~10 woff2 fetches from
+     fonts.gstatic.com. See /css/google-fonts-local.css for sources. -->
+<link rel="stylesheet" href="/css/google-fonts-local.css?v=10697_google_fonts_local">
 <script>
   window.__shelfdSplitResourceErrors = window.__shelfdSplitResourceErrors || [];
   window.addEventListener('error', function(event) {
@@ -78,7 +82,7 @@
         || sessionStorage.getItem('screenlist-live-update-splash-v2') === '1'
         || sessionStorage.getItem('screenlist-live-update-splash-v1') === '1'
         || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
-        /* v10.506: also hold on iOS Capacitor cold launch â€” `display-mode:
+        /* v10.506: also hold on iOS Capacitor cold launch — `display-mode:
            standalone` returns false inside Capacitor WKWebView, so without
            this the un-hydrated shelf paints visibly for several seconds
            between iOS native splash dismiss and full JS hydration. */
@@ -157,16 +161,16 @@
      zone, we have to call the plugin AT RUNTIME after the bridge is ready.
 
      What this does:
-     1. `setStyle({ style: 'DARK' })` â€” tells iOS to render the status bar
+     1. `setStyle({ style: 'DARK' })` — tells iOS to render the status bar
         in "dark style" mode (light/white icons). Important: in Capacitor
         terminology, "Dark" means dark BACKGROUND (so light icons), not
         dark icons. This is what every dark-themed app uses.
-     2. `setOverlaysWebView({ overlay: true })` â€” confirms the WebView
+     2. `setOverlaysWebView({ overlay: true })` — confirms the WebView
         extends UNDER the status bar. With this true, there's no iOS-drawn
         opaque status bar background; iOS only renders the icons on top
         of our WebView content. Whatever color our HTML/CSS paints at
         y=0..safe-area-top is what shows.
-     3. (Skipping `setBackgroundColor` â€” iOS no-op, only matters for
+     3. (Skipping `setBackgroundColor` — iOS no-op, only matters for
         Android builds.)
 
      Retries are wrapped in setTimeout because the plugins object isn't
@@ -206,36 +210,36 @@
 </script>
 <link rel="stylesheet" href="/css/sohne-fonts.css?v=576_sohne_font_setup">
 <link rel="stylesheet" href="/css/00-base-layout.css?v=10593_restore_rubberband_js_fix">
-<link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=10614_wrote_review_gold">
-<link rel="stylesheet" href="/css/02-comments-login-theme.css?v=10579_landing_margin_pos">
+<link rel="stylesheet" href="/css/01-mylists-cards-episodes.css?v=10738_status_pill_outline_white_60">
+<link rel="stylesheet" href="/css/02-comments-login-theme.css?v=10711_block_modal_top_layer">
 <link rel="stylesheet" href="/css/03-friends-discovery-base.css?v=10592_revert_var_keep_disable_bounce">
-<link rel="stylesheet" href="/css/04-activity-feed.css?v=10614_view_review_fixes">
-<link rel="stylesheet" href="/css/05-messages-early-polish.css?v=10592_revert_var_keep_disable_bounce">
-<link rel="stylesheet" href="/css/06-profile.css?v=10592_revert_var_keep_disable_bounce">
-<link rel="stylesheet" href="/css/07-imports-discover-rankings.css?v=10592_revert_var_keep_disable_bounce">
-<link rel="stylesheet" href="/css/08-watch-together.css?v=404-shared-watch-copy-underline">
-<link rel="stylesheet" href="/css/09-direct-messages.css?v=10592_revert_var_keep_disable_bounce">
+<link rel="stylesheet" href="/css/04-activity-feed.css?v=10703_completion_rating_modal_refresh">
+<link rel="stylesheet" href="/css/05-messages-early-polish.css?v=10737_actor_shift_39">
+<link rel="stylesheet" href="/css/06-profile.css?v=10714_other_profile_icon_back">
+<link rel="stylesheet" href="/css/07-imports-discover-rankings.css?v=10645_ios_apple_music_icon_asset">
+<link rel="stylesheet" href="/css/08-watch-together.css?v=10719_buttons_27_paired_both_rules">
+<link rel="stylesheet" href="/css/09-direct-messages.css?v=10754_dm_swipe_inbox_reveal">
 <link rel="stylesheet" href="/css/10-mobile-transitions-media-profile.css?v=10592_revert_var_keep_disable_bounce">
-<link rel="stylesheet" href="/css/11-patch-notes-friends-refinements.css?v=10592_revert_var_keep_disable_bounce">
+<link rel="stylesheet" href="/css/11-patch-notes-friends-refinements.css?v=10737_actor_page_shift_39">
 <link rel="stylesheet" href="/css/12-pwa-header-continuity.css?v=10592_revert_var_keep_disable_bounce">
-<link rel="stylesheet" href="/css/13-e2ee-activity-post.css?v=10592_revert_var_keep_disable_bounce">
-<link rel="stylesheet" href="/css/14-live-update-discover-controls.css?v=10592_revert_var_keep_disable_bounce">
+<link rel="stylesheet" href="/css/13-e2ee-activity-post.css?v=10723_mylist_cog_dm_shift_up_9">
+<link rel="stylesheet" href="/css/14-live-update-discover-controls.css?v=10640_ios_splash_slogan_type_position">
 <link rel="stylesheet" href="/css/15-universal-discovery-search.css?v=10592_revert_var_keep_disable_bounce">
-<link rel="stylesheet" href="/css/16-light-mode-contrast.css?v=10592_revert_var_keep_disable_bounce">
-<link rel="stylesheet" href="/css/17-auth-flow-setup.css?v=10594_content_inset_always">
-<link rel="stylesheet" href="/css/18-dm-instagram-rebuild.css?v=10592_revert_var_keep_disable_bounce">
+<link rel="stylesheet" href="/css/16-light-mode-contrast.css?v=10720_episodes_text_10px">
+<link rel="stylesheet" href="/css/17-auth-flow-setup.css?v=10723_mylist_cog_dm_shift_up_9">
+<link rel="stylesheet" href="/css/18-dm-instagram-rebuild.css?v=10753_dm_plus_menu_glass_motion">
 
-<meta name="screenlist-build-version" content="2026-05-22-v10.614_view_review_fixes">
-<script>window.SCREENLIST_BUILD_VERSION = "2026-05-22-v10.614_view_review_fixes"; window.SCREENLIST_DISPLAY_VERSION = "v10.614-May 22nd, 2026";</script>
+<meta name="screenlist-build-version" content="2026-05-25-v10.791_safe_area_bar_color_181c20">
+<script>window.SHELFD_SHARE_ORIGIN = "https://myshelfd.com"; window.SCREENLIST_BUILD_VERSION = "2026-05-25-v10.791_safe_area_bar_color_181c20"; window.SCREENLIST_DISPLAY_VERSION = "v10.791-May 25th, 2026";</script>
 <script>
-  /* v10.588: cleanup â€” removed dead window.continueWithoutSignIn
+  /* v10.588: cleanup — removed dead window.continueWithoutSignIn
      (button deleted v10.544), [data-landing-creator-action] (removed
      v10.541), and window.handleLandingTermsChange no-op (gate moved
      to Create Account v10.577). */
   var _eyeToggleLock = false;
 
   window.toggleShelfdPasswordVisibility = function() {
-    /* Debounce â€” ontouchstart + onclick both fire on iOS; skip the second */
+    /* Debounce — ontouchstart + onclick both fire on iOS; skip the second */
     if (_eyeToggleLock) { _eyeToggleLock = false; return; }
     _eyeToggleLock = true;
     setTimeout(function() { _eyeToggleLock = false; }, 300);
@@ -248,7 +252,7 @@
     input.type = isPassword ? 'text' : 'password';
     if (eyeShow) eyeShow.style.display = isPassword ? 'none' : '';
     if (eyeHide) eyeHide.style.display = isPassword ? '' : 'none';
-    /* Keep keyboard open â€” refocus the input */
+    /* Keep keyboard open — refocus the input */
     input.focus();
   };
 
@@ -297,7 +301,7 @@
         <svg width="14" height="18" viewBox="0 0 384 512" aria-hidden="true" style="flex-shrink:0" fill="currentColor"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
         Sign in with Apple
       </button>
-      <!-- Disclaimer for Google/Apple â€” implied consent on sign-in -->
+      <!-- Disclaimer for Google/Apple — implied consent on sign-in -->
       <p class="landing-social-disclaimer">By continuing, you agree to our <button type="button" class="landing-terms-link" onclick="openLoginTermsPage()">Terms of Service</button> and <button type="button" class="landing-terms-link" onclick="openLoginPrivacyPage()">Privacy Policy</button></p>
     </div>
     <!-- v835: PWA-safe inline sign-in form. Rendered directly in the
@@ -307,7 +311,7 @@
          the slide-up .shelfd-auth-page panels, locking users out. This
          inline form bypasses every hide/reveal mechanism so the keyboard
          is guaranteed to appear. -->
-    <form class="shelfd-landing-inline-signin" id="shelfd-landing-inline-signin" autocomplete="on" novalidate hidden onsubmit="return handleShelfdLandingInlineSignin(event)">
+    <form class="shelfd-landing-inline-signin" id="shelfd-landing-inline-signin" action="#" method="post" autocomplete="on" novalidate hidden onsubmit="return handleShelfdLandingInlineSignin(event)">
       <button class="shelfd-signin-back-btn" type="button" onclick="toggleShelfdLandingInlineSignin()" aria-label="Back">
         <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4.5 3.5 10 9 15.5"/><path d="M16.5 10H4"/></svg>
         Back
@@ -328,7 +332,7 @@
         <button class="shelfd-landing-inline-link" type="button" onclick="openShelfdResetPage()">Reset password</button>
       </div>
     </form>
-    <!-- Google sign-in removed per App Store guideline 4.8.0 â€”
+    <!-- Google sign-in removed per App Store guideline 4.8.0 —
          will be re-added alongside Sign in with Apple in a future
          build once the native SIWA implementation is complete. -->
     <!-- v758: email buttons disabled until email auth is fully tested. -->
@@ -462,7 +466,7 @@
       <div class="shelfd-auth-topbar-title">Sign in</div>
       <div class="shelfd-auth-topbar-spacer" aria-hidden="true"></div>
     </div>
-    <form class="shelfd-auth-form" id="shelfd-signin-form" autocomplete="on" novalidate>
+    <form class="shelfd-auth-form" id="shelfd-signin-form" action="#" method="post" autocomplete="on" novalidate>
       <div class="shelfd-auth-field">
         <label for="shelfd-signin-email">Email</label>
         <input type="email" id="shelfd-signin-email" name="email" autocomplete="email" required placeholder="you@example.com" inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false">
@@ -517,7 +521,7 @@
       <div class="shelfd-auth-topbar-title">Create account</div>
       <div class="shelfd-auth-topbar-spacer" aria-hidden="true"></div>
     </div>
-    <form class="shelfd-auth-form" id="shelfd-signup-form" autocomplete="on" novalidate>
+    <form class="shelfd-auth-form" id="shelfd-signup-form" action="#" method="post" autocomplete="on" novalidate>
       <!-- v816: username field removed from initial Create Account screen.
            Username is now collected AFTER Firebase email verification, in
            setup step 1, to keep Firestore work off the initial form. -->
@@ -546,7 +550,7 @@
         </div>
       </div>
       <div class="shelfd-auth-error" id="shelfd-signup-error" role="alert" hidden></div>
-      <!-- v10.577: Terms agreement â€” required before account creation -->
+      <!-- v10.577: Terms agreement — required before account creation -->
       <div class="shelfd-signup-terms-row">
         <label class="shelfd-signup-terms-label" for="shelfd-signup-terms-check">
           <input type="checkbox" id="shelfd-signup-terms-check" onchange="document.getElementById('shelfd-signup-submit').disabled=!this.checked">
@@ -666,6 +670,8 @@
           <div class="header-logo-block">
             <img class="site-logo-img" src="/shelfd_section_header_logo.png?v=769_landing_polish" alt="Shelfd" decoding="async" role="button" tabindex="0" title="Open Rating Guide" onclick="openRatingGuide()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRatingGuide();}">
             <img class="site-wordmark-img" src="/shelfd_header_wordmark.png?v=643_revert_old_icon_again" alt="Shelfd" decoding="async" role="button" tabindex="0" title="Open Rating Guide" onclick="openRatingGuide()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRatingGuide();}">
+            <!-- v10.755: page-specific title shown on Discover/Activity/Friends instead of Shelfd wordmark -->
+            <span id="main-header-page-title" class="main-header-page-title" style="display:none;" aria-live="polite"></span>
             <button id="mylist-header-cog" class="mylist-header-cog" type="button" onclick="openMyListSettingsModal(this)" aria-label="My List settings" title="My List settings">
               <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18" aria-hidden="true"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
             </button>
@@ -725,6 +731,11 @@
 <div id="shelfd-search-page" class="shelfd-search-page" aria-hidden="true">
   <div class="shelfd-search-page-inner">
 
+    <!-- v10.758: Page identity header -->
+    <div class="shelfd-search-page-header">
+      <span class="shelfd-search-page-title">+Add To Shelf</span>
+    </div>
+
     <!-- Sticky top bar: back ? search input ? clear -->
     <div class="shelfd-search-topbar">
       <button type="button" class="shelfd-search-back-btn" onclick="handleSearchBack()" aria-label="Back">
@@ -732,7 +743,7 @@
       </button>
       <div class="shelfd-search-input-wrap">
         <svg class="shelfd-search-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-        <input type="search" id="shelfd-search-input" class="shelfd-search-input" placeholder="Search movies, TV, anime, games" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
+        <input type="search" id="shelfd-search-input" class="shelfd-search-input" placeholder="Add any media to your library" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
         <button type="button" class="shelfd-search-clear-btn" id="shelfd-search-clear-btn" aria-label="Clear search" hidden>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
@@ -807,7 +818,7 @@
     <button class="profile-back-btn" type="button" onclick="closeImportPage()">? Back</button>
     <div>
       <div class="import-title">Import Library</div>
-      <div class="import-subtitle">Bring in Steam, Letterboxd, IMDb, MyAnimeList, and Backloggd-style lists without leaving Shelfd.</div>
+      <div class="import-subtitle">Bring in Apple Music, Steam, Letterboxd, IMDb, MyAnimeList, and Backloggd-style lists without leaving Shelfd.</div>
     </div>
   </div>
 
@@ -817,6 +828,15 @@
   </div>
 
   <div class="import-source-grid">
+    <button id="apple-music-import-card" class="import-source-card import-source-card-button apple-music-import-card" type="button" onclick="handleAppleMusicImportAction(event)">
+      <span class="import-source-heading">
+        <span class="import-source-logo apple-music-import-logo"><img src="/assets/import-icons/apple-music.png" alt=""></span>
+        <span class="import-source-name">Apple Music</span>
+      </span>
+      <span id="apple-music-import-copy" class="import-source-copy">Connect Apple Music for metadata, stats, and optional Music shelf import.</span>
+      <span id="apple-music-import-meta" class="import-source-meta">Connect only for metadata, or preview albums before importing.</span>
+      <span id="apple-music-import-action" class="import-source-action">Connect Apple Music</span>
+    </button>
     <button id="steam-import-card" class="import-source-card import-source-card-button" type="button" onclick="handleSteamImportAction(event)">
       <span class="import-source-heading">
         <span class="import-source-logo"><img src="/assets/import-icons/steam.png" alt=""></span>
@@ -1092,12 +1112,6 @@
 
 <div id="discover-view" style="display:none">
 <div class="container main-content">
-  <div class="discover-head">
-    <div>
-      <div class="discover-title">Discovery</div>
-      <div class="discover-subtitle">Browse TV shows and movies in clean, separate discovery tabs.</div>
-    </div>
-  </div>
   <div class="discover-hub-toggle" aria-label="Discovery category tabs">
     <button class="discover-hub-btn active" type="button" data-discovery-hub="tv" onclick="switchDiscoveryHub('tv')">Movies &amp; TV</button>
     <button class="discover-hub-btn" type="button" data-discovery-hub="anime" onclick="switchDiscoveryHub('anime')">Anime</button>
@@ -1205,12 +1219,6 @@
 
 <div id="anime-discover-view" style="display:none">
 <div class="container main-content">
-  <div class="discover-head">
-    <div>
-      <div class="discover-title">Discovery</div>
-      <div class="discover-subtitle">Animated series picks filtered toward Japan and Korea, with anime-style search and trending rows.</div>
-    </div>
-  </div>
   <div class="discover-hub-toggle" aria-label="Discovery category tabs">
     <button class="discover-hub-btn" type="button" data-discovery-hub="tv" onclick="switchDiscoveryHub('tv')">Movies &amp; TV</button>
     <button class="discover-hub-btn active" type="button" data-discovery-hub="anime" onclick="switchDiscoveryHub('anime')">Anime</button>
@@ -1295,12 +1303,6 @@
 
 <div id="games-discover-view" style="display:none">
 <div class="container main-content">
-  <div class="discover-head">
-    <div>
-      <div class="discover-title">Discovery</div>
-      <div class="discover-subtitle">Popular, trending, new release, anticipated, and hidden-gem game picks from multiple databases.</div>
-    </div>
-  </div>
   <div class="discover-hub-toggle" aria-label="Discovery category tabs">
     <button class="discover-hub-btn" type="button" data-discovery-hub="tv" onclick="switchDiscoveryHub('tv')">Movies &amp; TV</button>
     <button class="discover-hub-btn" type="button" data-discovery-hub="anime" onclick="switchDiscoveryHub('anime')">Anime</button>
@@ -1370,12 +1372,6 @@
 
 <div id="music-discover-view" style="display:none">
 <div class="container main-content">
-  <div class="discover-head">
-    <div>
-      <div class="discover-title">Discovery</div>
-      <div class="discover-subtitle">Weekly music discovery from Friday to Friday.</div>
-    </div>
-  </div>
   <div class="discover-hub-toggle" aria-label="Discovery category tabs">
     <button class="discover-hub-btn" type="button" data-discovery-hub="tv" onclick="switchDiscoveryHub('tv')">Movies &amp; TV</button>
     <button class="discover-hub-btn" type="button" data-discovery-hub="anime" onclick="switchDiscoveryHub('anime')">Anime</button>
@@ -1383,15 +1379,18 @@
     <button class="discover-hub-btn active" type="button" data-discovery-hub="music" onclick="switchDiscoveryHub('music')">Music</button>
   </div>
 
+  <!-- v10.700: removed `.discover-section-desc` from both music discovery headers
+       (Popular This Week + New This Week). The titles speak for themselves.
+       syncMusicDiscoverWeekLabels() in 11-discovery-media-games-profiles.js
+       still runs but is a safe no-op now (the `if (popular)` / `if (newest)`
+       guards skip when the elements are absent). -->
   <div class="discover-section">
     <div class="discover-section-top"><div class="discover-section-title">Popular This Week</div></div>
-    <div class="discover-section-desc" id="music-discover-popular-week-desc">Albums and singles with the strongest current listening signal this Friday-to-Friday week.</div>
     <div class="discover-grid music-discover-grid" id="discover-music-popular-week-grid"><div class="discover-message">Open Music Discovery to load popular music.</div></div>
   </div>
 
   <div class="discover-section">
     <div class="discover-section-top"><div class="discover-section-title">New This Week</div></div>
-    <div class="discover-section-desc" id="music-discover-new-week-desc">Albums and singles released during this Friday-to-Friday week.</div>
     <div class="discover-grid music-discover-grid" id="discover-music-new-week-grid"><div class="discover-message">Open Music Discovery to load new music.</div></div>
   </div>
 
@@ -1535,12 +1534,12 @@
         </div>
       </div>
       <div class="profile-topbar-actions">
-        <!-- v10.552: three-dot menu â€” only visible on other users' profiles
+        <!-- v10.552: three-dot menu — only visible on other users' profiles
              (.viewing-other-profile class toggled by renderProfilePage).
              Contains Report user + Block user. -->
         <div class="profile-more-wrap" id="profile-more-wrap">
           <button class="profile-more-btn" id="profile-more-btn" type="button" onclick="toggleProfileMoreMenu()" aria-label="More options">
-            <svg class="profile-topbar-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+            <svg class="profile-topbar-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
           </button>
           <div class="profile-more-menu" id="profile-more-menu" hidden>
             <button type="button" onclick="closeProfileMoreMenu(); reportViewingUser()">Report user</button>
@@ -1618,75 +1617,56 @@
         </div>
       </div>
 
-      <div class="profile-settings-card">
+      <!-- v10.765: USERNAME CARD. Click Edit to change. 14-day cooldown is
+           enforced both client-side (UX) AND server-side (Firestore rule
+           on users/{uid} write). On save: release old usernames/{old}
+           doc, claim new usernames/{new}, update user doc fields. -->
+      <div class="profile-settings-card profile-settings-card-floating">
         <div class="profile-settings-card-head">
-          <div class="profile-settings-card-title">Theme</div>
-          <div class="profile-settings-card-sub">Pick the look for your app and website.</div>
+          <div class="profile-settings-card-title">Username</div>
         </div>
-        <div class="profile-rating-option-list" role="radiogroup" aria-label="Theme mode">
-          <label class="profile-rating-option">
-            <!-- v813: "Default Theme" radio writes value="true-dark" ? that
-                 internal value adds body.true-dark-mode which produces the
-                 current Shelfd UI: charcoal #0E0E0E base, neutral-grey
-                 cards, lavender accents (correct_default_theme.png). The
-                 ID stays 'theme-mode-default' so the user-facing label
-                 and CSS query selectors match the user-facing concept. -->
-            <input type="radio" name="theme-mode" id="theme-mode-default" value="true-dark" onclick="handleThemeModeChange('true-dark')">
-            <span class="profile-rating-option-copy">
-              <strong>Default Theme</strong>
-              <small>Standard Shelfd look.</small>
-            </span>
-          </label>
-          <!-- v784: Light Mode + Cream Light hidden ? light-mode CSS is
-               currently dormant. The radio inputs stay in the DOM with the
-               same IDs so existing JS (handleThemeModeChange, applyThemeMode,
-               normalizeThemeMode) keeps working without changes. The labels
-               are hidden via the hidden attribute on the wrapping label, so
-               users cannot toggle into a half-supported light/cream theme. -->
-          <label class="profile-rating-option" hidden aria-hidden="true">
-            <input type="radio" name="theme-mode" id="theme-mode-light" value="light" tabindex="-1" onclick="handleThemeModeChange('light')">
-            <span class="profile-rating-option-copy">
-              <strong>Light Mode</strong>
-              <small>Bright background with light surfaces.</small>
-            </span>
-          </label>
-          <label class="profile-rating-option" hidden aria-hidden="true">
-            <input type="radio" name="theme-mode" id="theme-mode-cream" value="cream" tabindex="-1" onclick="handleThemeModeChange('cream')">
-            <span class="profile-rating-option-copy">
-              <strong>Cream Light</strong>
-              <small>Warm paper-white background with charcoal text and soft surfaces.</small>
-            </span>
-          </label>
+        <div class="profile-settings-handle-row" id="profile-settings-handle-row">
+          <span class="profile-settings-handle-display" id="profile-settings-handle-display">@—</span>
+          <button class="profile-settings-edit-btn" type="button" id="profile-settings-handle-edit-btn" onclick="openUsernameHandleEdit()">Edit</button>
+        </div>
+        <!-- v10.775: cooldown message — shown when user taps Edit during the 14-day lock -->
+        <div class="profile-settings-handle-locked-msg" id="profile-settings-handle-locked-msg" hidden></div>
+        <div class="profile-settings-handle-edit" id="profile-settings-handle-edit" hidden>
+          <div class="profile-settings-handle-input-wrap">
+            <span class="profile-settings-handle-prefix">@</span>
+            <input type="text" id="profile-settings-handle-input" maxlength="20" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="username">
+          </div>
+          <div class="profile-settings-handle-actions">
+            <button type="button" class="profile-settings-cancel-btn" onclick="cancelUsernameHandleEdit()">Cancel</button>
+            <button type="button" class="profile-settings-save-btn" id="profile-settings-handle-save-btn" onclick="saveUsernameHandleChange()">Save</button>
+          </div>
+          <div class="profile-settings-edit-error" id="profile-settings-handle-edit-error" hidden></div>
         </div>
       </div>
 
-      <div class="profile-settings-card">
+      <!-- v10.765: DISPLAY NAME CARD. Freely editable (no cooldown).
+           Writes to `name` + `customName` + `nameLower` on the user doc. -->
+      <div class="profile-settings-card profile-settings-card-floating">
         <div class="profile-settings-card-head">
-          <div class="profile-settings-card-title">Movies, TV Shows, Anime</div>
-          <div class="profile-settings-card-sub">One rating preference shared across all media tracking.</div>
+          <div class="profile-settings-card-title">Display Name</div>
         </div>
-        <div class="profile-rating-option-list" role="radiogroup" aria-label="Media rating style">
-          <label class="profile-rating-option">
-            <input type="radio" name="media-rating-style" id="rating-pref-media-ten" value="ten" onclick="handleRatingPreferenceChange('media','ten')">
-            <span class="profile-rating-option-copy">
-              <strong>Out of 10</strong>
-              <small>No half points</small>
-            </span>
-          </label>
-          <label class="profile-rating-option">
-            <input type="radio" name="media-rating-style" id="rating-pref-media-five" value="five" onclick="handleRatingPreferenceChange('media','five')">
-            <span class="profile-rating-option-copy">
-              <strong>Out of 5</strong>
-              <small>Half points allowed</small>
-            </span>
-          </label>
+        <div class="profile-settings-displayname-row" id="profile-settings-displayname-row">
+          <span class="profile-settings-displayname-display" id="profile-settings-displayname-display">—</span>
+          <button class="profile-settings-edit-btn" type="button" onclick="openDisplayNameEdit()">Edit</button>
+        </div>
+        <div class="profile-settings-displayname-edit" id="profile-settings-displayname-edit" hidden>
+          <input type="text" id="profile-settings-displayname-input" maxlength="50" placeholder="Your name">
+          <div class="profile-settings-handle-actions">
+            <button type="button" class="profile-settings-cancel-btn" onclick="cancelDisplayNameEdit()">Cancel</button>
+            <button type="button" class="profile-settings-save-btn" id="profile-settings-displayname-save-btn" onclick="saveDisplayNameChange()">Save</button>
+          </div>
+          <div class="profile-settings-edit-error" id="profile-settings-displayname-edit-error" hidden></div>
         </div>
       </div>
 
-      <div class="profile-settings-card">
+      <div class="profile-settings-card profile-settings-card-floating">
         <div class="profile-settings-card-head">
           <div class="profile-settings-card-title">Anime Title Display</div>
-          <div class="profile-settings-card-sub">Choose how anime titles appear across your library and anime profiles.</div>
         </div>
         <div class="profile-rating-option-list" role="radiogroup" aria-label="Anime title display">
           <label class="profile-rating-option">
@@ -1713,36 +1693,16 @@
         </div>
       </div>
 
-      <div class="profile-settings-card">
-        <div class="profile-settings-card-head">
-          <div class="profile-settings-card-title">Games</div>
-          <div class="profile-settings-card-sub">Set a separate rating style for game tracking.</div>
-        </div>
-        <div class="profile-rating-option-list" role="radiogroup" aria-label="Game rating style">
-          <label class="profile-rating-option">
-            <input type="radio" name="game-rating-style" id="rating-pref-games-ten" value="ten" onclick="handleRatingPreferenceChange('games','ten')">
-            <span class="profile-rating-option-copy">
-              <strong>Out of 10</strong>
-              <small>No half points</small>
-            </span>
-          </label>
-          <label class="profile-rating-option">
-            <input type="radio" name="game-rating-style" id="rating-pref-games-five" value="five" onclick="handleRatingPreferenceChange('games','five')">
-            <span class="profile-rating-option-copy">
-              <strong>Out of 5</strong>
-              <small>Half points allowed</small>
-            </span>
-          </label>
-        </div>
-      </div>
+      <!-- v10.765: removed Theme card, Movies/TV/Anime rating card, Games
+           rating card. Kept Anime Title Display + Account. Username +
+           Display Name moved to TOP of the page above Anime Title Display. -->
 
-      <!-- v10.543: Account danger zone â€” required by App Store guideline
+      <!-- v10.543: Account danger zone — required by App Store guideline
            5.1.1(v). One-tap permanent deletion of the user's Firestore
            profile doc + Firebase Auth account. -->
-      <div class="profile-settings-card profile-settings-danger-card">
+      <div class="profile-settings-card profile-settings-card-floating profile-settings-danger-card">
         <div class="profile-settings-card-head">
           <div class="profile-settings-card-title">Account</div>
-          <div class="profile-settings-card-sub">Permanently remove your account and all associated data.</div>
         </div>
         <button type="button" class="profile-delete-account-btn" onclick="openDeleteAccountModal()">
           Delete Account
@@ -1755,10 +1715,16 @@
 
 </div> <!-- end app-container -->
 
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+<!-- v10.695: Firebase 10.12.0 SDKs bundled locally instead of fetched from
+     gstatic.com on every cold start. Saves ~550 KB of parser-blocking
+     network on app launch — the single biggest cold-start win.
+     If you bump Firebase version, re-download all 4 files from
+     https://www.gstatic.com/firebasejs/<version>/firebase-<name>-compat.js
+     into /vendor/firebase/ and bump the ?v= cache-bust below. -->
+<script src="/vendor/firebase/firebase-app-compat.js?v=10695_firebase_bundled_local"></script>
+<script src="/vendor/firebase/firebase-firestore-compat.js?v=10695_firebase_bundled_local"></script>
+<script src="/vendor/firebase/firebase-auth-compat.js?v=10695_firebase_bundled_local"></script>
+<script src="/vendor/firebase/firebase-storage-compat.js?v=10695_firebase_bundled_local"></script>
 
 
 <script>
@@ -1836,47 +1802,49 @@
   <div id="feed-post-replies-composer" class="feed-post-floating-composer" style="display:none;">
     <div class="feed-reply-composer">
       <div class="feed-reply-avatar" id="feed-reply-avatar"></div>
-      <textarea id="feed-reply-input" class="feed-reply-input" placeholder="Post your reply" rows="1"></textarea>
+      <textarea id="feed-reply-input" class="feed-reply-input" placeholder="Wow great show!" rows="1" maxlength="21"></textarea>
       <button class="btn-primary" onclick="submitFeedReply()" id="feed-reply-btn" disabled>Reply</button>
     </div>
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-<script src="/js/00-live-update-pwa.js?v=10506_capacitor_cold_launch_splash"></script>
+<!-- v10.696: JSZip removed from cold-start path. Now lazy-loaded on first
+     .zip import pick by ensureShelfdJSZipLoaded() in 13-discover-add-imports.js. -->
+<script src="/js/00-live-update-pwa.js?v=10696_throttle_cold_boot_self_checks"></script>
 <script src="/js/01-firebase-login-state.js?v=10589_remove_savage_creative_tag"></script>
 <script src="/js/02-messages-e2ee.js?v=280-dm-plaintext-aptos-composer"></script>
 <script src="/js/03-watch-together.js?v=10387_watchlist_section_split"></script>
-<script src="/js/04-shared-utils-data.js?v=10509_five_star_default"></script>
+<script src="/js/04-shared-utils-data.js?v=10710_creator_compact_c_tooltip"></script>
 <script src="/js/20-imdb-ratings.js?v=1100_search_genre_imdb_year"></script>
 <script src="/js/21-discover-ranking.js?v=673_central_ranking_module"></script>
 <script src="/js/22-youtube-hype.js?v=10166_5sig_no_search_smarter_match"></script>
-<script src="/js/05-app-state-preview-routes.js?v=10548_universal_link_handler"></script>
+<script src="/js/05-app-state-preview-routes.js?v=10724_share_link_route_groups"></script>
 <script src="/js/23-trackergg-linking.js?v=10351_game_profile_draft_layout"></script>
-<script src="/js/06-mylists-render-episodes-ratings.js?v=10550_report_flag"></script>
-<script src="/js/07-add-shelf-import-search.js?v=10494_igdb_alt_names"></script>
+<script src="/js/06-mylists-render-episodes-ratings.js?v=10734_status_pill_under_title_completed_tabs"></script>
+<script src="/js/07-add-shelf-import-search.js?v=10643_ios_apple_music_connect_framework"></script>
 <script src="/js/08-discovery-state.js?v=10531_discovery_music_tab"></script>
-<script src="/js/09-direct-messages.js?v=10551_dm_inbox_back_btn"></script>
-<script src="/js/10-activity-feed.js?v=10614_full_review_label"></script>
+<script src="/js/09-direct-messages.js?v=10754_dm_swipe_inbox_reveal"></script>
+<script src="/js/09b-dm-inbox-cache.js?v=10761_dm_inbox_device_cache"></script>
+<script src="/js/10-activity-feed.js?v=10710_creator_compact_and_poster_match"></script>
 <script src="/js/20-jikan-anime.js?v=704_viewall_slide_profile_fix"></script>
-<script src="/js/11-discovery-media-games-profiles.js?v=10547_personalised_share_og"></script>
+<script src="/js/11-discovery-media-games-profiles.js?v=10741_dm_send_state_merge"></script>
 <script src="/js/12-patch-notes.js?v=420_activity_feed_inline_stack_expand_collapse"></script>
-<script src="/js/13-discover-add-imports.js?v=1080_games_identity_lock_fix"></script>
+<script src="/js/13-discover-add-imports.js?v=10696_lazy_jszip"></script>
 <script src="/js/14-navigation.js?v=10531_discovery_music_tab"></script>
-<script src="/js/15-profile-settings.js?v=10577_terms_save"></script>
+<script src="/js/15-profile-settings.js?v=10770_username_save_1mib_rescue"></script>
 <script src="/js/24-movie-rating-duel.js?v=10493_tier_drag_responsive"></script>
-<script src="/js/16-friends-requests.js?v=10387_watchlist_section_split"></script>
-<script src="/js/17-comments-auth-init.js?v=10341_album_details_actions"></script>
+<script src="/js/16-friends-requests.js?v=10741_dm_send_state_merge"></script>
+<script src="/js/17-comments-auth-init.js?v=10739_dm_listener_attach"></script>
 <script src="/js/18-search-page.js?v=10494_search_people_fuzzy_aliases_stopwords"></script>
 <script src="/js/19-gis-signin.js?v=907_landing_google_cleanup"></script>
 <script src="/js/19b-email-password-auth.js?v=752_email_auth_fullscreen_page"></script>
-<script src="/js/19c-auth-flow-setup.js?v=10577_terms_create_account"></script>
-<script src="/js/19d-apple-signin.js?v=10564_apple_logo_clean"></script>
-<script src="/js/19e-google-native-signin.js?v=10565_google_native_signin"></script>
-<script src="/js/22-favorite-people.js?v=730_fav_people_actors"></script>
+<script src="/js/19c-auth-flow-setup.js?v=10702_apple_signin_setup_gate"></script>
+<script src="/js/19d-apple-signin.js?v=10646_ios_native_auth_bridge_aliases"></script>
+<script src="/js/19e-google-native-signin.js?v=10646_ios_native_auth_bridge_aliases"></script>
+<script src="/js/22-favorite-people.js?v=10730_fav_person_no_revert"></script>
 <script src="/js/25-orientation-lock.js?v=10210_portrait_lock_surface_fix"></script>
-<script src="/js/26-music-album-profile.js?v=10418_go_to_shelf_popup"></script>
-<script src="/js/27-music-album-shelf-page.js?v=10542_remove_advanced_stats_pro"></script>
+<script src="/js/26-music-album-profile.js?v=10701_album_facts_reorder_genre_runtime_release"></script>
+<script src="/js/27-music-album-shelf-page.js?v=10726_myshelfd_share_domain"></script>
 <script src="/js/28-music-artist-profile.js?v=10246_artist_profile"></script>
 <script src="/js/29-favorite-artists.js?v=10258_artist_heart"></script>
 <script src="/js/30-add-password-provider.js?v=10279_auto_open_for_google_users"></script>
@@ -1910,7 +1878,7 @@
   } catch (e) {}
 </script>
 
-<!-- v10.409: Rating Guide overlay â€” slides down from the top when the
+<!-- v10.409: Rating Guide overlay — slides down from the top when the
      logo is tapped. Read-only reference page so users can see what each
      1-10 rating "weight" means. Back button top-left, share button
      top-right (system share sheet via navigator.share, which gives DMs /
@@ -1944,7 +1912,7 @@
 </div>
 <script>
 /* v10.409: Rating Guide rows + open/close/share handlers. Kept inline
-   so the overlay is fully self-contained â€” one place to read and edit. */
+   so the overlay is fully self-contained — one place to read and edit. */
 (function () {
   /* v10.539: updated to the app-wide 5-star half-step scale. Nine
      entries covering each whole and half value from 1 to 5. */
@@ -1964,13 +1932,13 @@
     var host = document.getElementById('rating-guide-list');
     if (!host) return;
     host.innerHTML = RATING_GUIDE_ENTRIES.map(function (entry) {
-      /* Full â˜… glyphs for each whole star; a dimmed â˜… for the half-
+      /* Full ★ glyphs for each whole star; a dimmed ★ for the half-
          star (styled via .rating-guide-half-star at 35% opacity). */
       var fullCount = Math.floor(entry.n);
       var hasHalf = (entry.n % 1) >= 0.4;
       var stars = '';
-      for (var i = 0; i < fullCount; i++) stars += 'â˜…';
-      if (hasHalf) stars += '<span class="rating-guide-half-star" aria-hidden="true">â˜…</span>';
+      for (var i = 0; i < fullCount; i++) stars += '★';
+      if (hasHalf) stars += '<span class="rating-guide-half-star" aria-hidden="true">★</span>';
       /* Display the numeric value as "1", "1.5", "2" etc. */
       var numDisplay = Number.isInteger(entry.n) ? String(entry.n) : entry.n.toFixed(1);
       return ''
@@ -2022,7 +1990,7 @@
   window.shareRatingGuide = async function () {
     var url = (window.location && window.location.origin) ? (window.location.origin + '/?rating-guide') : '';
     var shareData = {
-      title: 'Shelfd â€” Rating Guide',
+      title: 'Shelfd — Rating Guide',
       text: "Here's how I weigh ratings on Shelfd. My 5-star breakdown:",
       url: url
     };

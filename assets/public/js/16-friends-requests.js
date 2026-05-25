@@ -553,6 +553,52 @@ function commitFriendsDataState(prev = captureFriendsCommitSnapshot(), opts = {}
     }
   }
 
+  /* v10.762: BELT-AND-SUSPENDERS RE-RENDER on friends data arrival.
+     The targeted re-renders earlier in this function (community-active +
+     activeFriendsTab switch) miss two surfaces that go blank on cold start:
+     – Activity FEED sub-tab (only the watch-activity sub-tab was wired)
+     – Discover "What Your Friends Are Watching" row (refreshDiscoverFriendStacks
+       targets .discover-friend-stack pills, not the main grid)
+     Both depend on friends[] being populated. When the snapshot fires with
+     a CHANGED friends list and the user happens to be looking at one of
+     these surfaces, force a refresh so they don't have to swap tabs to
+     trigger the page-open render path.
+     Guarded by prevFriendsKey diff so steady-state snapshots (no change)
+     don't trigger redundant work. */
+  const friendsKeyChanged = prev.prevFriendsKey !== friends.slice().sort().join('|');
+  if (friendsKeyChanged) {
+    const communityActive = document.getElementById('nav-community')?.classList.contains('active');
+    if (communityActive && activeFriendsTab === 'activity' && activeActivitySubTab === 'feed' && typeof loadActivityTabFeed === 'function') {
+      try { loadActivityTabFeed(); } catch (e) { console.warn('[v10.762] activity feed refresh skipped:', e); }
+    }
+    const discoverActive = document.getElementById('nav-discover')?.classList.contains('active');
+    if (discoverActive) {
+      const friendsWatchingGrid = document.getElementById('discover-friends-watching-grid');
+      if (friendsWatchingGrid && typeof fetchFriendWatchingDiscoverTitles === 'function' && typeof renderFriendWatchingDiscoverCards === 'function') {
+        try {
+          Promise.resolve(fetchFriendWatchingDiscoverTitles(15))
+            .then(items => renderFriendWatchingDiscoverCards(items, 'discover-friends-watching-grid', { row: true }))
+            .catch(e => console.warn('[v10.762] discover friends-watching refresh failed:', e?.message || e));
+        } catch (e) { console.warn('[v10.762] discover friends-watching refresh sync throw:', e); }
+      }
+    }
+  }
+
+  /* v10.764: BULLETPROOF FRIENDS-GRID REFRESH.
+     Reports of "Friends page says 'No friends yet' on cold-tap until I
+     swap tabs" indicate the existing render trigger at line 531 — gated
+     by `nav-community.active` — can miss on cold start (timing race with
+     when the nav class lands). Belt-and-suspenders: if the friends-grid
+     element is in the DOM and visible (regardless of nav class state),
+     re-render it whenever the friends list changes. offsetParent !== null
+     is the cheapest "is this element actually visible" check in DOM land. */
+  if (friendsKeyChanged) {
+    const friendsGrid = document.getElementById('friends-grid');
+    if (friendsGrid && friendsGrid.offsetParent !== null && typeof renderFriendsList === 'function') {
+      try { renderFriendsList(); } catch (e) { console.warn('[v10.764] friends grid refresh skipped:', e); }
+    }
+  }
+
   if (!opts.skipSelfRepair) {
     maybeRepairOwnFriendDoc();
   }
@@ -591,7 +637,12 @@ function applyFriendsDataSnapshot(d = {}, opts = {}) {
 
   dmIncomingRequestMap = normalizeDirectMessageMap(d.directMessageIncomingRequestMap);
   dmOutgoingRequestMap = normalizeDirectMessageMap(d.directMessageOutgoingRequestMap);
-  dmThreadMap = normalizeDirectMessageMap(d.directMessageThreadMap);
+  const legacyDmThreadMap = normalizeDirectMessageMap(d.directMessageThreadMap);
+  if (typeof mergeDirectMessageThreadCollectionIntoState === 'function') {
+    mergeDirectMessageThreadCollectionIntoState(legacyDmThreadMap);
+  } else {
+    dmThreadMap = legacyDmThreadMap;
+  }
   dmIncomingRequestIds = [...new Set([
     ...normalizeDirectMessageIds(d.directMessageIncomingRequests),
     ...Object.keys(dmIncomingRequestMap)
@@ -620,6 +671,11 @@ function stopFriendsDataListener() {
   });
   friendDerivedQueryUnsubscribes = [];
   stopFriendActivityLiveListeners();
+  /* v10.739: also tear down the shared dmThreads listener on sign-out
+     so a stale listener doesn't keep firing under the wrong user. */
+  if (typeof stopDirectMessageSharedThreadsListener === 'function') {
+    try { stopDirectMessageSharedThreadsListener(); } catch (_) {}
+  }
   friendsDataLoadedOnce = false;
 }
 
@@ -728,8 +784,12 @@ function updateRequestsBadges() {
      watch-together requests, and DMs — likes/comments on the user's own
      posts (which produce `activity_like` / `activity_comment` notifications)
      went undetected by the bottom nav. Now the community icon shows the
-     red dot for any of these. */
-  const communityAlertTotal = requestTabTotal + directMessageTotal + activityNotificationTotal;
+     red dot for any of these.
+     v10.777: REMOVED directMessageTotal from the alert total. DMs now
+     ONLY surface on the top-right DM icon (via updateDirectMessagesBadge
+     below). Pinging the community/activity area for an incoming DM was
+     misleading — DMs aren't activity events and shouldn't show up there. */
+  const communityAlertTotal = requestTabTotal + activityNotificationTotal;
   const requestsTab = document.getElementById('ftab-requests');
 
   if (tabBadge) {
@@ -749,7 +809,9 @@ function updateRequestsBadges() {
   }
 
   if (activityDot) {
-    activityDot.style.display = (friendActivityUnread || sharedWatchIncomingTotal > 0 || directMessageTotal > 0 || activityNotificationTotal > 0) ? 'inline-block' : 'none';
+    /* v10.777: directMessageTotal removed from the activity-tab dot too —
+       DMs surface on the DM icon only, not on the Activity tab indicator. */
+    activityDot.style.display = (friendActivityUnread || sharedWatchIncomingTotal > 0 || activityNotificationTotal > 0) ? 'inline-block' : 'none';
   }
 
   updateRequestSubtabBadges();
@@ -921,12 +983,31 @@ function switchFriendsTab(tab) {
   if (tab === 'friends') {
     resetInlineFriendSearch();
     runFriendsTabWorkWhenSmooth(() => { if (activeFriendsTab === 'friends') renderFriendsList(); });
+    /* v10.764: COLD-TAP FRIENDS RESCUE. If the user opens Friends before
+       the realtime listener's first snapshot has populated friends[],
+       kick off a direct .get() so the page populates without needing
+       a tab-swap-and-back. loadFriendsData() is no-op when
+       friendsDataLoadedOnce is already true, so this is free in
+       steady state. With Firestore persistence (v10.762), the .get()
+       hits the IndexedDB cache and returns ~instantly. */
+    if (typeof friendsDataLoadedOnce !== 'undefined'
+        && !friendsDataLoadedOnce
+        && currentUser
+        && typeof loadFriendsData === 'function') {
+      try {
+        Promise.resolve(loadFriendsData()).catch(e => console.warn('[v10.764] friends tab rescue load failed:', e?.message || e));
+      } catch (e) { console.warn('[v10.764] friends tab rescue sync throw:', e); }
+    }
   }
   if (tab === 'requests') runFriendsTabWorkWhenSmooth(() => { if (activeFriendsTab === 'requests') renderRequestsList(); });
   if (tab === 'add-friend') {
     runFriendsTabWorkWhenSmooth(() => {
       if (activeFriendsTab === 'add-friend') openAddFriendDefault();
     });
+  }
+  /* v10.755: keep page title in header in sync with sub-tab changes */
+  if (typeof window.updateMainHeaderPageTitle === 'function') {
+    window.updateMainHeaderPageTitle();
   }
   persistUiState();
 }
@@ -1020,6 +1101,59 @@ function refreshActivityTab() {
 function buildSkeletonHTML() {
   const skeletons = Array.from({ length: 4 }, () => `<div class="activity-skeleton-card"></div>`).join('');
   return `${buildActivityFeedHeaderHTML('Activity Feed', { showRefresh: false })}<div class="activity-feed-list" style="gap:10px">${skeletons}</div>`;
+}
+
+function escActivityFeedFallbackText(value = '') {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function getActivityFeedFallbackVerb(activity = {}) {
+  const eventType = activity.type === 'comment' ? 'commented on' : (activity.eventType || activity.stackEventType || 'updated');
+  if (eventType === 'rated') return 'Rated';
+  if (eventType === 'completed' || eventType === 'season-finished') return 'Finished';
+  if (eventType === 'episode-watched') return 'Watched';
+  if (eventType === 'episode-rated' || eventType === 'season-rated') return 'Rated';
+  if (eventType === 'started') return 'Started';
+  if (eventType === 'planned' || eventType === 'added') return 'Added';
+  if (eventType === 'status-changed') return 'Updated';
+  if (eventType === 'review' || activity.type === 'media-review') return 'Wrote a Review';
+  return String(eventType || 'Updated').replace(/-/g, ' ');
+}
+
+function renderActivityFeedFallbackItems(feed, activities = [], options = {}) {
+  if (!feed) return;
+  const source = Array.isArray(activities) ? activities : [];
+  const header = typeof buildActivityFeedHeaderHTML === 'function'
+    ? buildActivityFeedHeaderHTML(options.heading || 'Activity Feed', { showSharedWatch: !options.hideSharedWatchPill, showRefresh: !options.hideRefresh, hideHeading: !!options.hideHeading })
+    : '<div class="activity-feed-header"><span class="activity-feed-heading">Activity Feed</span></div>';
+  if (!source.length) {
+    feed.innerHTML = `${header}<div class="activity-feed-empty"><strong>Nothing here yet</strong>Add friends or add titles to your list to see activity.</div>`;
+    return;
+  }
+  const cards = source.slice(0, 60).map(activity => {
+    const item = activity.item || {};
+    const name = activity.name || usersMap?.[activity.uid]?.name || (activity.uid === currentUser?.uid ? 'You' : 'Friend');
+    const title = item.title || item.name || activity.title || 'this title';
+    const verb = getActivityFeedFallbackVerb(activity);
+    const timestamp = activity.timestamp || item.dateAdded || item.dateModified || '';
+    const timeLabel = timestamp ? new Date(timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
+    return `<article class="activity-card shelfd-social-card activity-card-fallback">
+      <div class="activity-content-col">
+        <div class="activity-card-time">${escActivityFeedFallbackText(timeLabel)}</div>
+        <div class="sl-activity-action-line sl-activity-action-line-composed">
+          <span class="sl-activity-composed-prefix">${escActivityFeedFallbackText(verb)} </span>
+          <span class="sl-activity-composed-title">${escActivityFeedFallbackText(title)}</span>
+        </div>
+        <div class="activity-card-bottom"><span class="activity-card-name">${escActivityFeedFallbackText(name)}</span></div>
+      </div>
+    </article>`;
+  }).join('');
+  feed.innerHTML = `${header}<div class="activity-feed-list">${cards}</div>`;
 }
 
 function getSharedWatchActivityTotal() {
@@ -1362,36 +1496,53 @@ async function renderSharedWatchActivity(skipHydrate = false) {
 async function loadActivityTabFeed() {
   const feed = document.getElementById('friend-activity-feed');
   if (!feed) return;
-  if (isPreviewMode()) {
-    renderPreviewFriendActivity();
-    return;
-  }
-  if (typeof isShelfdGuestBrowsing === 'function' && isShelfdGuestBrowsing()) {
-    feed.innerHTML = buildSkeletonHTML();
-    if (typeof hydrateShelfdGuestCreatorFriend === 'function') {
-      await hydrateShelfdGuestCreatorFriend();
+  try {
+    if (isPreviewMode()) {
+      renderPreviewFriendActivity();
+      return;
     }
+    if (typeof isShelfdGuestBrowsing === 'function' && isShelfdGuestBrowsing()) {
+      feed.innerHTML = buildSkeletonHTML();
+      if (typeof hydrateShelfdGuestCreatorFriend === 'function') {
+        await hydrateShelfdGuestCreatorFriend();
+      }
+      const dayLimit = (typeof getFriendActivityDayLimit === 'function') ? getFriendActivityDayLimit() : 7;
+      const activities = await fetchAllFriendActivities(dayLimit);
+      if (!activities.length) {
+        feed.innerHTML = `${buildActivityFeedHeaderHTML('Activity Feed', { showRefresh: false })}<div class="activity-feed-empty"><strong>No creator activity yet</strong></div>`;
+        return;
+      }
+      renderFriendActivityItems(feed, activities, { showLoadMore: true });
+      return;
+    }
+    if (!currentUser) {
+      feed.innerHTML = `${buildActivityFeedHeaderHTML('Activity Feed', { showRefresh: false })}<div class="activity-feed-empty"><strong>Sign in to see activity</strong></div>`;
+      return;
+    }
+    feed.innerHTML = buildSkeletonHTML();
     const dayLimit = (typeof getFriendActivityDayLimit === 'function') ? getFriendActivityDayLimit() : 7;
     const activities = await fetchAllFriendActivities(dayLimit);
-    if (!activities.length) {
-      feed.innerHTML = `${buildActivityFeedHeaderHTML('Activity Feed', { showRefresh: false })}<div class="activity-feed-empty"><strong>No creator activity yet</strong></div>`;
+    const friendCount = Array.isArray(friends) ? friends.length : 0;
+    if (!activities.length && !friendCount) {
+      feed.innerHTML = `${buildActivityFeedHeaderHTML('Activity Feed', { showRefresh: false })}<div class="activity-feed-empty"><strong>Nothing here yet</strong>Add friends or add titles to your list to see activity.</div>`;
       return;
     }
     renderFriendActivityItems(feed, activities, { showLoadMore: true });
+  } catch (error) {
+    window.__shelfdLastActivityFeedError = {
+      phase: 'load',
+      message: error?.message || String(error || ''),
+      stack: error?.stack || '',
+      at: new Date().toISOString()
+    };
+    console.error('Activity feed load failed:', error);
+    const header = typeof buildActivityFeedHeaderHTML === 'function'
+      ? buildActivityFeedHeaderHTML('Activity Feed', { showRefresh: false })
+      : '<div class="activity-feed-header"><span class="activity-feed-heading">Activity Feed</span></div>';
+    const diagnostic = escActivityFeedFallbackText(error?.message || String(error || 'unknown error')).slice(0, 120);
+    feed.innerHTML = `${header}<div class="activity-feed-empty"><strong>Activity is still syncing</strong>Close and reopen the app. If this stays here, send this code: ${diagnostic}</div>`;
     return;
   }
-  if (!currentUser) {
-    feed.innerHTML = `${buildActivityFeedHeaderHTML('Activity Feed', { showRefresh: false })}<div class="activity-feed-empty"><strong>Sign in to see activity</strong></div>`;
-    return;
-  }
-  feed.innerHTML = buildSkeletonHTML();
-  const dayLimit = (typeof getFriendActivityDayLimit === 'function') ? getFriendActivityDayLimit() : 7;
-  const activities = await fetchAllFriendActivities(dayLimit);
-  if (!activities.length && !friends.length) {
-    feed.innerHTML = `${buildActivityFeedHeaderHTML('Activity Feed', { showRefresh: false })}<div class="activity-feed-empty"><strong>Nothing here yet</strong>Add friends or add titles to your list to see activity.</div>`;
-    return;
-  }
-  renderFriendActivityItems(feed, activities, { showLoadMore: true });
 }
 
 async function buildFriendRequestCards(uids = [], type = 'incoming') {
@@ -1744,9 +1895,15 @@ async function renderFriendsList() {
 }
 
 /* v10.222: live search filter for the IG-style friends list. Toggles
-   display:none on rows whose handle/name don't match — no full re-render. */
+   display:none on rows whose handle/name don't match — no full re-render.
+   v10.763: query strips a leading '@' so typing "@johndoe" matches the
+   same as "johndoe" — what every other social app does. The data-friend-filter
+   on each row already includes handle, displayName, AND name fields
+   (see buildFriendsListHtml), so searching by either the account name or
+   the username works. */
 window.filterShelfdFriendsList = function(value = '') {
-  const q = String(value || '').trim().toLowerCase();
+  const raw = String(value || '').trim();
+  const q = raw.replace(/^@+/, '').toLowerCase();
   const rows = document.querySelectorAll('[data-shelfd-friends-list] .shelfd-friend-row');
   rows.forEach(row => {
     if (!q) { row.style.display = ''; return; }
@@ -1797,6 +1954,8 @@ window.handleFriendsCategoryOpen = function(key) {
 
 let peopleSearchGridOverrideId = '';
 const FRIEND_HOME_ENTER_TRANSITION_MS = 600;
+const FRIEND_PROFILE_LIST_ENTER_TRANSITION_MS = 450;
+const FRIEND_PROFILE_LIST_ENTER_FPS = 120;
 let friendHomeTransitionTimer = 0;
 let friendHomeExitPromise = null;
 let friendHomeExitToken = 0;
@@ -1837,6 +1996,12 @@ function normalizeCommunityReturnState(state = null) {
 function clearFriendHomeChrome() {
   document.body.classList.remove('viewing-other-user');
   syncViewingUserHeaderBackButton(false);
+  /* v10.763: restore the header to the per-tab default (logo or page title)
+     now that we're no longer viewing a friend's list. The function reads
+     the body class so call AFTER the remove above. */
+  if (typeof window.updateMainHeaderPageTitle === 'function') {
+    try { window.updateMainHeaderPageTitle(); } catch (e) { /* non-fatal */ }
+  }
   const addBtn = document.getElementById('add-btn');
   const bannerArea = document.getElementById('viewing-banner-area');
   if (addBtn) addBtn.style.display = '';
@@ -2550,7 +2715,7 @@ async function removeFriend(uid) {
 }
 
 // View another user's list — only allowed if mutually friends
-async function viewUserList(uid, name, photo) {
+async function viewUserList(uid, name, photo, options = {}) {
   if (isPreviewMode()) {
     openPreviewCommunityProfile(uid);
     return;
@@ -2616,20 +2781,40 @@ async function viewUserList(uid, name, photo) {
   // Add class to body for viewing user styling
   document.body.classList.add('viewing-other-user');
   syncViewingUserHeaderBackButton(true);
-  
+  /* v10.763: refresh the top-of-screen header so it shows this friend's
+     display name in place of the Shelfd logo. The avatar banner below
+     now carries their @username instead. */
+  if (typeof window.updateMainHeaderPageTitle === 'function') {
+    try { window.updateMainHeaderPageTitle(); } catch (e) { /* non-fatal */ }
+  }
+
   const communityView = document.getElementById('community-view');
   const myListView = document.getElementById('mylist-view');
   const myListHeader = document.getElementById('mylist-header');
   const addBtn = document.getElementById('add-btn');
   const bannerArea = document.getElementById('viewing-banner-area');
+  const isBlockedUser = typeof window.isShelfdUserBlocked === 'function'
+    ? window.isShelfdUserBlocked(uid)
+    : !!(window.shelfdBlockedUids && window.shelfdBlockedUids.has(String(uid)));
+  /* v10.763: extract this friend's @username for display under the avatar.
+     Prefer the explicit handle/username fields; fall back to '' (don't
+     show a generic placeholder). Matches the priority used by the
+     friends-list row in buildFriendsListHtml(). */
+  const friendHandle = String(
+    sourceUser.userHandle
+    || sourceUser.handle
+    || sourceUser.username
+    || ''
+  ).trim();
   if (myListView) myListView.style.display = 'block';
   if (myListHeader) myListHeader.style.display = 'block';
   if (addBtn) addBtn.style.display = 'none';
   if (bannerArea) bannerArea.innerHTML = `<div class="viewing-banner friend-list-viewing-banner">
     <div class="viewing-user-profile-center">
       <img src="${photo || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(name) + '&background=1e2028&color=60a5fa'}" class="viewing-user-avatar" alt="">
-      <div class="viewing-user-name">${renderDisplayNameHTML(sourceUser, 'Friend', 'creator-name-soft')}</div>
+      ${friendHandle ? `<div class="viewing-user-handle">@${escHtml(friendHandle)}</div>` : ''}
     </div>
+    <div class="blocked-user-notice friend-list-blocked-notice" style="${isBlockedUser ? '' : 'display:none;'}">You blocked this user.</div>
     <div class="viewing-banner-divider" aria-hidden="true"></div>
     <div class="viewing-banner-actions">
       <button class="back-btn profile-view-btn" onclick="openUserProfile('${uid}')">View Profile</button>
@@ -2642,7 +2827,7 @@ async function viewUserList(uid, name, photo) {
   activeSection = initialView.section;
   activeTab = normalizeVisibleMyListStatusTab(initialView.tab, activeSection);
   render();
-  startFriendHomeEnterTransition();
+  await startFriendHomeEnterTransition(options);
   persistUiState();
   if (loadFailed) {
     const grid = document.getElementById('cards-grid');
@@ -2651,6 +2836,15 @@ async function viewUserList(uid, name, photo) {
     if (grid) grid.innerHTML = '<div class="app-error" style="grid-column:1/-1;">This list could not load. Try again in a moment.</div>';
   }
 }
+
+window.updateViewingUserBlockedNotice = function() {
+  const notice = document.querySelector('.friend-list-blocked-notice');
+  if (!notice || !viewingUser?.uid) return;
+  const blocked = typeof window.isShelfdUserBlocked === 'function'
+    ? window.isShelfdUserBlocked(viewingUser.uid)
+    : !!(window.shelfdBlockedUids && window.shelfdBlockedUids.has(String(viewingUser.uid)));
+  notice.style.display = blocked ? '' : 'none';
+};
 
 async function backToMyList(targetTab = null) {
   if (friendHomeExitPromise) return friendHomeExitPromise;
@@ -2671,6 +2865,10 @@ async function backToMyList(targetTab = null) {
       profileViewingData = null;
       document.body.classList.remove('viewing-other-user', 'landing-public-lists', 'profile-active', 'guest-creator-lists');
       syncViewingUserHeaderBackButton(false);
+      /* v10.763: revert header from friend-name back to default after leaving. */
+      if (typeof window.updateMainHeaderPageTitle === 'function') {
+        try { window.updateMainHeaderPageTitle(); } catch (e) { /* non-fatal */ }
+      }
       const addBtn = document.getElementById('add-btn');
       const bannerArea = document.getElementById('viewing-banner-area');
       if (addBtn) addBtn.style.display = '';
@@ -2703,6 +2901,10 @@ async function backToMyList(targetTab = null) {
       profileViewingData = null;
       document.body.classList.remove('viewing-other-user', 'landing-public-lists', 'profile-active');
       syncViewingUserHeaderBackButton(false);
+      /* v10.763: revert header from friend-name back to default after leaving. */
+      if (typeof window.updateMainHeaderPageTitle === 'function') {
+        try { window.updateMainHeaderPageTitle(); } catch (e) { /* non-fatal */ }
+      }
       showLandingPage();
       return;
     }
@@ -2800,22 +3002,120 @@ function shouldAnimateFriendHomeEnterTransition() {
   return true;
 }
 
+function easeFriendProfileListEnter(t) {
+  const clamped = Math.max(0, Math.min(1, Number(t) || 0));
+  return 1 - Math.pow(1 - clamped, 4);
+}
+
 function resetFriendHomeEnterTransition() {
   window.clearTimeout(friendHomeTransitionTimer);
   friendHomeTransitionTimer = 0;
   document.body.classList.remove('friend-home-transitioning');
   const myListView = document.getElementById('mylist-view');
-  if (myListView) myListView.classList.remove('friend-home-enter-active');
+  if (myListView) {
+    myListView.classList.remove('friend-home-enter-active');
+    myListView.style.position = '';
+    myListView.style.inset = '';
+    myListView.style.zIndex = '';
+    myListView.style.overflowY = '';
+    myListView.style.background = '';
+    myListView.style.transform = '';
+    myListView.style.opacity = '';
+    myListView.style.willChange = '';
+    myListView.style.pointerEvents = '';
+    myListView.style.contain = '';
+    myListView.style.backfaceVisibility = '';
+    myListView.style.transition = '';
+  }
 }
 
-function startFriendHomeEnterTransition() {
+function startFriendProfileListEnterTransition() {
+  const profilePage = document.getElementById('profile-page');
+  const myListView = document.getElementById('mylist-view');
+  if (!myListView || !profilePage || !shouldAnimateFriendHomeEnterTransition()) {
+    syncMainNavButtons('mylist');
+    setMainNavVisibility('mylist');
+    document.body.classList.remove('profile-active');
+    setBottomNavVisibility(true);
+    if (profilePage) {
+      profilePage.classList.remove('profile-page-open', 'profile-page-closing');
+      profilePage.style.display = 'none';
+    }
+    return Promise.resolve();
+  }
+
+  window.clearTimeout(friendHomeTransitionTimer);
+  friendHomeTransitionTimer = 0;
+  document.body.classList.remove('friend-home-transitioning');
+  myListView.classList.remove('friend-home-enter-active');
+  myListView.style.display = 'block';
+  myListView.style.position = 'fixed';
+  myListView.style.inset = '0';
+  myListView.style.zIndex = '2400';
+  myListView.style.overflowY = 'auto';
+  myListView.style.background = '#0E0E0E';
+  myListView.style.opacity = '1';
+  myListView.style.willChange = 'transform';
+  myListView.style.pointerEvents = 'none';
+  myListView.style.contain = 'paint';
+  myListView.style.backfaceVisibility = 'hidden';
+  myListView.style.transition = 'none';
+  myListView.style.transform = 'translate3d(-100%, 0, 0)';
+
+  return new Promise(resolve => {
+    const duration = FRIEND_PROFILE_LIST_ENTER_TRANSITION_MS;
+    const frameMs = 1000 / FRIEND_PROFILE_LIST_ENTER_FPS;
+    const start = performance.now();
+    let lastFrame = -1;
+    const finish = () => {
+      myListView.style.transform = '';
+      myListView.style.position = '';
+      myListView.style.inset = '';
+      myListView.style.zIndex = '';
+      myListView.style.overflowY = '';
+      myListView.style.background = '';
+      myListView.style.opacity = '';
+      myListView.style.willChange = '';
+      myListView.style.pointerEvents = '';
+      myListView.style.contain = '';
+      myListView.style.backfaceVisibility = '';
+      myListView.style.transition = '';
+      profilePage.classList.remove('profile-page-open', 'profile-page-closing');
+      profilePage.style.display = 'none';
+      syncMainNavButtons('mylist');
+      setMainNavVisibility('mylist');
+      document.body.classList.remove('profile-active');
+      setBottomNavVisibility(true);
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      resolve();
+    };
+    function tick(now) {
+      const elapsed = Math.min(duration, Math.max(0, now - start));
+      const frame = Math.floor(elapsed / frameMs);
+      if (frame !== lastFrame) {
+        lastFrame = frame;
+        const eased = easeFriendProfileListEnter(elapsed / duration);
+        const x = -100 + (100 * eased);
+        myListView.style.transform = `translate3d(${x.toFixed(3)}%, 0, 0)`;
+      }
+      if (elapsed < duration) requestAnimationFrame(tick);
+      else finish();
+    }
+    requestAnimationFrame(tick);
+  });
+}
+
+function startFriendHomeEnterTransition(options = {}) {
+  if (options?.transitionOrigin === 'profile-left') {
+    return startFriendProfileListEnterTransition();
+  }
   const communityView = document.getElementById('community-view');
   const myListView = document.getElementById('mylist-view');
-  if (!communityView || !myListView) return;
+  if (!communityView || !myListView) return Promise.resolve();
   resetFriendHomeEnterTransition();
   if (!shouldAnimateFriendHomeEnterTransition()) {
     communityView.style.display = 'none';
-    return;
+    return Promise.resolve();
   }
   communityView.style.display = 'block';
   document.body.classList.add('friend-home-transitioning');
@@ -2828,4 +3128,5 @@ function startFriendHomeEnterTransition() {
     communityView.style.display = 'none';
     resetFriendHomeEnterTransition();
   }, FRIEND_HOME_ENTER_TRANSITION_MS + 60);
+  return Promise.resolve();
 }

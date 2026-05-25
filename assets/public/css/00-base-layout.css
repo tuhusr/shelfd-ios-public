@@ -24,13 +24,17 @@
     /* v482: furthest-back page background changed to #0E0E0E (neutral grey).
        Cards and panels retain their own darker surfaces so they float on
        this grey base. Light mode overrides this via body.light-mode in
-       16-light-mode-contrast.css. */
-    background: #0E0E0E;
+       16-light-mode-contrast.css.
+       v10.791: bumped to #181c20 so the iOS safe-area-top (Dynamic Island /
+       notch zone) and safe-area-bottom (home indicator zone) — which show
+       through whatever <html>/<body> paint underneath the overlay-mode
+       Capacitor WebView — match the search page surface color. */
+    background: #181c20;
     font-family: 'Sohne', 'DM Sans', sans-serif;
     color: #e8e3f3;
     overflow-anchor: none;
   }
-  html { background: #0E0E0E; }
+  html { background: #181c20; } /* v10.791: matches body — safe-area bars */
   /* v10.210: stronger mobile portrait presentation lock.
      The manifest/native Screen Orientation API are hints on iOS, not a hard
      guarantee. The old fallback transformed <body>, which let fixed top-level

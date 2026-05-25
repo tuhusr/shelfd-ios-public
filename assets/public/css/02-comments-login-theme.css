@@ -188,6 +188,70 @@
   .user-badged-name-wrap {
     vertical-align: baseline;
   }
+  /* v10.710: compact creator badge — circular "C" with tap-to-reveal tooltip.
+     Opted into via { compactCreatorBadge: true } passed to renderDisplayNameHTML
+     from activity-feed call sites. Saves horizontal space on Base-class
+     iPhones where the full "(Creator)" pill was truncating usernames. */
+  .creator-role-compact {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    padding: 0;
+    border-radius: 999px;
+    background: rgba(127, 29, 29, 0.32);
+    border: 1px solid rgba(248, 113, 113, 0.42);
+    color: #f87171;
+    font: 700 9.5px/1 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: 0;
+    text-transform: uppercase;
+    text-shadow: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 160ms cubic-bezier(.22, 1, .36, 1), background 160ms ease;
+    flex-shrink: 0;
+  }
+  .creator-role-compact:active {
+    transform: scale(0.92);
+    background: rgba(127, 29, 29, 0.5);
+  }
+  .creator-role-tooltip {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translate(-50%, 4px);
+    background: #17171b;
+    color: #f87171;
+    border: 1px solid rgba(248, 113, 113, 0.35);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font: 600 11px/1 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: 0.04em;
+    text-transform: none;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 180ms ease, transform 220ms cubic-bezier(.22, 1, .36, 1);
+    z-index: 100;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
+  }
+  .creator-role-tooltip.creator-role-tooltip-visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  /* Small arrow at the bottom-center of the tooltip pointing at the C. */
+  .creator-role-tooltip::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 4px solid transparent;
+    border-top-color: #17171b;
+  }
   .creative-team-role,
   .creative-team-profile-label {
     display: inline-flex;
@@ -302,6 +366,28 @@
   }
   #signout-modal {
     z-index: 2800;
+  }
+  #block-user-modal {
+    z-index: 2147483647 !important;
+  }
+  #block-user-modal .modal {
+    transform: translateY(0);
+    transition: transform 0.18s ease, opacity 0.18s ease;
+  }
+  #block-user-modal.is-success .modal {
+    border-color: rgba(34,197,94,0.45);
+  }
+  .blocked-user-notice {
+    width: 100%;
+    margin: 10px 0 2px;
+    padding: 10px 12px;
+    border: 1px solid rgba(248,113,113,0.28);
+    border-radius: 8px;
+    background: rgba(127,29,29,0.24);
+    color: rgba(255,255,255,0.86);
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
   }
   .modal h3 { margin-bottom: 20px; font-size: 18px; color: #e8e3f3; }
   .modal-fields { display: flex; flex-direction: column; gap: 14px; }

@@ -5181,11 +5181,12 @@ function getShareableMediaKind(type = 'movie', details = {}) {
 function buildMediaProfileShareUrl(kind = 'movie', id = '') {
   const safeKind = ['movie', 'tv', 'anime', 'game'].includes(String(kind)) ? String(kind) : 'movie';
   const safeId = encodeURIComponent(String(id || '').trim());
-  return `${window.location.origin}/media/${safeKind}/${safeId}`;
+  const shareOrigin = window.SHELFD_SHARE_ORIGIN || 'https://myshelfd.com';
+  return `${shareOrigin}/media/${safeKind}/${safeId}`;
 }
 
 function getMediaProfileShareIconSvg() {
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.4 10.8 15.6 6M8.4 13.2l7.2 4.8"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="5" r="2.6"/><circle cx="18" cy="19" r="2.6"/></svg>`;
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 2v13"/><path d="m16 6-4-4-4 4"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/></svg>`;
 }
 
 function getMediaProfileSharePayload(kind = 'movie', id = '', title = '', poster = '') {
@@ -5226,7 +5227,11 @@ function closeMediaProfileShareMenu() {
   const overlay = document.getElementById('media-profile-share-menu');
   if (!overlay) return;
   overlay.classList.remove('open');
-  window.setTimeout(() => overlay.remove(), 180);
+  /* v10.726: bumped 180ms → 420ms so the overlay element isn't removed
+     mid-slide. The new modal slides DOWN to translateY(100vh) over 400ms
+     when `.open` is removed (see media-share-sheet transition in CSS),
+     so we keep the DOM element alive until the slide finishes. */
+  window.setTimeout(() => overlay.remove(), 420);
 }
 
 function openMediaProfileShareMenu(event, kind = 'movie', id = '', title = '', poster = '') {
@@ -5250,8 +5255,8 @@ function openMediaProfileShareMenu(event, kind = 'movie', id = '', title = '', p
         <div><span>Share</span><strong>${escHtml(payload.title)}</strong></div>
         <button type="button" class="media-share-close" onclick="closeMediaProfileShareMenu()" aria-label="Close">×</button>
       </div>
-      <button type="button" class="media-share-choice" onclick="openScreenListShareFlow()"><span>Share in ScreenList</span><em>${currentUser ? 'Send to a friend or message thread' : 'Sign in required'}</em></button>
-      <button type="button" class="media-share-choice" onclick="shareMediaProfileAnywhere()"><span>Share Anywhere</span><em>Text, copy link, or share outside ScreenList</em></button>
+      <button type="button" class="media-share-choice" onclick="openScreenListShareFlow()"><span>Share in Shelfd</span><em>${currentUser ? 'Send to a friend or message thread' : 'Sign in required'}</em></button>
+      <button type="button" class="media-share-choice" onclick="shareMediaProfileAnywhere()"><span>Share Anywhere</span><em>Text, copy link, or share outside Shelfd</em></button>
       <div id="media-share-screenlist-panel" class="media-share-screenlist-panel" hidden></div>
     </div>`;
   overlay.addEventListener('click', e => { if (e.target === overlay) closeMediaProfileShareMenu(); });
@@ -5269,17 +5274,17 @@ async function shareMediaProfileAnywhere() {
   const payload = getActiveMediaSharePayload();
   if (!payload) return;
 
-  /* v10.547: include the sharer's display name so the Worker can
-     build a personalised OG title: "View [name]'s review of [title]"
-     instead of the generic "[title] on Shelfd". Falls back gracefully
-     when not signed in. */
+  /* v10.725: media profile shares are not review shares. Keep the
+     sharer's display name for the preview description, but reserve
+     "review" wording for /review/{postId} links only. */
   const userName = (typeof getDisplayName === 'function' && userProfile)
     ? getDisplayName(userProfile, '')
     : (currentUser?.displayName || '');
 
-  const shareTitle = userName && payload.title
-    ? `View ${userName}'s review of ${payload.title}`
-    : payload.title ? `${payload.title} on Shelfd` : 'Shelfd';
+  const shareTitle = payload.title ? `${payload.title} on Shelfd` : 'Shelfd';
+  const shareText = userName && payload.title
+    ? `${userName} shared ${payload.title} on Shelfd.`
+    : payload.title ? `Check out ${payload.title} on Shelfd.` : '';
 
   const urlObj = new URL(payload.url, window.location.origin);
   if (payload.title) urlObj.searchParams.set('title', payload.title);
@@ -5291,7 +5296,7 @@ async function shareMediaProfileAnywhere() {
 
   try {
     if (navigator.share) {
-      await navigator.share({ title: shareTitle, url: shareUrl });
+      await navigator.share({ title: shareTitle, text: shareText, url: shareUrl });
       closeMediaProfileShareMenu();
       return;
     }
@@ -5395,10 +5400,13 @@ async function appendDirectMessageToThread(threadId = '', text = '', shareMedia 
     unreadUids,
     updatedAtMs: now
   });
-  dmThreadMap[threadId] = nextThread;
+  const visibleThread = typeof mergeDirectMessageThreadIntoState === 'function'
+    ? (mergeDirectMessageThreadIntoState(nextThread) || nextThread)
+    : nextThread;
+  if (typeof mergeDirectMessageThreadIntoState !== 'function') dmThreadMap[threadId] = visibleThread;
   renderDirectMessagesView();
   try {
-    await mirrorDirectMessageThreadToParticipants(nextThread);
+    await mirrorDirectMessageThreadToParticipants(visibleThread);
     /* v10.465: DM push notifications. After the thread mirror lands in
        Firestore, fire an APNs push to every recipient via the Cloudflare
        Worker. Fire-and-forget; failures are non-fatal and never block the
@@ -5418,14 +5426,14 @@ async function appendDirectMessageToThread(threadId = '', text = '', shareMedia 
         currentUser.displayName ||
         'Someone'
       ).trim() || 'Someone';
-      const isGroupThread = isDirectMessageGroupThread(nextThread);
+      const isGroupThread = isDirectMessageGroupThread(visibleThread);
       const bodyText = photoMedia?.imageData
         ? 'Sent a photo'
         : normalizedShareMedia
           ? (normalizedShareMedia.title ? `Shared: ${normalizedShareMedia.title}` : 'Shared media')
           : String(message.text || '').trim();
       const pushTitle = isGroupThread
-        ? (getDirectMessageThreadTitle(nextThread) || 'New message')
+        ? (getDirectMessageThreadTitle(visibleThread) || 'New message')
         : senderName;
       const pushBody = isGroupThread
         ? (bodyText ? `${senderName}: ${bodyText}` : `${senderName} sent a message`)
@@ -5459,7 +5467,29 @@ async function appendDirectMessageToThread(threadId = '', text = '', shareMedia 
   }
   catch(error) {
     console.error('appendDirectMessageToThread failed:', error);
-    dmThreadMap[threadId] = thread;
+    const currentThread = dmThreadMap[threadId] || thread;
+    const remainingMessages = (currentThread.messages || [])
+      .filter(item => {
+        if (typeof getDirectMessageMessageKey === 'function') {
+          return getDirectMessageMessageKey(item) !== messageId;
+        }
+        return item?.id !== messageId;
+      });
+    dmThreadMap[threadId] = normalizeDirectMessageThread({
+      ...currentThread,
+      messages: remainingMessages,
+      lastMessage: getDirectMessageLastPreviewFromMessages(remainingMessages, thread.lastMessage || ''),
+      lastMessageFromUid: remainingMessages.length
+        ? (remainingMessages[remainingMessages.length - 1].fromUid || '')
+        : (thread.lastMessageFromUid || ''),
+      lastMessageAtMs: remainingMessages.length
+        ? (typeof getDirectMessageMessageTime === 'function'
+            ? getDirectMessageMessageTime(remainingMessages[remainingMessages.length - 1])
+            : Number(remainingMessages[remainingMessages.length - 1].createdAtMs || Date.now()))
+        : (thread.lastMessageAtMs || Date.now()),
+      unreadUids: thread.unreadUids || [],
+      updatedAtMs: Date.now()
+    });
     renderDirectMessagesView();
     const message = error?.message || error?.code || 'Could not send message';
     showToast(`Could not send: ${message}`);
@@ -5892,36 +5922,10 @@ function bindDiscoverMediaProfileSwipeBack(overlay) {
   page.addEventListener('touchcancel', handleGestureCancel, { passive: true });
 }
 
-function renderDiscoverMediaLibraryRatingStars(score = 0, section = '') {
-  const stepCount = getRatingStepCountForSection(section);
-  let stars = '';
-  if (stepCount === 5) {
-    for (let star = 1; star <= 5; star++) {
-      const leftVal = star * 2 - 1;
-      const rightVal = star * 2;
-      stars += `<button class="star-btn half-step left discover-media-library-star${leftVal <= score ? ' lit' : ''}" type="button" data-rating="${leftVal}" aria-label="Rate ${formatRatingValueForSection(leftVal, section, true)}">★</button>`;
-      stars += `<button class="star-btn half-step right discover-media-library-star${rightVal <= score ? ' lit' : ''}" type="button" data-rating="${rightVal}" aria-label="Rate ${formatRatingValueForSection(rightVal, section, true)}">★</button>`;
-    }
-  } else {
-    for (let i = 1; i <= 10; i++) {
-      stars += `<button class="star-btn discover-media-library-star${i <= score ? ' lit' : ''}" type="button" data-rating="${i}" aria-label="Rate ${i} out of 10">★</button>`;
-    }
-  }
-  return stars;
-}
-
-function updateDiscoverMediaLibraryStars(container, rating, pop = false) {
-  if (!container) return;
-  const section = container.dataset.section || activeSection;
-  container.querySelectorAll('.discover-media-library-star').forEach((star, index) => {
-    const lit = Number(star.dataset.rating || index + 1) <= rating;
-    star.classList.toggle('lit', lit);
-    star.style.color = lit ? '#f59e0b' : '#443d60';
-    star.style.transform = lit && pop ? 'scale(1.2)' : 'scale(1)';
-  });
-  const value = container.closest('.discover-media-library-rating')?.querySelector('.discover-media-library-rating-value');
-  if (value) value.textContent = rating > 0 ? formatRatingValueForSection(rating, section, true) : 'Tap a star';
-}
+/* v10.784: renderDiscoverMediaLibraryRatingStars + updateDiscoverMediaLibraryStars
+   removed. The dock no longer has a rating row — Watched goes straight
+   to openShelfLogComposer which has its own rating UI. These helpers
+   were dock-specific (no callers outside this file). */
 
 function showDiscoverMediaLibraryDock(btn) {
   if (!btn || btn.disabled) return;
@@ -5956,23 +5960,23 @@ function showDiscoverMediaLibraryDock(btn) {
         </button>
       </div>
     ` : `
-      <div class="discover-media-library-actions">
+      <!-- v10.784: rating row removed. Watched now goes STRAIGHT to the
+           full-page write-a-review composer (openShelfLogComposer) which
+           has its own rating slider, review textarea, date, tags, etc.
+           No need for an intermediate dock-level rating step. -->
+      <div class="discover-media-library-actions discover-media-library-actions-triple">
         <button class="discover-media-library-choice planned" type="button" data-status="planned">
           <span>${isGame ? 'Backloggd' : 'Watchlist'}</span>
           <small>Save for later</small>
         </button>
+        <button class="discover-media-library-choice watching" type="button" data-status="watching">
+          <span>${isGame ? 'Playing' : 'Watching'}</span>
+          <small>In progress</small>
+        </button>
         <button class="discover-media-library-choice watched" type="button" data-status="watched">
           <span>${isGame ? 'Played' : 'Watched'}</span>
-          <small>Add a rating</small>
+          <small>Write a review</small>
         </button>
-      </div>
-      <div class="discover-media-library-rating" hidden>
-        <div class="discover-media-library-rating-top">
-          <span>How did it hit?</span>
-          <strong class="discover-media-library-rating-value">Tap a star</strong>
-        </div>
-        <div class="stars discover-media-library-stars${isFivePointRatingSection(ratingSection) ? ' rating-scale-five' : ''}" data-section="${escAttr(ratingSection)}" style="--star-size:18px;">${renderDiscoverMediaLibraryRatingStars(0, ratingSection)}</div>
-        <button class="discover-media-library-skip" type="button">Skip rating</button>
       </div>
     `}
     <button class="discover-media-library-close" type="button" aria-label="Close add panel">×</button>
@@ -5980,33 +5984,57 @@ function showDiscoverMediaLibraryDock(btn) {
   overlay.appendChild(dock);
   requestAnimationFrame(() => dock.classList.add('open'));
 
-  const addFromDock = async (status, rating = 0) => {
+  /* v10.779: addFromDock now accepts the full status set (planned, watching,
+     watched). Watching is the "in progress" middle state — no rating prompt,
+     just save and close. The activity-feed post prompt (promptPost) is
+     EXPLICITLY DISABLED on every flow from this dock per user request —
+     the modal that used to appear after a Watched save is gone. */
+  const savedLabelFor = (status, rating) => {
+    if (status === 'planned') return isGame ? 'Saved to Backloggd' : 'Saved to Watchlist';
+    if (status === 'watching') return isGame ? 'Marked Playing' : 'Marked Watching';
+    if (status === 'watched') {
+      return rating
+        ? `Rated ${formatRatingValueForSection(rating, ratingSection, true)}`
+        : (isGame ? 'Marked Played' : 'Marked Watched');
+    }
+    return 'Saved';
+  };
+  /* v10.784: simplified — no rating UI in the dock anymore. The flow
+     splits cleanly by status:
+       • planned / watching → save + show success checkmark + close dock
+         (the existing "Added to your library" toast from addDiscoveryTitle
+         provides the user-visible confirmation)
+       • watched → save with rating=0, close dock, slide-open the
+         full-page WRITE-A-REVIEW composer (openShelfLogComposer) where
+         the user picks their rating, writes their review, picks date,
+         adds tags, etc. */
+  const addFromDock = async (status) => {
     if (!type || !id || btn.disabled) return;
     if (dock.dataset.saving === 'true') return;
     dock.dataset.saving = 'true';
-    if (status === 'watched' && rating > 0) {
-      const starsContainer = dock.querySelector('.discover-media-library-stars');
-      updateDiscoverMediaLibraryStars(starsContainer, rating, false);
-      const animationMs = playDiscoveryModalRatingAnimation(rating, starsContainer);
-      await new Promise(resolve => window.setTimeout(resolve, Math.max(animationMs, 760)));
-    }
     dock.classList.add('saving');
-    /* v10.123: revert-text for the FPMP button is now "+" so a cancelled
-       or failed add restores the same bare "+" label the button starts
-       with (was "+ Add to Library"). */
-    await addDiscoveryTitle(type, id, btn, status, '+', rating, { postPromptDelayMs: 820 });
+    const result = await addDiscoveryTitle(type, id, btn, status, '+', 0, { promptPost: false });
     dock.classList.remove('saving');
     dock.classList.add('saved');
-    const savedLabel = status === 'watched'
-      ? (rating ? `Rated ${formatRatingValueForSection(rating, ratingSection, true)}` : (isGame ? 'Marked Played' : 'Marked Watched'))
-      : (isGame ? 'Saved to Backloggd' : 'Saved to Watchlist');
+    const savedLabel = savedLabelFor(status, 0);
     dock.innerHTML = `
       <div class="discover-media-library-glow" aria-hidden="true"></div>
       <div class="discover-media-library-success-mark">✓</div>
       <div class="discover-media-library-success-title">${escHtml(savedLabel)}</div>
       <div class="discover-media-library-success-sub">${escHtml(title)} is in your library.</div>
     `;
-    window.setTimeout(closeDiscoverMediaLibraryDock, 760);
+    const shouldOpenComposer = !!(result && result.ok && status === 'watched' && result.item && result.item.id);
+    const composerItemId = shouldOpenComposer ? String(result.item.id || '').trim() : '';
+    const composerSection = shouldOpenComposer ? String(result.section || '').trim() : '';
+    if (shouldOpenComposer && composerItemId && typeof window.openShelfLogComposer === 'function') {
+      window.setTimeout(() => {
+        closeDiscoverMediaLibraryDock();
+        try { window.openShelfLogComposer(composerItemId, composerSection); }
+        catch (e) { console.warn('[v10.784] openShelfLogComposer failed:', e); }
+      }, 360);
+    } else {
+      window.setTimeout(closeDiscoverMediaLibraryDock, 760);
+    }
   };
 
   const removeFromDock = async () => {
@@ -6028,84 +6056,32 @@ function showDiscoverMediaLibraryDock(btn) {
 
   dock.querySelector('.discover-media-library-close')?.addEventListener('click', closeDiscoverMediaLibraryDock);
   dock.querySelector('.discover-media-library-choice.remove')?.addEventListener('click', removeFromDock);
-  dock.querySelector('.discover-media-library-choice.planned')?.addEventListener('click', () => addFromDock('planned', 0));
+  /* v10.788: Watchlist + Watching still go through addFromDock (save +
+     success checkmark + toast). Watched takes a NEW path: open the
+     write-a-review composer in DRAFT mode INSTANTLY (no addDiscoveryTitle
+     await, no semi-transparent saving overlay). The library add only
+     happens when the user confirms Save inside the composer. Cancel
+     leaves the library untouched.
+     The dock closes immediately on Watched tap so the user goes
+     straight from FPMP -> review composer with no intermediate state. */
+  dock.querySelector('.discover-media-library-choice.planned')?.addEventListener('click', () => addFromDock('planned'));
+  dock.querySelector('.discover-media-library-choice.watching')?.addEventListener('click', () => addFromDock('watching'));
   dock.querySelector('.discover-media-library-choice.watched')?.addEventListener('click', () => {
-    dock.querySelector('.discover-media-library-rating')?.removeAttribute('hidden');
-    dock.classList.add('rating-open');
-    bindDiscoverMediaLibraryStarScrub(dock, addFromDock);
-  });
-  dock.querySelector('.discover-media-library-skip')?.addEventListener('click', () => addFromDock('watched', 0));
-}
-
-function bindDiscoverMediaLibraryStarScrub(dock, addFromDock) {
-  const container = dock?.querySelector?.('.discover-media-library-stars');
-  if (!container || container.dataset.bound === 'true') return;
-  container.dataset.bound = 'true';
-  container.dataset.scrubbing = 'false';
-  container.dataset.scrubVal = '0';
-
-  const getRatingFromX = (clientX) => {
-    const stars = [...container.querySelectorAll('.discover-media-library-star')];
-    let val = 0;
-    stars.forEach((star, index) => {
-      if (clientX >= star.getBoundingClientRect().left) val = index + 1;
-    });
-    return Math.max(1, Math.min(10, val));
-  };
-
-  container.querySelectorAll('.discover-media-library-star').forEach(star => {
-    star.addEventListener('mouseenter', () => {
-      updateDiscoverMediaLibraryStars(container, Number(star.dataset.rating || 0), true);
-    });
-    star.addEventListener('mouseleave', () => {
-      updateDiscoverMediaLibraryStars(container, Number(container.dataset.scrubVal || 0), false);
-    });
-    star.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (container.dataset.justScrubbed === 'true') return;
-      if (container.dataset.scrubbing === 'true') return;
-      const rating = Number(star.dataset.rating || 0);
-      container.dataset.scrubVal = String(rating);
-      updateDiscoverMediaLibraryStars(container, rating, true);
-      window.setTimeout(() => addFromDock('watched', rating), 140);
-    });
-  });
-
-  container.addEventListener('touchstart', (event) => {
-    const touch = event.touches[0];
-    container.dataset.touchStartX = String(touch.clientX);
-    container.dataset.touchStartY = String(touch.clientY);
-    container.dataset.scrubbing = 'false';
-    container.dataset.scrubVal = '0';
-  }, { passive: true });
-
-  container.addEventListener('touchmove', (event) => {
-    const touch = event.touches[0];
-    const dx = Math.abs(touch.clientX - parseFloat(container.dataset.touchStartX || 0));
-    const dy = Math.abs(touch.clientY - parseFloat(container.dataset.touchStartY || 0));
-    if (container.dataset.scrubbing !== 'true') {
-      if (dx < 10 || dy > dx) return;
+    if (typeof window.openShelfLogComposerForNewMedia !== 'function') {
+      // Defensive fallback: if the composer entry point isn't loaded for
+      // any reason, degrade to the prior flow (full add + composer open).
+      addFromDock('watched');
+      return;
     }
-    container.dataset.scrubbing = 'true';
-    event.preventDefault();
-    const rating = getRatingFromX(touch.clientX);
-    container.dataset.scrubVal = String(rating);
-    updateDiscoverMediaLibraryStars(container, rating, true);
-  }, { passive: false });
-
-  container.addEventListener('touchend', (event) => {
-    if (container.dataset.scrubbing !== 'true') return;
-    event.preventDefault();
-    const rating = Number(container.dataset.scrubVal || 0);
-    container.dataset.scrubbing = 'false';
-    container.dataset.justScrubbed = 'true';
-    window.setTimeout(() => {
-      container.dataset.justScrubbed = 'false';
-    }, 220);
-    if (rating > 0) addFromDock('watched', rating);
-  }, { passive: false });
+    closeDiscoverMediaLibraryDock();
+    try { window.openShelfLogComposerForNewMedia(type, id, btn); }
+    catch (e) { console.warn('[v10.788] openShelfLogComposerForNewMedia failed:', e); }
+  });
 }
+
+/* v10.784: bindDiscoverMediaLibraryStarScrub removed. The dock no longer
+   has stars — Watched goes straight to openShelfLogComposer which has
+   its own rating slider (with its own scrub handlers in 06-mylists-render-episodes-ratings.js). */
 
 function bindDiscoverMediaProfileActions(overlay) {
   const addButton = overlay?.querySelector?.('.discover-media-add-floating');
@@ -6433,7 +6409,7 @@ function renderDiscoverPersonProfileShell(person = {}) {
   const name = person.name || 'Cast Profile';
   const photo = getTmdbImageUrl(person.profile_path || person.photo || person.profilePhoto || '', 'w500');
   return `<section class="discover-media-page discover-person-page" role="dialog" aria-modal="true" aria-label="${escAttr(name)} details">
-    <button class="discover-media-back" type="button" onclick="backToDiscoverTitleProfile()">Back</button>
+    <button class="discover-media-back discover-media-back--icon" type="button" onclick="backToDiscoverTitleProfile()" aria-label="Back"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg></button>
     ${renderPersonProfileFavoriteHeart(person)}
     <div class="discover-media-hero discover-person-hero" style="${photo ? `background-image:url('${escAttr(photo)}')` : ''}">
       <div class="discover-media-hero-shade"></div>
@@ -6509,7 +6485,7 @@ function renderDiscoverPersonProfileDetails(details = {}) {
   const movieTvDesktopSource = !!details.__desktopMovieTvSource;
 
   return `<section class="discover-media-page discover-person-page${movieTvDesktopSource ? ' discover-person-page-desktop-cinema' : ''}" role="dialog" aria-modal="true" aria-label="${escAttr(name)} details">
-    <button class="discover-media-back" type="button" onclick="backToDiscoverTitleProfile()">Back</button>
+    <button class="discover-media-back discover-media-back--icon" type="button" onclick="backToDiscoverTitleProfile()" aria-label="Back"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg></button>
     ${renderPersonProfileFavoriteHeart(details)}
     <div class="discover-media-hero discover-person-hero" style="${photo ? `background-image:url('${escAttr(photo)}')` : ''}">
       <!-- v10.62: hero uses background-image (kept — converting to <img> would
@@ -8124,7 +8100,7 @@ function renderDiscoverMediaProfileDetails(type, details, id) {
             <div class="discover-media-kicker">${type === 'tv' ? 'Series Profile' : 'Movie Profile'}${year ? ` · ${escHtml(year)}` : ''}</div>
             <h2>${escHtml(title)}</h2>
             ${tagline ? `<div class="discover-media-tagline">${escHtml(tagline)}</div>` : ''}
-            ${score ? `<div class="discover-media-score discover-media-score-hero"><span class="discover-media-score-star" aria-hidden="true">★</span><span class="discover-media-score-value">${escHtml(score)}</span></div>` : ''}
+            ${score ? `<div class="discover-media-score discover-media-score-hero"><span class="discover-media-score-star" aria-hidden="true">★</span><span class="discover-media-score-value">${escHtml(score)}</span><span class="discover-media-score-denominator">/5</span></div>` : ''}
           </div>
         </div>
         <p class="discover-media-synopsis" onclick="this.classList.toggle('expanded')">${escHtml(overview)}</p>

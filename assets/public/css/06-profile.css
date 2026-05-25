@@ -104,6 +104,15 @@
     flex: 0 0 auto;
   }
   .profile-back-btn:hover { border-color: #8b5cf6; background: rgba(139,92,246,0.14); }
+  .profile-page.viewing-other-profile .profile-topbar-left > .profile-back-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+  .profile-page.viewing-other-profile .profile-topbar-left > .profile-back-btn span {
+    display: none;
+  }
   .profile-topbar-actions {
     display: flex;
     align-items: center;

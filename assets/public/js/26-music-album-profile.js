@@ -372,11 +372,12 @@
             <div class="music-album-profile-meta">
               <h1 class="music-album-profile-album-title" data-album-title>${escHtmlLocal(title)}</h1>
               <div class="music-album-profile-artist" data-album-artist>${escHtmlLocal(artist)}</div>
+              <!-- v10.701: facts re-ordered left-to-right Genre → Runtime → Release date.
+                   CSS forces a single horizontal row (3 explicit columns) so they
+                   never stack vertically on narrower viewports. Data-fact-*
+                   selectors unchanged, so the hydrate code in this file still
+                   wires values to the correct cells regardless of DOM order. -->
               <dl class="music-album-profile-facts" data-album-facts>
-                <div class="music-album-profile-fact" data-fact-release>
-                  <dt>Release date</dt>
-                  <dd>${escHtmlLocal(year || '—')}</dd>
-                </div>
                 <div class="music-album-profile-fact" data-fact-genre>
                   <dt>Genre</dt>
                   <dd>—</dd>
@@ -384,6 +385,10 @@
                 <div class="music-album-profile-fact" data-fact-runtime>
                   <dt>Runtime</dt>
                   <dd>—</dd>
+                </div>
+                <div class="music-album-profile-fact" data-fact-release>
+                  <dt>Release date</dt>
+                  <dd>${escHtmlLocal(year || '—')}</dd>
                 </div>
               </dl>
             </div>

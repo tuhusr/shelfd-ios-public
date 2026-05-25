@@ -2214,12 +2214,52 @@ function getImdbCacheTtlSeconds(year) {
    per-item Cloudflare cache (same key as /api/imdb/rating) so an item that's
    already been resolved once is served from cache here too. Returns a small
    object — not a Response. */
-async function getCachedImdbRatingForItem(env, ctx, originUrl, item = {}) {
+function buildSingleImdbRatingCacheKey(originUrl, type = "tv", tmdbId = "", imdbId = "") {
+  return new Request(
+    `${originUrl.origin}/__screenlist_imdb_rating/v3/${normalizeImdbMediaType(type)}/${String(tmdbId || "").trim() || "no-tmdb"}/${normalizeImdbTitleId(imdbId || "") || "lookup"}`,
+    { method: "GET" }
+  );
+}
+
+async function writeImdbRatingCacheEntries(ctx, originUrl, payload = {}) {
+  if (!ctx?.waitUntil || !payload?.ok) return;
+  const type = normalizeImdbMediaType(payload.type);
+  const tmdbId = String(payload.tmdbId || "").trim();
+  const imdbId = normalizeImdbTitleId(payload.imdbId || "");
+  const ttl = getImdbCacheTtlSeconds(payload.year);
+  const response = new Response(JSON.stringify(payload), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": `public, max-age=${ttl}`
+    }
+  });
+  const writes = [];
+  if (tmdbId) {
+    writes.push(caches.default.put(
+      new Request(`${originUrl.origin}/__screenlist_imdb_rating_batch/v3/${type}/${tmdbId}`, { method: "GET" }),
+      response.clone()
+    ));
+    writes.push(caches.default.put(buildSingleImdbRatingCacheKey(originUrl, type, tmdbId, ""), response.clone()));
+  }
+  if (imdbId) {
+    writes.push(caches.default.put(
+      new Request(`${originUrl.origin}/__screenlist_imdb_rating_batch/v3/by-imdb/${imdbId}`, { method: "GET" }),
+      response.clone()
+    ));
+    writes.push(caches.default.put(buildSingleImdbRatingCacheKey(originUrl, type, tmdbId, imdbId), response.clone()));
+    writes.push(caches.default.put(buildSingleImdbRatingCacheKey(originUrl, type, "", imdbId), response.clone()));
+  }
+  if (writes.length) ctx.waitUntil(Promise.allSettled(writes));
+}
+
+async function getCachedImdbRatingForItem(env, ctx, originUrl, item = {}, options = {}) {
   const type = normalizeImdbMediaType(item.type);
   const tmdbId = String(item.tmdbId || item.id || "").trim();
   let imdbId = normalizeImdbTitleId(item.imdbId || "");
   const title = String(item.title || item.name || "").trim();
   const year = String(item.year || "").trim().match(/^(18|19|20)\d{2}$/)?.[0] || "";
+  const force = options.force === true || options.refresh === true;
 
   if (!tmdbId && !imdbId && !title) {
     return { ok: false, error: "Missing tmdbId, imdbId, or title.", tmdbId, imdbId, type };
@@ -2250,18 +2290,20 @@ async function getCachedImdbRatingForItem(env, ctx, originUrl, item = {}) {
     return null;
   }
 
-  const tmdbHit = await tryCache(tmdbCacheKey);
-  if (tmdbHit) return tmdbHit;
-  if (imdbId) {
-    const imdbHit = await tryCache(imdbCacheKey(imdbId));
-    if (imdbHit) return imdbHit;
+  if (!force) {
+    const tmdbHit = await tryCache(tmdbCacheKey);
+    if (tmdbHit) return tmdbHit;
+    if (imdbId) {
+      const imdbHit = await tryCache(imdbCacheKey(imdbId));
+      if (imdbHit) return imdbHit;
+    }
   }
 
   if (!imdbId && tmdbId) {
     try { imdbId = await fetchTmdbExternalImdbId(env, type, tmdbId, 6500); } catch (e) {}
     /* Now that we resolved imdbId, check the imdbId-keyed cache before
        hitting OMDb — another rail may have already populated it. */
-    if (imdbId) {
+    if (!force && imdbId) {
       const imdbHit = await tryCache(imdbCacheKey(imdbId));
       if (imdbHit) return imdbHit;
     }
@@ -2295,20 +2337,7 @@ async function getCachedImdbRatingForItem(env, ctx, originUrl, item = {}) {
     error: rating.ok ? "" : (rating.error || "Rating not found.")
   };
 
-  if (ctx?.waitUntil) {
-    /* Recency-aware TTL: new/trending titles refresh daily, classics monthly.
-       Negative results are cached briefly (30 min) to avoid retry spam. */
-    const ttl = payload.ok ? getImdbCacheTtlSeconds(payload.year) : 60 * 30;
-    const response = new Response(JSON.stringify(payload), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        "Cache-Control": `public, max-age=${ttl}`
-      }
-    });
-    if (tmdbId) ctx.waitUntil(caches.default.put(tmdbCacheKey, response.clone()));
-    if (payload.imdbId) ctx.waitUntil(caches.default.put(imdbCacheKey(payload.imdbId), response.clone()));
-  }
+  if (payload.ok) await writeImdbRatingCacheEntries(ctx, originUrl, payload);
 
   return { ...payload, cache: "MISS" };
 }
@@ -2607,20 +2636,48 @@ function isAlbumSharePath(url) {
   return /^\/album\/[^/]+\/[^/]+\/?$/i.test(url.pathname);
 }
 
+function isReviewSharePath(url) {
+  return /^\/review\/[^/]+\/?$/i.test(url.pathname);
+}
+
 async function serveMediaShareHtml(request, env, url) {
   const title = url.searchParams.get("title") || "Shelfd";
   const poster = url.searchParams.get("poster") || "";
   const user = url.searchParams.get("user") || "";
-  /* v10.547: when a username is passed, personalise the OG title so
-     iMessage / WhatsApp / Slack previews read "View John's review of
-     Inception" instead of the generic "Inception on Shelfd". */
-  const shareTitle = user && title
-    ? `View ${user}'s review of ${title}`
-    : title ? `${title} on Shelfd` : "Shelfd";
+  /* v10.725: /media links are full-page media profiles, not reviews.
+     Keep review wording exclusive to /review/{postId} links. */
+  const shareTitle = title ? `${title} on Shelfd` : "Shelfd";
   const shareDescription = user && title
     ? `${user} shared ${title} on Shelfd.`
     : title ? `Check out ${title} on Shelfd.` : "Track your shows, movies, anime, and games.";
   const image = /^https?:\/\//i.test(poster) ? poster : new URL("/og-image-v216.png", url.origin).toString();
+  const indexUrl = new URL("/index.html", url.origin);
+  const assetResponse = await env.ASSETS.fetch(new Request(indexUrl.toString(), { method: "GET" }));
+  let html = await assetResponse.text();
+  if (!html || html.length < 100) html = `<!DOCTYPE html><html><head><title>${escapeHtmlMeta(shareTitle)}</title></head><body></body></html>`;
+  html = html.replace(/<title>[^<]*<\/title>/i, `<title>${escapeHtmlMeta(shareTitle)}</title>`);
+  html = replaceMetaTag(html, "property", "og:title", shareTitle);
+  html = replaceMetaTag(html, "property", "og:description", shareDescription);
+  html = replaceMetaTag(html, "property", "og:url", url.toString());
+  html = removeMetaTag(html, "property", "og:image:width");
+  html = removeMetaTag(html, "property", "og:image:height");
+  html = replaceMetaTag(html, "property", "og:image", image);
+  html = replaceMetaTag(html, "property", "og:image:alt", shareTitle);
+  html = replaceMetaTag(html, "name", "twitter:title", shareTitle);
+  html = replaceMetaTag(html, "name", "twitter:description", shareDescription);
+  html = replaceMetaTag(html, "name", "twitter:image", image);
+  return new Response(html, {
+    status: 200,
+    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store, no-cache, must-revalidate, max-age=0" }
+  });
+}
+
+async function serveReviewShareHtml(request, env, url) {
+  const title = url.searchParams.get("title") || "Shelfd Review";
+  const user = url.searchParams.get("user") || "";
+  const shareTitle = user ? `${user}'s review on Shelfd` : "Review on Shelfd";
+  const shareDescription = title ? `Open ${title} in Shelfd.` : "Open this review in Shelfd.";
+  const image = new URL("/og-image-v216.png", url.origin).toString();
   const indexUrl = new URL("/index.html", url.origin);
   const assetResponse = await env.ASSETS.fetch(new Request(indexUrl.toString(), { method: "GET" }));
   let html = await assetResponse.text();
@@ -4086,6 +4143,127 @@ async function runMediaRankEndpoint(request, env, ctx) {
   return response;
 }
 
+const SCREENLIST_DISCOVERY_IMDB_REFRESH_SECTIONS = [
+  "movie_new_releases_week",
+  "movie_new_releases_month",
+  "movie_in_theaters",
+  "movie_years_best",
+  "movie_popular",
+  "movie_top_rated",
+  "movie_trending",
+  "movie_releasing_soon",
+  "movie_hidden_gems",
+  "tv_new_releases_week",
+  "tv_new_releases_month",
+  "tv_trending",
+  "tv_popular",
+  "tv_releasing_soon",
+  "tv_top_rated"
+];
+
+function isFiveAmEastern(date = new Date()) {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    }).formatToParts(date);
+    const hour = parts.find(part => part.type === "hour")?.value || "";
+    const minute = parts.find(part => part.type === "minute")?.value || "";
+    return hour === "05" && minute === "00";
+  } catch (error) {
+    return false;
+  }
+}
+
+function normalizeDiscoveryImdbRefreshItem(item = {}) {
+  const type = normalizeImdbMediaType(item.media_type || item.tmdbType || item.type || (item.first_air_date || item.name ? "tv" : "movie"));
+  const tmdbId = String(item.tmdbId || item.id || item.tmdb_id || "").trim();
+  const title = String(item.title || item.name || item.original_title || item.original_name || "").trim();
+  const dateValue = String(item.release_date || item.first_air_date || item.year || "").trim();
+  return {
+    type,
+    tmdbId,
+    id: tmdbId,
+    imdbId: item.imdbId || item.imdb_id || "",
+    title,
+    year: dateValue.slice(0, 4)
+  };
+}
+
+async function refreshDiscoveryPresetImdbRatings(env, ctx, options = {}) {
+  const origin = new URL(options.origin || "https://myshelfd.com");
+  const sections = Array.isArray(options.sections) && options.sections.length
+    ? options.sections
+    : SCREENLIST_DISCOVERY_IMDB_REFRESH_SECTIONS;
+  const perSectionLimit = Math.min(15, Math.max(1, Number(options.limit || 15)));
+  const summary = {
+    ok: true,
+    startedAt: new Date().toISOString(),
+    sections: [],
+    refreshed: 0,
+    failed: 0
+  };
+
+  for (const section of sections) {
+    const cleanSection = normalizeMediaRankSection(section);
+    const sectionSummary = { section: cleanSection || section, items: 0, refreshed: 0, failed: 0 };
+    summary.sections.push(sectionSummary);
+    if (!cleanSection) {
+      sectionSummary.failed += 1;
+      summary.failed += 1;
+      continue;
+    }
+    try {
+      const requestUrl = new URL("/api/rank/media", origin);
+      requestUrl.searchParams.set("section", cleanSection);
+      requestUrl.searchParams.set("period", "week");
+      requestUrl.searchParams.set("limit", String(perSectionLimit));
+      const rankResponse = await runMediaRankEndpoint(new Request(requestUrl.toString(), { method: "GET" }), env, ctx);
+      const rankBody = await rankResponse.json();
+      const rankings = Array.isArray(rankBody?.rankings) ? rankBody.rankings.slice(0, perSectionLimit) : [];
+      sectionSummary.items = rankings.length;
+      for (const row of rankings) {
+        const refreshItem = normalizeDiscoveryImdbRefreshItem(row);
+        if (!refreshItem.tmdbId && !refreshItem.imdbId && !refreshItem.title) {
+          sectionSummary.failed += 1;
+          summary.failed += 1;
+          continue;
+        }
+        try {
+          const result = await getCachedImdbRatingForItem(env, ctx, origin, refreshItem, { force: true });
+          if (result?.ok) {
+            sectionSummary.refreshed += 1;
+            summary.refreshed += 1;
+          } else {
+            sectionSummary.failed += 1;
+            summary.failed += 1;
+          }
+        } catch (error) {
+          sectionSummary.failed += 1;
+          summary.failed += 1;
+        }
+      }
+    } catch (error) {
+      sectionSummary.error = errorMessage(error);
+      sectionSummary.failed += 1;
+      summary.failed += 1;
+    }
+  }
+
+  summary.finishedAt = new Date().toISOString();
+  return summary;
+}
+
+async function runScheduledImdbRefresh(controller, env, ctx) {
+  const scheduledAt = controller?.scheduledTime ? new Date(controller.scheduledTime) : new Date();
+  if (!isFiveAmEastern(scheduledAt)) {
+    return { ok: true, skipped: true, reason: "Not 5:00 AM America/New_York.", scheduledAt: scheduledAt.toISOString() };
+  }
+  return refreshDiscoveryPresetImdbRatings(env, ctx, { origin: "https://myshelfd.com", limit: 15 });
+}
+
 async function runCountryRankEndpoint(request, env, ctx) {
   const url = new URL(request.url);
   const country = normalizeRankCountry(url.searchParams.get("country"));
@@ -4610,12 +4788,31 @@ async function runDeezerEndpoint(request, env, ctx) {
   return response;
 }
 
-/* v10.547: Apple App Site Association — iOS Universal Links.
+/* v10.547: Apple App Site Association — iOS Universal Links + Shared Web Credentials.
    Served at /.well-known/apple-app-site-association so that iOS can
-   verify Shelfd owns myshelfd.com and should open /media/*, /album/*,
-   and /profile-card/* links directly in the installed app rather than
-   Safari. Team ID comes from the APPLE_TEAM_ID Worker secret (already
-   required for push notifications). */
+   verify Shelfd owns myshelfd.com and:
+     - applinks      → open /media/*, /album/*, /review/*, /profile-card/* links
+                       directly in the installed app rather than Safari.
+     - webcredentials → share saved iCloud Keychain passwords between the
+                       myshelfd.com website / PWA and the installed app,
+                       so iOS surfaces the "Use saved password" suggestion
+                       above the keyboard inside the TestFlight build, and
+                       fires the "Save Password for myshelfd.com" prompt
+                       on first sign-in / signup (added v10.649).
+
+   Team ID comes from the APPLE_TEAM_ID Worker secret (already required
+   for push notifications). Both applinks and webcredentials use the same
+   TEAMID.com.myshelfd.app appID format.
+
+   IMPORTANT — Xcode side also required (one-time, cannot web-deploy):
+     Xcode → Signing & Capabilities → "+ Capability" → Associated Domains
+     and add ALL four entries:
+       applinks:myshelfd.com
+       applinks:myscreenlist.com
+       webcredentials:myshelfd.com
+       webcredentials:myscreenlist.com
+     Then bump Build number and re-archive → TestFlight.
+   Without those entitlements iOS will silently ignore this AASA. */
 function serveAppleAppSiteAssociation(env) {
   const teamId = (env && env.APPLE_TEAM_ID) ? String(env.APPLE_TEAM_ID).trim() : "";
   const appId = teamId ? `${teamId}.com.myshelfd.app` : "TEAM_ID.com.myshelfd.app";
@@ -4627,10 +4824,21 @@ function serveAppleAppSiteAssociation(env) {
           components: [
             { "/": "/media/*",        comment: "Media share links" },
             { "/": "/album/*",        comment: "Album share links" },
+            { "/": "/review/*",       comment: "Review share links" },
+            { "/": "/profile/*",      comment: "Full profile share links" },
             { "/": "/profile-card/*", comment: "Profile card share links" }
           ]
         }
       ]
+    },
+    /* v10.649: Shared Web Credentials. Lets iOS treat the website's
+       saved passwords (iCloud Keychain entries for myshelfd.com /
+       myscreenlist.com) as first-class credentials for the installed
+       app, AND fire the system "Save Password" prompt on successful
+       email/password sign-in or signup inside the Capacitor WKWebView.
+       Pairs with navigator.credentials.store() on the JS side (v10.648). */
+    webcredentials: {
+      apps: [appId]
     }
   };
   return new Response(JSON.stringify(payload, null, 2), {
@@ -4643,6 +4851,10 @@ function serveAppleAppSiteAssociation(env) {
 }
 
 export default {
+  async scheduled(controller, env, ctx) {
+    ctx.waitUntil(runScheduledImdbRefresh(controller, env, ctx));
+  },
+
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
@@ -4668,6 +4880,9 @@ export default {
     }
     if (isAlbumSharePath(url) && isHtmlNavigationRequest(request, url)) {
       return serveAlbumShareHtml(request, env, url);
+    }
+    if (isReviewSharePath(url) && isHtmlNavigationRequest(request, url)) {
+      return serveReviewShareHtml(request, env, url);
     }
 
     if ((url.pathname === "/api/ai/import-match" || url.pathname === "/api/deepseek/import-match") && request.method === "POST") {

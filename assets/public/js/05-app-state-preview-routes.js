@@ -42,6 +42,20 @@ const MUSIC_SORT_OPTIONS = [
   /* v10.261: two more music sort keys. Defaults wired per-tab below. */
   { key: 'recently-added', label: 'Date Added' },
   { key: 'last-edited',    label: 'Recently Edited' },
+  { key: 'music-total-rating',          label: 'Total Rating' },
+  { key: 'music-rated-tracks',          label: 'Rated Tracks Count' },
+  { key: 'music-unrated-tracks',        label: 'Unrated Tracks Count' },
+  { key: 'music-total-favorites',       label: 'Total Favorites' },
+  { key: 'music-average-favorites',     label: 'Average Favorites' },
+  { key: 'music-favorite-progress',     label: 'Favorite Progress' },
+  { key: 'music-play-count-average',    label: 'Play Count Average' },
+  { key: 'music-play-count-median',     label: 'Play Count Median' },
+  { key: 'music-skip-count',            label: 'Skip Count' },
+  { key: 'music-skip-count-average',    label: 'Skip Count Average' },
+  { key: 'music-bitrate-average',       label: 'Bitrate Average' },
+  { key: 'music-size-per-minute',       label: 'Size Per Minute' },
+  { key: 'music-time-spent-listening',  label: 'Time Spent Listening' },
+  { key: 'music-item-count',            label: 'Item Count' },
 ];
 
 // v435: Games-only sort options. Removed Popularity, Trending, Avg Play Time,
@@ -104,8 +118,9 @@ function toggleSortDirection(event = null) {
   const current = getActiveSortDirection(stateKey, getActiveSortKey());
   sessionSortDirectionState[stateKey] = current === 'asc' ? 'desc' : 'asc';
   clearLastEditedResortHold(stateKey);
-  closeSortDropdown();
   render();
+  closeSortDropdown();
+  toggleSortDropdown(null);
 }
 function getSortItemKey(item = {}) {
   return String(item?.id || (typeof getScreenListGameStableKey === 'function' ? getScreenListGameStableKey(item) : '') || item?.title || '');
@@ -141,6 +156,199 @@ function markOwnItemLastEdited(item = null, section = activeSection) {
   // switchSection so the correct order is restored when the user returns.
   sessionLastEditedResortHold[stateKey] = true;
   return item;
+}
+
+function getMusicTrackStableKey(track, idx) {
+  if (!track || typeof track !== 'object') return `idx:${idx}`;
+  const dzId = String(track.deezerId || track.id || '').trim();
+  if (dzId) return `dz:${dzId}`;
+  const num = String(track.number || (idx + 1)).trim();
+  const title = String(track.title || '').trim().toLowerCase();
+  if (title) return `t:${num}::${title}`;
+  return `idx:${idx}`;
+}
+
+function getNumericValueFromObject(source = {}, keys = []) {
+  if (!source || typeof source !== 'object') return 0;
+  for (const key of keys) {
+    if (!Object.prototype.hasOwnProperty.call(source, key)) continue;
+    const value = source[key];
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+      const clean = value.replace(/,/g, '').match(/-?\d+(?:\.\d+)?/);
+      if (clean) {
+        const parsed = Number(clean[0]);
+        if (Number.isFinite(parsed)) return parsed;
+      }
+    }
+  }
+  return 0;
+}
+
+function hasNumericValueInObject(source = {}, keys = []) {
+  if (!source || typeof source !== 'object') return false;
+  return keys.some(key => {
+    if (!Object.prototype.hasOwnProperty.call(source, key)) return false;
+    const value = source[key];
+    if (typeof value === 'number') return Number.isFinite(value);
+    if (typeof value === 'string') return /-?\d+(?:\.\d+)?/.test(value.replace(/,/g, ''));
+    return false;
+  });
+}
+
+function normalizeMusicDurationMs(value) {
+  const n = Number(value || 0);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return n > 10000 ? n : n * 1000;
+}
+
+function medianNumber(values = []) {
+  const nums = values.map(Number).filter(n => Number.isFinite(n));
+  if (!nums.length) return 0;
+  nums.sort((a, b) => a - b);
+  const mid = Math.floor(nums.length / 2);
+  return nums.length % 2 ? nums[mid] : (nums[mid - 1] + nums[mid]) / 2;
+}
+
+function getMusicTrackRatingValue(item = {}, track = {}, idx = 0) {
+  const byKey = item && typeof item.trackRatingsByKey === 'object' && item.trackRatingsByKey !== null
+    ? item.trackRatingsByKey
+    : null;
+  if (byKey) {
+    const key = getMusicTrackStableKey(track, idx);
+    if (Object.prototype.hasOwnProperty.call(byKey, key)) {
+      const value = Number(byKey[key] || 0);
+      if (Number.isFinite(value)) return Math.max(0, value);
+    }
+  }
+  if (Array.isArray(item?.trackRatings)) {
+    const value = Number(item.trackRatings[idx] || 0);
+    if (Number.isFinite(value)) return Math.max(0, value);
+  }
+  return getNumericValueFromObject(track, ['rating', 'trackRating', 'userRating']);
+}
+
+function getMusicTrackFavoriteValue(item = {}, track = {}, idx = 0) {
+  const byKey = item && typeof item.trackFavoritesByKey === 'object' && item.trackFavoritesByKey !== null
+    ? item.trackFavoritesByKey
+    : null;
+  if (byKey) {
+    const key = getMusicTrackStableKey(track, idx);
+    if (byKey[key] === true) return 1;
+    if (byKey[key] === false) return 0;
+  }
+  if (Array.isArray(item?.trackFavorites)) {
+    if (item.trackFavorites[idx] === true) return 1;
+    if (item.trackFavorites[idx] === false) return 0;
+  }
+  if (getMusicTrackRatingValue(item, track, idx) > 0) return 1;
+  return getNumericValueFromObject(track, ['favorite', 'favoriteCount', 'favorites', 'favCount']) > 0 ? 1 : 0;
+}
+
+function getMusicTrackMetric(track = {}, keys = []) {
+  return getNumericValueFromObject(track, keys);
+}
+
+function getMusicItemStats(item = {}) {
+  const tracks = Array.isArray(item?.tracks) ? item.tracks : [];
+  const itemCount = tracks.length || getNumericValueFromObject(item, ['itemCount', 'trackCount', 'tracksCount', 'nb_tracks', 'totalTracks']);
+  const totalRatingKeys = ['totalRating', 'total_rating', 'ratingTotal'];
+  const ratedTracksKeys = ['ratedTracksCount', 'ratedTrackCount', 'ratedTracks'];
+  const totalFavoritesKeys = ['totalFavorites', 'favoriteCount', 'favoritesCount', 'favorites'];
+  const totalPlayCountKeys = ['totalPlayCount', 'playCountTotal', 'playCount'];
+  const totalSkipCountKeys = ['totalSkipCount', 'skipCountTotal', 'skipCount'];
+  const totalSizeKeys = ['totalSizeBytes', 'sizeBytes', 'fileSizeBytes', 'bytes'];
+  const timeSpentKeys = ['timeSpentListeningMs', 'listeningTimeMs', 'totalListeningMs'];
+  const hasTotalRating = hasNumericValueInObject(item, totalRatingKeys);
+  const hasRatedTracks = hasNumericValueInObject(item, ratedTracksKeys);
+  const hasTotalFavorites = hasNumericValueInObject(item, totalFavoritesKeys);
+  const hasTotalPlayCount = hasNumericValueInObject(item, totalPlayCountKeys);
+  const hasTotalSkipCount = hasNumericValueInObject(item, totalSkipCountKeys);
+  const hasTotalSizeBytes = hasNumericValueInObject(item, totalSizeKeys);
+  const hasRuntime = hasNumericValueInObject(item, ['runtimeMs', 'durationMs', 'duration', 'length']);
+  const hasTimeSpentListening = hasNumericValueInObject(item, timeSpentKeys);
+  let totalRating = getNumericValueFromObject(item, totalRatingKeys);
+  let ratedTracks = getNumericValueFromObject(item, ratedTracksKeys);
+  let totalFavorites = getNumericValueFromObject(item, totalFavoritesKeys);
+  let totalPlayCount = getNumericValueFromObject(item, totalPlayCountKeys);
+  let totalSkipCount = getNumericValueFromObject(item, totalSkipCountKeys);
+  let totalBitrate = 0;
+  let bitrateCount = 0;
+  let totalSizeBytes = getNumericValueFromObject(item, totalSizeKeys);
+  let totalDurationMs = normalizeMusicDurationMs(item.runtimeMs || item.durationMs || item.duration || item.length || 0);
+  let timeSpentListeningMs = getNumericValueFromObject(item, timeSpentKeys);
+  const playCounts = [];
+
+  tracks.forEach((track, idx) => {
+    const rating = getMusicTrackRatingValue(item, track, idx);
+    if (!hasTotalRating) totalRating += rating;
+    if (!hasRatedTracks && rating > 0) ratedTracks += 1;
+    if (!hasTotalFavorites) totalFavorites += getMusicTrackFavoriteValue(item, track, idx);
+
+    const playCount = getMusicTrackMetric(track, ['playCount', 'play_count', 'plays', 'listenCount', 'listen_count', 'listens', 'timesPlayed']);
+    playCounts.push(playCount);
+    if (!hasTotalPlayCount) totalPlayCount += playCount;
+
+    const skipCount = getMusicTrackMetric(track, ['skipCount', 'skip_count', 'skips', 'timesSkipped']);
+    if (!hasTotalSkipCount) totalSkipCount += skipCount;
+
+    const bitrate = getMusicTrackMetric(track, ['bitrate', 'bitRate', 'bitrateKbps', 'audioBitrate']);
+    if (bitrate > 0) { totalBitrate += bitrate; bitrateCount += 1; }
+
+    const size = getMusicTrackMetric(track, ['sizeBytes', 'fileSizeBytes', 'bytes', 'fileSize', 'size']);
+    if (!hasTotalSizeBytes) totalSizeBytes += size;
+
+    const durationMs = normalizeMusicDurationMs(track.durationMs || track.length || track.duration || 0);
+    if (!hasRuntime) totalDurationMs += durationMs;
+    if (!hasTimeSpentListening) timeSpentListeningMs += durationMs * playCount;
+  });
+
+  const safeCount = Math.max(0, Number(itemCount || tracks.length || 0));
+  const unratedTracks = Math.max(0, safeCount - ratedTracks);
+  const averageFavorites = safeCount ? totalFavorites / safeCount : 0;
+  const favoriteProgress = safeCount ? (totalFavorites / safeCount) * 100 : 0;
+  const playCountAverage = safeCount ? totalPlayCount / safeCount : 0;
+  const skipCountAverage = safeCount ? totalSkipCount / safeCount : 0;
+  const bitrateAverage = bitrateCount ? totalBitrate / bitrateCount : getNumericValueFromObject(item, ['bitrateAverage', 'averageBitrate']);
+  const minutes = totalDurationMs > 0 ? totalDurationMs / 60000 : 0;
+
+  return {
+    totalRating,
+    ratedTracks,
+    unratedTracks,
+    totalFavorites,
+    averageFavorites,
+    favoriteProgress,
+    playCountAverage,
+    playCountMedian: medianNumber(playCounts),
+    skipCount: totalSkipCount,
+    skipCountAverage,
+    bitrateAverage,
+    sizePerMinute: minutes ? totalSizeBytes / minutes : 0,
+    timeSpentListening: timeSpentListeningMs,
+    itemCount: safeCount
+  };
+}
+
+function getMusicSortMetric(item = {}, sortKey = '') {
+  const stats = getMusicItemStats(item);
+  switch (sortKey) {
+    case 'music-total-rating': return stats.totalRating;
+    case 'music-rated-tracks': return stats.ratedTracks;
+    case 'music-unrated-tracks': return stats.unratedTracks;
+    case 'music-total-favorites': return stats.totalFavorites;
+    case 'music-average-favorites': return stats.averageFavorites;
+    case 'music-favorite-progress': return stats.favoriteProgress;
+    case 'music-play-count-average': return stats.playCountAverage;
+    case 'music-play-count-median': return stats.playCountMedian;
+    case 'music-skip-count': return stats.skipCount;
+    case 'music-skip-count-average': return stats.skipCountAverage;
+    case 'music-bitrate-average': return stats.bitrateAverage;
+    case 'music-size-per-minute': return stats.sizePerMinute;
+    case 'music-time-spent-listening': return stats.timeSpentListening;
+    case 'music-item-count': return stats.itemCount;
+    default: return 0;
+  }
 }
 
 function getSortStateKey(section = activeSection, tab = activeTab) { return section + ':' + tab; }
@@ -232,16 +440,12 @@ function setSortOrder(key) {
     });
     sessionCustomOrder[stateKey] = applySortOrder(items, getDefaultSortKeyFor(), stateKey).map(getSortItemKey);
   }
-  if (isMusic) {
-    render();
-    /* Keep the dropdown open + re-render to show the arrow next to the
-       new selection. */
-    closeSortDropdown();
-    toggleSortDropdown(null);
-    return;
-  }
-  closeSortDropdown();
   render();
+  /* v10.641: Keep the sort popup open after choosing any sort option.
+     Users close it by tapping outside the popup. Re-render so the active
+     state/arrow updates after the list refresh. */
+  closeSortDropdown();
+  toggleSortDropdown(null);
 }
 
 function applySortOrder(items, sortKey, stateKey) {
@@ -376,6 +580,26 @@ function applySortOrder(items, sortKey, stateKey) {
     case 'avg-finish-time':
       arr.sort((a, b) => (Number(a.avgFinishTime || a.hltbCompletionist || 0)) - (Number(b.avgFinishTime || b.hltbCompletionist || 0)));
       break;
+    case 'music-total-rating':
+    case 'music-rated-tracks':
+    case 'music-unrated-tracks':
+    case 'music-total-favorites':
+    case 'music-average-favorites':
+    case 'music-favorite-progress':
+    case 'music-play-count-average':
+    case 'music-play-count-median':
+    case 'music-skip-count':
+    case 'music-skip-count-average':
+    case 'music-bitrate-average':
+    case 'music-size-per-minute':
+    case 'music-time-spent-listening':
+    case 'music-item-count':
+      arr.sort((a, b) => {
+        const diff = getMusicSortMetric(b, sortKey) - getMusicSortMetric(a, sortKey);
+        if (diff) return diff;
+        return String(a.title || '').localeCompare(String(b.title || ''), undefined, { sensitivity: 'base' });
+      });
+      break;
     case 'custom': {
       const order = (stateKey && sessionCustomOrder[stateKey]) || [];
       if (!order.length) return arr;
@@ -410,6 +634,7 @@ function toggleSortDropdown(e) {
   const menu = document.createElement('div');
   menu.id = 'sort-dropdown-menu';
   menu.className = 'sort-dropdown-menu' + (isMusic ? ' sort-dropdown-menu--music' : '');
+  menu.addEventListener('click', event => event.stopPropagation());
   /* v10.259: music section has no separate Asc/Desc toggle — each option
      carries the current direction arrow when active, and tapping the same
      option flips it. */
@@ -1110,6 +1335,24 @@ function parseScreenListMediaRoute() {
   return { kind: match[1].toLowerCase(), id: decodeURIComponent(match[2] || '').trim() };
 }
 
+function parseScreenListReviewRoute(urlLike = window.location) {
+  try {
+    const nextUrl = typeof urlLike === 'string' ? new URL(urlLike, window.location.origin) : urlLike;
+    const pathname = String(nextUrl?.pathname || '');
+    const hash = String(nextUrl?.hash || '');
+    const pathMatch = pathname.match(/^\/review\/([^/?#]+)/i);
+    const hashMatch = hash.match(/^#review\/([^/?#]+)/i);
+    const match = pathMatch || hashMatch;
+    if (!match) return null;
+    return {
+      postId: decodeURIComponent(match[1] || '').trim(),
+      section: String(nextUrl?.searchParams?.get?.('section') || '').trim()
+    };
+  } catch (error) {
+    return null;
+  }
+}
+
 function parseSharedMediaUrl(url = '') {
   const raw = String(url || '').trim();
   if (!raw) return null;
@@ -1227,9 +1470,20 @@ function syncSignedOutRoute() {
     openSharedAlbumRoute();
     return;
   }
+  const reviewRoute = parseScreenListReviewRoute();
+  if (reviewRoute?.postId) {
+    if (typeof openSharedMediaReviewRoute === 'function') {
+      openSharedMediaReviewRoute(reviewRoute);
+    } else {
+      window.addEventListener('load', () => {
+        if (typeof openSharedMediaReviewRoute === 'function') openSharedMediaReviewRoute(reviewRoute);
+      }, { once: true });
+    }
+    return;
+  }
   if (typeof parseScreenListProfileRoute === 'function') {
     const profileRoute = parseScreenListProfileRoute();
-    if (profileRoute?.uid && (profileRoute.section || window.location.pathname.startsWith('/profile-card/'))) {
+    if (profileRoute?.uid && (profileRoute.section || window.location.pathname.startsWith('/profile-card/') || window.location.pathname.startsWith('/profile/'))) {
       openProfileRouteDirect(profileRoute);
       return;
     }
@@ -1367,6 +1621,39 @@ function openPreviewCommunityProfile(uid) {
           } else {
             window.addEventListener('load', () => openSharedMediaProfileRoute(route), { once: true });
           }
+        }
+        return;
+      }
+
+      /* /album/{ownerUid}/{albumKey} — shared album shelf page */
+      const albumRoute = typeof parseScreenListAlbumRoute === 'function' ? parseScreenListAlbumRoute(parsed) : null;
+      if (albumRoute?.ownerUid && albumRoute?.albumKey && typeof openSharedAlbumRoute === 'function') {
+        if (document.readyState === 'complete') {
+          openSharedAlbumRoute(albumRoute);
+        } else {
+          window.addEventListener('load', () => openSharedAlbumRoute(albumRoute), { once: true });
+        }
+        return;
+      }
+
+      /* /review/{postId} — shared full-page user review */
+      const reviewRoute = parseScreenListReviewRoute(parsed);
+      if (reviewRoute?.postId) {
+        const opener = () => {
+          if (typeof openSharedMediaReviewRoute === 'function') openSharedMediaReviewRoute(reviewRoute);
+        };
+        if (document.readyState === 'complete') opener();
+        else window.addEventListener('load', opener, { once: true });
+        return;
+      }
+
+      /* /profile/{uid}, /profile-card/{uid}/{section}/{rank}, or legacy ?profile={uid} */
+      const profileRoute = typeof parseScreenListProfileRoute === 'function' ? parseScreenListProfileRoute(parsed) : null;
+      if (profileRoute?.uid && typeof openProfileRouteDirect === 'function') {
+        if (document.readyState === 'complete') {
+          openProfileRouteDirect(profileRoute);
+        } else {
+          window.addEventListener('load', () => openProfileRouteDirect(profileRoute), { once: true });
         }
         return;
       }

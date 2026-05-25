@@ -1,6 +1,11 @@
-// v280: Direct Message E2EE removed/disabled. Plaintext compatibility helpers only.
-const DM_E2EE_MISSING_KEY_TOAST = '';
-const DM_E2EE_OWN_KEY_TOAST = '';
+/* v10.761: DM message-payload helpers. E2EE was removed in v280 and the
+   stub wrappers were pruned in v10.761. Filename kept for index.html load
+   order — contents are now plaintext payload helpers only.
+
+   isDirectMessageEncryptedRecord() is the one piece still useful: legacy
+   Firestore threads from the E2EE era can still contain encrypted records
+   without a key. The DM render path filters those out via this predicate
+   so the inbox doesn't choke trying to render ciphertext. */
 
 function isDirectMessageEncryptedRecord(message = {}) {
   return !!(message && (message.isEncrypted || message.dmE2ee || message.encryptedPayload || message.ciphertext));
@@ -18,25 +23,6 @@ function getDirectMessagePlainPayload(message = {}) {
   };
 }
 
-async function encryptDirectMessagePayloadForThread(thread = {}, messageId = '', payload = {}) {
-  return {
-    isEncrypted: false,
-    text: String(payload?.text || ''),
-    shareMedia: payload?.shareMedia || null,
-    imageData: payload?.imageData || '',
-    imageName: payload?.imageName || ''
-  };
-}
-
-async function decryptDirectMessagePayload(threadId = '', message = {}) {
-  return getDirectMessagePlainPayload(message);
-}
-
-function renderDirectMessageEncryptedContent() {
-  return '';
-}
-
-
 function renderDirectMessagePayloadContent(payload = {}, encrypted = false) {
   const normalizedShare = payload.shareMedia && typeof normalizeSharedMediaPayload === 'function'
     ? normalizeSharedMediaPayload(payload.shareMedia)
@@ -48,9 +34,3 @@ function renderDirectMessagePayloadContent(payload = {}, encrypted = false) {
   const textHtml = payload.text ? `<span class="dm-message-text">${escHtml(payload.text || '')}</span>` : '';
   return `${shareHtml}${imageHtml}${textHtml}`;
 }
-
-async function ensureDirectMessageEncryptionReady() { return { disabled: true }; }
-function closeDmE2eeRecoveryModal() {
-  document.querySelectorAll('.dm-e2ee-recovery-modal, #dm-e2ee-recovery-modal').forEach(node => node.remove());
-}
-closeDmE2eeRecoveryModal();

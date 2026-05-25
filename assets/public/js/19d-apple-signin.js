@@ -56,6 +56,41 @@
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   }
 
+  const APPLE_NATIVE_PLUGIN_NAMES = [
+    'AppleSignIn',
+    'SignInWithApple',
+    'AppleSignInPlugin',
+    'ShelfdAppleSignIn',
+    'NativeAppleSignIn'
+  ];
+  const APPLE_NATIVE_METHOD_NAMES = ['authorize', 'signIn', 'login'];
+
+  function getAvailableNativePluginNames() {
+    try { return Object.keys(window.Capacitor?.Plugins || {}); }
+    catch (_) { return []; }
+  }
+
+  function findNativeApplePlugin() {
+    const plugins = window.Capacitor?.Plugins || {};
+    for (const name of APPLE_NATIVE_PLUGIN_NAMES) {
+      const plugin = plugins[name] || window[name];
+      if (!plugin) continue;
+      const method = APPLE_NATIVE_METHOD_NAMES.find(methodName => typeof plugin[methodName] === 'function');
+      if (method) return { plugin, name, method };
+    }
+    return null;
+  }
+
+  async function waitForNativeApplePlugin(timeoutMs = 2500) {
+    const started = Date.now();
+    while (Date.now() - started < timeoutMs) {
+      const found = findNativeApplePlugin();
+      if (found) return found;
+      await new Promise(resolve => setTimeout(resolve, 120));
+    }
+    return findNativeApplePlugin();
+  }
+
   /* Main sign-in flow */
   async function signInWithApple() {
     const btn = document.getElementById('shelfd-apple-signin-btn');
@@ -63,9 +98,12 @@
 
     try {
       /* Get the plugin — our custom native plugin is registered as "AppleSignIn" */
-      const Cap = window.Capacitor;
-      const plugin = Cap && Cap.Plugins && (Cap.Plugins.AppleSignIn || Cap.Plugins.SignInWithApple);
-      if (!plugin || typeof plugin.authorize !== 'function') {
+      const native = await waitForNativeApplePlugin();
+      if (!native) {
+        console.error('[appleSignIn] Apple native plugin not found', {
+          expected: APPLE_NATIVE_PLUGIN_NAMES,
+          available: getAvailableNativePluginNames()
+        });
         throw new Error('AppleSignIn plugin not available');
       }
 
@@ -73,7 +111,7 @@
       const rawNonce    = generateRawNonce();
       const hashedNonce = await sha256Hex(rawNonce);
 
-      const result = await plugin.authorize({
+      const result = await native.plugin[native.method]({
         clientId:    'com.myshelfd.app',
         redirectURI: 'https://myshelfd.com',
         scopes:      'email name',

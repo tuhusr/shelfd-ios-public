@@ -795,45 +795,117 @@ auth.onAuthStateChanged(async (user) => {
     currentUser = user;
     DOC_REF = db.collection("watchlist").doc(user.uid);
     exitPreviewMode();
+    /* v10.761: HYDRATE DM INBOX FROM DEVICE CACHE — fires IMMEDIATELY after
+       currentUser is assigned, BEFORE the 1.5s deferred startup that attaches
+       friendsDataListener + startDirectMessageSharedThreadsListener below.
+       If user taps DMs in the first 1500ms (or while the cold Firestore
+       round-trip is in flight), the inbox row list paints instantly from
+       the last-saved snapshot instead of staying blank for ~37s. The shared
+       dmThreads listener's merge logic does newer-wins by updatedAtMs, so
+       fresh data overlays cleanly when it arrives. See 09b-dm-inbox-cache.js. */
+    if (typeof hydrateDmInboxFromCache === 'function') {
+      try { hydrateDmInboxFromCache(user.uid); }
+      catch (e) { console.warn('[v10.761] DM inbox cache hydrate failed:', e); }
+    }
     if (mediaRoute || albumRoute || profileRoute?.uid) {
       prepareSharedMediaRouteView();
     } else {
       document.getElementById("login-screen").style.display = "none";
       document.getElementById("app-container").style.display = "block";
     }
-    await load();
-    await saveUserProfile(user);
+    /* v10.696: FIRST-PAINT FAST PATH (Instagram/Twitter-style).
+       Previously: splash stayed up until `await load()` (Firestore round-trip)
+       + `saveUserProfile()` + listener attachments + `render()` ALL completed.
+       That's 3+ sequential network round-trips before the user sees the
+       shelf — easily 2–5 seconds of stale splash on a cold launch.
+
+       Now: if we have a `screenlist-own-data-backup-<uid>` snapshot in
+       localStorage from a previous session, we hydrate `data` from it,
+       paint the shelf, and fire `shelfd:app-ready` IMMEDIATELY. The
+       splash hides while Firestore reconciliation continues in the
+       background. When `await load()` returns with fresh data below,
+       the existing `render()` call repaints with the canonical data.
+
+       v10.697: also tracks `__shelfdFastPaintFired` so the reconciliation
+       pass at the bottom can skip `setDefaultMyListsWatchingView()` —
+       otherwise the user gets yanked back to My Lists ~1-3s after cold
+       launch if they navigated away during reconciliation. */
+    let __shelfdFastPaintFired = false;
     try {
-      await ensureDirectMessageEncryptionReady(user.uid, { silent: true });
-    } catch (error) {
-      console.warn('Secure Direct Message background setup skipped:', error);
+      const __shelfdCanFastPaint = !mediaRoute && !albumRoute && !profileRoute?.uid
+        && typeof readOwnLocalBackup === 'function'
+        && typeof cloneListData === 'function'
+        && typeof listDataItemCount === 'function';
+      if (__shelfdCanFastPaint) {
+        const __shelfdCached = readOwnLocalBackup();
+        if (__shelfdCached && listDataItemCount(__shelfdCached) > 0) {
+          data = __shelfdCached;
+          ownDataCache = cloneListData(__shelfdCached);
+          try {
+            if (typeof setDefaultMyListsWatchingView === 'function') {
+              setDefaultMyListsWatchingView();
+            } else {
+              activeSection = activeSection || "shows";
+              activeTab = activeTab || "watching";
+            }
+          } catch (e) { console.warn('[v10.696] fast-paint default view failed:', e); }
+          try { render(); } catch (e) { console.warn('[v10.696] fast-paint render failed:', e); }
+          try { markScreenListAppReadyForSplash(); }
+          catch (e) { console.warn('[v10.696] fast-paint app-ready failed:', e); }
+          __shelfdFastPaintFired = true;
+        }
+      }
+    } catch (e) { console.warn('[v10.696] fast-paint outer guard tripped:', e); }
+    await load();
+    /* v10.702: Gate onboarding before saveUserProfile() so brand-new
+       Apple accounts with no users/{uid} doc enter setup instead of
+       having saveUserProfile auto-create a profile and bypass setup. */
+    if (typeof window.__shelfdAuthOnboardingGate === 'function') {
+      try {
+        const gated = await window.__shelfdAuthOnboardingGate(user);
+        if (gated) {
+          markScreenListAppReadyForSplash();
+          return;
+        }
+      } catch (e) {
+        console.warn('[shelfd-auth] onboarding gate threw:', e);
+      }
     }
-    bootstrapUserCountIfNeeded();
-    startFriendsDataListener(); // live Friends/Requests badge + request list updates
-    startWatchTogetherListener();
-    /* v10.281: attach the activity-notifications listener on sign-in instead
-       of only when the user opens the Notifications tab. Previously the
-       Firestore listener was lazy — it only attached the first time the user
-       navigated to Notifications, so the bottom-nav red dot + the activity
-       sub-tab dot never updated UNTIL the user tapped Notifications. Now the
-       listener runs continuously from sign-in onward, so badges update in
-       real time when a friend likes/comments. */
-    if (typeof attachShelfdNotificationsListener === 'function') {
-      try { attachShelfdNotificationsListener(); } catch (e) { console.warn('[shelfd-auth] notifications listener attach failed:', e); }
+    await saveUserProfile(user);
+    /* v10.762: CRITICAL LISTENERS attach IMMEDIATELY, not deferred 1.5s.
+       startFriendsDataListener + startDirectMessageSharedThreadsListener
+       are what Activity feed, Friends page, Discover "What Your Friends Are
+       Watching", and DM inbox all depend on. With Firestore offline
+       persistence enabled (see 01-firebase-login-state.js v10.762), the
+       first snapshot fires from cached IndexedDB data typically within
+       ~100ms — making those surfaces appear nearly instantly on every
+       cold launch after the first. Network refresh follows when the
+       cold connection settles. Previously these sat behind a 1500ms
+       setTimeout (v10.697) meant to keep first-paint smooth for the
+       shelf, but the cost was 1.5s of staring at a blank Friends /
+       Activity / Discover-friends-row. The shelf doesn't depend on
+       these listeners, so moving them up does not regress it. */
+    try { startFriendsDataListener(); } catch (e) { console.warn('[v10.762] immediate startFriendsDataListener failed:', e); }
+    if (typeof startDirectMessageSharedThreadsListener === 'function') {
+      try { startDirectMessageSharedThreadsListener(); } catch (e) { console.warn('[v10.762] immediate startDirectMessageSharedThreadsListener failed:', e); }
     }
-    /* v10.281: also fire the one-shot 11-day backfill in the background so
-       any missed events from before the live listener was wired up are
-       reconstructed into the notifications inbox. Fire-and-forget; failures
-       are non-fatal. */
-    if (typeof backfillRecentActivityNotifications === 'function') {
-      try { backfillRecentActivityNotifications(); } catch (e) {}
-    }
-    /* v730: load the user's favoritePeople map (favorited actors/directors)
-       into window.shelfdFavoritePeople so cast-card hearts render with the
-       correct filled/empty state on first paint. */
-    if (typeof window.shelfdLoadFavoritePeople === 'function') {
-      window.shelfdLoadFavoritePeople();
-    }
+    /* v10.697 (kept): TRULY-BACKGROUND WORK still deferred 1.5s past first
+       paint. None of these gate a visible page render — just badges,
+       backfills, secondary listeners. */
+    setTimeout(() => {
+      /* v10.761: ensureDirectMessageEncryptionReady removed (E2EE deprecated v280). */
+      try { bootstrapUserCountIfNeeded(); } catch (e) { console.warn('[v10.697] deferred bootstrapUserCountIfNeeded failed:', e); }
+      try { startWatchTogetherListener(); } catch (e) { console.warn('[v10.697] deferred startWatchTogetherListener failed:', e); }
+      if (typeof attachShelfdNotificationsListener === 'function') {
+        try { attachShelfdNotificationsListener(); } catch (e) { console.warn('[v10.697] deferred attachShelfdNotificationsListener failed:', e); }
+      }
+      if (typeof backfillRecentActivityNotifications === 'function') {
+        try { backfillRecentActivityNotifications(); } catch (e) {}
+      }
+      if (typeof window.shelfdLoadFavoritePeople === 'function') {
+        try { window.shelfdLoadFavoritePeople(); } catch (e) { console.warn('[v10.697] deferred shelfdLoadFavoritePeople failed:', e); }
+      }
+    }, 1500);
     if (mediaRoute) {
       await openSharedMediaProfileRoute(mediaRoute);
       markScreenListAppReadyForSplash();
@@ -849,24 +921,33 @@ auth.onAuthStateChanged(async (user) => {
       markScreenListAppReadyForSplash();
       return;
     }
-    /* v804: gate routing on onboardingComplete. If the user signed up via
-       the new email flow and refreshed mid-setup, this returns true and
-       the setup overlay opens at the saved step. Skip render() in that case. */
-    if (typeof window.__shelfdAuthOnboardingGate === 'function') {
-      try {
-        const gated = await window.__shelfdAuthOnboardingGate(user);
-        if (gated) {
-          markScreenListAppReadyForSplash();
-          return;
-        }
-      } catch (e) {
-        console.warn('[shelfd-auth] onboarding gate threw:', e);
-      }
+    /* v10.697: AUTO-FORCE-BACK FIX. Previously `setDefaultMyListsWatchingView()`
+       always ran at the bottom — even on returning users who fast-painted
+       and then navigated to Activity / Discover / DMs during the
+       reconciliation gap. That call resets activeSection/activeTab AND
+       calls syncMainNavButtons('mylist') + setMainNavVisibility('mylist'),
+       yanking the user back to My Lists 1–3s after launch.
+       Fix: only force the default view on first-time sign-ins (no fast
+       paint fired). For returning users, just re-render in place so any
+       Firestore-side drift becomes visible on whichever tab they're on. */
+    if (!__shelfdFastPaintFired) {
+      setDefaultMyListsWatchingView();
+      render();
+    } else {
+      try { render(); } catch (e) { console.warn('[v10.697] reconciliation render failed:', e); }
     }
-    setDefaultMyListsWatchingView();
-    render();
     markScreenListAppReadyForSplash();
   } else {
+    /* v10.761: clear the device-cached DM inbox for the user who just
+       signed out, so a shared device doesn't leak their inbox preview
+       to whoever signs in next. Capture the uid BEFORE we null out
+       currentUser below. Other uids' caches stay put — keyed by uid
+       so per-account snapshots don't collide. */
+    const signingOutUid = currentUser?.uid || '';
+    if (signingOutUid && typeof clearDmInboxCacheForUid === 'function') {
+      try { clearDmInboxCacheForUid(signingOutUid); }
+      catch (e) { console.warn('[v10.761] DM inbox cache clear failed:', e); }
+    }
     stopFriendsDataListener();
     stopWatchTogetherListener();
     resetFriendsDataState();

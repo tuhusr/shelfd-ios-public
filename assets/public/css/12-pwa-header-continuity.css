@@ -2744,3 +2744,32 @@ body.main-tab-community #requests-view {
   content: none !important;
   display: none !important;
 }
+
+
+/* =============================================================================
+   v10.755: Page-specific header title
+   Replaces Shelfd logo + wordmark on Discover / Activity / Friends pages.
+   .main-header-page-title visibility is controlled by JS in updateMainHeaderPageTitle().
+   ============================================================================= */
+.main-header-page-title {
+  font-family: 'Sohne', system-ui, -apple-system, sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #f5f5f7;
+  line-height: 1;
+  white-space: nowrap;
+  display: none; /* shown by JS */
+}
+
+/* On mobile, center the title in the header grid like the logo was */
+@media (max-width: 700px) {
+  .main-header-page-title {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    justify-self: center !important;
+    align-self: center !important;
+    font-size: 21px;
+    text-align: center;
+  }
+}

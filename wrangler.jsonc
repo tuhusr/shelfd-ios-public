@@ -14,6 +14,12 @@
   "name": "watchlist",
   "main": "worker.js",
   "compatibility_date": "2026-04-28",
+  "triggers": {
+    "crons": [
+      "0 9 * * *",
+      "0 10 * * *"
+    ]
+  },
   "kv_namespaces": [
     {
       "binding": "PUSH_TOKENS_KV",
@@ -27,9 +33,11 @@
     "run_worker_first": [
       "/api/*",
       "/profile-card/*",
+      "/profile/*",
       "/profile-card-og.svg",
       "/media/*",
       "/album/*",
+      "/review/*",
       "/.well-known/apple-app-site-association"
     ]
   },

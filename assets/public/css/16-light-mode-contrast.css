@@ -1832,7 +1832,13 @@ body.true-dark-mode #community-view #activity-tab-view .sl-activity-stack-compac
 body.true-dark-mode .activity-page .sl-activity-stack-compact-card {
   background: transparent !important;
   border: none !important;
-  border-bottom: 1px solid rgba(255,255,255,0.15) !important;
+  /* v10.676: removed the 1px border-bottom hairline that previously sat
+     between each compact child card's interactions row and the carousel
+     controls / Show all button. Was:
+       border-bottom: 1px solid rgba(255,255,255,0.15) !important;
+     The `border: none !important;` above now applies uniformly to all
+     four sides — no bottom edge on compact child cards. */
+  border-bottom: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
 }
@@ -3537,8 +3543,9 @@ body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-action-verb 
 }
 body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-name,
 body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-name {
-  font-size: 16px !important;
-  font-weight: 600 !important;
+  /* v10.662: username 16/600 → 15/500 per design pass. */
+  font-size: 15px !important;
+  font-weight: 500 !important;
   max-width: min(58vw, 300px) !important;
   color: #ffffff !important;
   line-height: 1.1 !important;
@@ -3586,7 +3593,8 @@ body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-plain-note {
 
 body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-time,
 body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-time {
-  font-size: 12px !important;
+  /* v10.662: timestamp 12px → 11px per design pass. */
+  font-size: 11px !important;
   letter-spacing: -.01em !important;
 }
 
@@ -3596,7 +3604,17 @@ body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-a
 body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-name,
 body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-name .creator-name-wrap,
 body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-name .creator-name {
-  font-weight: 600 !important;
+  /* v10.662: username 600 → 500 per design pass. */
+  font-weight: 500 !important;
+}
+
+/* v10.662: late override to ensure .sl-activity-name lands at 15px even
+   though the shared v890 block above (font-size: 16px applied to the
+   broader meta family) appears later in cascade. This rule comes AFTER
+   the v890 block AND targets .sl-activity-name specifically, so it wins. */
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-name,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-name {
+  font-size: 15px !important;
 }
 
 body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-time,
@@ -4149,15 +4167,41 @@ body.true-dark-mode #mylist-view .games-wishlist-card .games-wishlist-card-platf
   font-weight: 500 !important;
   opacity: 0.58 !important;
 }
+/* v10.707: watchlist release-date and "In theaters" lines bumped from
+   11px/400 → 12px/500. Added the in-theaters selector to this rule so
+   both states share one typographic treatment (previously in-theaters
+   inherited 11px/400 from the card-availability-line cascade below).
+   The where-to-watch line (with provider logos) is intentionally LEFT
+   at 11px/400 — only release-date and in-theaters were in scope.
+   v10.708: bumped again to 14px / 500. The 12px change was visually
+   too subtle vs the prior 11px — at small sizes the Sohne 400→500
+   step is easy to miss. 14px is the same size as the card title
+   metadata so the watchlist availability state now reads as a proper
+   sub-line rather than tiny meta text. */
 body.true-dark-mode #mylist-view .card-release-date,
 #mylist-view .card-release-date,
 body.true-dark-mode #mylist-view .mylist-availability-release-date,
-#mylist-view .mylist-availability-release-date {
-  font-size: 11px !important;
-  font-weight: 400 !important;
+#mylist-view .mylist-availability-release-date,
+body.true-dark-mode #mylist-view .mylist-availability-in-theaters,
+#mylist-view .mylist-availability-in-theaters {
+  font-size: 14px !important;
+  font-weight: 500 !important;
 }
-body.true-dark-mode #mylist-view .card-availability-line,
-#mylist-view .card-availability-line,
+/* v10.709: ROOT-CAUSE FIX for "In theaters / release-date font size not
+   updating". The rule below matches .card-availability-line which is the
+   SHARED base class on ALL three availability-line variants
+   (release-date, in-theaters, where-to-watch). My v10.708 rule above
+   bumped release-date + in-theaters to 14px/500 with (1,2,0)
+   specificity and !important — but this rule has IDENTICAL (1,2,0)
+   specificity, same !important, and comes LATER in source order,
+   so cascade tiebreaker hands it the win and clobbers the 14px back
+   to 11px on the in-theaters and release-date variants. Fix: scope
+   this rule to ONLY .mylist-availability-where-to-watch (and its
+   where-text descendant) by adding :not() filters on the base class
+   selector. Now the rule no longer collides with the in-theaters /
+   release-date variants. */
+body.true-dark-mode #mylist-view .card-availability-line.mylist-availability-where-to-watch,
+#mylist-view .card-availability-line.mylist-availability-where-to-watch,
 body.true-dark-mode #mylist-view .mylist-availability-where-to-watch,
 #mylist-view .mylist-availability-where-to-watch,
 body.true-dark-mode #mylist-view .mylist-availability-where-text,
@@ -4255,9 +4299,13 @@ body.true-dark-mode #mylist-view .card .rating-label,
   display: none !important;
 }
 /* Episodes button ? 11px 500 */
+/* v10.720: Episodes pill text shrunk to match the 27px button shrink in
+   01-mylists-cards-episodes.css. This rule has (1,4,0) specificity vs the
+   01-file's (1,3,0) so it's the actual cascade winner on production
+   (every user is on body.true-dark-mode). Was 11px/500, now 10px/500. */
 body.true-dark-mode #mylist-view .card-action-row .ep-toggle-bar.card-footer-btn,
 body.true-dark-mode #mylist-view .card-action-row .ep-toggle-bar.card-footer-btn span:first-child {
-  font-size: 11px !important;
+  font-size: 10px !important;
   font-weight: 500 !important;
 }
 
@@ -4683,6 +4731,27 @@ body.light-mode #mobile-bottom-nav #mobile-nav-mylist.active {
   pointer-events: none !important;
   padding: max(var(--shelfd-safe-top, 0px), 0px) 0 max(env(safe-area-inset-bottom, 0px), 0px) !important;
 }
+
+/* v10.789: BODY LOCK while the universal search overlay is open.
+   iOS WKWebView leaks the underlying body's scroll position into the
+   overlay's `.shelfd-search-page-inner` (overflow-y: auto) when the
+   overlay opens. Result: scrollTop ≈ body.scrollY → the non-sticky
+   "+Add To Shelf" header at the top of the inner is pushed above the
+   visible area while the sticky topbar appears anchored, so it looks
+   like the header was never drawn. The fix is the same shape as the
+   DM page body lock (v10.782): position:fixed the body during the
+   overlay's life so iOS has no body scroll to bleed from. The negative
+   `top` keeps the underlying page visually anchored at its pre-open
+   scroll offset; JS saves and restores window.scrollY on open/close. */
+body.shelfd-search-page-open {
+  overflow: hidden;
+  overscroll-behavior: none;
+  position: fixed;
+  top: var(--search-page-saved-scrollY, 0px);
+  left: 0;
+  right: 0;
+  width: 100%;
+}
 .shelfd-search-page.is-open {
   transform: none !important;
   visibility: visible !important;
@@ -5101,6 +5170,21 @@ body.light-mode .activity-feed-load-more-btn:hover {
   background: #181c20 !important;
   color: #ffffff !important;
   font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif !important;
+  padding-top: 18px !important;
+}
+
+/* v10.758: "+Add To Shelf" identity header above the search bar */
+.shelfd-search-page-header {
+  padding: 0 20px 10px;
+  flex-shrink: 0;
+  text-align: center;
+}
+.shelfd-search-page-title {
+  font-size: 18px;
+  font-weight: 500;
+  color: #f5f5f7;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
 }
 
 /* ---------- Sticky top bar ---------- */
@@ -5315,34 +5399,36 @@ body.true-dark-mode .shelfd-search-input:focus-within {
 }
 .shelfd-search-section-action:hover { color: #c4b5fd; }
 
+/* v10.760: Recent searches — vertical stack, plain text, no pill chrome */
 .shelfd-search-recent-list {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
 }
 .shelfd-search-recent-chip {
   appearance: none;
   -webkit-appearance: none;
-  background: rgba(255,255,255,0.045);
-  border: 1px solid rgba(255,255,255,0.08);
-  color: #ffffff;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: rgba(235,232,244,0.78);
   font-family: inherit;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 400;
-  letter-spacing: 0.005em;
-  padding: 7px 12px;
-  border-radius: 999px;
+  letter-spacing: -0.005em;
+  padding: 10px 0;
   cursor: pointer;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 7px;
-  max-width: 220px;
-  transition: background 160ms ease, transform 140ms ease;
-  will-change: transform;
+  gap: 0;
+  width: 100%;
+  text-align: left;
+  transition: color 120ms ease;
 }
-.shelfd-search-recent-chip:hover { background: rgba(255,255,255,0.08); }
-.shelfd-search-recent-chip:active { transform: scale(0.96); }
-.shelfd-search-recent-chip svg { width: 13px; height: 13px; color: rgba(232,227,243,0.5); flex-shrink: 0; }
+.shelfd-search-recent-chip:hover { color: #ffffff; background: transparent; }
+.shelfd-search-recent-chip:active { color: #ffffff; opacity: 0.7; }
+.shelfd-search-recent-chip svg { display: none; }
 .shelfd-search-recent-chip span {
   white-space: nowrap;
   overflow: hidden;
@@ -11180,4 +11266,317 @@ body.main-tab-mylist .header-dm-icon,
 body.main-tab-mylist .header-dm-icon svg {
   width: 18px !important;
   height: 18px !important;
+}
+
+/* v10.757: Soft 1px divider between header and page body on
+   Discover / Activity / Friends pages. Uses 3-class specificity to beat
+   the `body.true-dark-mode .header { border-bottom: 0 !important }` rule
+   in 12-pwa-header-continuity.css (which is only 2-class specificity). */
+body.true-dark-mode.main-tab-discover .header,
+body.true-dark-mode.main-tab-community .header {
+  border-bottom: 1px solid rgba(255,255,255,0.6) !important;
+}
+
+/* v10.756 / v10.763: Hide Shelfd logo + wordmark on Discover / Activity /
+   Friends pages — replaced by the plain page title text from
+   updateMainHeaderPageTitle(). Also hides on viewing-other-user (a friend's
+   mylist view), where the header carries the friend's display name.
+   Loaded after 14-live-update-discover-controls.css + 15-universal-discovery-search.css
+   so same-specificity !important rules here win the cascade. Both desktop and
+   mobile versions needed (14/15 have both unscoped and @media rules). */
+body.main-tab-discover .header-logo-block > img.site-logo-img,
+body.main-tab-discover .header-logo-block > img.site-wordmark-img,
+body.main-tab-community .header-logo-block > img.site-logo-img,
+body.main-tab-community .header-logo-block > img.site-wordmark-img,
+body.viewing-other-user .header-logo-block > img.site-logo-img,
+body.viewing-other-user .header-logo-block > img.site-wordmark-img {
+  display: none !important;
+}
+@media (max-width: 700px) {
+  body.main-tab-discover .header-logo-block > img.site-logo-img,
+  body.main-tab-discover .header-logo-block > img.site-wordmark-img,
+  body.main-tab-community .header-logo-block > img.site-logo-img,
+  body.main-tab-community .header-logo-block > img.site-wordmark-img,
+  body.viewing-other-user .header-logo-block > img.site-logo-img,
+  body.viewing-other-user .header-logo-block > img.site-wordmark-img {
+    display: none !important;
+  }
+}
+
+/* v10.763: @username display under the friend's avatar on their mylist view.
+   The display NAME now lives in the top-of-screen header (replacing the
+   Shelfd logo via updateMainHeaderPageTitle), so what sits below the
+   avatar is the @handle — same hierarchy as Instagram/X/etc. */
+.viewing-user-handle {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(235,232,244,0.65);
+  letter-spacing: 0.005em;
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif;
+  line-height: 1.2;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   v10.765 — Profile Settings borderless redesign.
+   ════════════════════════════════════════════════════════════════════════
+   Old: each .profile-settings-card had a 1px lavender border + 24px
+        radius + rgba background. Looked like discrete bordered boxes.
+   New: cards float — no border, no background, no shadow. Sections
+        are separated by FULL-WIDTH 1px dividers that span edge-to-edge
+        regardless of iPhone screen width (achieved via 100vw +
+        translateX(-50%) trick which breaks out of the container padding).
+   Also overrides body.true-dark-mode rules in 06-profile.css which set
+   their own border/background. The :where(...) wrapper keeps specificity
+   matched-or-higher than those existing rules.
+   ════════════════════════════════════════════════════════════════════════ */
+
+.profile-settings-card.profile-settings-card-floating,
+body.true-dark-mode .profile-settings-card.profile-settings-card-floating {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 20px 0 !important;
+  margin: 0 !important;
+  position: relative;
+}
+
+/* Full-width divider above every card except the first. Uses 100vw +
+   translateX trick to span edge-to-edge regardless of container padding
+   or iPhone screen size (works on Base / Plus / Pro Max alike). */
+.profile-settings-card-floating + .profile-settings-card-floating::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100vw;
+  height: 1px;
+  background: rgba(255,255,255,0.08);
+  pointer-events: none;
+}
+
+/* Tighten the container gap since dividers now handle the visual separation. */
+.profile-settings-shell {
+  gap: 0 !important;
+}
+
+/* ── Username + Display Name display rows ── */
+.profile-settings-handle-row,
+.profile-settings-displayname-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+.profile-settings-handle-display,
+.profile-settings-displayname-display {
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #f5f5f7;
+  letter-spacing: -0.005em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.profile-settings-edit-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255,255,255,0.06);
+  border: 0;
+  border-radius: 999px;
+  color: #f5f5f7;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 7px 16px;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: background 140ms ease, color 140ms ease, opacity 140ms ease;
+}
+.profile-settings-edit-btn:hover { background: rgba(255,255,255,0.1); }
+.profile-settings-edit-btn:active { transform: scale(0.96); }
+.profile-settings-edit-btn.is-locked,
+.profile-settings-edit-btn[disabled] {
+  background: rgba(255,255,255,0.04);
+  color: rgba(235,232,244,0.45);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* ── Inline edit forms ── */
+.profile-settings-handle-edit,
+.profile-settings-displayname-edit {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* v10.772: respect the HTML `hidden` attribute. The display:flex above
+   would otherwise OVERRIDE the browser-default `[hidden] { display: none }`,
+   keeping the edit form visible even when JS set .hidden = true.
+   That's why both the display row AND the edit form were showing at once
+   on first paint. Same fix applies to the display row so clicking Edit
+   actually hides it during inline editing. */
+.profile-settings-handle-row[hidden],
+.profile-settings-handle-edit[hidden],
+.profile-settings-displayname-row[hidden],
+.profile-settings-displayname-edit[hidden] {
+  display: none !important;
+}
+.profile-settings-handle-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 0 12px;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+.profile-settings-handle-input-wrap:focus-within {
+  border-color: rgba(167,139,250,0.55);
+  background: rgba(255,255,255,0.07);
+}
+.profile-settings-handle-prefix {
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(235,232,244,0.55);
+  margin-right: 2px;
+  user-select: none;
+}
+#profile-settings-handle-input,
+#profile-settings-displayname-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  color: #f5f5f7;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  padding: 12px 0;
+  width: 100%;
+  outline: none;
+}
+#profile-settings-displayname-input {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 12px 14px;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+#profile-settings-displayname-input:focus {
+  border-color: rgba(167,139,250,0.55);
+  background: rgba(255,255,255,0.07);
+}
+
+.profile-settings-handle-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.profile-settings-cancel-btn,
+.profile-settings-save-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 8px 18px;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, transform 100ms ease;
+}
+.profile-settings-cancel-btn {
+  background: rgba(255,255,255,0.05);
+  color: #f5f5f7;
+}
+.profile-settings-cancel-btn:hover { background: rgba(255,255,255,0.09); }
+.profile-settings-cancel-btn:active { transform: scale(0.96); }
+.profile-settings-save-btn {
+  background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(124,58,237,0.25);
+}
+.profile-settings-save-btn:hover { filter: brightness(1.06); }
+.profile-settings-save-btn:active { transform: scale(0.96); }
+.profile-settings-save-btn[disabled] {
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.5);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+/* v10.766: brief green "Saved ✓" state to confirm the write landed. */
+.profile-settings-save-btn.is-saved {
+  background: linear-gradient(135deg, #34d399, #10b981) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 14px rgba(16,185,129,0.32) !important;
+  transform: scale(1.02);
+}
+
+.profile-settings-edit-hint {
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 12px;
+  color: rgba(235,232,244,0.5);
+  line-height: 1.4;
+}
+.profile-settings-edit-error {
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #fb7185;
+  line-height: 1.4;
+}
+
+/* v10.784: removed the FPMP dock star CSS (lines that handled
+   .discover-media-library-stars / .star-btn / .lit / .rating-confirm /
+   .skip / .confirm). The dock no longer has a rating row — Watched
+   goes straight to the full-page write-a-review composer
+   (openShelfLogComposer) which has its own canonical star UI. */
+
+/* Triple-button choice row stays — three equal-width buttons
+   (Watchlist / Watching / Watched) on the FPMP add dock. */
+.discover-media-library-actions.discover-media-library-actions-triple {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 8px !important;
+}
+.discover-media-library-actions-triple .discover-media-library-choice {
+  width: 100%;
+  min-width: 0;
+}
+.discover-media-library-actions-triple .discover-media-library-choice.watching {
+  border-color: rgba(125, 211, 252, 0.55);
+  background: linear-gradient(140deg, rgba(125,211,252,0.16), rgba(34,211,238,0.10));
+}
+.discover-media-library-actions-triple .discover-media-library-choice.watching:hover {
+  border-color: rgba(125, 211, 252, 0.85);
+}
+
+/* v10.775: cooldown message shown under the username when user taps
+   Edit during the 14-day lock. Replaces the previous "Locked Xd" button
+   label — button now always says "Edit" and clicking it during cooldown
+   surfaces this inline red message instead. */
+.profile-settings-handle-locked-msg {
+  margin-top: 6px;
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 11px;
+  font-weight: 300;
+  color: #fb7185;
+  line-height: 1.4;
+  letter-spacing: 0.005em;
+}
+.profile-settings-handle-locked-msg[hidden] {
+  display: none !important;
 }

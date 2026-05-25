@@ -243,7 +243,51 @@ function setMainNavVisibility(tab) {
   if (steamSyncView) steamSyncView.style.display = normalizedTab === 'steam-sync' ? 'block' : 'none';
   syncDiscoveryHubButtons();
   syncDesktopMyListNavPlacement(normalizedTab);
+  updateMainHeaderPageTitle();
 }
+
+/* v10.755: swap the Shelfd wordmark for a plain page title on Discover /
+   Activity / Friends pages so users immediately know where they are.
+   My Lists keeps the logo. Called from setMainNavVisibility and
+   switchFriendsTab so the title stays in sync with sub-tab changes too. */
+function updateMainHeaderPageTitle() {
+  const tab = getActiveMainTab();
+  const el = document.getElementById('main-header-page-title');
+  const wordmark = document.querySelector('.site-wordmark-img');
+  const logoIcon = document.querySelector('.site-logo-img');
+
+  let title = '';
+  /* v10.763: when viewing another user's list, replace the Shelfd logo
+     with that user's DISPLAY NAME at the top of the screen. The avatar
+     banner below now shows their @username instead of the name (the
+     name is up here in the header). Falls through to the normal
+     per-tab title logic when not in friend-view mode. */
+  if (document.body.classList.contains('viewing-other-user') && typeof viewingUser === 'object' && viewingUser) {
+    title = String(
+      viewingUser.customName
+      || viewingUser.fullName
+      || viewingUser.displayName
+      || viewingUser.name
+      || 'Friend'
+    ).trim();
+  } else if (tab === 'discover') {
+    title = 'Discovery';
+  } else if (tab === 'community') {
+    title = (typeof activeFriendsTab !== 'undefined' && activeFriendsTab === 'activity')
+      ? 'Activity'
+      : 'Friends List';
+  }
+  /* tab === 'mylist' (and not viewing-other-user) → title stays '' → logo shows normally */
+
+  const showTitle = !!title;
+  if (el) {
+    el.textContent = title;
+    el.style.display = showTitle ? 'block' : 'none';
+  }
+  if (wordmark) wordmark.style.display = showTitle ? 'none' : '';
+  if (logoIcon) logoIcon.style.display = showTitle ? 'none' : '';
+}
+window.updateMainHeaderPageTitle = updateMainHeaderPageTitle;
 
 function isMainNavPanelVisible(element) {
   return !!(element && getComputedStyle(element).display !== 'none');
@@ -865,6 +909,35 @@ async function goToActivityFeed() {
 /* v625: Search page — full-page slide-up, GPU-composited for 120Hz. */
 let shelfdSearchPageOpen = false;
 
+/* v10.789: body-lock helpers for the search overlay. Same iOS WKWebView
+   bug that hit the DM page (fixed in v10.782): opening a position:fixed
+   overlay while the underlying body is scrolled lets the body scroll
+   bleed into the overlay's inner scrollable container. Effect for the
+   search page: `.shelfd-search-page-inner` (overflow-y: auto) opens
+   with scrollTop ≈ body.scrollY, pushing the non-sticky "+Add To Shelf"
+   header above the visible area. The sticky topbar stays put so the
+   user thinks the header was never rendered. Lock the body via
+   position:fixed so iOS has nothing to bleed in from. */
+function lockBodyForSearchPage() {
+  const body = document.body;
+  if (!body || body.classList.contains('shelfd-search-page-open')) return;
+  const scrollY = Math.max(0, window.scrollY || 0);
+  body.dataset.searchPageRestoreScrollY = String(scrollY);
+  body.style.setProperty('--search-page-saved-scrollY', `-${scrollY}px`);
+  body.classList.add('shelfd-search-page-open');
+}
+function unlockBodyForSearchPage() {
+  const body = document.body;
+  if (!body) return;
+  const saved = Number(body.dataset.searchPageRestoreScrollY || 0);
+  body.classList.remove('shelfd-search-page-open');
+  body.style.removeProperty('--search-page-saved-scrollY');
+  delete body.dataset.searchPageRestoreScrollY;
+  if (saved > 0) {
+    try { window.scrollTo(0, saved); } catch (_) {}
+  }
+}
+
 function openSearchPage() {
   if (shelfdSearchPageOpen) return;
   shelfdSearchPageOpen = true;
@@ -875,6 +948,17 @@ function openSearchPage() {
   document.querySelectorAll('.mobile-bottom-nav .main-nav-btn').forEach(b => b.classList.remove('active'));
   if (searchBtn) { searchBtn.classList.add('active'); searchBtn.setAttribute('aria-pressed', 'true'); }
   page.setAttribute('aria-hidden', 'false');
+  /* v10.789: BEFORE the slide-up commits, (a) lock the body to defeat
+     the iOS scroll-bleed bug and (b) explicitly reset the inner's
+     scrollTop to 0 so any stale scroll from a previous open doesn't
+     hide the "+Add To Shelf" header. Both must happen synchronously
+     here, not in an rAF — once the overlay is visible the wrong scroll
+     position is already painted. */
+  lockBodyForSearchPage();
+  const inner = page.querySelector('.shelfd-search-page-inner');
+  if (inner) {
+    try { inner.scrollTop = 0; } catch (_) {}
+  }
   /* Two rAFs: first commits paint, second triggers the CSS transition
      so the browser can schedule it on a 120Hz cadence. */
   requestAnimationFrame(() => requestAnimationFrame(() => page.classList.add('is-open')));
@@ -890,6 +974,9 @@ function closeSearchPage() {
     page.setAttribute('aria-hidden', 'true');
   }
   if (searchBtn) { searchBtn.classList.remove('active'); searchBtn.setAttribute('aria-pressed', 'false'); }
+  /* v10.789: restore the body scroll position the user had before
+     opening search. Mirrors the DM page close path. */
+  unlockBodyForSearchPage();
   /* Restore whichever main nav tab was active */
   const activeTab = typeof getActiveMainTab === 'function' ? getActiveMainTab() : '';
   if (activeTab && typeof syncMainNavButtons === 'function') syncMainNavButtons(activeTab);

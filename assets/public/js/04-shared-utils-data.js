@@ -58,12 +58,22 @@ function renderCreativeTeamTagHTML() {
   return '<span class="creative-team-role">Creative Team</span>';
 }
 
-function renderDisplayNameHTML(userLike = null, fallback = 'Unknown User', extraClass = '') {
+function renderDisplayNameHTML(userLike = null, fallback = 'Unknown User', extraClass = '', options = {}) {
   const classes = ['creator-name'];
   if (extraClass) classes.push(extraClass);
   const nameHtml = escHtml(getDisplayName(userLike, fallback));
   const creativeTeamTag = isCreativeTeamUser(userLike) ? renderCreativeTeamTagHTML() : '';
   if (isCreatorAdmin(userLike)) {
+    /* v10.710: compact-creator-badge mode for activity-feed contexts.
+       The full "(Creator)" pill was eating horizontal space on Base-class
+       iPhones (390pt) and truncating the username. Compact mode swaps the
+       pill for a tappable circular "C" with a tooltip popover that reveals
+       the word "Creator" for ~1.8s above it. Only opted into by the
+       activity-card / post-detail / stack-card renders in 10-activity-feed.js;
+       profile, DMs, and comment replies keep the original full pill. */
+    if (options && options.compactCreatorBadge) {
+      return `<span class="creator-name-wrap user-badged-name-wrap"><span class="${classes.join(' ')}"><svg class="creator-crown-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true" style="vertical-align:-0.12em;margin-right:0.28em;"><path d="M3.2 7.4c-.65-.4-1.45.24-1.2.97l2.7 7.95c.18.54.69.9 1.26.9h12.08c.57 0 1.08-.36 1.26-.9l2.7-7.95c.25-.73-.55-1.37-1.2-.97l-4.3 2.65c-.55.34-1.27.16-1.6-.4L12.86 5.1a1 1 0 0 0-1.72 0L8.1 9.65c-.33.56-1.05.74-1.6.4L3.2 7.4Zm2.6 11.1c0 .55.45 1 1 1h10.4c.55 0 1-.45 1-1v-.5H5.8v.5Z"/></svg>${nameHtml}</span><button type="button" class="creator-role creator-role-compact" onclick="event.stopPropagation();toggleCreatorRoleTooltip(this)" aria-label="Creator">C<span class="creator-role-tooltip" role="status" aria-hidden="true">Creator</span></button>${creativeTeamTag}</span>`;
+    }
     return `<span class="creator-name-wrap user-badged-name-wrap"><span class="${classes.join(' ')}"><svg class="creator-crown-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true" style="vertical-align:-0.12em;margin-right:0.28em;"><path d="M3.2 7.4c-.65-.4-1.45.24-1.2.97l2.7 7.95c.18.54.69.9 1.26.9h12.08c.57 0 1.08-.36 1.26-.9l2.7-7.95c.25-.73-.55-1.37-1.2-.97l-4.3 2.65c-.55.34-1.27.16-1.6-.4L12.86 5.1a1 1 0 0 0-1.72 0L8.1 9.65c-.33.56-1.05.74-1.6.4L3.2 7.4Zm2.6 11.1c0 .55.45 1 1 1h10.4c.55 0 1-.45 1-1v-.5H5.8v.5Z"/></svg>${nameHtml}</span><span class="creator-role">(Creator)</span>${creativeTeamTag}</span>`;
   }
   if (creativeTeamTag) {
@@ -71,6 +81,38 @@ function renderDisplayNameHTML(userLike = null, fallback = 'Unknown User', extra
   }
   return `<span${extraClass ? ` class="${extraClass}"` : ''}>${nameHtml}</span>`;
 }
+
+/* v10.710: tap-to-reveal tooltip handler for the compact creator-role C.
+   Single-button-active-at-a-time semantics: tapping a different C closes
+   any other open tooltip first. Auto-dismisses after 1.8s or on retap. */
+function toggleCreatorRoleTooltip(btn) {
+  if (!btn) return;
+  const tooltip = btn.querySelector('.creator-role-tooltip');
+  if (!tooltip) return;
+  try {
+    if (btn._creatorTooltipTimer) {
+      clearTimeout(btn._creatorTooltipTimer);
+      btn._creatorTooltipTimer = null;
+    }
+  } catch (_) {}
+  const isVisible = tooltip.classList.contains('creator-role-tooltip-visible');
+  /* Hide every other visible tooltip on the page. */
+  document.querySelectorAll('.creator-role-tooltip-visible').forEach(el => {
+    if (el !== tooltip) el.classList.remove('creator-role-tooltip-visible');
+  });
+  if (isVisible) {
+    tooltip.classList.remove('creator-role-tooltip-visible');
+    return;
+  }
+  tooltip.classList.add('creator-role-tooltip-visible');
+  tooltip.setAttribute('aria-hidden', 'false');
+  btn._creatorTooltipTimer = setTimeout(() => {
+    tooltip.classList.remove('creator-role-tooltip-visible');
+    tooltip.setAttribute('aria-hidden', 'true');
+    btn._creatorTooltipTimer = null;
+  }, 1800);
+}
+if (typeof window !== 'undefined') window.toggleCreatorRoleTooltip = toggleCreatorRoleTooltip;
 
 function shouldExposeInUserSearch(userLike = null) {
   const uid = String(userLike?.uid || userLike?.id || '').trim();

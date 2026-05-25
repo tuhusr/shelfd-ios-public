@@ -777,6 +777,428 @@ const STEAM_AUTH_RESULT_PARAM = 'steam_auth';
 const STEAM_AUTH_STEAM_ID_PARAM = 'steam_id';
 const STEAM_AUTH_MESSAGE_PARAM = 'steam_message';
 const STEAM_PENDING_AUTH_STORAGE_KEY = 'shelfd-steam-auth-pending-v1';
+const APPLE_MUSIC_CACHE_PREFIX = 'shelfd-apple-music-metadata-v1:';
+const APPLE_MUSIC_MAX_CACHE_ALBUMS = 1200;
+const APPLE_MUSIC_MAX_CACHE_SONGS = 2500;
+
+function normalizeAppleMusicConnection(raw = {}) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const total = Number(source.lastMetadataTotal || source.libraryCount || source.lastImportPreviewTotal || 0);
+  return {
+    provider: 'appleMusic',
+    connected: source.connected === true || source.authorized === true || !!source.connectedAt,
+    storefront: String(source.storefront || source.storefrontId || '').trim(),
+    musicUserId: String(source.musicUserId || source.userId || '').trim(),
+    capabilities: Array.isArray(source.capabilities) ? source.capabilities.filter(Boolean) : [],
+    subscription: source.subscription && typeof source.subscription === 'object' ? source.subscription : {},
+    connectedAt: String(source.connectedAt || '').trim(),
+    lastMetadataSyncedAt: String(source.lastMetadataSyncedAt || source.lastSyncedAt || '').trim(),
+    lastImportPreviewAt: String(source.lastImportPreviewAt || '').trim(),
+    lastMetadataTotal: Number.isFinite(total) && total > 0 ? Math.round(total) : 0
+  };
+}
+
+function getAppleMusicConnection() {
+  if (typeof normalizeAppleMusicConnection === 'function') {
+    return normalizeAppleMusicConnection(userProfile?.appleMusicConnection || {});
+  }
+  return normalizeAppleMusicConnection({});
+}
+
+function getAppleMusicNativeBridge() {
+  return window.Capacitor?.Plugins?.ShelfdAppleMusic || window.ShelfdAppleMusic || null;
+}
+
+function getAppleMusicCacheKey() {
+  const uid = currentUser?.uid || userProfile?.uid || 'preview-user';
+  return `${APPLE_MUSIC_CACHE_PREFIX}${uid}`;
+}
+
+function readAppleMusicMetadataCache() {
+  try {
+    return JSON.parse(localStorage.getItem(getAppleMusicCacheKey()) || '{}') || {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function writeAppleMusicMetadataCache(payload = {}) {
+  const albums = Array.isArray(payload.albums) ? payload.albums.slice(0, APPLE_MUSIC_MAX_CACHE_ALBUMS) : [];
+  const songs = Array.isArray(payload.songs) ? payload.songs.slice(0, APPLE_MUSIC_MAX_CACHE_SONGS) : [];
+  const summary = buildAppleMusicMetadataSummary({ ...payload, albums, songs });
+  const cache = { version: 1, cachedAt: new Date().toISOString(), summary, albums, songs };
+  try {
+    localStorage.setItem(getAppleMusicCacheKey(), JSON.stringify(cache));
+  } catch (error) {
+    console.warn('Apple Music metadata cache write failed:', error);
+  }
+  return cache;
+}
+
+function buildAppleMusicMetadataSummary(payload = {}) {
+  const albums = Array.isArray(payload.albums) ? payload.albums : [];
+  const songs = Array.isArray(payload.songs) ? payload.songs : [];
+  const totalDurationMs = songs.reduce((sum, song) => sum + Number(song.durationMs || song.length || 0), 0);
+  const favoriteSongs = songs.filter(song => song.favorite || song.favorited || song.isFavorite).length;
+  const ratedSongs = songs.filter(song => Number(song.rating || song.userRating || 0) > 0).length;
+  return {
+    albumCount: Number(payload.albumCount || albums.length || 0) || 0,
+    songCount: Number(payload.songCount || songs.length || 0) || 0,
+    totalDurationMs,
+    favoriteSongs,
+    ratedSongs,
+    storefront: String(payload.storefront || '').trim(),
+    updatedAt: new Date().toISOString()
+  };
+}
+
+async function saveAppleMusicProfilePatch(patch = {}) {
+  if (!userProfile) userProfile = typeof normalizeUserProfile === 'function' ? normalizeUserProfile({}) : {};
+  Object.assign(userProfile, patch);
+  if (typeof saveProfileSettingsPatch === 'function') {
+    return saveProfileSettingsPatch(patch);
+  }
+  if (!currentUser || isPreviewMode()) return true;
+  await db.collection('users').doc(currentUser.uid).set({
+    ...patch,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
+  return true;
+}
+
+function formatAppleMusicRelativeSyncTime(value = '') {
+  return formatSteamRelativeSyncTime(value);
+}
+
+function renderAppleMusicImportCardState() {
+  const card = document.getElementById('apple-music-import-card');
+  if (!card) return;
+  const copyEl = document.getElementById('apple-music-import-copy');
+  const metaEl = document.getElementById('apple-music-import-meta');
+  const actionEl = document.getElementById('apple-music-import-action');
+  const connection = getAppleMusicConnection();
+  const busy = importBusy && pendingImportSource === 'applemusic';
+  card.classList.toggle('is-connected', !!connection.connected);
+  card.classList.toggle('is-busy', !!busy);
+  if (copyEl) {
+    copyEl.textContent = connection.connected
+      ? 'Connected for Apple Music metadata. Import your full library only when you choose.'
+      : 'Connect Apple Music for metadata, stats, and optional Music shelf import.';
+  }
+  if (metaEl) {
+    if (connection.connected) {
+      const lastSync = connection.lastMetadataSyncedAt ? formatAppleMusicRelativeSyncTime(connection.lastMetadataSyncedAt) : '';
+      const pieces = [
+        connection.storefront ? `Storefront ${connection.storefront.toUpperCase()}` : 'Apple Music connected',
+        connection.lastMetadataTotal ? `${connection.lastMetadataTotal.toLocaleString('en-US')} songs indexed` : '',
+        lastSync ? `Metadata ${lastSync}` : ''
+      ].filter(Boolean);
+      metaEl.textContent = pieces.join(' · ');
+    } else {
+      metaEl.textContent = 'Connect only for metadata, or preview albums before importing.';
+    }
+  }
+  if (actionEl) actionEl.textContent = busy ? 'Syncing...' : (connection.connected ? 'Manage Apple Music' : 'Connect Apple Music');
+}
+
+function closeAppleMusicConnectSheet() {
+  const sheet = document.getElementById('apple-music-connect-sheet');
+  if (sheet) sheet.remove();
+}
+
+function openAppleMusicConnectSheet() {
+  closeAppleMusicConnectSheet();
+  const connection = getAppleMusicConnection();
+  const sheet = document.createElement('div');
+  sheet.id = 'apple-music-connect-sheet';
+  sheet.className = 'apple-music-connect-sheet';
+  sheet.setAttribute('role', 'dialog');
+  sheet.setAttribute('aria-modal', 'true');
+  sheet.innerHTML = `
+    <div class="apple-music-connect-card">
+      <button class="apple-music-connect-close" type="button" onclick="closeAppleMusicConnectSheet()" aria-label="Close">×</button>
+      <img class="apple-music-connect-logo" src="/assets/import-icons/apple-music.png" alt="" loading="eager" decoding="async">
+      <div class="apple-music-connect-kicker">Apple Music</div>
+      <div class="apple-music-connect-title">${connection.connected ? 'Manage Apple Music' : 'Connect Apple Music'}</div>
+      <div class="apple-music-connect-copy">Choose whether Shelfd only connects for Apple Music metadata, or also previews your full Apple Music library for import.</div>
+      <div class="apple-music-connect-actions">
+        <button type="button" class="apple-music-connect-option" onclick="connectAppleMusicAccount('metadata')">
+          <strong>Connect Only</strong>
+          <span>Fetch metadata and stats. Nothing is added to your Shelfd Music shelf.</span>
+        </button>
+        <button type="button" class="apple-music-connect-option primary" onclick="connectAppleMusicAccount('import')">
+          <strong>Connect + Import Library</strong>
+          <span>Connect first, then preview albums before adding them to Shelfd.</span>
+        </button>
+      </div>
+      <div id="apple-music-connect-status" class="import-status" aria-live="polite"></div>
+    </div>
+  `;
+  document.body.appendChild(sheet);
+  requestAnimationFrame(() => sheet.classList.add('show'));
+}
+
+function setAppleMusicConnectStatus(message = '', kind = '') {
+  const el = document.getElementById('apple-music-connect-status');
+  if (!el) return;
+  el.className = ['import-status', kind ? `import-status-${kind}` : ''].filter(Boolean).join(' ');
+  el.textContent = message;
+}
+
+function handleAppleMusicImportAction(event) {
+  if (event) event.preventDefault();
+  if (importBusy) return;
+  openImportPage();
+  openAppleMusicConnectSheet();
+  renderAppleMusicImportCardState();
+}
+
+async function callAppleMusicBridge(methodNames = [], payload = {}) {
+  const bridge = getAppleMusicNativeBridge();
+  if (!bridge) {
+    throw new Error('Apple Music requires the TestFlight iOS MusicKit bridge before it can request permission.');
+  }
+  const method = methodNames.find(name => typeof bridge[name] === 'function');
+  if (!method) {
+    throw new Error(`Apple Music bridge is missing ${methodNames.join(' / ')}.`);
+  }
+  return bridge[method](payload);
+}
+
+async function connectAppleMusicAccount(mode = 'metadata') {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
+  const wantsImport = mode === 'import';
+  pendingImportSource = 'applemusic';
+  importBusy = true;
+  renderAppleMusicImportCardState();
+  setAppleMusicConnectStatus('Requesting Apple Music permission...', 'busy');
+  setImportStatus('Requesting Apple Music permission...', 'busy');
+  try {
+    const auth = await callAppleMusicBridge(['authorize', 'requestAuthorization', 'connect'], { mode });
+    const authorized = auth?.authorized !== false && auth?.status !== 'denied' && auth?.status !== 'restricted';
+    if (!authorized) throw new Error('Apple Music permission was not granted.');
+    const connectedAt = getAppleMusicConnection().connectedAt || new Date().toISOString();
+    const connection = normalizeAppleMusicConnection({
+      ...auth,
+      connected: true,
+      authorized: true,
+      connectedAt,
+      lastImportPreviewAt: wantsImport ? new Date().toISOString() : getAppleMusicConnection().lastImportPreviewAt
+    });
+    await saveAppleMusicProfilePatch({ appleMusicConnection: connection });
+    setAppleMusicConnectStatus(wantsImport ? 'Connected. Pulling Apple Music library preview...' : 'Connected. Syncing metadata only...', 'busy');
+    if (wantsImport) {
+      await syncAppleMusicLibraryPreview();
+    } else {
+      await syncAppleMusicMetadataOnly();
+      closeAppleMusicConnectSheet();
+    }
+  } catch (error) {
+    console.error('Apple Music connect failed:', error);
+    const message = error?.message || 'Apple Music could not connect.';
+    setAppleMusicConnectStatus(message, 'error');
+    setImportStatus(message, 'error');
+    showToast(message);
+  } finally {
+    importBusy = false;
+    renderAppleMusicImportCardState();
+  }
+}
+
+function getAppleMusicArtworkUrl(artwork = {}, size = 600) {
+  const raw = String(artwork?.url || artwork || '').trim();
+  if (!raw) return '';
+  return raw.replace('{w}', String(size)).replace('{h}', String(size));
+}
+
+function normalizeAppleMusicSong(raw = {}) {
+  const attrs = raw.attributes || raw;
+  const albumAttrs = raw.relationships?.albums?.data?.[0]?.attributes || {};
+  return {
+    appleMusicSongId: String(raw.id || attrs.id || attrs.playParams?.id || '').trim(),
+    title: String(attrs.name || attrs.title || '').trim(),
+    artist: String(attrs.artistName || attrs.artist || '').trim(),
+    album: String(attrs.albumName || albumAttrs.name || attrs.album || '').trim(),
+    albumArtist: String(attrs.albumArtistName || attrs.artistName || '').trim(),
+    appleMusicAlbumId: String(attrs.albumId || raw.relationships?.albums?.data?.[0]?.id || '').trim(),
+    durationMs: Number(attrs.durationInMillis || attrs.durationMs || attrs.length || 0) || 0,
+    trackNumber: Number(attrs.trackNumber || attrs.track_position || 0) || 0,
+    discNumber: Number(attrs.discNumber || 1) || 1,
+    releaseDate: String(attrs.releaseDate || '').trim(),
+    genre: Array.isArray(attrs.genreNames) ? attrs.genreNames[0] || '' : String(attrs.genre || '').trim(),
+    artwork: getAppleMusicArtworkUrl(attrs.artwork || albumAttrs.artwork || '', 600),
+    favorite: !!(attrs.favorite || attrs.favorited || attrs.isFavorite),
+    rating: Number(attrs.rating || attrs.userRating || 0) || 0,
+    playParams: attrs.playParams || null
+  };
+}
+
+function normalizeAppleMusicAlbum(raw = {}) {
+  const attrs = raw.attributes || raw;
+  const relSongs = raw.relationships?.tracks?.data || raw.tracks || [];
+  const songs = Array.isArray(relSongs) ? relSongs.map(normalizeAppleMusicSong).filter(song => song.title) : [];
+  return {
+    appleMusicAlbumId: String(raw.id || attrs.id || attrs.playParams?.id || '').trim(),
+    title: String(attrs.name || attrs.title || '').trim(),
+    artist: String(attrs.artistName || attrs.artist || '').trim(),
+    releaseDate: String(attrs.releaseDate || '').trim(),
+    year: String(attrs.releaseDate || attrs.year || '').slice(0, 4),
+    genre: Array.isArray(attrs.genreNames) ? attrs.genreNames[0] || '' : String(attrs.genre || '').trim(),
+    cover: getAppleMusicArtworkUrl(attrs.artwork || attrs.cover || '', 900),
+    trackCount: Number(attrs.trackCount || songs.length || 0) || 0,
+    playParams: attrs.playParams || null,
+    songs
+  };
+}
+
+function buildAppleMusicAlbumRows(payload = {}) {
+  const rawAlbums = Array.isArray(payload.albums) ? payload.albums : Array.isArray(payload.data) ? payload.data : [];
+  const rawSongs = Array.isArray(payload.songs) ? payload.songs : [];
+  const albums = rawAlbums.map(normalizeAppleMusicAlbum).filter(album => album.title);
+  const songs = rawSongs.map(normalizeAppleMusicSong).filter(song => song.title);
+  const albumMap = new Map();
+  albums.forEach(album => {
+    const key = album.appleMusicAlbumId || `${album.title}::${album.artist}`.toLowerCase();
+    albumMap.set(key, { ...album, songs: Array.isArray(album.songs) ? album.songs.slice() : [] });
+  });
+  songs.forEach(song => {
+    const key = song.appleMusicAlbumId || `${song.album || song.title}::${song.albumArtist || song.artist}`.toLowerCase();
+    if (!albumMap.has(key)) {
+      albumMap.set(key, {
+        appleMusicAlbumId: song.appleMusicAlbumId,
+        title: song.album || song.title,
+        artist: song.albumArtist || song.artist,
+        releaseDate: song.releaseDate,
+        year: String(song.releaseDate || '').slice(0, 4),
+        genre: song.genre,
+        cover: song.artwork,
+        trackCount: 0,
+        songs: []
+      });
+    }
+    const album = albumMap.get(key);
+    if (!album.songs.some(existing => existing.appleMusicSongId && existing.appleMusicSongId === song.appleMusicSongId)) {
+      album.songs.push(song);
+    }
+    if (!album.cover && song.artwork) album.cover = song.artwork;
+  });
+  return [...albumMap.values()].map(album => ({
+    source: 'applemusic',
+    typeHint: 'music',
+    title: album.title,
+    artist: album.artist,
+    year: album.year,
+    status: 'watched',
+    rating: 0,
+    appleMusicAlbumId: album.appleMusicAlbumId,
+    appleMusicSongIds: album.songs.map(song => song.appleMusicSongId).filter(Boolean),
+    cover: album.cover,
+    releaseDate: album.releaseDate,
+    genre: album.genre,
+    trackCount: album.trackCount || album.songs.length,
+    tracks: album.songs
+      .sort((a, b) => (a.discNumber - b.discNumber) || (a.trackNumber - b.trackNumber))
+      .map((song, index) => ({
+        number: song.trackNumber || index + 1,
+        title: song.title,
+        length: song.durationMs,
+        appleMusicSongId: song.appleMusicSongId,
+        rating: song.rating,
+        favorite: song.favorite ? 1 : 0,
+        playParams: song.playParams || null
+      })),
+    raw: album
+  }));
+}
+
+async function syncAppleMusicMetadataOnly() {
+  setImportStatus('Syncing Apple Music metadata...', 'busy');
+  let payload = null;
+  try {
+    payload = await callAppleMusicBridge(['getMetadata', 'syncMetadata', 'getLibraryMetadata'], { importLibrary: false });
+  } catch (error) {
+    const message = error?.message || '';
+    if (!/missing getMetadata|missing syncMetadata|missing getLibraryMetadata/i.test(message)) throw error;
+    const connectedAt = getAppleMusicConnection().connectedAt || new Date().toISOString();
+    const connection = normalizeAppleMusicConnection({
+      ...getAppleMusicConnection(),
+      connected: true,
+      connectedAt,
+      lastMetadataSyncedAt: ''
+    });
+    await saveAppleMusicProfilePatch({ appleMusicConnection: connection });
+    setImportStatus('Apple Music connected. Metadata sync is waiting for the native iOS metadata method.', 'ready');
+    showToast('Apple Music connected');
+    return;
+  }
+  const rows = buildAppleMusicAlbumRows(payload || {});
+  const songs = rows.flatMap(row => row.tracks || []).map(track => ({
+    title: track.title,
+    appleMusicSongId: track.appleMusicSongId,
+    durationMs: track.length,
+    rating: track.rating,
+    favorite: !!track.favorite
+  }));
+  const cache = writeAppleMusicMetadataCache({
+    albums: rows.map(row => ({
+      title: row.title,
+      artist: row.artist,
+      appleMusicAlbumId: row.appleMusicAlbumId,
+      year: row.year,
+      trackCount: row.trackCount,
+      cover: row.cover
+    })),
+    songs,
+    storefront: getAppleMusicConnection().storefront
+  });
+  const connection = normalizeAppleMusicConnection({
+    ...getAppleMusicConnection(),
+    connected: true,
+    lastMetadataSyncedAt: cache.cachedAt,
+    lastMetadataTotal: cache.summary.songCount
+  });
+  await saveAppleMusicProfilePatch({
+    appleMusicConnection: connection,
+    appleMusicMetadataSummary: cache.summary
+  });
+  setImportStatus(`Apple Music connected. Metadata synced for ${cache.summary.songCount.toLocaleString('en-US')} song${cache.summary.songCount === 1 ? '' : 's'}.`, 'ready');
+  showToast('Apple Music metadata synced');
+}
+
+async function syncAppleMusicLibraryPreview() {
+  setImportStatus('Pulling Apple Music library preview...', 'busy');
+  const payload = await callAppleMusicBridge(['getLibrary', 'syncLibrary', 'getLibraryPreview'], { importLibrary: true });
+  const rows = buildAppleMusicAlbumRows(payload || {});
+  if (!rows.length) {
+    setImportStatus('Apple Music returned no albums to preview.', 'error');
+    setAppleMusicConnectStatus('No Apple Music albums were returned.', 'error');
+    return;
+  }
+  pendingImportSource = 'applemusic';
+  pendingImportRows = rows;
+  writeAppleMusicMetadataCache({
+    albums: rows.map(row => ({
+      title: row.title,
+      artist: row.artist,
+      appleMusicAlbumId: row.appleMusicAlbumId,
+      year: row.year,
+      trackCount: row.trackCount,
+      cover: row.cover
+    })),
+    songs: rows.flatMap(row => row.tracks || []),
+    storefront: getAppleMusicConnection().storefront
+  });
+  const nextConnection = normalizeAppleMusicConnection({
+    ...getAppleMusicConnection(),
+    connected: true,
+    lastImportPreviewAt: new Date().toISOString(),
+    lastMetadataTotal: rows.reduce((sum, row) => sum + Number(row.trackCount || row.tracks?.length || 0), 0)
+  });
+  await saveAppleMusicProfilePatch({ appleMusicConnection: nextConnection });
+  closeAppleMusicConnectSheet();
+  setImportStatus(`Found ${rows.length.toLocaleString('en-US')} Apple Music album${rows.length === 1 ? '' : 's'}. Review, then import.`, 'ready');
+  renderImportPreview();
+}
 
 function getSteamImportConnection() {
   if (typeof normalizeSteamConnection === 'function') {
@@ -931,6 +1353,7 @@ function openImportPage() {
   window.scrollTo({ top: 0, behavior: 'auto' });
   persistUiState();
   renderSteamImportCardState();
+  renderAppleMusicImportCardState();
 }
 
 function closeImportPage() {
@@ -952,6 +1375,7 @@ function closeImportPage() {
     importSourcePanel.setAttribute('aria-hidden', 'true');
   }
   renderSteamImportCardState();
+  renderAppleMusicImportCardState();
   window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
@@ -1194,7 +1618,7 @@ function normalizeImportStatus(value = '', source = '') {
 }
 
 function getImportSourceLabel(source = '') {
-  return ({ letterboxd: 'Letterboxd', imdb: 'IMDb', myanimelist: 'MyAnimeList', backloggd: 'Backloggd', steam: 'Steam' })[source] || 'Import';
+  return ({ letterboxd: 'Letterboxd', imdb: 'IMDb', myanimelist: 'MyAnimeList', backloggd: 'Backloggd', steam: 'Steam', applemusic: 'Apple Music' })[source] || 'Import';
 }
 
 const STEAM_IGDB_COVER_CACHE = new Map();
@@ -1307,12 +1731,41 @@ async function backfillSteamImportedGameCoversFromRows(rows = []) {
   }
 }
 
+/* v10.696: Lazy JSZip loader. Previously JSZip (~95 KB minified) was loaded
+   from jsdelivr CDN on every cold start via a parser-blocking <script> tag
+   in index.html, even though it's only used for .zip uploads in the
+   Letterboxd / Steam / MyAnimeList import flows. Move it off the cold-start
+   path: load on demand the first time the user picks a .zip file. */
+let _shelfdJSZipLoadPromise = null;
+function ensureShelfdJSZipLoaded() {
+  if (typeof window !== 'undefined' && window.JSZip) return Promise.resolve(window.JSZip);
+  if (_shelfdJSZipLoadPromise) return _shelfdJSZipLoadPromise;
+  _shelfdJSZipLoadPromise = new Promise((resolve, reject) => {
+    try {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+      s.async = true;
+      s.onload = () => resolve(window.JSZip);
+      s.onerror = () => { _shelfdJSZipLoadPromise = null; reject(new Error('JSZip failed to load from CDN.')); };
+      document.head.appendChild(s);
+    } catch (e) {
+      _shelfdJSZipLoadPromise = null;
+      reject(e);
+    }
+  });
+  return _shelfdJSZipLoadPromise;
+}
+
 async function readImportTextFiles(source, file) {
   if (!file) return [];
   const name = file.name || '';
   const lower = name.toLowerCase();
   if (lower.endsWith('.zip')) {
-    if (!window.JSZip) throw new Error('ZIP support did not load. Upload the CSV/XML file directly, or check the JSZip CDN script.');
+    /* v10.696: lazy-load JSZip on first .zip pick instead of CDN script at cold start. */
+    try { await ensureShelfdJSZipLoaded(); } catch (e) {
+      throw new Error('ZIP support could not load. Check your connection or upload the CSV/XML file directly.');
+    }
+    if (!window.JSZip) throw new Error('ZIP support did not load. Upload the CSV/XML file directly.');
     const zip = await window.JSZip.loadAsync(file);
     const output = [];
     const names = Object.keys(zip.files || {});
@@ -1453,14 +1906,15 @@ function normalizeImportRows(source, files = []) {
   if (source === 'myanimelist') return normalizeMalImportRows(files);
   if (source === 'backloggd') return normalizeBackloggdImportRows(files);
   if (source === 'steam') return Array.isArray(files) ? files : [];
+  if (source === 'applemusic') return Array.isArray(files) ? files : [];
   return [];
 }
 
 function getImportStatusDisplayLabel(status = '', source = pendingImportSource) {
-  const section = source === 'myanimelist' ? 'anime' : source === 'backloggd' || source === 'steam' ? 'games' : 'movies';
+  const section = source === 'myanimelist' ? 'anime' : source === 'backloggd' || source === 'steam' ? 'games' : source === 'applemusic' ? 'music' : 'movies';
   if (status === 'watching') return section === 'games' ? 'Playing' : section === 'anime' ? 'Watching' : 'Watching';
-  if (status === 'planned') return section === 'games' ? 'Backloggd' : 'Watchlist';
-  if (status === 'watched') return section === 'games' ? 'Played' : 'Watched';
+  if (status === 'planned') return section === 'games' ? 'Backloggd' : section === 'music' ? 'Planned' : 'Watchlist';
+  if (status === 'watched') return section === 'games' ? 'Played' : section === 'music' ? 'Listened' : 'Watched';
   if (status === 'paused') return 'Paused';
   if (status === 'wishlist') return 'Wishlist';
   return status || 'Watchlist';
@@ -1515,12 +1969,13 @@ function renderImportPreview() {
   }
   const rows = pendingImportRows.slice(0, 80).map((row, index) => {
     const meta = [row.year, row.typeHint, getImportStatusDisplayLabel(row.status, row.source || pendingImportSource)].filter(Boolean).join(' · ');
-    const ratingSection = row.typeHint === 'game' ? 'games' : row.typeHint === 'anime' ? 'anime' : 'movies';
+    const ratingSection = row.typeHint === 'game' ? 'games' : row.typeHint === 'anime' ? 'anime' : row.typeHint === 'music' ? 'music' : 'movies';
     return `
       <div class="import-preview-row${pendingImportSource === 'myanimelist' ? ' import-preview-row-myanimelist' : ''}">
         <div class="import-preview-main">
           <strong>${index + 1}. ${escHtml(row.title)}</strong>
           <span>${escHtml(meta)}</span>
+          ${row.artist ? `<small class="import-source-raw-status">${escHtml(row.artist)}${row.trackCount ? ` Â· ${Number(row.trackCount).toLocaleString('en-US')} tracks` : ''}</small>` : ''}
           ${row.rawStatus ? `<small class="import-source-raw-status">MAL status: ${escHtml(row.rawStatus)}</small>` : ''}
         </div>
         ${renderImportStatusControl(row, index)}
@@ -1537,7 +1992,7 @@ function renderImportPreview() {
     <div class="import-preview-card">
       <div class="import-preview-head">
         <div>
-          <div class="import-preview-title">Ready to import ${pendingImportRows.length} title${pendingImportRows.length === 1 ? '' : 's'}</div>
+          <div class="import-preview-title">Ready to import ${pendingImportRows.length} ${pendingImportSource === 'applemusic' ? `album${pendingImportRows.length === 1 ? '' : 's'}` : `title${pendingImportRows.length === 1 ? '' : 's'}`}</div>
           <div class="import-preview-sub">${escHtml(malSub)}${pendingImportSource === 'myanimelist' && hiddenCount ? escHtml(` Previewing first 80 · ${hiddenCount} more hidden`) : ''}</div>
         </div>
         <button class="btn-primary" onclick="confirmImportLibrary()">Import to Shelfd</button>
@@ -1896,6 +2351,7 @@ function bootstrapSteamImportAuthFlow() {
 }
 
 function getImportTargetSection(entry = {}, item = null) {
+  if (entry.typeHint === 'music' || entry.source === 'applemusic' || item?.librarySection === 'music') return 'music';
   if (entry.typeHint === 'game') return 'games';
   if (entry.typeHint === 'anime') return 'anime';
   if (entry.typeHint === 'tv') return resolveShowSection(item || {}, 'shows');
@@ -2284,10 +2740,50 @@ async function buildMalImportItems(entry = {}) {
   return [item];
 }
 
+async function buildAppleMusicImportItems(entry = {}) {
+  const nowIso = new Date().toISOString();
+  const tracks = Array.isArray(entry.tracks) ? entry.tracks.map((track, index) => ({
+    number: track.number || index + 1,
+    title: track.title || `Track ${index + 1}`,
+    length: Number(track.length || track.durationMs || 0) || 0,
+    appleMusicSongId: String(track.appleMusicSongId || '').trim(),
+    rating: Number(track.rating || 0) || 0,
+    favorite: Number(track.favorite || 0) || 0,
+    playParams: track.playParams || null
+  })) : [];
+  const item = {
+    id: (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+      ? crypto.randomUUID()
+      : ('applemusic-' + Date.now() + '-' + Math.random().toString(36).slice(2)),
+    title: entry.title || '',
+    artist: entry.artist || '',
+    year: entry.year || String(entry.releaseDate || '').slice(0, 4),
+    releaseDate: entry.releaseDate || '',
+    genre: entry.genre || '',
+    cover: entry.cover || '',
+    tracks,
+    runtimeMs: tracks.reduce((sum, track) => sum + Number(track.length || 0), 0),
+    status: entry.status === 'planned' ? 'planned' : 'watched',
+    rating: Number(entry.rating || 0) || 0,
+    librarySection: 'music',
+    mediaCategory: 'music',
+    source: 'applemusic',
+    importSource: 'applemusic',
+    appleMusicAlbumId: String(entry.appleMusicAlbumId || '').trim(),
+    appleMusicSongIds: Array.isArray(entry.appleMusicSongIds) ? entry.appleMusicSongIds.filter(Boolean) : tracks.map(track => track.appleMusicSongId).filter(Boolean),
+    appleMusicPlayParams: entry.raw?.playParams || null,
+    dateAdded: nowIso,
+    createdAt: nowIso,
+    lastEditedAt: nowIso
+  };
+  return [item];
+}
+
 async function buildImportItems(entry = {}) {
   if (entry.source === 'myanimelist') return buildMalImportItems(entry);
   if (entry.source === 'backloggd') return buildRawgImportItems(entry);
   if (entry.source === 'steam') return buildSteamImportItems(entry);
+  if (entry.source === 'applemusic') return buildAppleMusicImportItems(entry);
   return buildTmdbImportItems(entry);
 }
 
@@ -2357,15 +2853,17 @@ async function confirmImportLibrary() {
     await writeOwnDataDirect(working);
 
     const preferredSection = source === 'myanimelist' ? 'anime' : firstImportedSection;
-    activeSection = ['games', 'anime', 'movies', 'shows', 'manga', 'books'].includes(preferredSection)
+    activeSection = ['games', 'anime', 'movies', 'shows', 'music', 'manga', 'books'].includes(preferredSection)
       ? preferredSection
-      : (['games', 'anime', 'movies', 'shows', 'manga', 'books'].includes(startedSection) ? startedSection : 'shows');
+      : (['games', 'anime', 'movies', 'shows', 'music', 'manga', 'books'].includes(startedSection) ? startedSection : 'shows');
 
     const statuses = activeSection === 'movies'
       ? ['watched', 'planned', 'paused', 'dropped']
       : activeSection === 'games'
         ? ['watched', 'watching', 'planned', 'live', 'paused', 'dropped']
-        : ['watched', 'watching', 'planned', 'paused', 'dropped'];
+        : activeSection === 'music'
+          ? ['watched', 'watching', 'planned']
+          : ['watched', 'watching', 'planned', 'paused', 'dropped'];
     activeTab = statuses
       .filter(status => importedStatusCounts[status])
       .sort((a, b) => importedStatusCounts[b] - importedStatusCounts[a])[0] || getDefaultTabForSection(activeSection);
@@ -2384,7 +2882,7 @@ async function confirmImportLibrary() {
       setSteamSyncStatus(`Import complete: ${added} added, ${repaired} updated, ${skipped} skipped, ${failed} unmatched.`, added || repaired || skipped ? 'ready' : 'error');
       showSteamImportSuccessSplash({ added, repaired, skipped, failed, total: rowsToImport.length, providerLabel: 'Steam', itemLabel: 'game' });
     } else {
-      showSteamImportSuccessSplash({ added, repaired, skipped, failed, total: rowsToImport.length, providerLabel: importSourceLabel, itemLabel: source === 'backloggd' ? 'game' : source === 'myanimelist' ? 'anime title' : 'title' });
+      showSteamImportSuccessSplash({ added, repaired, skipped, failed, total: rowsToImport.length, providerLabel: importSourceLabel, itemLabel: source === 'backloggd' ? 'game' : source === 'myanimelist' ? 'anime title' : source === 'applemusic' ? 'album' : 'title' });
     }
     closeImportSourcePage();
     pendingImportRows = [];
@@ -2402,11 +2900,22 @@ async function confirmImportLibrary() {
   } finally {
     importBusy = false;
     renderSteamImportCardState();
+    renderAppleMusicImportCardState();
   }
 }
 
+window.normalizeAppleMusicConnection = normalizeAppleMusicConnection;
+window.getShelfdAppleMusicConnection = getAppleMusicConnection;
+window.getShelfdAppleMusicMetadataCache = readAppleMusicMetadataCache;
+
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', bootstrapSteamImportAuthFlow, { once: true });
+  document.addEventListener('DOMContentLoaded', () => {
+    bootstrapSteamImportAuthFlow();
+    renderAppleMusicImportCardState();
+  }, { once: true });
 } else {
-  setTimeout(bootstrapSteamImportAuthFlow, 0);
+  setTimeout(() => {
+    bootstrapSteamImportAuthFlow();
+    renderAppleMusicImportCardState();
+  }, 0);
 }

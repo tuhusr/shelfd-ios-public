@@ -433,6 +433,9 @@ body.rating-guide-open {
     border-radius: 16px;
     padding: 6px;
     min-width: 185px;
+    max-height: min(520px, calc(100dvh - 120px));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     box-shadow: 0 20px 60px rgba(0,0,0,0.85), 0 0 0 0.5px rgba(255,255,255,0.06);
     display: flex; flex-direction: column; gap: 1px;
   }
@@ -443,6 +446,7 @@ body.rating-guide-open {
       right: auto !important;
       transform: translate(-50%, -50%);
       min-width: 210px; width: 78vw; max-width: 300px;
+      max-height: min(76dvh, 620px);
     }
   }
 
@@ -1193,8 +1197,11 @@ body.rating-guide-open {
        uses `.rating-bubble` (games / anime / music / TV shows
        title cards + the music album-details "Your rating"
        widget). */
-    min-height: 29.5px;
-    min-width: 44px;
+    /* v10.713: collapsed-state min-dimensions tightened — 44x29.5 -> 39x27
+       per spec. Width stays `min-width` so the bubble can still grow
+       horizontally when expanded to reveal the inline stars track. */
+    min-height: 27px;
+    min-width: 39px;
     padding: 0 9px;
     font-family: 'Sohne', 'DM Sans', sans-serif;
     line-height: 1;
@@ -1266,12 +1273,18 @@ body.rating-guide-open {
   }
   .rating-bubble-chip-icon {
     color: #d4b86a;
-    font-size: 13px;
+    /* v10.721: closed-state chip-icon shrunk from 13px → 11px so the rating
+       bubble's resting size visually matches the other 27px-height action-row
+       buttons (Episodes / Share / Review). Expands back to 13px when the
+       bubble enters .is-expanded — see rule below. font-size transition
+       gives the closed→expanded "grow" animation the user asked for. */
+    font-size: 11px;
     line-height: 1;
     /* v10.513: explicit 100% opacity guard so nothing in the cascade
        (parent transitions, hover dims, etc.) can ever fade the star
        icon during a rate/scrub gesture or at rest. */
     opacity: 1;
+    transition: font-size 280ms cubic-bezier(0.32, 0.72, 0, 1);
   }
   .rating-bubble-chip-value {
     /* v10.514: tightened from 4px â†’ 3px so the star glyph and the
@@ -1281,7 +1294,11 @@ body.rating-guide-open {
        closer). Star glyph and value now sit flush. */
     margin-left: 0;
     color: #d4b86a;
-    font-size: 12px;
+    /* v10.721: closed-state value shrunk 12px → 10px to match the Episodes
+       button's 10px text. Expands back to 12px when the bubble is .is-expanded.
+       Transition gives the closed→expanded grow animation. */
+    font-size: 10px;
+    transition: font-size 280ms cubic-bezier(0.32, 0.72, 0, 1);
     /* v10.513b: weight 800 â†’ 700 per spec (one weight step lighter). */
     font-weight: 700;
     line-height: 1;
@@ -4139,14 +4156,51 @@ body.rating-guide-open {
     color: rgba(216,208,233,0.55);
     font: 400 14px/1.1 'Sohne', 'DM Sans', sans-serif;
   }
-  /* v10.234: facts list (release / genre / runtime). */
+  /* v10.734: status pill hoisted directly under the title on completed-status
+     tabs (Movies → Watched, TV/Anime → Watched, Games → Played, Music →
+     Listened, plus the existing Movies → Watchlist hoist). Modifier class
+     added by JS in 06-mylists-render-episodes-ratings.js when activeTab ===
+     'watched' for the relevant sections.
+
+     v10.736: CASCADE FIX.
+     1. SPACING — per-section rules elsewhere in this file set margin-top
+        to 0/6/8.4 at specificity (1,3,0)+!important, beating my v10.734
+        (1,2,0) rule and producing the user-reported inconsistency
+        (anime/music/shows had 0, games 6, movies 8.4). New selector below
+        chains an attribute + extra class for specificity (1,5,0) so it
+        wins on every section. Value bumped to 3px per Shelfd "0.5 line
+        spacing" convention (1 line = 6px per v10.436 comment elsewhere).
+     2. COLOR — `body.true-dark-mode #mylist-view .status-pill.watched-active`
+        in 16-light-mode-contrast.css:4097-4104 has (1,4,0)+!important and
+        was winning every status-pill text color. New selector below adds
+        `body.true-dark-mode` prefix + chained classes for (1,5,0) so the
+        white-60% color wins for any active-state variant. */
+  #mylist-view .card[data-library-section] .status-pills.status-pills-selector-wrap.status-pills--under-title {
+    margin-top: 3px !important;
+  }
+  /* v10.738: also override the border-color to white-60% so the outline
+     matches the text (was the active-state's cyan/lavender/etc per the
+     `.status-pill.watched-active`-style rules in 05-messages-early-polish.css
+     and 01-mylists-cards-episodes.css). Our (1,5,0) specificity beats those
+     (0,2,0) rules without needing to be split per active-state. Background
+     intentionally unchanged — user spec was "outline" not fill. */
+  body.true-dark-mode #mylist-view .status-pills.status-pills-selector-wrap.status-pills--under-title .status-pill,
+  body.true-dark-mode #mylist-view .status-pills.status-pills-selector-wrap.status-pills--under-title .game-status-current-pill {
+    color: rgba(255, 255, 255, 0.6) !important;
+    border-color: rgba(255, 255, 255, 0.6) !important;
+  }
+  /* v10.234: facts list (release / genre / runtime).
+     v10.701: force a single horizontal row of 3 explicit columns reading
+     left→right Genre / Runtime / Release date. Previously was
+     `repeat(auto-fit, minmax(120px, 1fr))` which collapsed to 2-then-1
+     row on narrow meta blocks, making the facts look stacked vertically. */
   .music-album-profile-facts {
     margin: 12px 0 0;
     padding: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 10px 18px;
-    text-align: left;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px 12px;
+    text-align: center;
   }
   .music-album-profile-fact dt {
     margin: 0 0 2px;
@@ -6572,11 +6626,17 @@ body.light-mode .game-platform-option:active {
   color: rgba(232,227,243,0.42);
 }
 
+/* v10.720: Episodes / comments-btn / game-details-expand-btn footer-bar
+   buttons shrunk from min-height: 32px to 27px so the Episodes pill matches
+   the share-watch + review buttons' vertical height. Text + chevron scaled
+   in proportion (11px → 10px) — the SVG-equivalent chevron `›` inherits
+   from font-size so it shrinks automatically. Mobile @media override
+   further below ALSO bumped to 27 + 10 to keep the iPhone cascade aligned. */
 #mylist-view .card-action-row .comments-btn,
 #mylist-view .card-action-row .ep-toggle-bar.card-footer-btn,
 #mylist-view .game-library-card .comments-btn,
 #mylist-view .game-details-expand-btn {
-  min-height: 32px !important;
+  min-height: 27px !important;
   width: auto !important;
   max-width: none !important;
   padding: 0 12px !important;
@@ -6586,7 +6646,7 @@ body.light-mode .game-platform-option:active {
   color: #f7f3ff !important;
   box-shadow: none !important;
   font-family: 'Sohne', 'DM Sans', sans-serif !important;
-  font-size: 11px !important;
+  font-size: 10px !important;
   font-weight: 650 !important;
   line-height: 1 !important;
   letter-spacing: 0.01em !important;
@@ -6616,7 +6676,9 @@ body.light-mode .game-platform-option:active {
   align-items: center !important;
   min-width: 0 !important;
   white-space: nowrap !important;
-  font-size: 11px !important;
+  /* v10.720: paired with the parent button shrink — 11px -> 10px so the
+     "Episodes" label scales with the 27px button. */
+  font-size: 10px !important;
   font-weight: 650 !important;
   line-height: 1 !important;
 }
@@ -6650,16 +6712,19 @@ body.light-mode #mylist-view .watchlist-priority-input::placeholder {
   #mylist-view .card-action-row .card-footer-actions {
     gap: 6px;
   }
+  /* v10.720: mobile override aligned with base 27/10 spec so iPhone viewports
+     get the same Episodes pill geometry as desktop. Padding tightened to
+     0 10px so the smaller text doesn't float in a too-wide pill. */
   #mylist-view .card-action-row .comments-btn,
   #mylist-view .card-action-row .ep-toggle-bar.card-footer-btn,
   #mylist-view .game-details-expand-btn {
-    min-height: 30px !important;
+    min-height: 27px !important;
     padding: 0 10px !important;
-    font-size: 10.5px !important;
+    font-size: 10px !important;
   }
   #mylist-view .card-action-row .comments-btn-label,
   #mylist-view .card-action-row .ep-toggle-bar.card-footer-btn span:first-child {
-    font-size: 10.5px !important;
+    font-size: 10px !important;
   }
 }
 
@@ -7338,16 +7403,23 @@ body.screenlist-game-cover-picker-open { overflow: hidden !important; }
    ========================================================================== */
 
 /* + button shown when there's no comment yet (owner only) */
+/* v10.713: comment-add (+) button resized 32x32 -> 27x27. Paired with the
+   review-layers-btn below at the same size so the slot doesn't visibly resize
+   when the user transitions from "no review" (shows +) to "has review"
+   (shows layered chat bubble).
+   v10.717: tightened to 24x24.
+   v10.719: bumped back UP to 27x27. The mobile-breakpoint @media rule
+   further below ALSO needs to match — see line ~7610. */
 #mylist-view .card-action-row .card-comment-add-btn {
   appearance: none;
   -webkit-appearance: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  min-height: 32px;
+  width: 27px;
+  height: 27px;
+  min-width: 27px;
+  min-height: 27px;
   border-radius: 50%;
   border: 1px solid rgba(255,255,255,0.30);
   background: rgba(5,5,10,0.94);
@@ -7372,16 +7444,22 @@ body.screenlist-game-cover-picker-open { overflow: hidden !important; }
 /* v10.220: layers icon shown on title cards when ANOTHER user is viewing the
    list and the owner has written a review for that title. Same chip shape +
    palette as the legacy + button so the action-row stays visually balanced. */
+/* v10.713: review-layers button resized 32x32 -> 27x27. Mirrors the
+   comment-add (+) button above so the slot stays the same size across
+   review states.
+   v10.717: tightened to 24x24.
+   v10.719: bumped back UP to 27x27. Mobile-breakpoint @media rule below
+   also needs to match. */
 #mylist-view .card-action-row .card-review-layers-btn {
   appearance: none;
   -webkit-appearance: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  min-height: 32px;
+  width: 27px;
+  height: 27px;
+  min-width: 27px;
+  min-height: 27px;
   border-radius: 50%;
   border: 1px solid rgba(196,181,253,0.32);
   background: rgba(28,21,53,0.86);
@@ -7404,7 +7482,9 @@ body.screenlist-game-cover-picker-open { overflow: hidden !important; }
 }
 #mylist-view .card-action-row .card-review-layers-btn:active { transform: scale(0.94); }
 @media (max-width: 720px) {
-  #mylist-view .card-action-row .card-review-layers-btn { width: 30px; height: 30px; min-width: 30px; min-height: 30px; }
+  /* v10.718/v10.719: must match the base rule above. iPhone viewports always
+     trigger this breakpoint. Current spec: 27x27. */
+  #mylist-view .card-action-row .card-review-layers-btn { width: 27px; height: 27px; min-width: 27px; min-height: 27px; }
 }
 
 /* v10.220: media-review activity card body stack â€” username on top (handled
@@ -7413,10 +7493,23 @@ body.screenlist-game-cover-picker-open { overflow: hidden !important; }
    absolute positioning. */
 .shelfd-social-card.shelfd-media-review-card .sl-media-review-action {
   margin-top: 4px;
-  color: #ffd84c;
+  /* v10.670: "Wrote a Review" is the review-card equivalent of the
+     prefix action verb on standard activity cards. Switched from the
+     old saturated #ffd84c to the canonical champagne gold #E6C766 —
+     matches the new standard-card prefix color (also v10.670) and the
+     rating stars. Weight also dropped 600 → 400 to match the standard
+     prefix weight; "Wrote a Review" now reads as a true peer of "Rated",
+     "Added", "Watched" etc. across all card variants. */
+  color: #E6C766;
   font-family: 'Sohne', 'DM Sans', sans-serif;
-  font-size: 13px;
-  font-weight: 700;
+  /* v10.653: dropped "Wrote a Review" header 16px -> 15px to match the
+     unified 15px size now used by the action verb on standard activity
+     cards (.sl-activity-composed-headline parent shorthand in
+     04-activity-feed.css). Baseline: iPhone 14 Pro Max. */
+  font-size: 15px;
+  /* v10.670: weight 600 → 400 to match standard-card prefix.
+     Historical: 700 → 600 in v10.649. */
+  font-weight: 400;
   letter-spacing: 0;
   line-height: 1.2;
 }
@@ -7428,8 +7521,16 @@ body.screenlist-game-cover-picker-open { overflow: hidden !important; }
   border: 0;
   color: #ffffff;
   font-family: 'Sohne', 'DM Sans', sans-serif;
-  font-size: 17px;
-  font-weight: 500;
+  /* v10.653: dropped review-card media title 17px -> 15px to match the
+     unified 15px size now used on standard activity cards
+     (.sl-activity-composed-title inherits from parent headline shorthand
+     in 04-activity-feed.css). Baseline: iPhone 14 Pro Max. */
+  font-size: 15px;
+  /* v10.651: dropped review-card media title 100 weight steps (500 -> 400)
+     to match the same -100 pass applied to .sl-activity-composed-title on
+     standard activity cards. NOTE: 400 is Sohne-Buch (Regular). If this
+     reads too thin for a title element in practice, revert to 500. */
+  font-weight: 400;
   line-height: 1.2;
   letter-spacing: 0;
   text-align: left;
@@ -7565,8 +7666,10 @@ button.card-comment-body,
     padding: 0;
     margin-top: 8px;
   }
-  #mylist-view .card-action-row .card-comment-add-btn { width: 30px; height: 30px; min-width: 30px; min-height: 30px; }
-  #mylist-view .card-action-row .card-comment-add-btn svg { width: 15px; height: 15px; }
+  /* v10.718/v10.719: must match the base rule above. iPhone viewports always
+     trigger this breakpoint. Current spec: 27x27. */
+  #mylist-view .card-action-row .card-comment-add-btn { width: 27px; height: 27px; min-width: 27px; min-height: 27px; }
+  #mylist-view .card-action-row .card-comment-add-btn svg { width: 14px; height: 14px; }
 }
 
 /* Composer modal â€” bottom-sheet style on mobile, centered card on desktop. */
@@ -8571,6 +8674,19 @@ body.light-mode #mylist-view .games-playing-toggle small {
 .rating-bubble.is-expanded .rating-bubble-chip-icon,
 .rating-bubble.is-expanded .rating-bubble-chip-value {
   color: #E6C766 !important;
+}
+/* v10.721: when the bubble expands, restore the original 13/12 chip sizes
+   from before the v10.721 closed-state shrink (11/10). The font-size
+   transition declared on the base chip rules animates the grow smoothly
+   in lockstep with the existing stars-track slide-out (340ms cubic-bezier
+   0.32,0.72,0,1 — see .rating-bubble-stars-track). Net effect: tap the
+   collapsed bubble → it visibly grows from compact to full size as the
+   stars slide in. */
+.rating-bubble.is-expanded .rating-bubble-chip-icon {
+  font-size: 13px !important;
+}
+.rating-bubble.is-expanded .rating-bubble-chip-value {
+  font-size: 12px !important;
 }
 
 /* â€” Music album-details widget (Your rating, both 5-star half-step

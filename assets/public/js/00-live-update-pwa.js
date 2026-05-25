@@ -78,6 +78,15 @@ window.__shelfdSplitChunkVersion = '364-force-fresh';
         width: min(540px, 88vw); height: auto; max-height: 190px; object-fit: contain;
         display: block; filter: drop-shadow(0 18px 36px rgba(124,58,237,0.28));
       }
+      .screenlist-live-update-slogan {
+        margin-top: 5px;
+        color: rgba(255,255,255,1);
+        font-family: 'Sohne', 'DM Sans', sans-serif;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 1.25;
+        letter-spacing: 0;
+      }
       .screenlist-live-update-loader { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 22px; }
       .screenlist-live-update-loader span { width: 8px; height: 8px; border-radius: 999px; background: #a78bfa; box-shadow: 0 0 18px rgba(167,139,250,0.52); animation: screenlistLiveUpdateDot 820ms ease-in-out infinite; }
       .screenlist-live-update-loader span:nth-child(2) { animation-delay: 120ms; }
@@ -102,6 +111,7 @@ window.__shelfdSplitChunkVersion = '364-force-fresh';
     splash.innerHTML = `
       <div class="screenlist-live-update-card">
         <img class="screenlist-live-update-brand" src="${LIVE_UPDATE_LOGO_SRC}" alt="Shelfd" decoding="async" fetchpriority="high">
+        <div class="screenlist-live-update-slogan">Your trackers, favorite tracker</div>
         <div class="screenlist-live-update-loader" aria-hidden="true"><span></span><span></span><span></span></div>
       </div>`;
     document.body.appendChild(splash);
@@ -346,13 +356,23 @@ window.__shelfdSplitChunkVersion = '364-force-fresh';
        unless `window.__shelfdNeedsColdLaunchSplash` was set by the inline
        boot-hold script in index.html (i.e. only on Capacitor native). */
     finishColdLaunchSplashIfNeeded();
-    forceRefreshServiceWorker();
+    /* v10.696: COLD-BOOT SELF-CHECK THROTTLE. Previously fired immediately
+       on boot, competing with Firebase SDK download + Firestore hydration
+       for main-thread and network bandwidth during the most important
+       seconds of the launch. Defer 3s so first paint wins the race. The
+       `load` event listener below also auto-fires once initial resources
+       finish loading — both paths converge after hydration. */
+    setTimeout(() => { forceRefreshServiceWorker(); }, 3000);
     showStartupSplashIfNeeded();
     window.checkScreenListDeployUpdate = () => checkForScreenListDeployUpdate(true);
     setInterval(() => checkForScreenListDeployUpdate(false), CHECK_INTERVAL_MS);
     window.addEventListener('load', () => {
-      forceRefreshServiceWorker();
-      checkForScreenListDeployUpdate(true);
+      /* v10.696: also delay 1.5s so this fires AFTER fast-paint hydration
+         even on very fast cold launches where `load` arrives quickly. */
+      setTimeout(() => {
+        forceRefreshServiceWorker();
+        checkForScreenListDeployUpdate(true);
+      }, 1500);
     }, { once: true });
     window.addEventListener('focus', () => {
       forceRefreshServiceWorker();

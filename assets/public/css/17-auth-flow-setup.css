@@ -1570,6 +1570,18 @@ body.light-mode #app-container > .header {
   }
 }
 
+/* v10.722: shift ONLY the My-List page top-left settings cog and top-right
+   direct-messages button up by 15px per spec. Uses `transform: translateY`
+   so this is a pure VISUAL shift — no layout flow changes, no impact on
+   any sibling element (logo block, page title, nav row, etc.). Scoped to
+   `body.main-tab-mylist` so the offset doesn't apply on Discover / Community
+   tabs (same buttons appear there, must stay in place).
+   v10.723: shifted back DOWN by 6px (net -9px from original) per spec. */
+body.main-tab-mylist .mylist-header-cog,
+body.main-tab-mylist .header-dm-btn {
+  transform: translateY(-9px) !important;
+}
+
 /* Pull the My Lists profile block UP so the avatar's top edge aligns with
    the cog/DM row's top.
    The cog/DM are vertically centered inside a 48px row, so their TOP edge

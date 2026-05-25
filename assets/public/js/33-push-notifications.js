@@ -193,12 +193,38 @@
 
     Push.addListener('pushNotificationActionPerformed', (action) => {
       /* User tapped a notification while the app was closed/backgrounded.
-         Use the payload's notificationId (or target hints) to route to the
-         right page. We piggy-back on the existing openActivityNotificationTarget
-         helper so behavior matches an in-app tap on the same notification row. */
+         Route to the right page based on the notification type/payload.
+         v10.776: added explicit DM routing. Previously the handler only
+         knew about activity notifications (likes/comments/friend requests)
+         and would silently no-op for DM notifications — openActivityNotificationTarget
+         looks up the notification in /notifications/{uid}/items/{id},
+         but DM notifications are PUSH-ONLY and don't have a Firestore
+         row, so the lookup returned null and nothing happened.
+         Now DM taps explicitly route to openDirectMessageThread via the
+         helper in 09-direct-messages.js (which handles the cold-launch
+         race where dmThreadMap isn't yet populated). */
       try {
         const data = (action && action.notification && action.notification.data) || {};
+        const type = String(data.type || '').trim();
         const notificationId = String(data.notificationId || '').trim();
+
+        /* v10.776: DM routing — opens DM inbox + deep-links to the thread.
+           Match by either explicit type or the notificationId prefix
+           ("direct_message:{threadId}:{messageId}") used by the DM send
+           path in 11-discovery-media-games-profiles.js. */
+        if (type === 'direct_message' || notificationId.indexOf('direct_message:') === 0) {
+          let threadId = String(data.threadId || '').trim();
+          if (!threadId && notificationId.indexOf('direct_message:') === 0) {
+            const parts = notificationId.split(':');
+            threadId = (parts[1] || '').trim();
+          }
+          if (threadId && typeof window.routePushNotificationToDmThread === 'function') {
+            window.routePushNotificationToDmThread(threadId);
+            return;
+          }
+        }
+
+        /* Activity-notification routing (likes, comments, friend events). */
         if (notificationId && typeof window.openActivityNotificationTarget === 'function') {
           window.openActivityNotificationTarget(notificationId);
           return;

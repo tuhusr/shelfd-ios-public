@@ -8,17 +8,17 @@
   },
   "ios": {
     "contentInset": "never",
-    "backgroundColor": "#0E0E0E",
+    "backgroundColor": "#181c20",
     "appendUserAgent": " ShelfdNativeNoInset"
   },
-  "backgroundColor": "#0E0E0E",
+  "backgroundColor": "#181c20",
   "plugins": {
     "PushNotifications": {
       "presentationOptions": ["badge", "sound", "alert"]
     },
     "StatusBar": {
       "style": "dark",
-      "backgroundColor": "#0E0E0E"
+      "backgroundColor": "#181c20"
     }
   }
 }

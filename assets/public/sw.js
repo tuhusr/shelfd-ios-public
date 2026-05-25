@@ -6,7 +6,7 @@
    bump, the SW bytes were byte-identical across deploys, no new install
    happened, and PWAs sat on stale JS until the user manually deleted
    and re-added the home-screen app. */
-const CACHE = 'shelfd-v10-614-view-review-fixes';
+const CACHE = 'shelfd-v10-791-safe-area-bar-color-181c20';
 const DISCOVER_POSTER_CACHE = 'screenlist-discover-posters-v1';
 const MYLIST_POSTER_CACHE = 'screenlist-mylist-posters-v1';
 
@@ -20,6 +20,16 @@ const STATIC_CACHE_PATHS = [
 ];
 
 function isAlwaysFreshAsset(url) {
+  /* v10.696: HASHED/VERSIONED URLS ARE IMMUTABLE — every <link>/<script>
+     in index.html has a `?v=<version>_<description>` cache-bust. The query
+     string IS the version hash, so the content at that exact URL never
+     changes. Treat as cache-first (falls through to cacheFirstStatic in
+     the fetch handler below). Saves multiple seconds on warm reload/PWA
+     navigation because we stop re-fetching JS/CSS that hasn't changed.
+     The deploy auto-refresh path in 00-live-update-pwa.js still polls
+     /index.html (unversioned, network-first) so version bumps are still
+     detected and the live-update splash still kicks in. */
+  if (url.search && url.search.indexOf('v=') !== -1) return false;
   return url.pathname === '/'
     || url.pathname.endsWith('.html')
     || url.pathname.endsWith('.js')

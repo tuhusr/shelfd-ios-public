@@ -57,35 +57,40 @@
   line-height: 1;
   transform: translateY(-1px);
 }
+/* v10.786: rebuilt as a plain numberless red DOT.
+   Previous version was a pill-shaped numbered badge positioned at
+   top:-3px / right:-3px — i.e. OUTSIDE the 42x42 button bounds. Some
+   parent container in the header tree clipped that overflow, slicing
+   off the top of the badge. User reported only the bottom half of the
+   red shape was visible above the chat icon.
+   Fixes:
+   - Plain 9x9 circle (no count number rendered — pure unread indicator).
+   - Positioned INSIDE the button bounds (top: 8px / right: 8px) so no
+     parent overflow can ever clip it again. Sits in the top-right curve
+     of the icon naturally.
+   - font-size:0 + line-height:0 means any textContent that JS might set
+     accidentally never paints. */
 .header-dm-badge {
   position: absolute;
-  top: -3px;
-  right: -3px;
-  min-width: 17px;
-  height: 17px;
-  padding: 0 5px;
-  border-radius: 999px;
+  top: 8px;
+  right: 8px;
+  width: 9px;
+  height: 9px;
+  padding: 0;
+  border-radius: 50%;
   background: #ef4444;
-  color: #fff;
-  font-size: 10px;
-  font-weight: 900;
-  line-height: 17px;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 0 0 2px #090617;
-}
-.header-dm-btn.has-ping::after {
-  content: '';
-  position: absolute;
-  inset: -5px;
-  border-radius: inherit;
-  border: 1px solid rgba(239,68,68,0.45);
-  animation: dmHeaderPing 1.8s ease-out infinite;
+  font-size: 0;
+  line-height: 0;
+  box-shadow: 0 0 0 1.5px #090617;
   pointer-events: none;
 }
-.header-dm-btn.has-ping .header-dm-icon {
-  animation: dmHeaderIconPulse 1.35s cubic-bezier(.2,.8,.2,1) infinite;
-}
+/* v10.777: removed the expanding red ring (.has-ping::after) and the
+   icon pulse animation. They made the DM button look like a "circular
+   red notification button" rather than the standard numbered red dot
+   the user requested. The .header-dm-badge pill itself (with the count
+   number) still shows up at top-right — that's the standard iOS-style
+   badge. has-ping class kept on the button for any other consumers but
+   no longer drives visuals here. */
 @keyframes dmHeaderPing {
   0%   { opacity: .8; transform: scale(.92); }
   75%, 100% { opacity: 0; transform: scale(1.18); }
@@ -587,7 +592,7 @@ html:has(body.dm-fullscreen-open) {
   top: 13px;
   right: 15px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 300;
   font-style: normal;
   color: rgba(196,181,253,0.44);
 }
@@ -698,9 +703,23 @@ html:has(body.dm-fullscreen-open) {
 /* ---------------------------------------------------------------------------
    Body shell state
    --------------------------------------------------------------------------- */
+/* v10.782: BODY LOCK while the DM page is open.
+   position:fixed prevents iOS WKWebView from scrolling the document
+   body when an input is focused inside a position:fixed container —
+   the root cause of the header drifting above the dynamic island.
+   The negative `top` preserves the user's pre-DM scroll position
+   visually (the body is at the same offset as the scroll was),
+   so the page underneath doesn't appear to jump. JS saves and
+   restores window.scrollY on open/close (see lockBodyForDirectMessagesPage
+   / unlockBodyForDirectMessagesPage in 09-direct-messages.js). */
 body.dm-fullscreen-open {
   overflow: hidden;
   overscroll-behavior: none;
+  position: fixed;
+  top: var(--dm-saved-scrollY, 0px);
+  left: 0;
+  right: 0;
+  width: 100%;
 }
 body.dm-fullscreen-open .mobile-bottom-nav {
   display: none !important;
@@ -714,6 +733,8 @@ body.dm-fullscreen-open .mobile-bottom-nav {
 .direct-messages-page {
   --dm-swipe-x: 0px;
   --dm-swipe-opacity: 1;
+  --dm-thread-swipe-x: 0px;
+  --dm-thread-swipe-radius: 0px;
   overscroll-behavior-x: contain;
 }
 .direct-messages-page.open:not(.dm-swipe-closing) {
@@ -731,6 +752,37 @@ body.dm-fullscreen-open .mobile-bottom-nav {
   cursor: grabbing;
   touch-action: none;
 }
+.dm-thread-swipe-underlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4890;
+  background: #0E0E0E;
+  color: #fff;
+  pointer-events: none;
+  overflow: hidden;
+  transform: translate3d(0, 0, 0);
+  contain: layout paint style;
+}
+.dm-thread-swipe-underlay .dm-v2-inbox {
+  height: 100%;
+}
+.direct-messages-page.dm-thread-swipe-revealing .dm-v2-panel {
+  transform: translate3d(var(--dm-thread-swipe-x), 0, 0) !important;
+  border-radius: var(--dm-thread-swipe-radius) !important;
+  overflow: hidden;
+  will-change: transform, border-radius;
+}
+.direct-messages-page.dm-thread-swipe-closing .dm-v2-panel {
+  transform: translate3d(var(--dm-thread-swipe-x), 0, 0) !important;
+  border-radius: var(--dm-thread-swipe-radius) !important;
+  transition: transform 0.30s cubic-bezier(.16,1,.3,1), border-radius 0.30s cubic-bezier(.16,1,.3,1) !important;
+  overflow: hidden;
+}
+.direct-messages-page.dm-thread-swipe-cancel .dm-v2-panel {
+  transform: translate3d(0, 0, 0) !important;
+  border-radius: 0 !important;
+  transition: transform 0.26s cubic-bezier(.16,1,.3,1), border-radius 0.26s cubic-bezier(.16,1,.3,1) !important;
+}
 .direct-messages-page.dm-swipe-cancel {
   transition: opacity 0.20s cubic-bezier(.16,1,.3,1), transform 0.24s cubic-bezier(.16,1,.3,1) !important;
 }
@@ -740,23 +792,6 @@ body.dm-fullscreen-open .mobile-bottom-nav {
   transition: opacity 0.18s ease-out, transform 0.22s cubic-bezier(.2,.8,.2,1) !important;
   pointer-events: none;
 }
-.dm-thread-swipe-ghost {
-  position: fixed;
-  inset: 0;
-  z-index: 9;
-  opacity: 1;
-  transform: translate3d(0, 0, 0);
-  will-change: transform;
-  overflow: hidden;
-  pointer-events: none;
-  background: #050410;
-  contain: layout paint style;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  transform-style: preserve-3d;
-}
-
-
 /* ---------------------------------------------------------------------------
    Responsive â€” chat list / requests sizing on small screens
    --------------------------------------------------------------------------- */

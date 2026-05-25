@@ -75,6 +75,46 @@
     return USERNAME_RE.test(String(value || '').trim());
   }
 
+  /* ─────────────────────────────────────────────────────────────────────────
+     v10.648 — iOS / iCloud Keychain "Save Password" trigger.
+     ─────────────────────────────────────────────────────────────────────────
+     The autocomplete attributes on the form mark fields for AUTOFILL (the
+     QuickType bar above the keyboard with saved credentials). But the SAVE
+     prompt — "Save Password for myshelfd.com?" — has a separate trigger:
+     iOS/WebKit needs an explicit signal that the user just completed a
+     successful sign-in. On SPAs that intercept the submit and do auth via
+     SDK, that signal is absent and iOS often skips the save prompt.
+
+     The Credential Management API gives us the standardized signal. Calling
+     navigator.credentials.store() with a freshly-built PasswordCredential
+     after a successful Firebase sign-in tells the browser "the user just
+     authenticated successfully with these credentials" — which is what
+     fires the iOS save prompt on PWA / Safari, and the Chrome/Edge save
+     prompt on Android / desktop.
+
+     Feature-detected and try/catch-wrapped so unsupported browsers (incl.
+     older iOS Safari) silently no-op. Never breaks the sign-in flow.
+
+     iOS quirk: the save prompt will NOT re-appear if the same email/password
+     pair is already saved in iCloud Keychain for the domain — iOS only
+     prompts on truly NEW credentials. ────────────────────────────────── */
+  async function tryStoreCredentialForSavePrompt(email, password) {
+    try {
+      if (!email || !password) return;
+      if (typeof navigator === 'undefined' || !navigator.credentials || typeof navigator.credentials.store !== 'function') return;
+      if (typeof window.PasswordCredential !== 'function') return;
+      const cred = new window.PasswordCredential({
+        id: String(email),
+        password: String(password),
+        name: String(email)
+      });
+      await navigator.credentials.store(cred);
+    } catch (e) {
+      /* Never fatal — save prompt is a nice-to-have, not a sign-in blocker. */
+      console.warn('[shelfd-auth] credential store skipped:', e && e.message);
+    }
+  }
+
   /* ───────── Friendly Firebase error mapping ───────── */
   function mapAuthError(err, fallback) {
     /* v815: Firestore quota errors can surface through this path too. */
@@ -303,6 +343,11 @@
     setBanner($('shelfd-signin-error'), '');
     try {
       await firebase.auth().signInWithEmailAndPassword(email, password);
+      /* v10.648: explicitly invite the browser/iOS to offer "Save Password"
+         before the panel slides away. No-op on browsers without
+         PasswordCredential support; harmless duplicate on browsers where
+         iOS already saved this exact credential. */
+      tryStoreCredentialForSavePrompt(email, password);
       /* onAuthStateChanged in 17-comments-auth-init.js handles routing.
          Slide the panel down after a short tick so the shell-swap doesn't
          fight the slide-down animation. */
@@ -533,6 +578,10 @@
       const cred = await firebase.auth().createUserWithEmailAndPassword(email, password);
       createdUser = cred && cred.user;
       if (!createdUser) throw new Error('No user returned from Firebase');
+      /* v10.648: explicitly invite the browser/iOS to offer "Save Password"
+         immediately after account creation so the user's chosen password is
+         captured by iCloud Keychain before they leave for verify-email. */
+      tryStoreCredentialForSavePrompt(email, password);
       /* v10.577: record terms agreement so returning users are never prompted */
       try { localStorage.setItem('shelfd_terms_agreed', '1'); } catch(_) {}
 
@@ -1079,6 +1128,12 @@
       return providers.some(p => p && p.providerId && p.providerId !== 'password');
     } catch (_) { return false; }
   }
+  function isAppleUser(user) {
+    try {
+      const providers = (user && user.providerData) || [];
+      return providers.some(p => p && p.providerId === 'apple.com');
+    } catch (_) { return false; }
+  }
 
   async function authOnboardingGate(user) {
     if (!user) return false;
@@ -1102,7 +1157,7 @@
          to set up — we let saveUserProfile create their doc as usual and
          then continue to My Lists, so only gate email/password users. */
       if (!data) {
-        if (isEmailPasswordUser(user)) {
+        if (isEmailPasswordUser(user) || isAppleUser(user)) {
           openShelfdSetupPage(1, {});
           return true;
         }
@@ -1205,6 +1260,11 @@
     setBanner($('shelfd-landing-inline-error'), '');
     try {
       await firebase.auth().signInWithEmailAndPassword(email, password);
+      /* v10.648: explicitly invite the browser/iOS to offer "Save Password"
+         before the landing screen swaps out. Without this, iOS's WebKit
+         heuristic can't tell the SPA sign-in succeeded and skips the prompt.
+         Safe no-op on browsers without PasswordCredential support. */
+      tryStoreCredentialForSavePrompt(email, password);
       /* onAuthStateChanged in 17-comments-auth-init.js takes over and
          routes into the app. Keep the busy state — the page is about
          to swap out anyway. */

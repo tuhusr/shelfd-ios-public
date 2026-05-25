@@ -47,11 +47,17 @@
   font-size: 10px;
   font-weight: 800;
 }
+/* v10.713: share-watch button (empty state) resized 32x32 -> 27x27 per spec.
+   v10.717: tightened to 24x24 per spec.
+   v10.719: bumped back UP to 27x27 per spec. NOTE: the mobile-breakpoint
+   override at @media (max-width: 700px) below ALSO sets 27x27 to keep the
+   cascade aligned — both must match or the iPhone viewport silently wins
+   with whichever value the breakpoint rule has. */
 .watch-together-add {
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  min-height: 32px;
+  width: 27px;
+  height: 27px;
+  min-width: 27px;
+  min-height: 27px;
   aspect-ratio: 1 / 1;
   padding: 0;
   border-radius: 50%;
@@ -393,7 +399,11 @@
   .watch-together-slot { gap: 5px; }
   .watch-together-pending { display: none; }
   .watch-together-stack { min-height: 30px; padding-right: 7px; }
-  .watch-together-add { width: 30px; height: 30px; min-width: 30px; min-height: 30px; }
+  /* v10.718/v10.719: must match the base rule above. iPhone viewports always
+     trigger this breakpoint, so whatever this rule sets is what actually
+     renders on device. Current spec: 27x27 (paired with .watch-together-add
+     base rule). */
+  .watch-together-add { width: 27px; height: 27px; min-width: 27px; min-height: 27px; }
   .watch-together-stack img { width: 24px; height: 24px; }
   .watch-together-modal,
   .watch-together-info-modal { width: calc(100vw - 24px); }

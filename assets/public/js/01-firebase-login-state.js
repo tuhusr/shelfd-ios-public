@@ -20,6 +20,30 @@ const firebaseConfig = {
 window.GOOGLE_OAUTH_WEB_CLIENT_ID = "207486826025-apah3k1thitalp2sob722ug317iqc9r6.apps.googleusercontent.com";
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+/* v10.762: ENABLE FIRESTORE INDEXEDDB OFFLINE PERSISTENCE.
+   ─────────────────────────────────────────────────────────────────────────
+   This is the single highest-impact change for cold-start performance. The
+   Firestore SDK now caches every doc + query read to IndexedDB on this
+   device. On the NEXT cold launch, attached listeners fire with cached data
+   typically within ~100ms — then fire again with fresh network data when
+   the connection settles. Friends data, dmThreads, derived friend queries,
+   activity feed, discover friends watching — all benefit automatically.
+
+   Must be called BEFORE any other Firestore operation. We do it synchronously
+   right after firestore() so no listener can sneak in first.
+
+   Failure modes (all non-fatal, app degrades gracefully to network-only):
+     - 'failed-precondition': another tab already has persistence (PWA multi-tab,
+        not a concern on iOS Capacitor which is single WKWebView)
+     - 'unimplemented': private browsing / storage disabled
+   Either way we just log and continue. */
+try {
+  db.enablePersistence().catch(err => {
+    console.warn('[v10.762] Firestore persistence disabled:', err?.code || err?.message || err);
+  });
+} catch (e) {
+  console.warn('[v10.762] Firestore persistence sync throw:', e?.message || e);
+}
 const auth = firebase.auth();
 
 // Live user counter: 280 hardcoded offset + registered user count in Firestore meta/userCount.

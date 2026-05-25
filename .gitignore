@@ -11,3 +11,7 @@ dist/
 z VERSIONS/
 zz VERSIONS/
 video examples/
+versions/
+shutdown prompts/
+virtual mac/
+testflight_feedback*.zip

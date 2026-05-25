@@ -211,6 +211,20 @@ function getScreenListDeletedActivityIdsForUser(uid = '', userLike = null) {
     : [];
   userIds.forEach(id => { if (id) ids.add(String(id)); });
   if (cleanUid && currentUser?.uid === cleanUid) {
+    /* v10.785: ALSO consult userProfile directly for the current user.
+       isScreenListActivityDeletedForOwner resolves owner as
+       `usersMap?.[uid] || (currentUser?.uid === uid ? userProfile : null)`.
+       But fetchAllFriendActivities pre-seeds usersMap[currentUser.uid] =
+       {uid, name, photo} (line ~6700) — a truthy minimal object with NO
+       activityDeletedIds. That truthy value short-circuits the OR
+       fallback to userProfile, so the Firestore-synced source of truth
+       (now preserved through normalizeUserProfile per v10.785) was
+       never being read. Pull it in here regardless of which userLike
+       the caller passed. */
+    const profileIds = (typeof userProfile === 'object' && userProfile && Array.isArray(userProfile[SCREENLIST_ACTIVITY_DELETED_IDS_FIELD]))
+      ? userProfile[SCREENLIST_ACTIVITY_DELETED_IDS_FIELD]
+      : [];
+    profileIds.forEach(id => { if (id) ids.add(String(id)); });
     readScreenListDeletedActivityLocalIds(cleanUid).forEach(id => ids.add(id));
   }
   return ids;
@@ -605,6 +619,68 @@ function mergeScreenListActivityPair(base = {}, incoming = {}) {
     mergedHadRating: eventTypes.some(type => ['rated', 'season-rated', 'episode-rated'].includes(type)) || Number(mergedItem.rating || mergedItem.lastSeasonRatingValue || mergedItem.lastEpisodeRatingValue || 0) > 0,
     mergedHadSeasonRating: eventTypes.includes('season-rated') || Number(mergedItem.lastSeasonRatingValue || 0) > 0
   };
+}
+
+/* v10.706: collapse duplicate "Wrote a Review" cards when a synthesized
+   completion card already exists for the same (uid, mediaKey).
+   ─────────────────────────────────────────────────────────────────────
+   Before this filter, moving an item to Watched/Played/Listened AND
+   writing a review created TWO activity cards:
+     1. Synthesized "Finished Watching {title}" / "Played {title}" /
+        "Listened to {title}" / "Watched {title}" (derived in
+        `getActivityEventType` from `item.status === 'watched'`)
+     2. The `media-review` feed post the composer creates ("Wrote a
+        Review {title}").
+   Both already render the Full Review button (synth completion picks it
+   up via the `_isCompletionRouteBottom` gate in the card renderer,
+   line 5594-5602). Visually they describe the same user intent, so
+   dropping the review-card duplicate yields the single card the user
+   expects: per-section completion verb + Full Review button.
+
+   This intentionally runs BEFORE `mergeRelatedLibraryActivities` so
+   the dropped review activities never enter the merge keying logic. */
+function filterRedundantMediaReviewWhenCompletionExists(activities = []) {
+  if (!Array.isArray(activities) || activities.length < 2) return activities;
+  const keyOf = (a) => {
+    const uid = String(a?.uid || '').trim();
+    const item = a?.item || {};
+    const mediaKey = String(a?.mediaKey
+      || (typeof getMediaKey === 'function' ? getMediaKey(item) : '')
+      || item?.mediaKey
+      || ''
+    ).trim();
+    const fallback = String(item?.title || item?.name || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    if (!uid) return '';
+    if (!mediaKey && !fallback) return '';
+    return [uid, mediaKey || fallback].join('|');
+  };
+  const completionKeys = new Set();
+  for (const a of activities) {
+    if (!a) continue;
+    if (a.type === 'media-review' || a.eventType === 'review') continue;
+    const eventType = getActivityEventType(a);
+    const item = a.item || {};
+    const status = String(a?.nextStatus || item?.status || '').toLowerCase();
+    const isCompletionLike =
+      eventType === 'completed' ||
+      eventType === 'season-finished' ||
+      ((eventType === 'status-changed' || eventType === 'added') && status === 'watched');
+    if (!isCompletionLike) continue;
+    const key = keyOf(a);
+    if (key) completionKeys.add(key);
+  }
+  if (!completionKeys.size) return activities;
+  return activities.filter(a => {
+    if (!a) return false;
+    const isReview = a.type === 'media-review' || a.eventType === 'review';
+    if (!isReview) return true;
+    const key = keyOf(a);
+    return !key || !completionKeys.has(key);
+  });
 }
 
 function mergeRelatedLibraryActivities(activities = []) {
@@ -2511,11 +2587,17 @@ async function confirmScreenListDeletePost(postId = '', collection = 'feed') {
     if (target?.collection === 'feed') {
       await target.ref.delete();
     } else {
+      /* v10.785: removed the silent-fail `deletedByOwner: true` write
+         to activities/{stableId}. That doc almost never exists (synthesized
+         activities are built client-side from data[section] entries; they
+         have no persistent server doc). The Firestore CREATE rule on
+         /activities requires `request.resource.data.uid == request.auth.uid`,
+         and we weren't writing `uid`, so the create silently failed via
+         `.catch(() => {})`. Dead code that was confusing the delete path.
+         The only persistence that ever actually worked is
+         persistCurrentUserDeletedActivityIds (users/{uid}.activityDeletedIds
+         + localStorage), which IS what the filter reads on reload. */
       await persistCurrentUserDeletedActivityIds(deleteIds);
-      const persistenceRef = target?.activityPersistenceRef || (target?.collection === 'activities' ? target.ref : null);
-      if (persistenceRef) {
-        await persistenceRef.set({ deletedByOwner: true, deletedAt: Date.now(), deletedByUid: currentUser.uid }, { merge: true }).catch(() => {});
-      }
     }
 
     const previousScrollY = window.scrollY || window.pageYOffset || 0;
@@ -2662,9 +2744,10 @@ async function deleteFeedPost(postId, collection = 'feed') {
 
 async function fetchFeedPosts(limit = 50) {
   if (isPreviewMode()) return [];
-  if (!currentUser || !friends.length) return [];
+  const friendIds = Array.isArray(friends) ? friends : [];
+  if (!currentUser || !friendIds.length) return [];
   
-  const friendsSet = new Set([...friends, currentUser.uid]);
+  const friendsSet = new Set([...friendIds, currentUser.uid]);
   const friendsArray = [...friendsSet];
   
   // Firestore 'in' limit is 10, so batch the queries
@@ -3036,7 +3119,7 @@ function buildFeedPostCardHTML(a, activityId, options = {}) {
   /* v863: use the new clean circular avatar. */
   const avatarHtml = buildCleanActivityAvatar(a, actor, avatarSrc, initial);
   
-  const nameHtml = `<span class="activity-card-name" style="cursor:pointer;" onclick="event.stopPropagation(); viewUserFromMap('${escAttr(a.uid)}')">${renderDisplayNameHTML(actor, 'Friend', '')}</span>`;
+  const nameHtml = `<span class="activity-card-name" style="cursor:pointer;" onclick="event.stopPropagation(); viewUserFromMap('${escAttr(a.uid)}')">${renderDisplayNameHTML(actor, 'Friend', '', { compactCreatorBadge: true })}</span>`;
   
   let postContentHtml = '';
   
@@ -4310,7 +4393,7 @@ function buildFeedPostDetailHTML(post, postId) {
         ${avatarHtml}
         <div class="x-post-body">
           <div class="x-post-header-row">
-            <span class="x-post-author">${renderDisplayNameHTML(actor, 'Friend', '')}</span>
+            <span class="x-post-author">${renderDisplayNameHTML(actor, 'Friend', '', { compactCreatorBadge: true })}</span>
             <span class="x-post-time">${timeStr}</span>
           </div>
           ${postContentHtml || '<div class="x-post-text">Post</div>'}
@@ -4341,8 +4424,17 @@ function buildActivityPostDetailHTML(activity, activityId, collection = 'activit
   const itemCover = getScreenListActivityItemCover(item);
   const actorPhoto = String(avatarSrc || '').trim();
   const mediaCover = itemCover && itemCover !== actorPhoto ? itemCover : '';
+  /* v10.710: section-aware modifier on the comment-sheet poster so music
+     reads as a 1:1 square and games match the activity card's exact size +
+     corner radius. Without these classes, every section rendered as the
+     base .x-post-media-poster (104px × 2/3 portrait), making music album
+     covers look stretched into a poster and games look mismatched against
+     the card behind. */
+  const posterSectionClass = section === 'music' ? ' x-post-media-poster--music'
+    : section === 'games' ? ' x-post-media-poster--games'
+    : '';
   const posterHtml = mediaCover
-    ? `<button type="button" class="x-post-media-poster" data-activity-game-poster="${section === 'games' ? '1' : '0'}" data-game-title="${escAttr(title)}" data-rawg-id="${escAttr(getGameRawgIdValue(item) || '')}" onclick="handleActivityMediaClick('${escAttr(activityId)}', this)"><img src="${escAttr(mediaCover)}" alt="" loading="lazy"></button>`
+    ? `<button type="button" class="x-post-media-poster${posterSectionClass}" data-activity-game-poster="${section === 'games' ? '1' : '0'}" data-game-title="${escAttr(title)}" data-rawg-id="${escAttr(getGameRawgIdValue(item) || '')}" onclick="handleActivityMediaClick('${escAttr(activityId)}', this)"><img src="${escAttr(mediaCover)}" alt="" loading="lazy"></button>`
     : '';
 
   let actionText = getActivityVerbPhrase(eventType, item);
@@ -4385,7 +4477,7 @@ function buildActivityPostDetailHTML(activity, activityId, collection = 'activit
         ${avatarHtml}
         <div class="x-post-body">
           <div class="x-post-header-row">
-            <span class="x-post-author" onclick="viewUserFromMap('${escAttr(activity.uid)}')">${renderDisplayNameHTML(actor, 'Friend', '')}</span>
+            <span class="x-post-author" onclick="viewUserFromMap('${escAttr(activity.uid)}')">${renderDisplayNameHTML(actor, 'Friend', '', { compactCreatorBadge: true })}</span>
             <span class="x-post-time">${timeStr}</span>
           </div>
           <div class="x-post-action-text">${escHtml(actionText)}</div>
@@ -4522,6 +4614,13 @@ function openShelfdFeedPostBottomSheet(page) {
 
 function closeShelfdFeedPostBottomSheet(page) {
   if (!page) return;
+  /* v10.691: dismiss the soft keyboard FIRST so it doesn't sit half-up
+     while the sheet closes (Instagram pattern). Blur is a no-op if the
+     input isn't focused, so always safe. */
+  const _composerInput = document.getElementById('feed-reply-input');
+  if (_composerInput && document.activeElement === _composerInput) {
+    try { _composerInput.blur(); } catch (e) {}
+  }
   page.classList.remove('is-open');
   page.classList.remove('is-dragging');
   page.removeEventListener('touchmove', _shelfdFeedSheetBackdropTouchMove);
@@ -4530,7 +4629,10 @@ function closeShelfdFeedPostBottomSheet(page) {
   unlockShelfdFeedSheetBackgroundScroll();
   if (_shelfdFeedSheetCloseTimer) clearTimeout(_shelfdFeedSheetCloseTimer);
   const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-  const hideMs = reduceMotion ? 0 : 380;
+  /* v10.691: bumped 380 → 620 so the 600ms sheet/composer fade-out
+     animation finishes BEFORE display:none hides the page. Previously
+     the page hid 220ms mid-animation, cutting off the gradual fade. */
+  const hideMs = reduceMotion ? 0 : 620;
   _shelfdFeedSheetCloseTimer = setTimeout(() => {
     page.style.display = 'none';
     _shelfdFeedSheetCloseTimer = null;
@@ -4551,11 +4653,30 @@ function installShelfdFeedSheetGestures(page) {
   // CSS `!important` rule that defines the open-state transform. Otherwise the
   // sheet ignores the inline value and stays at translateY(0) — that's why
   // earlier versions felt "automated" / didn't follow the finger.
+  // v10.692: the composer ALSO follows the drag (translate + progressive
+  // opacity fade) so it dissolves WITH the sheet instead of staying anchored
+  // at the screen bottom — Instagram-style gradual disappear. Without this,
+  // the .is-open CSS rule held the composer at translateY(0)/opacity:1 for
+  // the entire drag and only released it after the finger lifted.
   const writeDragTransform = (inner, dy) => {
     inner.style.setProperty('transform', `translate3d(-50%, ${dy}px, 0)`, 'important');
+    const composer = document.getElementById('feed-post-replies-composer');
+    if (composer && dragState && dragState.sheetH) {
+      composer.style.setProperty('transform', `translate3d(-50%, ${dy}px, 0)`, 'important');
+      const fadeProgress = Math.min(1, dy / dragState.sheetH);
+      composer.style.setProperty('opacity', String(Math.max(0, 1 - fadeProgress)), 'important');
+    }
   };
   const clearDragTransform = (inner) => {
     inner.style.removeProperty('transform');
+    // v10.692: clear inline transform + opacity on the composer too so
+    // the CSS .is-open rule can drive snap-back (or .is-open removal can
+    // drive close) via the proper transition.
+    const composer = document.getElementById('feed-post-replies-composer');
+    if (composer) {
+      composer.style.removeProperty('transform');
+      composer.style.removeProperty('opacity');
+    }
   };
 
   // Soft resistance past ~70% so the sheet feels weighted near the bottom edge.
@@ -4624,13 +4745,21 @@ function installShelfdFeedSheetGestures(page) {
     page.classList.remove('is-dragging');
     if (!inner) return;
     if (shouldClose) {
+      /* v10.691: dismiss the keyboard immediately on drag-close so it
+         doesn't sit half-up during the sheet's gradual slide-down. Same
+         pattern as closeShelfdFeedPostBottomSheet above. */
+      const _composerInput = document.getElementById('feed-reply-input');
+      if (_composerInput && document.activeElement === _composerInput) {
+        try { _composerInput.blur(); } catch (e) {}
+      }
       // Removing .is-open changes the CSS target to translateY(100%). Clearing
       // the inline transform on the next frame lets the active transition
       // interpolate from the user's last drag position to fully-closed.
       page.classList.remove('is-open');
       requestAnimationFrame(() => clearDragTransform(inner));
       const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-      const hideMs = reduceMotion ? 0 : 380;
+      /* v10.691: bumped 380 → 620 to match the 600ms slide+fade animation. */
+      const hideMs = reduceMotion ? 0 : 620;
       if (_shelfdFeedSheetCloseTimer) clearTimeout(_shelfdFeedSheetCloseTimer);
       _shelfdFeedSheetCloseTimer = setTimeout(() => {
         page.style.display = 'none';
@@ -4722,7 +4851,15 @@ async function submitFeedReply() {
   
   const text = input.value.trim();
   if (!text) return;
-  
+  /* v10.690: hard cap reply length at 21 characters. The textarea
+     itself has maxlength="21" (browser-enforced for typing + paste), so
+     this submit guard is belt-and-suspenders — protects against any
+     programmatic bypass of the textarea attribute. */
+  if (text.length > 21) {
+    if (typeof showToast === 'function') showToast('Max 21 characters');
+    return;
+  }
+
   btn.disabled = true;
   btn.textContent = 'Posting...';
   
@@ -5079,9 +5216,14 @@ function buildScreenListActivityComposedSentence(eventType = '', item = {}, acti
   const epRaw = String(item?.lastEpisodeActivityNum || item?.lastEpisodeRatingNum || '').trim();
   const epNum = epRaw ? Number(epRaw) || 0 : 0;
 
-  /* Helper: completion phrasing — verb (gold) + verbContext (white 300) */
+  /* Helper: completion phrasing — verb (gold) + verbContext (white 300).
+     v10.705: games verb "Completed " → "Played " per product spec. The
+     activity card sentence for a finished game now reads "Played {title}"
+     to match the rest of the section vocabulary (Watched / Listened to /
+     Finished Watching) which all describe the act, not the completion
+     state. */
   function completionParts() {
-    if (isGame) return { verb: 'Completed ', ctx: '' };
+    if (isGame) return { verb: 'Played ', ctx: '' };
     if (isMovie) return { verb: 'Watched ', ctx: '' };
     if (isMusic) return { verb: 'Listened to ', ctx: '' };
     if (isShowOrAnime && seasonNum > 0) return { verb: 'Finished Watching', ctx: ` season ${seasonNum} of ` };
@@ -5133,7 +5275,10 @@ function buildScreenListActivityComposedSentence(eventType = '', item = {}, acti
       return { prefix: 'Added ', title, suffix: ' to Watchlist' };
 
     case 'status-changed':
-      if (status === 'watched') return { prefix: completionPrefix(), title, suffix: '' };
+      if (status === 'watched') {
+        const { verb, ctx } = completionParts();
+        return { prefix: verb, verbContext: ctx, title, suffix: '' };
+      }
       if (status === 'watching') return { prefix: isGame ? 'Started playing ' : 'Started watching ', title, suffix: '' };
       if (status === 'planned') {
         if (isGame) return { prefix: 'Added ', title, suffix: ' to Backlog' };
@@ -5145,7 +5290,10 @@ function buildScreenListActivityComposedSentence(eventType = '', item = {}, acti
 
     case 'added':
       /* "Added" can be a status-bearing event; defer to the resolved status. */
-      if (status === 'watched') return { prefix: completionPrefix(), title, suffix: '' };
+      if (status === 'watched') {
+        const { verb, ctx } = completionParts();
+        return { prefix: verb, verbContext: ctx, title, suffix: '' };
+      }
       if (status === 'watching') return { prefix: isGame ? 'Started playing ' : 'Started watching ', title, suffix: '' };
       if (status === 'planned') {
         if (isGame) return { prefix: 'Added ', title, suffix: ' to Backlog' };
@@ -5226,7 +5374,7 @@ function buildImportActivityCardHTML(a = {}, activityId = '', options = {}) {
   const actor = usersMap[a.uid] ? { ...a, ...usersMap[a.uid] } : a;
   const avatarSrc = actor.photo || a.photo || '';
   const initial = getDisplayName(actor, 'F').charAt(0).toUpperCase();
-  const actorName = renderDisplayNameHTML(actor, 'Friend', '');
+  const actorName = renderDisplayNameHTML(actor, 'Friend', '', { compactCreatorBadge: true });
   const sourceLabel = a.importSourceLabel || getScreenListImportSourceLabel(a.importSource || a.item?.importSource || '');
   const section = a.importSection || a.item?.librarySection || a.item?.mediaCategory || '';
   const sectionLabel = getSectionLabel2(section) || getSectionLabel(section, true) || 'Library';
@@ -5454,7 +5602,7 @@ function buildActivityCardHTML(a, activityId, options = {}) {
 
   const avatarSrc = actor.photo || a.photo || '';
   const initial = getDisplayName(actor, 'F').charAt(0).toUpperCase();
-  const actorName = renderDisplayNameHTML(actor, 'Friend', '');
+  const actorName = renderDisplayNameHTML(actor, 'Friend', '', { compactCreatorBadge: true });
   /* v863: use the new clean circular avatar. */
   const avatarHtml = buildCleanActivityAvatar(a, actor, avatarSrc, initial);
 
@@ -5592,7 +5740,7 @@ function buildActivityCardHTML(a, activityId, options = {}) {
         ${userNoteHtml}
         ${commentHtml}`;
 
-  return `<article class="shelfd-social-card ${meta.topClass}${isMediaReview ? ' shelfd-media-review-card' : ''}" data-activity-card-id="${escAttr(activityId)}" data-activity-id="${escAttr(activityId)}" data-shelfd-activity-card="v4" onclick="${cardOnclick}">
+  return `<article class="shelfd-social-card ${meta.topClass}${isMediaReview ? ' shelfd-media-review-card' : ''}" data-section="${escAttr(section || '')}" data-activity-card-id="${escAttr(activityId)}" data-activity-id="${escAttr(activityId)}" data-shelfd-activity-card="v4" onclick="${cardOnclick}">
     <div class="sl-activity-main">
       <div class="sl-activity-avatar-zone">${avatarHtml}</div>
       <div class="sl-activity-copy-zone">
@@ -6072,6 +6220,9 @@ function handleActivityMediaClick(activityId, triggerEl = null) {
 const FRIEND_ACTIVITY_INITIAL_DAYS = 7;
 const FRIEND_ACTIVITY_LOAD_STEP_DAYS = 3;
 const FRIEND_ACTIVITY_MAX_DAYS = 365;
+const FRIEND_ACTIVITY_COMMENT_LOOKUP_LIMIT = 120;
+const FRIEND_ACTIVITY_FULL_COMMENT_LOOKUP_LIMIT = 180;
+const FRIEND_ACTIVITY_COMMENT_LOOKUP_BUDGET_MS = 2200;
 let friendActivityDayLimit = FRIEND_ACTIVITY_INITIAL_DAYS;
 
 function getFriendActivityDayLimit() { return friendActivityDayLimit; }
@@ -6106,7 +6257,8 @@ window.loadMoreFriendActivity = loadMoreFriendActivity;
 window.resetFriendActivityDayLimit = resetFriendActivityDayLimit;
 
 function getFriendActivityCacheKey(dayLimit = 7) {
-  return `${isPreviewMode() ? 'preview' : (currentUser?.uid || 'guest')}|${friends.slice().sort().join(',')}|${dayLimit || 0}`;
+  const friendIds = Array.isArray(friends) ? friends : [];
+  return `${isPreviewMode() ? 'preview' : (currentUser?.uid || 'guest')}|${friendIds.slice().sort().join(',')}|${dayLimit || 0}`;
 }
 
 function cloneFriendActivityList(activities = []) {
@@ -6114,6 +6266,34 @@ function cloneFriendActivityList(activities = []) {
     ...activity,
     item: activity.item ? { ...activity.item } : activity.item
   }));
+}
+
+function rememberFriendActivityCommentMedia(mediaMap, mediaKey = '', item = {}, section = '', timestamp = '') {
+  if (!mediaMap || !mediaKey) return;
+  const latestTime = parseFriendActivityTime(timestamp || item.dateModified || item.dateAdded || 0) || 0;
+  const existing = mediaMap.get(mediaKey);
+  mediaMap.set(mediaKey, {
+    title: item.title || item.name || existing?.title || '',
+    cover: item.cover || item.poster || item.image || existing?.cover || '',
+    section: section || item.librarySection || item.mediaCategory || existing?.section || '',
+    latestTime: Math.max(Number(existing?.latestTime || 0), latestTime)
+  });
+}
+
+function getFriendActivityCommentMediaEntries(mediaMap, dayLimit = 7) {
+  const limit = dayLimit
+    ? FRIEND_ACTIVITY_COMMENT_LOOKUP_LIMIT
+    : FRIEND_ACTIVITY_FULL_COMMENT_LOOKUP_LIMIT;
+  return Array.from(mediaMap.entries())
+    .sort((a, b) => Number(b[1]?.latestTime || 0) - Number(a[1]?.latestTime || 0))
+    .slice(0, limit);
+}
+
+async function settleFriendActivityCommentLookups(lookupPromise) {
+  await Promise.race([
+    lookupPromise,
+    new Promise(resolve => setTimeout(resolve, FRIEND_ACTIVITY_COMMENT_LOOKUP_BUDGET_MS))
+  ]);
 }
 
 async function fetchShelfdGuestCreatorActivities(dayLimit = 7) {
@@ -6139,6 +6319,14 @@ async function fetchShelfdGuestCreatorActivities(dayLimit = 7) {
   function pushActivity(activity) {
     const timestamp = activity.timestamp || activity.item?.dateAdded || '';
     if (!withinWindow(timestamp)) return;
+    const item = activity.item || {};
+    rememberFriendActivityCommentMedia(
+      mediaMap,
+      activity.mediaKey || getMediaKey(item),
+      item,
+      item.librarySection || item.mediaCategory || '',
+      timestamp
+    );
     activities.push({
       uid,
       name: creator.name || CREATOR_DEFAULT_NAME,
@@ -6152,7 +6340,6 @@ async function fetchShelfdGuestCreatorActivities(dayLimit = 7) {
       if (!item?.title) return;
       const enriched = { ...item, librarySection: section, mediaCategory: section };
       const mediaKey = getMediaKey(enriched);
-      if (mediaKey && !mediaMap.has(mediaKey)) mediaMap.set(mediaKey, { title: item.title, cover: item.cover || '', section });
 
       const addedAt = item.dateAdded || '';
       const modifiedAt = item.dateModified || '';
@@ -6241,7 +6428,7 @@ async function fetchShelfdGuestCreatorActivities(dayLimit = 7) {
     processCreatorItems(Array.isArray(listData[section]) ? listData[section] : [], section);
   }
 
-  await Promise.all(Array.from(mediaMap.entries()).map(async ([mediaKey, media]) => {
+  await settleFriendActivityCommentLookups(Promise.all(getFriendActivityCommentMediaEntries(mediaMap, dayLimit).map(async ([mediaKey, media]) => {
     try {
       const snap = await db.collection('comments').doc(mediaKey).get();
       if (!snap.exists) return;
@@ -6263,7 +6450,7 @@ async function fetchShelfdGuestCreatorActivities(dayLimit = 7) {
         });
       });
     } catch (e) {}
-  }));
+  })));
 
   try {
     const snapshot = await db.collection('feed')
@@ -6342,14 +6529,14 @@ async function fetchAllFriendActivities(dayLimit = 7) {
   const cutoff = dayLimit ? new Date(Date.now() - dayLimit * 24 * 60 * 60 * 1000).toISOString() : null;
   const activities = [];
   const mediaMap = new Map();
-  const friendUidSet = new Set([...friends, currentUser.uid]); // Always include current user
+  const friendIds = Array.isArray(friends) ? friends : [];
+  const friendUidSet = new Set([...friendIds, currentUser.uid]); // Always include current user
 
   // Helper to process one user's items into activity events
   function processUserItems(uid, u, sectionItems, section) {
     for (const item of sectionItems) {
       const enriched = { ...item, librarySection: section, mediaCategory: section };
       const mediaKey = getMediaKey(enriched);
-      if (mediaKey && !mediaMap.has(mediaKey)) mediaMap.set(mediaKey, { title: item.title, cover: item.cover || '', section });
 
       const addedAt = item.dateAdded || '';
       const modifiedAt = item.dateModified || '';
@@ -6361,10 +6548,12 @@ async function fetchAllFriendActivities(dayLimit = 7) {
         Math.abs(parseFriendActivityTime(episodeActivityAt) - parseFriendActivityTime(modifiedAt)) <= 2000;
 
       if (addedAt && (!cutoff || addedAt >= cutoff)) {
+        rememberFriendActivityCommentMedia(mediaMap, mediaKey, enriched, section, addedAt);
         activities.push({ uid, name: u.name || 'User', photo: u.photo || '', item: enriched, timestamp: addedAt, eventType: 'added', mediaKey });
       }
 
       if (episodeActivityAt && (!cutoff || episodeActivityAt >= cutoff)) {
+        rememberFriendActivityCommentMedia(mediaMap, mediaKey, enriched, section, episodeActivityAt);
         activities.push({
           uid,
           name: u.name || 'User',
@@ -6407,6 +6596,7 @@ async function fetchAllFriendActivities(dayLimit = 7) {
         }
       }
       if (seasonFinishedAt && seasonFinishedNum && (!cutoff || seasonFinishedAt >= cutoff)) {
+        rememberFriendActivityCommentMedia(mediaMap, mediaKey, enriched, section, seasonFinishedAt);
         activities.push({
           uid,
           name: u.name || 'User',
@@ -6426,6 +6616,7 @@ async function fetchAllFriendActivities(dayLimit = 7) {
       const seasonRatingNum = String(item.lastSeasonRatingNum || '').trim();
       const seasonRatingValue = Number(item.lastSeasonRatingValue || 0);
       if (seasonRatingAt && seasonRatingNum && seasonRatingValue > 0 && (!cutoff || seasonRatingAt >= cutoff)) {
+        rememberFriendActivityCommentMedia(mediaMap, mediaKey, enriched, section, seasonRatingAt);
         activities.push({
           uid,
           name: u.name || 'User',
@@ -6445,6 +6636,7 @@ async function fetchAllFriendActivities(dayLimit = 7) {
       const epRatingAt = item.lastEpisodeRatingAt || '';
       const epRatingValue = Number(item.lastEpisodeRatingValue || 0);
       if (epRatingAt && epRatingValue > 0 && (!cutoff || epRatingAt >= cutoff)) {
+        rememberFriendActivityCommentMedia(mediaMap, mediaKey, enriched, section, epRatingAt);
         activities.push({
           uid,
           name: u.name || 'User',
@@ -6462,6 +6654,7 @@ async function fetchAllFriendActivities(dayLimit = 7) {
          change. Standalone — not mergeable. */
       const showRatingAt = item.lastShowRatingAt || '';
       if (showRatingAt && hasRating && (!cutoff || showRatingAt >= cutoff)) {
+        rememberFriendActivityCommentMedia(mediaMap, mediaKey, enriched, section, showRatingAt);
         activities.push({
           uid,
           name: u.name || 'User',
@@ -6505,6 +6698,7 @@ async function fetchAllFriendActivities(dayLimit = 7) {
         } else {
           continue;
         }
+        rememberFriendActivityCommentMedia(mediaMap, mediaKey, enriched, section, modifiedAt);
         activities.push({
           uid,
           name: u.name || 'User',
@@ -6520,11 +6714,12 @@ async function fetchAllFriendActivities(dayLimit = 7) {
   }
 
   // Include own activities from in-memory data (fast, no extra Firestore read)
-  const ownName = (typeof userProfile !== 'undefined' && userProfile?.name) || currentUser.displayName || 'You';
-  const ownPhoto = (typeof userProfile !== 'undefined' && userProfile?.photo) || currentUser.photoURL || '';
+  const ownProfile = (typeof userProfile === 'object' && userProfile) ? userProfile : {};
+  const ownName = ownProfile.name || currentUser.displayName || 'You';
+  const ownPhoto = ownProfile.photo || currentUser.photoURL || '';
   if (!usersMap[currentUser.uid]) usersMap[currentUser.uid] = { uid: currentUser.uid, name: ownName, photo: ownPhoto };
-  if (userProfile?.[SCREENLIST_ACTIVITY_NOTES_FIELD]) {
-    usersMap[currentUser.uid][SCREENLIST_ACTIVITY_NOTES_FIELD] = userProfile[SCREENLIST_ACTIVITY_NOTES_FIELD];
+  if (ownProfile[SCREENLIST_ACTIVITY_NOTES_FIELD]) {
+    usersMap[currentUser.uid][SCREENLIST_ACTIVITY_NOTES_FIELD] = ownProfile[SCREENLIST_ACTIVITY_NOTES_FIELD];
   }
   if (typeof data !== 'undefined' && data) {
     for (const section of SCREENLIST_SECTIONS) {
@@ -6535,7 +6730,7 @@ async function fetchAllFriendActivities(dayLimit = 7) {
   }
 
   // Include friends' activities from Firestore
-  await Promise.all(friends.map(async uid => {
+  await Promise.all(friendIds.map(async uid => {
     try {
       if (!usersMap[uid]) {
         const userSnap = await db.collection('users').doc(uid).get();
@@ -6550,7 +6745,7 @@ async function fetchAllFriendActivities(dayLimit = 7) {
       }
     } catch(e) {}
   }));
-  await Promise.all(Array.from(mediaMap.entries()).map(async ([mediaKey, media]) => {
+  await settleFriendActivityCommentLookups(Promise.all(getFriendActivityCommentMediaEntries(mediaMap, dayLimit).map(async ([mediaKey, media]) => {
     try {
       const snap = await db.collection('comments').doc(mediaKey).get();
       if (!snap.exists) return;
@@ -6572,7 +6767,7 @@ async function fetchAllFriendActivities(dayLimit = 7) {
         });
       });
     } catch(e) {}
-  }));
+  })));
   friendActivityLiveEvents.forEach(event => {
     if (!event || !friendUidSet.has(event.uid)) return;
     const eventTime = parseFriendActivityTime(event.timestamp || event.item?.dateAdded);
@@ -6610,7 +6805,11 @@ async function fetchAllFriendActivities(dayLimit = 7) {
       item: cloneFriendActivityItem(activity.item)
     });
   });
-  const mergedActivities = collapseStackedActivityBurstActivities(collapseImportBatchActivities(mergeRelatedLibraryActivities([...deduped.values()])))
+  /* v10.706: pre-filter dedupe — drop `media-review` cards whose (uid, mediaKey)
+     already has a synthesized completion-like activity. See the function's
+     comment for rationale. Runs OUTSIDE mergeRelatedLibraryActivities so the
+     dropped activities never hit the merge keying logic. */
+  const mergedActivities = collapseStackedActivityBurstActivities(collapseImportBatchActivities(mergeRelatedLibraryActivities(filterRedundantMediaReviewWhenCompletionExists([...deduped.values()]))))
     .filter(activity => !isScreenListActivityDeletedForOwner(activity, activity.eventKey || activity.id || activity.activityId || ''))
     .sort((a, b) => new Date(b.timestamp || b.item?.dateAdded || 0) - new Date(a.timestamp || a.item?.dateAdded || 0));
   friendActivityCache = { key: cacheKey, timestamp: Date.now(), activities: mergedActivities };
@@ -6807,7 +7006,8 @@ async function loadFullActivityFeed() {
     renderFiltered(await fetchAllFriendActivities(0));
     return;
   }
-  if (!currentUser || !friends.length) {
+  const friendCount = Array.isArray(friends) ? friends.length : 0;
+  if (!currentUser || !friendCount) {
     feed.innerHTML = '<div class="discover-message">Add some friends to see their activity here.</div>';
     return;
   }

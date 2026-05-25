@@ -408,19 +408,277 @@ body.light-mode .login-screen .google-btn {
   left: auto !important;
   flex: 0 0 auto;
 }
-.media-share-overlay { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: flex-end; justify-content: center; padding: 18px; background: rgba(5,4,16,0.44); opacity: 0; pointer-events: none; transition: opacity 0.18s ease; }
-.media-share-overlay.open { opacity: 1; pointer-events: auto; }
-.media-share-sheet { width: min(440px, 100%); max-height: min(82vh, 680px); overflow-y: auto; border-radius: 24px 24px 18px 18px; border: 1px solid rgba(167,139,250,0.28); background: linear-gradient(180deg, rgba(19,16,43,0.98), rgba(8,7,18,0.98)); box-shadow: 0 24px 72px rgba(0,0,0,0.52), inset 0 0 0 1px rgba(255,255,255,0.04); padding: 10px 14px 16px; color: #f8f4ff; transform: translate3d(0, 18px, 0); transition: transform 0.22s cubic-bezier(0.22,1,0.36,1); }
-.media-share-overlay.open .media-share-sheet { transform: translate3d(0,0,0); }
-.media-share-handle { width: 42px; height: 4px; border-radius: 999px; background: rgba(255,255,255,0.22); margin: 2px auto 12px; }
-.media-share-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-.media-share-head span { display: block; color: #a78bfa; font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
-.media-share-head strong { display: block; margin-top: 3px; font-size: 17px; font-weight: 700; color: #fff; }
-.media-share-close { width: 34px; height: 34px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: #fff; font-size: 18px; }
-.media-share-choice { width: 100%; min-height: 58px; border-radius: 16px; border: 1px solid rgba(167,139,250,0.22); background: rgba(255,255,255,0.045); color: #fff; font-family: 'DM Sans', sans-serif; text-align: left; padding: 12px 14px; margin-top: 8px; display: flex; flex-direction: column; gap: 3px; }
-.media-share-choice span { font-size: 14px; font-weight: 700; }
-.media-share-choice em { font-size: 12px; color: #b8afd1; font-style: normal; }
-.media-share-screenlist-panel { margin-top: 12px; border-top: 1px solid rgba(167,139,250,0.16); padding-top: 12px; }
+/* v10.623: iOS media profile controls sit 38px lower on movie/TV/anime/game profiles.
+   v10.731: carve out `.discover-person-page` — that page wants the back
+   button at the SAME y as the heart-favorite button (which sits at
+   top:max(14px, safe-top)), so it must NOT pick up this +38px offset
+   that the other media types use for iOS chrome alignment. */
+.discover-media-profile-overlay .discover-media-page:not(.discover-person-page) > .discover-media-back,
+.discover-media-profile-overlay .discover-media-action-row {
+  top: max(52px, calc(var(--shelfd-safe-top, 0px) + 38px));
+}
+
+/* v10.732: shift the ENTIRE person/actor profile down 12px per spec.
+   Three coordinated nudges:
+     1) padding-top on the page pushes the hero + body content down 12px
+        (block-flow children respect padding).
+     2) the back-icon button's `top` jumps by 12px since it's
+        `position: fixed` (anchored to viewport, not page content).
+     3) the heart-favorite button's `top` jumps by 12px since it's
+        `position: absolute` relative to the page's padding box
+        (which doesn't move with padding-top).
+   See `.cast-fav-btn.cast-fav-btn--profile` in 05-messages-early-polish.css
+   for the matching heart-button top + new circular-border treatment. */
+.discover-media-profile-overlay .discover-person-page {
+  /* v10.732: 12px. v10.733: 18px. v10.735: 27px. v10.737: 39px (+12).
+     NOTE: padding-top is the chosen mechanism even though the v10.737 user
+     spec said "not padding" — because the page is a scrollable container
+     with a `position: fixed` back button. CSS `transform`/`margin-top`/
+     `top:relative` all fail to shift the fixed back button alongside the
+     page content (transform would, but it gets clobbered by the swipe-
+     back drag handler in 31-edge-swipe-back.js mid-gesture). Padding
+     pushes the body down; the back/heart bumps below shift the chrome.
+     Net result is the same "entire page shifts as one unit" the user
+     wants — the mechanism is just three coordinated values rather than
+     one universal transform. */
+  padding-top: 39px;
+}
+.discover-media-profile-overlay .discover-person-page > .discover-media-back.discover-media-back--icon {
+  top: max(53px, calc(var(--shelfd-safe-top, 0px) + 39px));
+}
+/* v10.628: Use the provided sharp chevron SVG for title-profile back buttons. */
+.discover-media-profile-overlay .discover-media-page:not(.discover-person-page) > .discover-media-back {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0;
+  line-height: 1;
+}
+.discover-media-profile-overlay .discover-media-page:not(.discover-person-page) > .discover-media-back::before {
+  content: "";
+  width: 23px;
+  height: 23px;
+  display: block;
+  background: currentColor;
+  transform: translateX(-2px);
+  -webkit-mask: url("/assets/icons/chevron-back-sharp-svgrepo-com.svg") center / contain no-repeat;
+  mask: url("/assets/icons/chevron-back-sharp-svgrepo-com.svg") center / contain no-repeat;
+}
+/* v10.629: Normalize media-profile control glass bases to 60% opacity. */
+.discover-media-profile-overlay .discover-media-page:not(.discover-person-page) > .discover-media-back,
+.discover-media-profile-overlay .discover-media-page:not(.discover-person-page) .discover-media-hero-preview-sound {
+  background: rgba(8, 7, 18, 0.6);
+}
+.discover-media-profile-overlay .discover-media-page:not(.discover-person-page) .discover-media-add-floating {
+  background:
+    linear-gradient(135deg, rgba(255, 216, 127, 0.24), rgba(34, 211, 238, 0.12)),
+    rgba(8, 7, 18, 0.6);
+}
+.discover-media-profile-overlay .discover-media-page:not(.discover-person-page) .discover-media-add-floating.added {
+  background:
+    linear-gradient(135deg, rgba(34, 211, 238, 0.24), rgba(255, 255, 255, 0.08)),
+    rgba(8, 7, 18, 0.6);
+}
+.discover-media-profile-overlay .discover-media-page:not(.discover-person-page) .discover-media-share-floating {
+  background:
+    linear-gradient(135deg, rgba(255, 216, 127, 0.18), rgba(34, 211, 238, 0.10)),
+    rgba(8, 7, 18, 0.6);
+}
+/* v10.633: Full-page media profile ratings show their five-point denominator. */
+.discover-media-profile-overlay .discover-media-page:not(.discover-person-page) .discover-media-score .discover-media-score-denominator {
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1;
+  font-family: 'Sora', sans-serif;
+  color: currentColor;
+}
+/* v10.635: Full-page media profile tagline/synopsis/rating color polish. */
+.discover-media-profile-overlay .discover-media-page:not(.discover-person-page) .discover-media-tagline {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  font-weight: 600;
+}
+.discover-media-profile-overlay .discover-media-page:not(.discover-person-page) .discover-media-synopsis,
+.game-media-profile-overlay .discover-media-page .discover-media-synopsis,
+.game-media-profile-overlay .discover-media-page .discover-media-hero-content > p {
+  color: rgba(255, 255, 255, 0.99);
+}
+.discover-media-profile-overlay .discover-media-page:not(.discover-person-page) .discover-media-score,
+.game-media-profile-overlay .discover-media-page .discover-media-score {
+  color: #E6C766;
+}
+/* v10.638: Keep inline trailer preview frames slightly softened. */
+.discover-media-profile-overlay .discover-media-page:not(.discover-person-page) .discover-media-hero-preview.is-ready .discover-media-hero-preview-frame,
+.game-media-profile-overlay .discover-media-page .discover-media-hero-preview.is-ready .discover-media-hero-preview-frame {
+  opacity: var(--media-profile-trailer-frame-opacity, 0.96);
+}
+/* v10.624: Keep the trailer and fixed buttons anchored; shift title-profile
+   poster/content/body down as one visual block for iPhone safe-area spacing. */
+.discover-media-profile-overlay .discover-media-page:not(.discover-person-page) {
+  padding-bottom: 39px;
+}
+.discover-media-profile-overlay .discover-media-page:not(.discover-person-page) .discover-media-hero-content,
+.discover-media-profile-overlay .discover-media-page:not(.discover-person-page) > .discover-media-body {
+  transform: translate3d(0, 39px, 0);
+}
+/* v10.626: Stronger static blend at the bottom edge of title-profile trailers.
+   This leaves trailer playback, gestures, fullscreen, and top buttons alone. */
+.discover-media-profile-overlay:not(.media-profile-trailer-expanding):not(.media-profile-trailer-fullscreen):not(.media-profile-trailer-collapsing):not(.media-profile-trailer-gesture):not(.media-profile-trailer-animating)
+  .discover-media-page:not(.discover-person-page) .discover-media-hero.has-trailer-preview::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(-7px + min(calc(100vw * 9 / 16), 58vh) - 36px);
+  height: 58px;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(5, 4, 13, 0) 0%, rgba(5, 4, 13, 0.52) 34%, rgba(5, 4, 13, 0.9) 72%, #05040d 100%);
+}
+/* v10.726: Media-profile share modal — REDESIGNED per spec.
+   ─────────────────────────────────────────────────────────────────────
+   Was: legacy bottom-anchored sheet with lavender gradient, heavy 800
+   weights, asymmetric 24/24/18/18 corners, tiny 18px slide-up offset.
+   Now: vertically centered modal that ENTERS by sliding up from the
+   bottom of the screen and comes to rest in absolute center. Surface 1
+   dark flat background, subtle white hairline border, modern Sohne
+   weights (500/600/700), symmetric 22px radius (no longer bottom-sheet
+   aesthetic — the centered position makes asymmetry feel wrong).
+   Soft drag-handle bar kept as a quiet indicator that the modal
+   originated from the bottom. Easing matches the rest of the app's
+   open/close transitions (cubic-bezier(0.22, 1, 0.36, 1)).
+   Matching close `setTimeout` in 11-discovery-media-games-profiles.js
+   bumped from 180ms → 420ms to cover the new 400ms slide-down. */
+.media-share-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;          /* v10.726: centered, was flex-end */
+  justify-content: center;
+  padding: max(18px, env(safe-area-inset-top, 0px)) 16px max(18px, env(safe-area-inset-bottom, 0px));
+  background: rgba(0, 0, 0, 0);
+  opacity: 0;
+  pointer-events: none;
+  /* v10.729: backdrop blur 3px per spec. Stays well under the
+     CLAUDE.md 10px cap. Transition both backdrop-filter and
+     -webkit-backdrop-filter so the blur animates in/out smoothly
+     in lockstep with the opacity/background fade. */
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
+  transition: opacity 360ms cubic-bezier(0.22, 1, 0.36, 1),
+              background 360ms cubic-bezier(0.22, 1, 0.36, 1),
+              backdrop-filter 360ms cubic-bezier(0.22, 1, 0.36, 1),
+              -webkit-backdrop-filter 360ms cubic-bezier(0.22, 1, 0.36, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+.media-share-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+.media-share-sheet {
+  width: min(420px, 100%);
+  max-height: min(82vh, 680px);
+  overflow-y: auto;
+  border-radius: 22px;             /* v10.726: symmetric — no longer bottom-sheet */
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background: #101013;             /* v10.726: Surface 1 flat */
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.5);
+  padding: 14px 18px 18px;
+  color: #f6f4fb;
+  /* v10.726: slides up from full bottom of screen (translateY 100vh) into
+     centered resting position. 400ms duration gives the slide enough
+     travel to feel like it's coming "from the bottom" rather than just
+     a small nudge. */
+  transform: translate3d(0, 100vh, 0);
+  transition: transform 400ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+.media-share-overlay.open .media-share-sheet {
+  transform: translate3d(0, 0, 0);
+}
+.media-share-handle {
+  width: 38px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  margin: 0 auto 14px;
+}
+.media-share-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.media-share-head span {
+  display: block;
+  color: rgba(235, 232, 244, 0.58);
+  font: 500 11px/1.2 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.media-share-head strong {
+  display: block;
+  margin-top: 4px;
+  font: 700 18px/1.2 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  overflow-wrap: anywhere;
+}
+.media-share-close {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 0;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(246, 244, 251, 0.78);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 160ms ease, transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.media-share-close:hover { background: rgba(255, 255, 255, 0.10); }
+.media-share-close:active { transform: scale(0.94); }
+.media-share-choice {
+  width: 100%;
+  min-height: 56px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: #17171b;               /* v10.726: Surface 2 */
+  color: #f6f4fb;
+  font-family: 'Sohne', 'DM Sans', sans-serif;
+  text-align: left;
+  padding: 12px 14px;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  transition: background 160ms ease, transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.media-share-choice:hover { background: rgba(255, 255, 255, 0.05); }
+.media-share-choice:active { transform: scale(0.99); }
+.media-share-choice span {
+  font: 600 14px/1.2 'Sohne', 'DM Sans', sans-serif;
+}
+.media-share-choice em {
+  font: 400 12px/1.3 'Sohne', 'DM Sans', sans-serif;
+  color: rgba(235, 232, 244, 0.58);
+  font-style: normal;
+}
+.media-share-screenlist-panel {
+  margin-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 14px;
+}
 .media-share-search, .media-share-note { width: 100%; border-radius: 14px; border: 1px solid rgba(167,139,250,0.22); background: rgba(5,4,16,0.68); color: #fff; font-family: 'DM Sans', sans-serif; font-size: 16px; padding: 12px 13px; margin-bottom: 8px; }
 .media-share-note { min-height: 74px; resize: none; }
 .media-share-users { display: grid; gap: 8px; }
@@ -444,8 +702,9 @@ body.profile-swipe-back-active .profile-page { z-index: 1600; }
      base rules from 05-messages-early-polish.css set the dimensions.
      Only mobile-specific right-edge offset stays. */
   .discover-media-action-row { right: 12px; gap: 7px; }
-  .media-share-overlay { padding: 12px; }
-  .media-share-sheet { border-radius: 22px 22px 16px 16px; }
+  /* v10.726: mobile overlay padding tightened; sheet keeps the symmetric
+     22px radius from the base rule — no more asymmetric bottom-sheet shape. */
+  .media-share-overlay { padding: max(14px, env(safe-area-inset-top, 0px)) 12px max(14px, env(safe-area-inset-bottom, 0px)); }
 }
 
 

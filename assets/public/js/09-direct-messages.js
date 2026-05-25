@@ -20,13 +20,24 @@ let dmGroupEditCropState = null;
 let dmGroupEditCropImage = null;
 let dmGroupEditCropImageSrc = '';
 
+/* v10.739: Shared dmThreads collection — the new canonical store for
+   DM data. Replaces the per-user `users/{uid}.directMessageThreadMap`
+   mirror approach which fundamentally cannot deliver cross-user because
+   Firestore rules block writes to other users' docs. The shared doc at
+   `dmThreads/{threadId}` carries `participantUids: [...]`; both
+   participants can read/write because they're in that array (see the
+   v10.739 rule block in FIRESTORE_RULES_CREATOR_PUBLIC_READ.txt).
+   Same architecture as Instagram / Discord / WhatsApp / iMessage / etc. */
+let dmSharedThreadsUnsubscribe = null;
+let dmSharedThreadsMigrationDone = false;
+
 function normalizeDirectMessageIds(value) {
   return Array.isArray(value) ? value.map(id => String(id || '').trim()).filter(Boolean) : [];
 }
 
-function isDirectMessageEncryptedRecord(message = {}) {
-  return !!(message && (message.isEncrypted || message.dmE2ee || message.encryptedPayload || message.ciphertext));
-}
+/* v10.761: isDirectMessageEncryptedRecord() now lives in 02-messages-e2ee.js
+   (single source of truth). It is loaded before this file so it's available
+   to all references below — same identical implementation, just deduped. */
 
 function normalizeDirectMessageMap(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
@@ -166,15 +177,16 @@ function updateDirectMessagesBadge() {
   const badges = Array.from(document.querySelectorAll('#messages-count-badge, #header-dm-badge'));
   const headerBtn = document.getElementById('header-dm-btn');
   badges.forEach(badge => {
-    if (count > 0) {
-      badge.textContent = String(count);
-      badge.style.display = 'inline-flex';
-    } else {
-      badge.textContent = '';
-      badge.style.display = 'none';
-    }
+    /* v10.786: badge is now a numberless red DOT. Don't write the
+       count to textContent — just toggle visibility. The CSS sizes it
+       as a fixed 9x9 circle so any inline-flex/text positioning is
+       irrelevant; use plain `inline-block` for the on-state. */
+    badge.textContent = '';
+    badge.style.display = count > 0 ? 'inline-block' : 'none';
   });
   if (headerBtn) {
+    /* aria-label still conveys the precise unread count to screen
+       readers — only the visual badge dropped the number. */
     headerBtn.classList.toggle('has-ping', count > 0);
     headerBtn.setAttribute('aria-label', count > 0 ? 'Open messages, ' + count + ' new' : 'Open messages');
     headerBtn.title = count > 0 ? count + ' new message activity' : 'Messages';
@@ -262,63 +274,58 @@ function isDirectMessagesMobileViewport() {
   return !!(window.matchMedia && window.matchMedia('(max-width: 700px)').matches);
 }
 
-let directMessagesStableLayoutHeight = 0;
+/* ════════════════════════════════════════════════════════════════════════
+   v10.782 — SIMPLIFIED DM KEYBOARD + SCROLL HANDLING
+   ════════════════════════════════════════════════════════════════════════
+   Replaces 200+ lines of stacked patches (stableLayoutHeight tracking,
+   token-based auto-scroll, manual touchstart preventDefault, multiple
+   setTimeout chains, continuous window.scrollTo pins) with the minimal
+   architecture the user asked for:
 
-function getDirectMessagesLayoutHeight() {
-  return Math.max(320, Math.round(window.innerHeight || document.documentElement.clientHeight || window.visualViewport?.height || 0));
-}
+     1. ONE CSS variable (`--dm-keyboard-bottom`) driven by
+        `visualViewport.resize`. The composer's `bottom` reads from it.
+        Everything else flexes naturally — message list shrinks when
+        keyboard rises, returns when keyboard drops.
 
-function isDirectMessageTypingActive() {
-  const active = document.activeElement;
-  return !!(active && active.closest && active.closest('.direct-messages-page .dm-v2-compose'));
-}
+     2. Send DOES NOT blur the input (iMessage behavior). Keyboard stays
+        up. User decides when to dismiss by scrolling the message list
+        UP (= swiping down with their finger). That swipe-down blurs
+        the input and iOS plays its native keyboard-dismiss animation.
 
-function setDirectMessagesStableLayoutHeight(force = false) {
-  const page = document.getElementById('direct-messages-page');
-  if (!page) return;
-  const isMobile = isDirectMessagesMobileViewport();
-  const typing = isDirectMessageTypingActive();
-  if (!isMobile) {
-    directMessagesStableLayoutHeight = 0;
-    page.style.removeProperty('--dm-layout-height');
-    return;
-  }
-  if (force || !directMessagesStableLayoutHeight || !typing) {
-    directMessagesStableLayoutHeight = getDirectMessagesLayoutHeight();
-  }
-  page.style.setProperty('--dm-layout-height', directMessagesStableLayoutHeight + 'px');
-}
+     3. Body locked via `position: fixed` while the DM page is open so
+        iOS WKWebView can't drift the panel above the dynamic island.
+        Saves/restores the user's pre-DM scroll position so closing
+        the page returns them exactly where they were.
 
-function lockDirectMessageScrollPosition() {
-  if (!isDirectMessagesMobileViewport()) return;
+   Removed (dead code now):
+     directMessagesStableLayoutHeight, --dm-layout-height, --dm-keyboard-lift,
+     getDirectMessagesLayoutHeight, isDirectMessageTypingActive,
+     getDirectMessageListBottomGap, cancelDirectMessageComposerAutoScroll,
+     keepDirectMessageLastMessageInFrame, setDirectMessagesStableLayoutHeight,
+     lockDirectMessageScrollPosition, directMessageComposerAutoScrollToken,
+     the touchstart preventDefault + manual focus hack,
+     the [60,130,200,320,450,520] setTimeout chains,
+     the continuous window.scrollTo(0,0) listeners. */
+
+function scrollDirectMessageListToBottom() {
   const list = document.getElementById('dm-message-list');
-  const listTop = list ? list.scrollTop : 0;
-  const winX = window.scrollX || 0;
-  const winY = window.scrollY || 0;
-  requestAnimationFrame(() => {
-    try { window.scrollTo(winX, winY); } catch (error) {}
-    if (list && listTop > 0) list.scrollTop = listTop;
-  });
+  if (!list) return;
+  list.scrollTop = list.scrollHeight;
 }
 
 function getDirectMessageKeyboardBottom() {
   if (!window.visualViewport) return 0;
   const viewport = window.visualViewport;
   const lift = Math.max(0, Math.round(window.innerHeight - viewport.height - viewport.offsetTop));
+  /* iOS sometimes reports tiny phantom lifts (~10-40px) when the URL
+     bar resizes — treat anything under 80px as "no keyboard". */
   return lift > 80 ? lift : 0;
 }
 
 function updateDirectMessageKeyboardLift() {
   const page = document.getElementById('direct-messages-page');
   if (!page || !isDirectMessagesPageOpen()) return;
-  setDirectMessagesStableLayoutHeight(false);
-  const typing = isDirectMessageTypingActive();
-  const isMobile = isDirectMessagesMobileViewport();
-  /* v720: Always read actual viewport lift regardless of focus state.
-     When lift = 0 (keyboard gone) we REMOVE dm-keyboard-active immediately
-     so the CSS :not(.dm-keyboard-active) rule takes over and forces the bar
-     to env(safe-area-inset-bottom) — no stale variable can hold it up. */
-  const lift = isMobile ? getDirectMessageKeyboardBottom() : 0;
+  const lift = isDirectMessagesMobileViewport() ? getDirectMessageKeyboardBottom() : 0;
   if (lift > 0) {
     page.classList.add('dm-keyboard-active');
     page.style.setProperty('--dm-keyboard-bottom', lift + 'px');
@@ -326,65 +333,87 @@ function updateDirectMessageKeyboardLift() {
     page.classList.remove('dm-keyboard-active');
     page.style.setProperty('--dm-keyboard-bottom', '0px');
   }
-  page.style.setProperty('--dm-keyboard-lift', '0px');
-  if (isMobile && typing) lockDirectMessageScrollPosition();
 }
 
 function resetDirectMessageKeyboardLift() {
   const page = document.getElementById('direct-messages-page');
   if (!page) return;
-  /* v720: Remove dm-keyboard-active immediately — the CSS
-     :not(.dm-keyboard-active) spring transition handles the visual
-     ease-down. Keep polling so updateDirectMessageKeyboardLift can
-     restore dm-keyboard-active if the keyboard comes back quickly. */
-  page.classList.remove('dm-keyboard-active', 'dm-compose-settling');
-  page.style.setProperty('--dm-keyboard-lift', '0px');
+  page.classList.remove('dm-keyboard-active');
   page.style.setProperty('--dm-keyboard-bottom', '0px');
-  [60, 130, 200, 320, 450].forEach(t => window.setTimeout(updateDirectMessageKeyboardLift, t));
 }
 
 function initDirectMessageKeyboardLift() {
   if (window.__screenListDmKeyboardLiftReady) return;
   window.__screenListDmKeyboardLiftReady = true;
-  const schedule = () => {
-    setDirectMessagesStableLayoutHeight(false);
-    // Fire updates across the full iOS keyboard animation window (~350ms).
-    // visualViewport.resize fires per-frame so no CSS transition is needed —
-    // these timeouts are a fallback safety net for devices that batch events.
-    requestAnimationFrame(updateDirectMessageKeyboardLift);
-    [60, 130, 210, 300, 400, 520].forEach(t =>
-      window.setTimeout(updateDirectMessageKeyboardLift, t)
-    );
-  };
-  document.addEventListener('touchstart', (event) => {
-    const target = event.target && event.target.closest ? event.target.closest('#dm-message-input') : null;
-    if (!target || !isDirectMessagesMobileViewport()) return;
-    event.preventDefault();
-    setDirectMessagesStableLayoutHeight(false);
-    try { target.focus({ preventScroll: true }); }
-    catch (error) { target.focus(); }
-    lockDirectMessageScrollPosition();
-    schedule();
-  }, { passive: false });
-  document.addEventListener('focusin', (event) => {
-    if (event.target && event.target.closest && event.target.closest('.direct-messages-page .dm-v2-compose')) {
-      lockDirectMessageScrollPosition();
-      schedule();
-    }
-  });
-  document.addEventListener('focusout', (event) => {
-    if (event.target && event.target.closest && event.target.closest('.direct-messages-page .dm-v2-compose')) {
-      window.setTimeout(() => {
-        const active = document.activeElement;
-        if (!(active && active.closest && active.closest('.direct-messages-page .dm-v2-compose'))) resetDirectMessageKeyboardLift();
-      }, 80);
-    }
-  });
+
+  /* Single source of truth for keyboard state — visualViewport resize
+     fires per-frame while iOS animates the keyboard in/out. */
   if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', schedule, { passive: true });
-    window.visualViewport.addEventListener('scroll', schedule, { passive: true });
+    window.visualViewport.addEventListener('resize', () => {
+      if (!isDirectMessagesPageOpen()) return;
+      updateDirectMessageKeyboardLift();
+    });
   }
-  window.addEventListener('resize', schedule, { passive: true });
+  window.addEventListener('resize', () => {
+    if (!isDirectMessagesPageOpen()) return;
+    updateDirectMessageKeyboardLift();
+  });
+
+  /* iMessage-style swipe-down-to-dismiss keyboard:
+     User starts scrolling UP in the message list (= swiping their
+     finger DOWN). After ~24px of upward scroll, blur the input so
+     iOS dismisses the keyboard with its native slide-down animation.
+     Threshold prevents accidental dismiss on tiny touch jitters. */
+  let swipeStartY = null;
+  document.addEventListener('touchstart', (event) => {
+    if (!isDirectMessagesPageOpen()) return;
+    const list = event.target && event.target.closest ? event.target.closest('#dm-message-list') : null;
+    if (!list) { swipeStartY = null; return; }
+    const input = document.getElementById('dm-message-input');
+    if (!input || document.activeElement !== input) { swipeStartY = null; return; }
+    swipeStartY = event.touches?.[0]?.clientY ?? null;
+  }, { passive: true });
+  document.addEventListener('touchmove', (event) => {
+    if (swipeStartY === null) return;
+    const currentY = event.touches?.[0]?.clientY;
+    if (typeof currentY !== 'number') return;
+    /* finger moved DOWN by >= 24px → user wants the keyboard gone. */
+    if (currentY - swipeStartY >= 24) {
+      swipeStartY = null;
+      const input = document.getElementById('dm-message-input');
+      if (input && document.activeElement === input) {
+        try { input.blur(); } catch (_) {}
+      }
+    }
+  }, { passive: true });
+  document.addEventListener('touchend', () => { swipeStartY = null; }, { passive: true });
+  document.addEventListener('touchcancel', () => { swipeStartY = null; }, { passive: true });
+}
+
+/* Body-lock helpers — when DM page opens we save window scrollY and
+   put `position: fixed; top: -scrollY` on the body so iOS can't scroll
+   the document. On close we undo it and scroll back. This eliminates
+   the iOS WKWebView bug where focusing an input inside position:fixed
+   silently scrolls the body, drifting the panel above the dynamic
+   island. */
+function lockBodyForDirectMessagesPage() {
+  const body = document.body;
+  if (!body || body.classList.contains('dm-fullscreen-open')) return;
+  const scrollY = Math.max(0, window.scrollY || 0);
+  body.dataset.dmRestoreScrollY = String(scrollY);
+  body.style.setProperty('--dm-saved-scrollY', `-${scrollY}px`);
+  body.classList.add('dm-fullscreen-open');
+}
+function unlockBodyForDirectMessagesPage() {
+  const body = document.body;
+  if (!body) return;
+  const saved = Number(body.dataset.dmRestoreScrollY || 0);
+  body.classList.remove('dm-fullscreen-open');
+  body.style.removeProperty('--dm-saved-scrollY');
+  delete body.dataset.dmRestoreScrollY;
+  if (saved > 0) {
+    try { window.scrollTo(0, saved); } catch (_) {}
+  }
 }
 
 
@@ -396,8 +425,11 @@ function resetDirectMessagesSwipeVisual(page = document.getElementById('direct-m
   if (!page) return;
   page.style.setProperty('--dm-swipe-x', '0px');
   page.style.setProperty('--dm-swipe-opacity', '1');
-  page.classList.remove('dm-swiping', 'dm-swipe-cancel', 'dm-swipe-closing', 'dm-thread-swipe-revealing');
+  page.style.setProperty('--dm-thread-swipe-x', '0px');
+  page.style.setProperty('--dm-thread-swipe-radius', '0px');
+  page.classList.remove('dm-swiping', 'dm-swipe-cancel', 'dm-swipe-closing', 'dm-thread-swipe-revealing', 'dm-thread-swipe-cancel', 'dm-thread-swipe-closing');
   page.querySelectorAll('.dm-thread-swipe-ghost').forEach(node => node.remove());
+  page.querySelectorAll('.dm-thread-swipe-underlay').forEach(node => node.remove());
 }
 
 function shouldIgnoreDirectMessagesSwipe(target) {
@@ -409,12 +441,11 @@ function applyDirectMessagesSwipeVisual(page, x) {
   const viewport = Math.max(320, window.innerWidth || 390);
   const nextX = Math.max(0, Math.min(x, viewport + 40));
   const state = directMessagesSwipeState;
-  if (state?.mode === 'thread' && state.ghost) {
+  if (state?.mode === 'thread') {
     const progress = Math.min(1, nextX / Math.min(viewport, 430));
     const radius = Math.round(10 + progress * 20);
-    state.ghost.style.transform = `translate3d(${nextX}px, 0, 0)`;
-    state.ghost.style.borderRadius = `${radius}px`;
-    state.ghost.style.opacity = '1';
+    page.style.setProperty('--dm-thread-swipe-x', nextX + 'px');
+    page.style.setProperty('--dm-thread-swipe-radius', `${radius}px`);
     page.style.setProperty('--dm-swipe-x', '0px');
     page.style.setProperty('--dm-swipe-opacity', '1');
     return;
@@ -434,43 +465,25 @@ function scheduleDirectMessagesSwipeVisual(page, x) {
 }
 
 function prepareDirectMessageThreadSwipeReveal(page, state) {
-  if (!page || !state || state.mode !== 'thread' || state.ghost) return;
-  const content = page.querySelector('.direct-messages-content');
-  if (!content) return;
-  const ghost = document.createElement('div');
-  ghost.className = 'dm-thread-swipe-ghost';
-  const clone = content.cloneNode(true);
-  clone.querySelectorAll('[id]').forEach((node, index) => {
-    node.id = `dm-thread-swipe-ghost-${index}`;
-  });
-  ghost.appendChild(clone);
-  const threadId = state.threadId;
-  page.appendChild(ghost);
+  if (!page || !state || state.mode !== 'thread') return;
+  renderDirectMessageSwipeInboxUnderlay(page);
   page.classList.add('dm-thread-swipe-revealing');
-  state.ghost = ghost;
-  state.threadId = threadId;
-  ghost.getBoundingClientRect();
-  activeDmGroupEditThreadId = '';
-  activeDmThreadId = '';
+  page.style.setProperty('--dm-thread-swipe-x', '0px');
+  page.style.setProperty('--dm-thread-swipe-radius', '0px');
   resetDirectMessageKeyboardLift();
-  renderDirectMessagesView();
-  persistUiState();
 }
 
 function finishDirectMessagesSwipeClose(page, state = directMessagesSwipeState) {
   if (!page) return;
   const viewport = Math.max(320, window.innerWidth || 390);
-  if (state?.mode === 'thread' && state.ghost) {
-    const ghost = state.ghost;
-    ghost.style.transition = 'transform 0.30s cubic-bezier(.16,1,.3,1), border-radius 0.30s cubic-bezier(.16,1,.3,1)';
-    ghost.style.transform = `translate3d(${viewport + 48}px, 0, 0)`;
-    ghost.style.opacity = '1';
-    ghost.style.borderRadius = '30px';
+  if (state?.mode === 'thread') {
+    page.classList.remove('dm-swiping', 'dm-thread-swipe-cancel');
+    page.classList.add('dm-thread-swipe-closing');
+    page.style.setProperty('--dm-thread-swipe-x', (viewport + 48) + 'px');
+    page.style.setProperty('--dm-thread-swipe-radius', '30px');
     window.setTimeout(() => {
-      ghost.remove();
-      page.classList.remove('dm-swiping', 'dm-swipe-cancel', 'dm-swipe-closing', 'dm-thread-swipe-revealing');
-      page.style.setProperty('--dm-swipe-x', '0px');
-      page.style.setProperty('--dm-swipe-opacity', '1');
+      closeDirectMessageThread();
+      resetDirectMessagesSwipeVisual(page);
     }, 310);
     return;
   }
@@ -486,18 +499,16 @@ function finishDirectMessagesSwipeClose(page, state = directMessagesSwipeState) 
 
 function cancelDirectMessagesSwipeClose(page, state = directMessagesSwipeState) {
   if (!page) return;
-  if (state?.mode === 'thread' && state.ghost) {
-    const ghost = state.ghost;
-    ghost.style.transition = 'transform 0.26s cubic-bezier(.16,1,.3,1), border-radius 0.26s cubic-bezier(.16,1,.3,1)';
-    ghost.style.transform = 'translate3d(0, 0, 0)';
-    ghost.style.borderRadius = '0px';
+  if (state?.mode === 'thread') {
+    page.classList.remove('dm-swiping', 'dm-thread-swipe-closing');
+    page.classList.add('dm-thread-swipe-cancel');
+    page.style.setProperty('--dm-thread-swipe-x', '0px');
+    page.style.setProperty('--dm-thread-swipe-radius', '0px');
     window.setTimeout(() => {
-      if (state.threadId) activeDmThreadId = state.threadId;
-      ghost.remove();
-      page.classList.remove('dm-swiping', 'dm-swipe-closing', 'dm-thread-swipe-revealing');
-      page.style.setProperty('--dm-swipe-x', '0px');
-      page.style.setProperty('--dm-swipe-opacity', '1');
-      renderDirectMessagesView();
+      page.classList.remove('dm-thread-swipe-cancel', 'dm-thread-swipe-revealing');
+      page.style.setProperty('--dm-thread-swipe-x', '0px');
+      page.style.setProperty('--dm-thread-swipe-radius', '0px');
+      page.querySelectorAll('.dm-thread-swipe-underlay').forEach(node => node.remove());
     }, 270);
     return;
   }
@@ -517,6 +528,9 @@ function initDirectMessagesSwipeClose() {
   page.addEventListener('touchstart', (event) => {
     if (!isDirectMessagesPageOpen() || event.touches.length !== 1 || shouldIgnoreDirectMessagesSwipe(event.target)) return;
     const touch = event.touches[0];
+    const isThreadMode = activeDmThreadId && !activeDmGroupEditThreadId;
+    if (isThreadMode && touch.clientX > 30) return;
+    if (!isThreadMode && touch.clientX > 24) return;
     const now = performance.now();
     directMessagesSwipeState = {
       startX: touch.clientX,
@@ -524,7 +538,7 @@ function initDirectMessagesSwipeClose() {
       lastX: touch.clientX,
       lastT: now,
       startT: now,
-      mode: activeDmThreadId && !activeDmGroupEditThreadId ? 'thread' : 'page',
+      mode: isThreadMode ? 'thread' : 'page',
       threadId: activeDmThreadId || '',
       ghost: null,
       pendingX: 0,
@@ -602,11 +616,12 @@ function openDirectMessagesPage() {
   page.style.display = 'block';
   resetDirectMessagesSwipeVisual(page);
   resetDirectMessageKeyboardLift();
-  setDirectMessagesStableLayoutHeight(true);
   initDirectMessagesSwipeClose();
   initDirectMessageKeyboardLift();
   page.setAttribute('aria-hidden', 'false');
-  document.body.classList.add('dm-fullscreen-open');
+  /* v10.782: body-lock prevents iOS WKWebView from drifting the panel
+     above the dynamic island when an input is focused. */
+  lockBodyForDirectMessagesPage();
   updateDirectMessagesTopbar();
   pruneEncryptedDirectMessageThreadsForCurrentUser();
   renderDirectMessagesView();
@@ -622,9 +637,8 @@ function closeDirectMessagesPage(immediate = false) {
   resetDirectMessagesSwipeVisual(page);
   resetDirectMessageKeyboardLift();
   page.setAttribute('aria-hidden', 'true');
-  document.body.classList.remove('dm-fullscreen-open');
-  directMessagesStableLayoutHeight = 0;
-  page.style.removeProperty('--dm-layout-height');
+  /* v10.782: restore body scroll position the user had before opening DM. */
+  unlockBodyForDirectMessagesPage();
   if (immediate) {
     page.style.display = 'none';
     return;
@@ -633,6 +647,20 @@ function closeDirectMessagesPage(immediate = false) {
     if (!page.classList.contains('open')) page.style.display = 'none';
   }, 260);
 }
+
+function openDirectMessageHeaderProfile(uid = '') {
+  const targetUid = String(uid || '').trim();
+  if (!targetUid) return;
+  closeDirectMessagesPage(true);
+  setTimeout(() => {
+    try { openUserProfile(targetUid); }
+    catch (error) {
+      console.warn('[dm] open profile from header failed:', error);
+      if (typeof showToast === 'function') showToast('Could not open profile');
+    }
+  }, 0);
+}
+window.openDirectMessageHeaderProfile = openDirectMessageHeaderProfile;
 
 function getDirectMessageRequestPayload(targetUser = {}, requestId = '') {
   const targetUid = targetUser.uid || '';
@@ -732,6 +760,139 @@ function normalizeDirectMessageThread(thread = {}) {
   return cleanThread;
 }
 
+function getDirectMessageMessageKey(message = {}) {
+  const explicitId = String(message?.id || message?.clientId || '').trim();
+  if (explicitId) return explicitId;
+  return [
+    String(message?.fromUid || '').trim(),
+    String(Number(message?.createdAtMs || 0)),
+    String(message?.text || '').trim(),
+    message?.imageData ? 'photo' : '',
+    message?.shareMedia?.url || ''
+  ].join('|');
+}
+
+function getDirectMessageMessageTime(message = {}) {
+  return Number(message?.createdAtMs || message?.sentAtMs || message?.updatedAtMs || 0);
+}
+
+function mergeDirectMessageMessages(...messageLists) {
+  const byKey = new Map();
+  messageLists.flat().filter(Boolean).forEach(rawMessage => {
+    if (isDirectMessageEncryptedRecord(rawMessage)) return;
+    const message = { ...(rawMessage || {}), isEncrypted: false };
+    delete message.dmE2ee;
+    delete message.encryptedPayload;
+    delete message.ciphertext;
+    if (message.shareMedia) message.shareMedia = normalizeSharedMediaPayload(message.shareMedia);
+    const key = getDirectMessageMessageKey(message);
+    if (!key) return;
+    const previous = byKey.get(key);
+    byKey.set(key, previous ? {
+      ...previous,
+      ...message,
+      text: message.text || previous.text || '',
+      imageData: message.imageData || previous.imageData || '',
+      imageName: message.imageName || previous.imageName || '',
+      shareMedia: message.shareMedia || previous.shareMedia || null
+    } : message);
+  });
+  return [...byKey.values()]
+    .sort((a, b) => {
+      const timeDelta = getDirectMessageMessageTime(a) - getDirectMessageMessageTime(b);
+      if (timeDelta) return timeDelta;
+      return getDirectMessageMessageKey(a).localeCompare(getDirectMessageMessageKey(b));
+    })
+    .slice(-80);
+}
+
+function getDirectMessageThreadClock(thread = {}) {
+  const messages = Array.isArray(thread.messages) ? thread.messages : [];
+  const latestMessageMs = messages.reduce((max, message) => Math.max(max, getDirectMessageMessageTime(message)), 0);
+  return Math.max(
+    Number(thread.updatedAtMs || 0),
+    Number(thread.lastMessageAtMs || 0),
+    latestMessageMs
+  );
+}
+
+function mergeDirectMessageThreadState(existingThread = {}, incomingThread = {}) {
+  const existing = normalizeDirectMessageThread(existingThread);
+  const incoming = normalizeDirectMessageThread(incomingThread);
+  if (!existing.id) return incoming;
+  if (!incoming.id) return existing;
+  const existingClock = getDirectMessageThreadClock(existing);
+  const incomingClock = getDirectMessageThreadClock(incoming);
+  const newest = incomingClock >= existingClock ? incoming : existing;
+  const older = newest === incoming ? existing : incoming;
+  const messages = mergeDirectMessageMessages(existing.messages || [], incoming.messages || []);
+  const participantUids = [...new Set([
+    ...(existing.participantUids || []),
+    ...(incoming.participantUids || [])
+  ].filter(Boolean))];
+  const participants = { ...(older.participants || {}), ...(newest.participants || {}) };
+  const lastMessageRecord = messages.length ? messages[messages.length - 1] : null;
+  const lastMessageAtMs = Math.max(
+    Number(existing.lastMessageAtMs || 0),
+    Number(incoming.lastMessageAtMs || 0),
+    lastMessageRecord ? getDirectMessageMessageTime(lastMessageRecord) : 0
+  );
+  return normalizeDirectMessageThread({
+    ...older,
+    ...newest,
+    participantUids,
+    participants,
+    messages,
+    lastMessage: lastMessageRecord
+      ? getDirectMessageLastPreviewFromMessages(messages, newest.lastMessage || older.lastMessage || '')
+      : (newest.lastMessage || older.lastMessage || ''),
+    lastMessageFromUid: lastMessageRecord
+      ? (lastMessageRecord.fromUid || newest.lastMessageFromUid || older.lastMessageFromUid || '')
+      : (newest.lastMessageFromUid || older.lastMessageFromUid || ''),
+    lastMessageAtMs: lastMessageAtMs || newest.lastMessageAtMs || older.lastMessageAtMs || Date.now(),
+    unreadUids: Array.isArray(newest.unreadUids) ? newest.unreadUids.filter(Boolean) : [],
+    createdAtMs: Math.min(
+      Number(existing.createdAtMs || incoming.createdAtMs || Date.now()),
+      Number(incoming.createdAtMs || existing.createdAtMs || Date.now())
+    ),
+    updatedAtMs: Math.max(
+      Number(existing.updatedAtMs || 0),
+      Number(incoming.updatedAtMs || 0),
+      lastMessageAtMs || 0
+    ) || Date.now()
+  });
+}
+
+function mergeDirectMessageThreadIntoState(thread = {}) {
+  const cleanThread = normalizeDirectMessageThread(thread);
+  if (!cleanThread.id) return null;
+  if (currentUser?.uid && cleanThread.participantUids.length && !cleanThread.participantUids.includes(currentUser.uid)) {
+    return dmThreadMap[cleanThread.id] || null;
+  }
+  const existingThread = dmThreadMap[cleanThread.id];
+  const mergedThread = existingThread ? mergeDirectMessageThreadState(existingThread, cleanThread) : cleanThread;
+  dmThreadMap[cleanThread.id] = mergedThread;
+  if (!dmThreadIds.includes(cleanThread.id)) dmThreadIds.push(cleanThread.id);
+  return mergedThread;
+}
+
+function mergeDirectMessageThreadCollectionIntoState(threadMap = {}) {
+  Object.values(threadMap || {}).forEach(thread => mergeDirectMessageThreadIntoState(thread));
+  dmThreadIds = [...new Set([
+    ...dmThreadIds,
+    ...Object.keys(dmThreadMap || {})
+  ])].filter(id => {
+    const thread = dmThreadMap[id];
+    return !thread || !currentUser?.uid || (thread.participantUids || []).includes(currentUser.uid);
+  });
+  /* v10.761: refresh device-cached inbox snapshot for instant cold-start
+     paint on the next launch. Debounced inside scheduleDmInboxCacheWrite()
+     so a burst of snapshot updates becomes a single write. See 09b-dm-inbox-cache.js. */
+  if (typeof scheduleDmInboxCacheWrite === 'function') {
+    try { scheduleDmInboxCacheWrite(); } catch (e) { /* never block a merge */ }
+  }
+}
+
 let directMessageEncryptedPruneInFlight = false;
 async function pruneEncryptedDirectMessageThreadsForCurrentUser() {
   if (!currentUser || directMessageEncryptedPruneInFlight) return;
@@ -739,35 +900,175 @@ async function pruneEncryptedDirectMessageThreadsForCurrentUser() {
   if (!dirty.length) return;
   directMessageEncryptedPruneInFlight = true;
   try {
-    const ref = db.collection('users').doc(currentUser.uid);
-    const patch = {};
+    /* v10.771: was rewriting cleaned threads back into the legacy
+       directMessageThreadMap field on the user doc — but that field is
+       the very bloat source we're trying to retire (see setDirectMessageThreadMirror
+       v10.771). Now we only update the LOCAL dmThreadMap so the UI
+       drops the encrypted records; no server write. The canonical
+       dmThreads/{threadId} doc is left untouched (it's where the real
+       messages live and the existing record-skipping renderers already
+       hide encrypted ones). */
     dirty.forEach(thread => {
       const cleanThread = { ...thread };
       delete cleanThread._removedEncryptedMessages;
       dmThreadMap[cleanThread.id] = cleanThread;
-      patch[`directMessageThreadMap.${cleanThread.id}`] = cleanThread;
     });
-    await ref.update(patch);
   } catch (error) {
-    console.warn('Direct Message encrypted-message cleanup skipped:', error);
+    console.warn('Direct Message encrypted-message local cleanup skipped:', error);
   } finally {
     directMessageEncryptedPruneInFlight = false;
   }
 }
 async function setDirectMessageThreadMirror(uid = '', thread = {}) {
+  /* v10.771: LEGACY USER-DOC MIRROR DISABLED. This used to write the
+     full thread (messages array and all) to /users/{uid}.directMessageThreadMap
+     as a backward-compat path for clients that didn't yet have the
+     v10.739 dmThreads listener. Every client is on v10.762+ now (which
+     attaches that listener immediately at sign-in), so the mirror is
+     dead weight — every DM was bloating the user doc with KB of message
+     history, eventually pushing it past Firestore's 1 MiB per-doc cap
+     and breaking ALL user-doc writes (username saves, profile updates,
+     etc — the v10.770 1 MiB rescue logs were the smoking gun).
+     Kept as a no-op stub so callers don't need restructuring.
+     The canonical dmThreads/{threadId} write in mirrorDirectMessageThreadToParticipants
+     handles real-time delivery and inbox state for everyone. */
+  return;
+}
+
+/* v10.739: Write the thread to the SHARED dmThreads/{threadId} collection.
+   This is the new canonical store — both participants can read/write because
+   they're in participantUids (per the v10.739 Firestore rule). Used by
+   mirrorDirectMessageThreadToParticipants as the PRIMARY write so the message
+   is actually delivered cross-user. */
+async function writeSharedDmThread(thread = {}) {
   const cleanThread = normalizeDirectMessageThread(thread);
-  if (!uid || !cleanThread.id) return;
+  if (!cleanThread.id) throw new Error('writeSharedDmThread: missing thread id');
   delete cleanThread._removedEncryptedMessages;
-  await db.collection('users').doc(uid).set({
-    directMessageThreads: firebase.firestore.FieldValue.arrayUnion(cleanThread.id),
-    directMessageThreadMap: { [cleanThread.id]: cleanThread }
-  }, { merge: true });
+  await db.collection('dmThreads').doc(cleanThread.id).set(cleanThread, { merge: true });
 }
 
 async function mirrorDirectMessageThreadToParticipants(thread = {}) {
   const cleanThread = normalizeDirectMessageThread(thread);
   const participants = cleanThread.participantUids.filter(Boolean);
-  await Promise.all(participants.map(uid => setDirectMessageThreadMirror(uid, cleanThread)));
+  /* v10.739: PRIMARY write goes to the shared `dmThreads/{id}` doc. Both
+     participants can read this in real time (their dmThreads listener fires
+     immediately on any change). If this throws, the message did NOT deliver
+     — caller's catch reverts the optimistic local state. This is the path
+     that actually fixes the "recipient never gets the message" bug.
+
+     The legacy per-user mirror writes below are best-effort during the
+     transition (Deploy 1). The sender's OWN doc mirror still needs to land
+     so the legacy friendsDataListener continues to surface threads on
+     existing clients that haven't loaded the new dmThreads listener yet.
+     Recipient mirror writes WILL fail (Firestore rules block cross-user
+     writes to users docs — that's the original bug). We catch + swallow
+     those expected failures so they don't tear down the shared write.
+
+     Once Deploy 2 cuts reads over to dmThreads exclusively, the legacy
+     per-user mirror writes can be removed entirely. */
+  await writeSharedDmThread(cleanThread);
+  await Promise.all(participants.map(uid =>
+    setDirectMessageThreadMirror(uid, cleanThread).catch(error => {
+      if (uid === currentUser?.uid) {
+        /* self-mirror failure is unexpected — log loudly */
+        console.warn('[v10.739] legacy self user-doc mirror failed:', error?.code || error?.message);
+      }
+      /* recipient mirror failure is EXPECTED under the standard rules.
+         Silent swallow — the shared write above already delivered. */
+    })
+  ));
+}
+
+/* v10.739: Real-time listener on the shared dmThreads collection. Fires
+   whenever ANY thread the current user participates in is created or
+   updated. Populates dmThreadMap so the UI shows new messages instantly
+   on the recipient side — finally fixing the "recipient never gets it"
+   bug.
+
+   Runs in parallel with the legacy `friendsDataListener` (which reads
+   directMessageThreadMap from the user's own doc) during Deploy 1.
+   Both can coexist because incoming thread snapshots are merged into
+   local state by message id + timestamp instead of replacing the active
+   thread. That keeps an optimistic just-sent message visible while the
+   shared write and legacy mirror catch up. */
+function startDirectMessageSharedThreadsListener() {
+  if (!currentUser || typeof db === 'undefined' || !db) return;
+  stopDirectMessageSharedThreadsListener();
+  try {
+    dmSharedThreadsUnsubscribe = db.collection('dmThreads')
+      .where('participantUids', 'array-contains', currentUser.uid)
+      .onSnapshot(snap => {
+        const incoming = {};
+        snap.forEach(doc => {
+          const raw = doc.data() || {};
+          const cleanThread = normalizeDirectMessageThread({ ...raw, id: doc.id });
+          if (cleanThread.id && (cleanThread.participantUids || []).includes(currentUser.uid)) {
+            incoming[cleanThread.id] = cleanThread;
+          }
+        });
+        mergeDirectMessageThreadCollectionIntoState(incoming);
+        try { if (typeof renderDirectMessagesView === 'function') renderDirectMessagesView(); } catch (_) {}
+        try { if (typeof updateDirectMessagesBadge === 'function') updateDirectMessagesBadge(); } catch (_) {}
+        /* One-shot migration: copy any legacy thread that exists ONLY in
+           the user's own doc mirror (and not yet in shared) into the shared
+           collection so future writes can update it there. */
+        if (!dmSharedThreadsMigrationDone) {
+          dmSharedThreadsMigrationDone = true;
+          migrateLegacyDirectMessageThreadsToShared(incoming).catch(error => {
+            console.warn('[v10.739] legacy DM migration skipped:', error?.code || error?.message);
+          });
+        }
+      }, error => {
+        console.warn('[v10.739] dmThreads listener error:', error?.code || error?.message);
+        /* If the listener fails (likely because the Firestore rule for
+           dmThreads hasn't been published yet), don't throw — the legacy
+           friendsDataListener path still surfaces threads from the
+           sender's own doc, so the UI degrades gracefully. */
+      });
+  } catch (error) {
+    console.warn('[v10.739] startDirectMessageSharedThreadsListener failed:', error?.code || error?.message);
+  }
+}
+
+function stopDirectMessageSharedThreadsListener() {
+  if (dmSharedThreadsUnsubscribe) {
+    try { dmSharedThreadsUnsubscribe(); } catch (_) {}
+    dmSharedThreadsUnsubscribe = null;
+  }
+  dmSharedThreadsMigrationDone = false;
+}
+
+/* v10.739: One-shot migration — for users with existing threads on their
+   user-doc mirror that aren't yet in the shared dmThreads collection, copy
+   them over so subsequent writes (which go to dmThreads as primary) update
+   the same doc rather than creating an orphan. Fire-and-forget; per-thread
+   failures are swallowed so one bad thread can't block the rest. */
+async function migrateLegacyDirectMessageThreadsToShared(sharedSnapshot = {}) {
+  if (!currentUser || typeof db === 'undefined' || !db) return;
+  const sharedIds = new Set(Object.keys(sharedSnapshot || {}));
+  const legacyThreads = Object.values(dmThreadMap || {}).filter(thread =>
+    thread
+    && thread.id
+    && !sharedIds.has(thread.id)
+    && Array.isArray(thread.participantUids)
+    && thread.participantUids.includes(currentUser.uid)
+  );
+  if (!legacyThreads.length) return;
+  let migrated = 0;
+  for (const thread of legacyThreads) {
+    try {
+      await writeSharedDmThread(thread);
+      migrated += 1;
+    } catch (error) {
+      console.warn('[v10.739] migrate thread', thread.id, 'failed:', error?.code || error?.message);
+    }
+  }
+  if (migrated) console.info(`[v10.739] migrated ${migrated} legacy DM threads to dmThreads collection`);
+}
+
+if (typeof window !== 'undefined') {
+  window.startDirectMessageSharedThreadsListener = startDirectMessageSharedThreadsListener;
+  window.stopDirectMessageSharedThreadsListener = stopDirectMessageSharedThreadsListener;
 }
 
 async function searchDirectMessageUsers(query = '') {
@@ -1778,14 +2079,20 @@ function renderDirectMessageThread(threadId = activeDmThreadId) {
      small action menu anchored to the button. */
   const identityClick = isGroup
     ? `openDirectMessageGroupEdit('${escAttr(thread.id)}')`
-    : (otherUid ? `openUserProfile('${escAttr(otherUid)}')` : '');
+    : (otherUid ? `openDirectMessageHeaderProfile('${escAttr(otherUid)}')` : '');
+  const otherBlocked = !!(otherUid && (
+    (typeof window.isShelfdUserBlocked === 'function' && window.isShelfdUserBlocked(otherUid)) ||
+    (window.shelfdBlockedUids && window.shelfdBlockedUids.has(String(otherUid)))
+  ));
+  const blockActionLabel = otherBlocked ? 'Unblock user' : 'Block';
+  const blockActionClass = otherBlocked ? '' : 'dm-overflow-report';
   const overflowMenuItems = isGroup
     ? `<button type="button" onclick="closeDmV2OverflowMenu('${escAttr(thread.id)}'); openDirectMessageGroupEdit('${escAttr(thread.id)}')">Edit group</button>
        <button type="button" onclick="closeDmV2OverflowMenu('${escAttr(thread.id)}'); markDirectMessageThreadRead('${escAttr(thread.id)}')">Mark as read</button>`
     : `<button type="button" onclick="closeDmV2OverflowMenu('${escAttr(thread.id)}'); ${otherUid ? `openUserProfile('${escAttr(otherUid)}')` : 'showToast(\'No profile available\')'}">View profile</button>
        <button type="button" onclick="closeDmV2OverflowMenu('${escAttr(thread.id)}'); markDirectMessageThreadRead('${escAttr(thread.id)}')">Mark as read</button>
        ${otherUid ? `<button type="button" class="dm-overflow-report" onclick="closeDmV2OverflowMenu('${escAttr(thread.id)}'); if(typeof window.openReportSheet==='function') window.openReportSheet('dm_user','${escAttr(otherUid)}','${escAttr(thread.id)}','this user')">Report</button>` : ''}
-       ${otherUid ? `<button type="button" class="dm-overflow-report" onclick="closeDmV2OverflowMenu('${escAttr(thread.id)}'); if(typeof window.openBlockUserModal==='function') window.openBlockUserModal('${escAttr(otherUid)}')">Block</button>` : ''}`;
+       ${otherUid ? `<button type="button" class="${blockActionClass}" onclick="closeDmV2OverflowMenu('${escAttr(thread.id)}'); if(typeof window.openBlockUserModal==='function') window.openBlockUserModal('${escAttr(otherUid)}','${escAttr(title)}')">${blockActionLabel}</button>` : ''}`;
 
   return `<div class="dm-v2-panel">
     <div class="dm-v2-header">
@@ -1812,17 +2119,43 @@ function renderDirectMessageThread(threadId = activeDmThreadId) {
       ${messageHtml}
     </div>
     <div class="dm-v2-compose">
+      <!-- v10.744: hidden file inputs — photo library, camera capture, any file -->
       <input id="dm-photo-input-${escAttr(thread.id)}" type="file" accept="image/*" style="display:none" onchange="handleDirectMessagePhotoUpload('${escAttr(thread.id)}', this.files && this.files[0])">
-      <button class="dm-v2-camera-btn" type="button" aria-label="Take photo" onclick="triggerDirectMessagePhotoUpload('${escAttr(thread.id)}')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5l-2 2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3.5l-2-2z"/><circle cx="12" cy="13" r="4"/></svg>
-      </button>
-      <div class="dm-v2-input-pill">
-        <input id="dm-message-input" class="dm-v2-input" type="text" placeholder="Message..." autocomplete="off" oninput="this.closest('.dm-v2-compose')?.classList.toggle('has-text', !!this.value.trim())" onkeydown="if(event.key==='Enter'){sendDirectMessage('${escAttr(thread.id)}')}">
-        <button class="dm-v2-pill-btn dm-v2-mic-btn" type="button" aria-label="Voice message" onclick="triggerDmV2VoiceNote('${escAttr(thread.id)}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+      <input id="dm-camera-input-${escAttr(thread.id)}" type="file" accept="image/*" capture="environment" style="display:none" onchange="handleDirectMessagePhotoUpload('${escAttr(thread.id)}', this.files && this.files[0])">
+      <input id="dm-file-input-${escAttr(thread.id)}" type="file" accept="*/*" style="display:none" onchange="handleDirectMessagePhotoUpload('${escAttr(thread.id)}', this.files && this.files[0])">
+      <!-- + button with attachment menu -->
+      <div class="dm-v2-plus-wrap">
+        <button class="dm-v2-plus-btn" type="button" aria-label="Attach" onclick="toggleDmV2PlusMenu('${escAttr(thread.id)}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
-        <button class="dm-v2-pill-btn dm-v2-gallery-btn" type="button" aria-label="Photo library" onclick="triggerDirectMessagePhotoUpload('${escAttr(thread.id)}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="9.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <div class="dm-v2-plus-menu" id="dm-v2-plus-menu-${escAttr(thread.id)}" hidden>
+          <button type="button" class="dm-v2-plus-menu-item" onclick="closeDmV2PlusMenu('${escAttr(thread.id)}'); document.getElementById('dm-camera-input-${escAttr(thread.id)}') && document.getElementById('dm-camera-input-${escAttr(thread.id)}').click()">
+            <span class="dm-v2-plus-menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5l-2 2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3.5l-2-2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </span>
+            <span>Camera</span>
+          </button>
+          <button type="button" class="dm-v2-plus-menu-item" onclick="closeDmV2PlusMenu('${escAttr(thread.id)}'); document.getElementById('dm-photo-input-${escAttr(thread.id)}') && document.getElementById('dm-photo-input-${escAttr(thread.id)}').click()">
+            <span class="dm-v2-plus-menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="9.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            </span>
+            <span>Photos</span>
+          </button>
+          <button type="button" class="dm-v2-plus-menu-item" onclick="closeDmV2PlusMenu('${escAttr(thread.id)}'); document.getElementById('dm-file-input-${escAttr(thread.id)}') && document.getElementById('dm-file-input-${escAttr(thread.id)}').click()">
+            <span class="dm-v2-plus-menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </span>
+            <span>Files</span>
+          </button>
+        </div>
+      </div>
+      <!-- pill input with waveform voice button -->
+      <div class="dm-v2-input-pill" onclick="focusDirectMessageComposerInput(event)">
+        <input id="dm-message-input" class="dm-v2-input" type="text" placeholder="Message" autocomplete="off" oninput="this.closest('.dm-v2-compose')?.classList.toggle('has-text', !!this.value.trim())" onkeydown="if(event.key==='Enter'){sendDirectMessage('${escAttr(thread.id)}')}">
+        <button class="dm-v2-pill-btn dm-v2-voice-btn" type="button" aria-label="Voice message" onclick="triggerDmV2VoiceNote('${escAttr(thread.id)}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+            <line x1="4" y1="10" x2="4" y2="14"/><line x1="7" y1="7" x2="7" y2="17"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="13" y1="5" x2="13" y2="19"/><line x1="16" y1="8" x2="16" y2="16"/><line x1="19" y1="10" x2="19" y2="14"/>
+          </svg>
         </button>
       </div>
       <button class="dm-v2-send-btn" type="button" onpointerdown="if(window.matchMedia && window.matchMedia('(max-width: 700px)').matches){event.preventDefault();}" onclick="sendDirectMessage('${escAttr(thread.id)}')" aria-label="Send">
@@ -1910,6 +2243,48 @@ window.closeDmV2OverflowMenu = function(threadId) {
   if (menu) menu.hidden = true;
 };
 
+/* v10.744: + attachment menu — open/close + outside-click dismiss. */
+function closeDmV2PlusMenuElement(menu) {
+  if (!menu || menu.hidden) return;
+  menu.classList.remove('is-open');
+  window.setTimeout(() => {
+    if (!menu.classList.contains('is-open')) menu.hidden = true;
+  }, 620);
+}
+window.toggleDmV2PlusMenu = function(threadId) {
+  const id = String(threadId || '').trim();
+  if (!id) return;
+  const menu = document.getElementById('dm-v2-plus-menu-' + id);
+  if (!menu) return;
+  const willOpen = menu.hidden;
+  document.querySelectorAll('.dm-v2-plus-menu').forEach(el => {
+    if (el !== menu) closeDmV2PlusMenuElement(el);
+  });
+  if (willOpen) {
+    menu.hidden = false;
+    requestAnimationFrame(() => menu.classList.add('is-open'));
+    setTimeout(() => {
+      const onDocTap = (event) => {
+        if (menu.hidden) return;
+        if (event.target && event.target.closest && event.target.closest('.dm-v2-plus-wrap')) return;
+        closeDmV2PlusMenuElement(menu);
+        document.removeEventListener('click', onDocTap, true);
+        document.removeEventListener('touchstart', onDocTap, true);
+      };
+      document.addEventListener('click', onDocTap, true);
+      document.addEventListener('touchstart', onDocTap, true);
+    }, 0);
+  } else {
+    closeDmV2PlusMenuElement(menu);
+  }
+};
+window.closeDmV2PlusMenu = function(threadId) {
+  const id = String(threadId || '').trim();
+  if (!id) return;
+  const menu = document.getElementById('dm-v2-plus-menu-' + id);
+  if (menu) closeDmV2PlusMenuElement(menu);
+};
+
 /* v10.485: DM v2 inbox helpers — filter dropdown + inline search filter. */
 window.toggleDmV2InboxFilter = function() {
   const menu = document.getElementById('dm-v2-inbox-filter-menu');
@@ -1957,6 +2332,15 @@ window.triggerDmV2VoiceNote = function(threadId) {
     window.showToast('Voice messages coming soon');
   }
 };
+window.focusDirectMessageComposerInput = function(event) {
+  if (event?.target?.closest?.('button')) return;
+  const input = document.getElementById('dm-message-input');
+  if (!input) return;
+  /* v10.782: just focus. visualViewport.resize handles the rest;
+     no scroll juggling needed. */
+  try { input.focus({ preventScroll: true }); }
+  catch (_) { input.focus(); }
+};
 async function markDirectMessageThreadRead(threadId = '') {
   const thread = dmThreadMap[threadId];
   if (!currentUser || !thread || !(thread.unreadUids || []).includes(currentUser.uid)) return;
@@ -2001,39 +2385,180 @@ function closeDirectMessageThread() {
   persistUiState();
 }
 
+/* ────────────────────────────────────────────────────────────────────────
+   v10.776 — Push-notification → DM thread deep-link router.
+   ────────────────────────────────────────────────────────────────────────
+   When a user taps a DM push notification (iOS APNs), the Capacitor
+   pushNotificationActionPerformed handler in 33-push-notifications.js
+   calls this function with the threadId pulled out of the notification
+   payload. We open the DM inbox page then drill into the specific
+   thread. Lives here (not in 33-push-notifications.js) because the
+   thread-lookup needs `dmThreadMap`, which is declared `let` at the
+   top of this file — it's not on window, so cross-file access requires
+   a wrapper defined in the same scope.
+
+   Cold-launch race: when a user taps a notification from the lock
+   screen, the app boots fresh. Auth and dmThreads listener take
+   ~300-600ms to settle (faster on warm cache). If we tried to open
+   immediately, dmThreadMap[threadId] would still be empty and
+   openDirectMessageThread would no-op (see line 2393 early-return).
+   Solution: poll for up to 8 seconds at 200ms intervals, opening the
+   moment the data lands. After the timeout, fall back to just opening
+   the inbox so the user lands somewhere useful instead of staring at
+   their default tab. */
+function routePushNotificationToDmThread(threadId) {
+  const id = String(threadId || '').trim();
+  if (!id) return;
+  const start = Date.now();
+  const MAX_WAIT_MS = 8000;
+  const POLL_MS = 200;
+  const attempt = () => {
+    const authReady = !!(typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser);
+    const threadReady = !!(dmThreadMap && dmThreadMap[id]);
+    if (authReady && threadReady) {
+      try {
+        if (typeof openDirectMessagesPage === 'function') openDirectMessagesPage();
+      } catch (e) { console.warn('[v10.776] openDirectMessagesPage failed:', e); }
+      /* Brief delay so the inbox-open animation kicks off before we
+         layer the thread view over it. Matches the 120ms used elsewhere
+         (see openActivityNotificationTarget). */
+      setTimeout(() => {
+        try {
+          if (typeof openDirectMessageThread === 'function') openDirectMessageThread(id);
+        } catch (e) { console.warn('[v10.776] openDirectMessageThread failed:', e); }
+      }, 140);
+      return;
+    }
+    if (Date.now() - start < MAX_WAIT_MS) {
+      setTimeout(attempt, POLL_MS);
+      return;
+    }
+    /* Timed out waiting for data — at least drop the user on the
+       DM inbox so the tap isn't a complete no-op. */
+    if (authReady && typeof openDirectMessagesPage === 'function') {
+      try { openDirectMessagesPage(); } catch (e) {}
+    }
+  };
+  attempt();
+}
+if (typeof window !== 'undefined') {
+  window.routePushNotificationToDmThread = routePushNotificationToDmThread;
+}
+
+function renderDirectMessagesInboxShell() {
+  const requestCount = dmIncomingRequestIds.length;
+  const body = activeMessagesSubTab === 'requests' ? renderDirectMessageRequests() : renderDirectMessageChats();
+  const myProfile = (typeof userProfile === 'object' && userProfile) ? userProfile : {};
+  const myAvatar = currentUser?.photoURL || myProfile.photo || myProfile.photoURL
+    || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.displayName || myProfile.name || 'Me')}&background=1e2028&color=a78bfa`;
+  const filterLabel = activeMessagesSubTab === 'requests'
+    ? (requestCount ? `Requests (${requestCount})` : 'Requests')
+    : 'All';
+  return `<div class="dm-v2-inbox">
+    <div class="dm-v2-inbox-header">
+      <button class="dm-v2-inbox-back" type="button" onclick="closeDirectMessagesPage()" aria-label="Close messages">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <h1 class="dm-v2-inbox-title">Chat</h1>
+      <div class="dm-v2-inbox-filter-wrap">
+        <button class="dm-v2-inbox-filter" type="button" onclick="toggleDmV2InboxFilter()" aria-haspopup="true">
+          <span>${escHtml(filterLabel)}</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="dm-v2-inbox-filter-menu" id="dm-v2-inbox-filter-menu" hidden>
+          <button type="button" onclick="switchMessagesSubTab('chats');closeDmV2InboxFilter()">All chats</button>
+          <button type="button" onclick="switchMessagesSubTab('requests');closeDmV2InboxFilter()">Requests${requestCount ? ` (${requestCount})` : ''}</button>
+        </div>
+      </div>
+    </div>
+    <div class="dm-v2-inbox-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7"/>
+        <path d="m21 21-4.3-4.3"/>
+      </svg>
+      <input type="text" placeholder="Search" autocomplete="off" oninput="filterDmV2InboxChats(this.value)">
+    </div>
+    ${dmNewChatOpen ? `<div class="dm-v2-inbox-composer-panel">${renderDirectMessageComposerPanel()}</div>` : ''}
+    <div class="dm-v2-inbox-list">${body}</div>
+    <button class="dm-v2-inbox-fab" type="button" onclick="openDirectMessageComposer('direct')" aria-label="New chat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+        <line x1="12" y1="9" x2="12" y2="14"/>
+        <line x1="9.5" y1="11.5" x2="14.5" y2="11.5"/>
+      </svg>
+    </button>
+  </div>`;
+}
+
+function renderDirectMessageSwipeInboxUnderlay(page = document.getElementById('direct-messages-page')) {
+  if (!page || !currentUser) return null;
+  page.querySelectorAll('.dm-thread-swipe-underlay').forEach(node => node.remove());
+  const underlay = document.createElement('div');
+  underlay.className = 'dm-thread-swipe-underlay';
+  underlay.setAttribute('aria-hidden', 'true');
+  underlay.innerHTML = renderDirectMessagesInboxShell();
+  page.appendChild(underlay);
+  return underlay;
+}
+
 async function sendDirectMessage(threadId = '') {
   const input = document.getElementById('dm-message-input');
   const text = String(input?.value || '').trim();
   const thread = dmThreadMap[threadId];
   if (!text || !currentUser || !thread) return;
-  const keepMobileKeyboardOpen = isDirectMessagesMobileViewport();
-  if (input) {
-    input.value = '';
-    if (!keepMobileKeyboardOpen) input.blur();
-  }
-  if (!keepMobileKeyboardOpen) resetDirectMessageKeyboardLift();
+  /* v10.782: iMessage behavior — clear the input but DON'T blur. The
+     keyboard stays up so the user can immediately type another message.
+     They dismiss it themselves by swiping the message list down (see
+     swipe-dismiss handler in initDirectMessageKeyboardLift). */
+  if (input) input.value = '';
   const sent = await appendDirectMessageToThread(threadId, text, null);
-  if (!sent && input) input.value = text;
-  if (keepMobileKeyboardOpen) {
-    requestAnimationFrame(() => {
-      const nextInput = document.getElementById('dm-message-input');
-      if (nextInput) {
-        try { nextInput.focus({ preventScroll: true }); }
-        catch (error) { nextInput.focus(); }
-      }
-      updateDirectMessageKeyboardLift();
-      const list = document.getElementById('dm-message-list');
-      if (list) list.scrollTop = list.scrollHeight;
-    });
-  } else {
-    resetDirectMessageKeyboardLift();
+  if (!sent && input) {
+    /* Send failed — restore the text so the user can retry. */
+    input.value = text;
+    return;
   }
+  /* One scroll-to-bottom (next frame, after the new message renders)
+     so the user immediately sees what they sent. No chains, no settle
+     times — the message list naturally stays at the bottom because
+     it WAS at the bottom (user just typed and sent). */
+  requestAnimationFrame(scrollDirectMessageListToBottom);
 }
 
 function renderDirectMessagesView() {
   const fullscreenShell = document.getElementById('dm-fullscreen-shell');
   if (!isDirectMessagesPageOpen() || !fullscreenShell) return;
   const shells = [fullscreenShell];
+  /* v10.778: PRESERVE COMPOSER STATE across full-DOM re-renders.
+     Every snapshot from the dmThreads listener triggers this function,
+     which does `shell.innerHTML = html` further down — that wholesale
+     swap destroys the live #dm-message-input element. If the user is
+     mid-typing when a message from the other party arrives, their
+     in-progress text is thrown away with the old DOM. Capture the
+     uncommitted value + caret position + focus state here, restore
+     after the swap. */
+  const oldComposerInput = document.getElementById('dm-message-input');
+  const composerPreserve = oldComposerInput ? {
+    value: oldComposerInput.value || '',
+    selStart: typeof oldComposerInput.selectionStart === 'number' ? oldComposerInput.selectionStart : null,
+    selEnd: typeof oldComposerInput.selectionEnd === 'number' ? oldComposerInput.selectionEnd : null,
+    hadFocus: document.activeElement === oldComposerInput
+  } : null;
+  /* v10.780: PRESERVE LIST SCROLL POSITION across re-renders. Without
+     this, every snapshot makes the message list briefly flash to
+     scrollTop=0 (the default for a freshly-rebuilt DOM) before the
+     subsequent rAF scrolls it back to scrollHeight. When the local
+     optimistic write AND the server confirmation both fire snapshots
+     in quick succession, the user sees the list "scroll up" then
+     "slowly settle back down" — exactly the bug they reported.
+     Fix: capture whether the user was pinned to the bottom (or close
+     to it), then in the post-swap path force scrollTop = scrollHeight
+     SYNCHRONOUSLY (no rAF wait) so no intermediate frame ever shows
+     the top of the list. */
+  const oldList = document.getElementById('dm-message-list');
+  const listPreserve = oldList ? {
+    wasPinnedBottom: (oldList.scrollHeight - oldList.clientHeight - oldList.scrollTop) <= 40,
+    prevScrollTop: oldList.scrollTop || 0
+  } : null;
   let html = '';
   if (!currentUser) {
     html = `<div class="dm-empty-card"><strong>Sign in required</strong><span>Direct Messages will appear here.</span></div>`;
@@ -2105,14 +2630,56 @@ function renderDirectMessagesView() {
     shell.classList.toggle('dm-group-edit-active', !!activeDmGroupEditThreadId);
     shell.innerHTML = html;
   });
-  if (dmGroupEditCropState?.sourceData) {
-    primeDirectMessageGroupEditCropImage(dmGroupEditCropState.sourceData);
-  }
-  requestAnimationFrame(() => {
+  /* v10.780: SYNCHRONOUSLY restore list scroll position immediately after
+     innerHTML swap — before any paint frame can show the list at the
+     top. Combined with the rAF scroll below, this eliminates the
+     "scroll up then crawl down" flash on every snapshot re-render. */
+  if (listPreserve && listPreserve.wasPinnedBottom) {
     document.querySelectorAll('#dm-message-list').forEach(list => {
       list.scrollTop = list.scrollHeight;
     });
-  });
+  }
+  /* v10.778: restore composer state captured before the innerHTML swap.
+     Without this, an incoming message wipes any text the user was in the
+     middle of typing — the old <input> element is replaced by a fresh
+     empty one. We rebuild value, caret, and focus on the new input so
+     typing continues seamlessly. Only restore if the user actually had
+     text or focus; an empty input doesn't need the cycle. */
+  if (composerPreserve && (composerPreserve.value || composerPreserve.hadFocus)) {
+    const newComposerInput = document.getElementById('dm-message-input');
+    if (newComposerInput) {
+      if (composerPreserve.value) {
+        newComposerInput.value = composerPreserve.value;
+        const composeWrap = newComposerInput.closest('.dm-v2-compose');
+        if (composeWrap) {
+          composeWrap.classList.toggle('has-text', !!composerPreserve.value.trim());
+        }
+      }
+      if (composerPreserve.hadFocus) {
+        try { newComposerInput.focus({ preventScroll: true }); }
+        catch (_) { try { newComposerInput.focus(); } catch (__) {} }
+        if (composerPreserve.selStart !== null && composerPreserve.selEnd !== null) {
+          try { newComposerInput.setSelectionRange(composerPreserve.selStart, composerPreserve.selEnd); }
+          catch (_) {}
+        }
+      }
+    }
+  }
+  if (dmGroupEditCropState?.sourceData) {
+    primeDirectMessageGroupEditCropImage(dmGroupEditCropState.sourceData);
+  }
+  /* v10.782: simplified — one rAF to pin scroll-to-bottom. The
+     listPreserve.wasPinnedBottom check (captured BEFORE the swap) +
+     the sync scrollTop set immediately after innerHTML mean we never
+     flash through scrollTop=0. The rAF handles the case where a
+     newly-rendered image bumps scrollHeight after first paint. */
+  if (!listPreserve || listPreserve.wasPinnedBottom) {
+    requestAnimationFrame(() => {
+      document.querySelectorAll('#dm-message-list').forEach(list => {
+        list.scrollTop = list.scrollHeight;
+      });
+    });
+  }
 }
 
 

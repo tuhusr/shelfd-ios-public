@@ -51,32 +51,87 @@
     document.body.classList.remove('gis-active');
   }
 
+  const GOOGLE_NATIVE_PLUGIN_NAMES = [
+    'GoogleSignIn',
+    'GoogleSignInPlugin',
+    'ShelfdGoogleSignIn',
+    'NativeGoogleSignIn',
+    'GoogleAuth'
+  ];
+  const GOOGLE_NATIVE_METHOD_NAMES = ['signIn', 'login', 'authorize'];
+
+  function getAvailableNativePluginNames() {
+    try { return Object.keys(window.Capacitor?.Plugins || {}); }
+    catch (_) { return []; }
+  }
+
+  function findNativeGooglePlugin() {
+    const plugins = window.Capacitor?.Plugins || {};
+    for (const name of GOOGLE_NATIVE_PLUGIN_NAMES) {
+      const plugin = plugins[name] || window[name];
+      if (!plugin) continue;
+      const method = GOOGLE_NATIVE_METHOD_NAMES.find(methodName => typeof plugin[methodName] === 'function');
+      if (method) return { plugin, name, method };
+    }
+    return null;
+  }
+
+  async function waitForNativeGooglePlugin(timeoutMs = 2500) {
+    const started = Date.now();
+    while (Date.now() - started < timeoutMs) {
+      const found = findNativeGooglePlugin();
+      if (found) return found;
+      await new Promise(resolve => setTimeout(resolve, 120));
+    }
+    return findNativeGooglePlugin();
+  }
+
+  function getGoogleIdToken(result = {}) {
+    return result.idToken
+      || result.id_token
+      || result.authentication?.idToken
+      || result.response?.idToken
+      || '';
+  }
+
+  function getGoogleAccessToken(result = {}) {
+    return result.accessToken
+      || result.access_token
+      || result.authentication?.accessToken
+      || result.response?.accessToken
+      || null;
+  }
+
   /* v10.565: Override window.signIn() so any call-site (legacy button,
      preview mode CTA, etc.) routes through the native plugin on iOS. */
   window.signIn = async function() {
-    const Cap = window.Capacitor;
-    const plugin = Cap && Cap.Plugins && Cap.Plugins.GoogleSignIn;
+    const native = await waitForNativeGooglePlugin();
 
-    if (!plugin || typeof plugin.signIn !== 'function') {
+    if (!native) {
       /* Plugin not available — show clear error */
       if (typeof showToast === 'function') {
         showToast('Google sign-in error: native plugin not available', { durationMs: 5000 });
       }
-      console.error('[googleNativeSignIn] GoogleSignIn plugin not found in Capacitor.Plugins');
+      console.error('[googleNativeSignIn] Google native plugin not found', {
+        expected: GOOGLE_NATIVE_PLUGIN_NAMES,
+        available: getAvailableNativePluginNames()
+      });
       return;
     }
 
     try {
-      const result = await plugin.signIn();
+      const result = await native.plugin[native.method]();
+      const idToken = getGoogleIdToken(result);
+      const accessToken = getGoogleAccessToken(result);
 
-      if (!result || !result.idToken) {
+      if (!idToken) {
         throw new Error('No ID token returned from Google');
       }
 
       /* Build Firebase credential from the native Google tokens */
       const credential = firebase.auth.GoogleAuthProvider.credential(
-        result.idToken,
-        result.accessToken || null
+        idToken,
+        accessToken
       );
 
       await firebase.auth().signInWithCredential(credential);

@@ -721,7 +721,9 @@
     width: 42px;
     height: 42px;
     border-radius: 50%;
-    background: #12092a;
+    /* v10.690: bg #12092a (older purple) → #101013 (Surface 1, matches
+       the modern app surface palette per CLAUDE.md design system). */
+    background: #101013;
     overflow: hidden;
     flex-shrink: 0;
   }
@@ -743,16 +745,29 @@
     padding: 8px 0;
   }
   .feed-reply-input::placeholder {
-    color: #6e6791;
+    /* v10.690: #6e6791 (older muted lavender) → rgba(255,255,255,0.4)
+       (clean muted white, matches the modern timestamp/dot color
+       treatment used elsewhere in the app). */
+    color: rgba(255,255,255,0.4);
   }
   .feed-reply-actions {
     display: flex;
     justify-content: flex-end;
   }
   #feed-reply-btn {
-    padding: 8px 20px;
-    font-size: 14px;
-    border-radius: 20px;
+    /* v10.690: overrides .btn-primary's default purple gradient
+       (#7c3aed → #9333ea) with a clean modern white pill button. White
+       background + dark text reads as the primary action on the comment
+       sheet without competing with the champagne-gold / lavender accents
+       used elsewhere in the activity card system. */
+    padding: 8px 18px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    border-radius: 999px !important;
+    background: #ffffff !important;
+    color: #0a0a0c !important;
+    border: 0 !important;
+    letter-spacing: 0 !important;
   }
   #feed-reply-btn:disabled {
     opacity: 0.4;
@@ -1897,7 +1912,11 @@
   border: 0 !important;
   background: transparent !important;
   color: #f7f2ff !important;
-  font: 600 clamp(16px, 1.35vw, 17px)/1.1 'Sohne', 'DM Sans', sans-serif !important;
+  /* v10.662: username dropped from 600/16px → 500/15px per design pass.
+     true-dark-mode overrides in 16-light-mode-contrast.css also updated
+     (the .sl-activity-name-specific overrides at v890 + the late
+     weight-only override). */
+  font: 500 15px/1.1 'Sohne', 'DM Sans', sans-serif !important;
   letter-spacing: -.012em !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
@@ -1944,14 +1963,29 @@
   flex: 0 0 auto !important;
   white-space: nowrap !important;
 }
+/* v10.662: split dot + time so they can have different colors and sizes:
+     Dot — keep lavender hue but at 51% opacity (was 68%).
+     Time — pure white at 51% opacity, 11px (was lavender 68% / 12px).
+   Common typography (font-family, letter-spacing, weight, flex) shared
+   below; per-element color / size in the two follow-up blocks. */
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-dot,
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-time,
 .activity-page .shelfd-social-card .sl-activity-dot,
 .activity-page .shelfd-social-card .sl-activity-time {
   flex: 0 0 auto !important;
-  color: rgba(235, 229, 255, .68) !important;
-  font: 400 clamp(12px, .95vw, 13px)/1.1 'Sohne', 'DM Sans', sans-serif !important;
+  font: 400 12px/1.1 'Sohne', 'DM Sans', sans-serif !important;
   letter-spacing: -.01em !important;
+}
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-dot,
+.activity-page .shelfd-social-card .sl-activity-dot {
+  /* v10.662: same lavender-white hue, opacity 68% → 51% per spec. */
+  color: rgba(235, 229, 255, .51) !important;
+}
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-time,
+.activity-page .shelfd-social-card .sl-activity-time {
+  /* v10.662: switched from lavender-white to pure white, 51% opacity, 11px. */
+  color: rgba(255, 255, 255, .51) !important;
+  font-size: 11px !important;
 }
 /* Action line: verb + title behave like one flowing phrase, detail can follow */
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-line,
@@ -2087,23 +2121,69 @@
   white-space: normal !important;
   word-break: normal !important;
   overflow-wrap: anywhere !important;
-  font: 400 clamp(16px, 1.35vw, 17px)/1.34 'Sohne', 'DM Sans', sans-serif !important;
+  /* v10.653: dropped composed-headline font size from clamp(16px, 1.35vw, 17px)
+     to fixed 15px. Affects every child inheriting from this parent:
+       .sl-activity-composed-prefix  (action verb — "Rated", "Added", etc.)
+       .sl-activity-composed-suffix  (trailing gold chunk)
+       .sl-activity-composed-verb-context (light connector — "season 4 of")
+       .sl-activity-composed-title   (media title)
+     All four now render at the SAME 15px so the headline reads as one
+     unified line at the iPhone 14 Pro Max baseline. PWA/desktop scaling
+     intentionally removed per the iOS-only target rule. */
+  font: 400 15px/1.34 'Sohne', 'DM Sans', sans-serif !important;
   color: rgba(255,255,255,0.97) !important;
 }
+/* v10.662: split prefix and suffix so they can be styled independently.
+   Prefix (the leading verb — "Rated", "Added", "Watched") gets new
+   champagne gold + 400 weight. Suffix (trailing chunk after the title)
+   intentionally LEFT UNCHANGED per user spec (still 600 / #ffd84c).
+   Note: prefix and suffix now visually mismatch — call out for design. */
+/* v10.670: Headline accent flipped AGAIN, this time from title → prefix.
+   Reasoning: the cover/poster on the right already visually identifies
+   which media. Gold on the title was redundant with the cover. Putting
+   gold on the action verb instead emphasizes the *activity* — the
+   unique information each card contributes beyond just "what media".
+   Now: prefix is the single gold accent on each card; connector,
+   title, and suffix are all white at 100%.
+   On an "Added" card: "Added Halo Infinite to Backlog"
+     "Added"             → champagne gold #E6C766, 400 weight
+     "Halo Infinite"     → white, 400 weight
+     "to Backlog"        → white, 400 weight  */
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-composed-prefix,
-.activity-page .shelfd-social-card .sl-activity-composed-prefix,
+.activity-page .shelfd-social-card .sl-activity-composed-prefix {
+  display: inline !important;
+  /* v10.670: pure white → champagne gold #E6C766. Same hex as the
+     rating stars below — single unified gold accent per card. */
+  color: #E6C766 !important;
+  font-weight: 400 !important;
+  white-space: normal !important;
+}
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-composed-suffix,
 .activity-page .shelfd-social-card .sl-activity-composed-suffix {
   display: inline !important;
-  color: #ffd84c !important;
-  font-weight: 700 !important;
+  /* v10.664: old saturated gold #ffd84c + 600 → pure white 100% + 400
+     to match the new prefix. Headline now reads uniformly. */
+  color: #ffffff !important;
+  font-weight: 400 !important;
   white-space: normal !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-composed-title,
 .activity-page .shelfd-social-card .sl-activity-composed-title {
   display: inline !important;
-  color: rgba(255,255,255,0.97) !important;
-  font-weight: 600 !important;
+  /* v10.670: title returns to pure white 100% — the gold accent moved
+     to the prefix instead (see .sl-activity-composed-prefix above).
+     Rationale: the cover poster on the right already shows which media
+     visually, so gold on the title was redundant with the cover. The
+     prefix is the better candidate for chromatic emphasis since the
+     activity verb has no other visual representation on the card.
+     Color progression: rgba(255,255,255,.97) → #E6C766 (v10.664) →
+     #F0D78C (v10.666) → #FFE082 (v10.667) → #FFF4C2 (v10.668) →
+     #E6C766 (v10.669) → #ffffff (v10.670). */
+  color: #ffffff !important;
+  /* v10.651 → v10.662: media title weight progression 600 → 500 → 400.
+     Now matches the action verb at the same weight, both flowing on the
+     same line. Sohne-Buch (Regular) at 15px. */
+  font-weight: 400 !important;
   white-space: normal !important;
 }
 /* verbContext: the connector between verb and title (e.g. "season 4 of") —
@@ -2111,8 +2191,14 @@
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-composed-verb-context,
 .activity-page .shelfd-social-card .sl-activity-composed-verb-context {
   display: inline !important;
-  color: rgba(255,255,255,0.97) !important;
-  font-weight: 300 !important;
+  /* v10.665: connector color rgba(255,255,255,0.97) → pure #ffffff
+     (97% → 100% opacity) to match prefix and suffix exactly. Now the
+     entire headline row reads at uniform 100% white except for the
+     champagne-gold media title in the middle. */
+  color: #ffffff !important;
+  /* v10.662: connector weight 300 → 400 per design pass. Now matches
+     prefix and title weight so the headline reads as one even line. */
+  font-weight: 400 !important;
   white-space: normal !important;
 }
 /* Episode/season detail ? subtle milky white */
@@ -2160,12 +2246,17 @@
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-rating-star,
 .activity-page .shelfd-social-card .sl-rating-star {
-  --sl-star-size: clamp(14.3px, 2.43vw, 19px);
+  /* v10.662: locked star box to 16px per design spec (was responsive
+     clamp 14.3–19px). Fixed size renders identical on every iPhone. */
+  --sl-star-size: 16px;
   position: relative !important;
   display: inline-block !important;
   width: var(--sl-star-size) !important;
   height: var(--sl-star-size) !important;
-  color: rgba(246, 199, 57, .22) !important;
+  /* v10.662: unlit star color switched from the old saturated gold
+     (rgba(246,199,57,.22)) to the canonical champagne gold #E6C766 at
+     22% alpha for consistency with the lit star color below. */
+  color: rgba(230, 199, 102, .22) !important;
   flex: 0 0 auto !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-rating-star svg,
@@ -2195,7 +2286,10 @@
   max-width: 100% !important;
   height: 100% !important;
   overflow: hidden !important;
-  color: #f1c232 !important;
+  /* v10.662: lit star color switched from the saturated #f1c232 (orange-
+     gold) to the canonical champagne gold #E6C766 — matches My Lists
+     star color and the new action verb color. */
+  color: #E6C766 !important;
   filter: none !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-rating-star-fill svg,
@@ -2205,13 +2299,17 @@
   top: 0 !important;
   width: var(--sl-star-size) !important;
   height: var(--sl-star-size) !important;
-  fill: #f1c232 !important;
-  stroke: #f1c232 !important;
+  /* v10.662: champagne gold fill/stroke. */
+  fill: #E6C766 !important;
+  stroke: #E6C766 !important;
   stroke-width: .42px !important;
 }
 #community-view #activity-tab-view .shelfd-social-card .sl-activity-score,
 .activity-page .shelfd-social-card .sl-activity-score {
-  color: rgba(255,255,255,.78) !important;
+  /* v10.663: rating number opacity 78% → 100% per design pass. Stays
+     white, just fully opaque now to sit at equal visual weight beside
+     the champagne-gold stars from v10.662. */
+  color: #ffffff !important;
   font: 400 clamp(15px, 1.15vw, 16px)/1 'Sohne', 'DM Sans', sans-serif !important;
   letter-spacing: -.012em !important;
 }
@@ -2283,7 +2381,15 @@
   border: 0 !important;
   border-radius: 3px !important;
   background: #12091f !important;
-  box-shadow: 0 10px 24px rgba(0,0,0,.34), 0 0 0 1px rgba(255,255,255,.05) !important;
+  /* v10.659 / v10.660 / v10.661: brightened the second box-shadow layer
+     from rgba(255,255,255,.05) → .45 (v10.659) → .30 (v10.660) → .18
+     (v10.661). Every media poster on activity cards now has a 1px white
+     outline at 18% opacity — visible contrast improvement against the dark
+     background, intentionally soft to avoid feeling jarring. Applies to
+     ALL sections (movies / shows / anime / music / games / manga / books)
+     since this is the base poster rule. The first box-shadow layer (drop
+     shadow) is preserved unchanged. */
+  box-shadow: 0 10px 24px rgba(0,0,0,.34), 0 0 0 1px rgba(255,255,255,.18) !important;
   overflow: hidden !important;
   cursor: pointer !important;
   appearance: none !important;
@@ -2298,6 +2404,58 @@
   border-radius: inherit !important;
   transition: transform 220ms ease !important;
 }
+
+/* v10.656 / v10.657: Per-section poster corner radii on activity cards.
+   All four corners share the same radius (single border-radius value).
+   Section discrimination via data-section attribute on .shelfd-social-card
+   (added in v10.654, see 10-activity-feed.js line 5602). The inner
+   .sl-activity-poster-img uses border-radius: inherit so it follows the
+   parent button automatically — no separate img rule needed.
+
+   Movies / TV / anime / music     → 1.2px (sharp, near-square — theatrical
+                                            poster + album-cover look)
+   Games                            → 3.6px (slightly softer than 1.2 but
+                                            still tight, matches typical
+                                            game-cover artwork conventions)
+   Manga / books / (any unmarked)   → 3px   (inherits the default
+                                            .sl-activity-poster rule above) */
+#community-view #activity-tab-view .shelfd-social-card[data-section="movies"] .sl-activity-poster,
+#community-view #activity-tab-view .shelfd-social-card[data-section="shows"] .sl-activity-poster,
+#community-view #activity-tab-view .shelfd-social-card[data-section="anime"] .sl-activity-poster,
+#community-view #activity-tab-view .shelfd-social-card[data-section="music"] .sl-activity-poster,
+.activity-page .shelfd-social-card[data-section="movies"] .sl-activity-poster,
+.activity-page .shelfd-social-card[data-section="shows"] .sl-activity-poster,
+.activity-page .shelfd-social-card[data-section="anime"] .sl-activity-poster,
+.activity-page .shelfd-social-card[data-section="music"] .sl-activity-poster {
+  border-radius: 1.2px !important;
+}
+#community-view #activity-tab-view .shelfd-social-card[data-section="games"] .sl-activity-poster,
+.activity-page .shelfd-social-card[data-section="games"] .sl-activity-poster {
+  /* v10.790: bumped from 4.5px → 6px per design call. */
+  border-radius: 6px !important;
+}
+
+/* v10.671 → v10.674: Movies / TV / anime poster vertical position
+   relative to its natural grid-row anchor. Progression:
+     v10.671 = -12px (too aggressive)
+     v10.672 = -6px  (still too high)
+     v10.673 = -3px  (still slightly too high)
+     v10.674 = 0px   (natural position — current; matches base rule)
+   The [data-section=...] attribute selector specificity (2,3,0) still
+   wins against the base rule's (2,2,0), so this rule scaffolding stays
+   in place for easy future iteration via this single value (positive
+   number pushes poster DOWN below natural, negative pulls UP above).
+   Scope is movies/shows/anime only. Pairs with the +21px bottom padding
+   (v10.658) those same sections get. */
+#community-view #activity-tab-view .shelfd-social-card[data-section="movies"] .sl-activity-poster,
+#community-view #activity-tab-view .shelfd-social-card[data-section="shows"] .sl-activity-poster,
+#community-view #activity-tab-view .shelfd-social-card[data-section="anime"] .sl-activity-poster,
+.activity-page .shelfd-social-card[data-section="movies"] .sl-activity-poster,
+.activity-page .shelfd-social-card[data-section="shows"] .sl-activity-poster,
+.activity-page .shelfd-social-card[data-section="anime"] .sl-activity-poster {
+  margin-top: 0 !important;
+}
+
 @media (hover:hover) {
   #community-view #activity-tab-view .shelfd-social-card .sl-activity-poster:hover .sl-activity-poster-img,
   .activity-page .shelfd-social-card .sl-activity-poster:hover .sl-activity-poster-img { transform: scale(1.035) !important; }
@@ -2813,6 +2971,14 @@ body.light-mode .activity-page .shelfd-social-card .sl-activity-plain-note {
 }
 
 /* v300: centered completion modals + activity-card reply/delete actions (mobile/PWA first) */
+/* v10.703: Completion-rating modal REFRESH. Legacy version used heavy
+   radial/linear lavender gradient on the card, dense font-weight: 900,
+   tight padding, lavender-tinted border, and 28px radii — all carried
+   over from the early Shelfd palette. This pass aligns it with the
+   current design language used everywhere else (Surface 1/2 dark,
+   subtle white hairline border, modern Sohne weights 500/600/700,
+   champagne gold stars per the design-token memory, lavender kept
+   only for the primary action button). Structure unchanged. */
 .screenlist-completion-modal {
   position: fixed;
   inset: 0;
@@ -2820,43 +2986,38 @@ body.light-mode .activity-page .shelfd-social-card .sl-activity-plain-note {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: max(18px, var(--shelfd-safe-top, 0px)) 14px max(18px, env(safe-area-inset-bottom, 0px));
-  background: rgba(3, 2, 10, 0);
+  padding: max(18px, var(--shelfd-safe-top, 0px)) 16px max(18px, env(safe-area-inset-bottom, 0px));
+  background: rgba(0, 0, 0, 0);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 220ms linear, background 220ms linear;
+  transition: opacity 260ms cubic-bezier(0.22, 1, 0.36, 1), background 260ms cubic-bezier(0.22, 1, 0.36, 1);
   -webkit-tap-highlight-color: transparent;
 }
 .screenlist-completion-modal.open {
   opacity: 1;
   pointer-events: auto;
-  background: rgba(3, 2, 10, 0.72);
+  background: rgba(0, 0, 0, 0.62);
 }
 .screenlist-completion-card {
-  width: min(100%, 460px);
-  border: 1px solid rgba(167,139,250,0.26);
-  border-radius: 28px;
-  background:
-    radial-gradient(circle at 18% 0%, rgba(124,58,237,0.22), transparent 34%),
-    linear-gradient(180deg, rgba(25,16,56,0.985), rgba(8,6,20,0.99));
-  box-shadow: 0 22px 72px rgba(0,0,0,0.56), inset 0 1px 0 rgba(255,255,255,0.05);
-  color: #f8f4ff;
-  padding: 16px 15px 15px;
+  width: min(100%, 420px);
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 22px;
+  background: #101013;
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.5);
+  color: #f6f4fb;
+  padding: 20px 18px 16px;
   /* v842: removed `transform: translate3d(...) scale(...)`, `will-change`,
      `contain: layout paint style`, and `backface-visibility: hidden`.
      Each of those four is an aggressive GPU-layer-promotion hint, and
      in combination they GUARANTEE iOS PWA WKWebView promotes this card
      into its own compositor layer. Once promoted, the iOS compositor's
-     hit-tester routes taps on the primary action button (Delete Post,
-     at the far right of the actions row) BACK into the underlying
-     overlay layer instead of into the button ? the same failure mode
-     the card-comment composer hit with backdrop-filter. The Cancel
-     button (left side) sat closer to the card's hit-test anchor and
-     still received clicks; Delete Post on the right side did not. An
+     hit-tester routes taps on the primary action button back into the
+     underlying overlay layer instead of into the button — same failure
+     mode the card-comment composer hit with backdrop-filter. An
      opacity-only fade-in is enough for the entry animation and never
      promotes a layer. */
   opacity: 0;
-  transition: opacity 220ms linear;
+  transition: opacity 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .screenlist-completion-modal.open .screenlist-completion-card {
   opacity: 1;
@@ -2867,24 +3028,24 @@ body.light-mode .activity-page .shelfd-social-card .sl-activity-plain-note {
 }
 .screenlist-completion-preview {
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 14px;
   align-items: center;
   min-width: 0;
-  margin-bottom: 14px;
+  margin-bottom: 18px;
 }
 .screenlist-completion-poster {
-  width: 58px;
-  height: 84px;
-  border-radius: 12px;
+  width: 64px;
+  height: 92px;
+  border-radius: 14px;
   overflow: hidden;
-  background: rgba(255,255,255,0.055);
+  background: #17171b;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #a78bfa;
+  color: rgba(255, 255, 255, 0.45);
   font-size: 22px;
-  font-weight: 900;
+  font-weight: 600;
   flex-shrink: 0;
 }
 .screenlist-completion-poster img {
@@ -2895,33 +3056,36 @@ body.light-mode .activity-page .shelfd-social-card .sl-activity-plain-note {
 }
 .screenlist-completion-copy { min-width: 0; }
 .screenlist-completion-kicker {
-  color: #a78bfa;
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.12em;
+  color: rgba(235, 232, 244, 0.58);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  font-family: 'Sohne', 'DM Sans', sans-serif;
 }
 .screenlist-completion-copy h3 {
   margin: 0;
-  color: #fff;
-  font-size: 18px;
-  line-height: 1.12;
-  font-weight: 900;
-  letter-spacing: -0.03em;
+  color: #ffffff;
+  font-size: 19px;
+  line-height: 1.18;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   overflow-wrap: anywhere;
+  font-family: 'Sohne', 'DM Sans', sans-serif;
 }
 .screenlist-completion-copy p {
-  margin: 5px 0 0;
-  color: #b8afd1;
-  font-size: 12px;
-  line-height: 1.35;
-  font-weight: 650;
+  margin: 6px 0 0;
+  color: rgba(235, 232, 244, 0.58);
+  font-size: 13px;
+  line-height: 1.38;
+  font-weight: 400;
+  font-family: 'Sohne', 'DM Sans', sans-serif;
 }
 .screenlist-completion-stars-wrap {
   display: flex;
   justify-content: center;
-  margin: 7px 0 13px;
+  margin: 10px 0 18px;
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
@@ -2929,13 +3093,27 @@ body.light-mode .activity-page .shelfd-social-card .sl-activity-plain-note {
 }
 .screenlist-completion-stars-wrap::-webkit-scrollbar { display: none; }
 .screenlist-completion-stars-wrap .discover-rating-stars {
-  --star-size: 21px !important;
+  --star-size: 24px !important;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 1px;
+  gap: 2px;
   width: max-content;
   min-width: 0;
+}
+/* v10.703: champagne-gold star treatment (design-token memory). Overrides
+   the lit/unlit colors set inline by selectScreenListCompletionRating. */
+.screenlist-completion-stars-wrap .star-btn.lit {
+  color: #E6C766 !important;
+}
+.screenlist-completion-stars-wrap .star-btn:not(.lit) {
+  color: rgba(255, 255, 255, 0.18) !important;
+}
+.screenlist-completion-stars-wrap .star-label {
+  margin-left: 10px;
+  color: #E6C766;
+  font: 600 14px/1 'Sohne', 'DM Sans', sans-serif;
+  align-self: center;
 }
 .screenlist-completion-actions {
   display: flex;
@@ -2946,21 +3124,35 @@ body.light-mode .activity-page .shelfd-social-card .sl-activity-plain-note {
 .screenlist-completion-actions button {
   min-height: 44px;
   border-radius: 999px;
-  padding: 0 15px;
-  font-size: 13px;
-  font-weight: 900;
+  padding: 0 18px;
+  font: 600 14px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
   white-space: nowrap;
+  border: 0;
+  cursor: pointer;
+  transition: background 160ms ease, transform 160ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease;
+}
+.screenlist-completion-actions button:active {
+  transform: scale(0.97);
+}
+.screenlist-completion-skip {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(246, 244, 251, 0.78);
+}
+.screenlist-completion-skip:hover {
+  background: rgba(255, 255, 255, 0.07);
 }
 .screenlist-completion-confirm[hidden] {
   display: none !important;
 }
 .screenlist-completion-confirm {
   min-width: 148px;
-  box-shadow: 0 12px 26px rgba(124,58,237,0.24);
+  background: #a78bfa;
+  color: #0a0a0c;
+  box-shadow: 0 8px 20px rgba(124, 58, 237, 0.22);
 }
-.screenlist-completion-skip,
-.screenlist-completion-confirm {
-  font-weight: 700;
+.screenlist-completion-confirm:hover {
+  background: #b7a4ff;
 }
 .screenlist-post-comment-label {
   display: block;
@@ -3686,6 +3878,30 @@ body.light-mode .activity-page .activity-card {
   object-position: center center !important;
 }
 
+/* v10.684 / v10.685 / v10.686: parent stacked activity card — game deck
+   layers use 5:6.38 portrait aspect ratio (matches the standard-card game
+   poster and the compact-card game poster from v10.683) AND a 3.6px corner
+   radius (v10.686 — unified with the standard-card games-poster radius
+   from v10.657). Targeted via the parent card's data-section="games"
+   attribute (CSS-only — no JS modifier class needed, unlike the --music
+   modifier which the JS emits when allMusic is true).
+   v10.688: reverted the v10.687 container-shrink experiment — reducing
+   container + layer widths caused the back two layers (left-shifted via
+   card-1's -18px and card-2's -9px transforms) to clip past the card's
+   left edge into the text column. Back to v10.686's full layer width.
+   Caveat: this fires when the stack's primary activity is a game, which
+   in practice means all-game stacks. The width clamp is preserved
+   unchanged from the base stack-card rule above; only height is unlocked
+   from 100% to auto so the aspect-ratio can drive it. */
+#community-view #activity-tab-view .shelfd-social-card.sl-activity-stack-front[data-section="games"] .sl-activity-poster-stack .sl-activity-poster-stack-card,
+.activity-page .shelfd-social-card.sl-activity-stack-front[data-section="games"] .sl-activity-poster-stack .sl-activity-poster-stack-card {
+  width: clamp(88px, 14.2vw, 112px) !important;
+  height: auto !important;
+  aspect-ratio: 5 / 6.38 !important;
+  /* v10.790: matched to the base games-poster radius (line 2434) — 6px. */
+  border-radius: 6px !important;
+}
+
 #community-view #activity-tab-view .sl-activity-stack-front .sl-activity-poster-stack-card-1,
 .activity-page .sl-activity-stack-front .sl-activity-poster-stack-card-1 {
   transform: translate3d(-18px, 7px, 0) rotate(-10deg) !important;
@@ -3814,15 +4030,20 @@ body.light-mode .activity-page .activity-card {
   flex-direction: row !important;
   flex-wrap: nowrap !important;
   gap: 8px !important;
-  /* Reset the inline-inner's vertical padding-left; carousel uses scroll-padding
-     so each card snap-aligns flush with the wrap's left edge. */
-  padding: clamp(4px, 1.6vw, 8px) 0 4px 0 !important;
+  /* v10.689: bumped padding-left and scroll-padding-left from 0 to
+     clamp(12-16px) so each compact child card's left-side poster has
+     breathing room from the screen edge instead of clipping against it.
+     Previously both were 0 — items snap-aligned flush with the carousel
+     left edge (which itself sits ~13px from the screen edge inside the
+     parent stack card padding). Now items snap with an additional
+     12-16px offset, giving the poster ~24-30px breathing room total. */
+  padding: clamp(4px, 1.6vw, 8px) 0 4px clamp(12px, 3.2vw, 16px) !important;
   overflow-x: auto !important;
   overflow-y: hidden !important;
   scroll-snap-type: x mandatory !important;
   scroll-behavior: smooth !important;
   -webkit-overflow-scrolling: touch !important;
-  scroll-padding-left: 0 !important;
+  scroll-padding-left: clamp(12px, 3.2vw, 16px) !important;
   scrollbar-width: none !important;
   /* Each .sl-activity-stack-compact-card sets opacity:0 in its base
      until .is-expanded; inside the carousel they should be visible
@@ -3957,22 +4178,16 @@ body.light-mode .sl-activity-stack-carousel-showall {
   padding: 0 !important;
 }
 
-#community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-name-spacer,
-#community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-dot,
-.activity-page .sl-activity-stack-compact-card .sl-activity-name-spacer,
-.activity-page .sl-activity-stack-compact-card .sl-activity-dot {
-  display: none !important;
-}
-
+/* v10.680: hide the entire meta row on compact carousel children.
+   The username, dot, and timestamp are all hidden anyway — collapsing
+   the row removes the empty 3px margin and avoids dead styling. The
+   previous separate display:none rules for .sl-activity-name-spacer +
+   .sl-activity-dot and the dead .sl-activity-time font-size/color rule
+   are consolidated here. Pairs with the .sl-activity-name display:none
+   rule lower in this file (line ~4645). */
 #community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-meta-row,
 .activity-page .sl-activity-stack-compact-card .sl-activity-meta-row {
-  margin-bottom: 3px !important;
-}
-
-#community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-time,
-.activity-page .sl-activity-stack-compact-card .sl-activity-time {
-  font-size: clamp(9px, 2.4vw, 10.5px) !important;
-  color: rgba(235,229,255,.54) !important;
+  display: none !important;
 }
 
 #community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-title,
@@ -3993,17 +4208,104 @@ body.light-mode .sl-activity-stack-carousel-showall {
   line-height: 1.15 !important;
 }
 
-#community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-poster,
-.activity-page .sl-activity-stack-compact-card .sl-activity-poster {
-  /* v10.586: moved to column 1 (left), 40% smaller than original */
+/* ============================================================================
+   v10.679 — COMPACT CARD POSTER CONSOLIDATION
+   ----------------------------------------------------------------------------
+   Single source of truth for compact card poster sizing inside the stacked-
+   activity dropdown carousel. Replaces 4 conflicting rules that previously
+   sat at lines 4138 (v10.586 base), 4487 (v10.677 music), 4683 (v10.586
+   96×96 chained-class), and 4702 (v10.678 hard-lock music). All four are
+   deleted as part of this consolidation.
+
+   Why consolidated:
+     - The 4 rules had overlapping selectors with different specificities,
+       silently producing conflicting results: music compact posters were
+       rendering at 40-49 while non-music were rendering at 96×96 — a 2×
+       size mismatch on the same carousel surface.
+     - Future "change the poster size" edits required reverse-engineering
+       which of the 4 rules would win — making the file hostile to maintain.
+
+   Current intent (v10.679):
+     • Music compact poster      → 51 × 51 square (user spec v10.679)
+     • Non-music compact poster  → 96 × 96 square (preserved from v10.586
+                                   follow-up — to be revisited later)
+
+   Grid template columns are set on the CARD itself (.shelfd-social-card.
+   sl-activity-stack-compact-card) so column 1 width matches the poster
+   width. Music section gets a 51px column override; everything else stays
+   on the 96px default column.
+
+   border-radius intentionally NOT set here — the section-scoped rules at
+   lines ~2400 (v10.656 / v10.657) handle it per section (1.2px for music,
+   3.6px for games, 3px default elsewhere). Setting it here would tie
+   specificity with those rules and win on later cascade, regressing the
+   section-specific corner treatments.
+   ============================================================================ */
+
+/* Card-level grid columns — defaults to 96px column 1 (matches non-music
+   poster width). Music section overrides to 51px below. */
+#community-view #activity-tab-view .shelfd-social-card.sl-activity-stack-compact-card,
+.activity-page .shelfd-social-card.sl-activity-stack-compact-card {
+  grid-template-columns: 96px minmax(0, 1fr) !important;
+}
+#community-view #activity-tab-view .shelfd-social-card.sl-activity-stack-compact-card[data-section="music"],
+.activity-page .shelfd-social-card.sl-activity-stack-compact-card[data-section="music"] {
+  grid-template-columns: 51px minmax(0, 1fr) !important;
+}
+
+/* Poster base structure + default dimensions (non-music).
+   Chained-class selector .shelfd-social-card.sl-activity-stack-compact-card
+   gives specificity (2, 3, 0) — matches the section-scoped rules so we
+   don't accidentally win/lose by mistake. */
+#community-view #activity-tab-view .shelfd-social-card.sl-activity-stack-compact-card .sl-activity-poster,
+.activity-page .shelfd-social-card.sl-activity-stack-compact-card .sl-activity-poster {
   grid-column: 1 !important;
   grid-row: 1 / span 2 !important;
-  width: clamp(40px, 11.4vw, 49px) !important;
-  height: clamp(35px, 10.2vw, 43px) !important;
-  border-radius: 3px !important;
   align-self: center !important;
   justify-self: start !important;
+  margin-top: 0 !important;
   transform: none !important;
+  width: 96px !important;
+  height: 96px !important;
+  max-width: 96px !important;
+  max-height: 96px !important;
+}
+
+/* Music override — 51 × 51 square album cover. Same chained-class
+   specificity (2, 3, 0) as the rule above, placed later in cascade so it
+   wins for posters with the .sl-activity-poster--music modifier.
+   translateY(-30px) preserved from v10.259 (vertical lift to align the
+   cover with the body content rather than sitting flush with the bottom
+   dividing line). */
+#community-view #activity-tab-view .shelfd-social-card.sl-activity-stack-compact-card .sl-activity-poster--music,
+.activity-page .shelfd-social-card.sl-activity-stack-compact-card .sl-activity-poster--music {
+  width: 51px !important;
+  height: 51px !important;
+  max-width: 51px !important;
+  max-height: 51px !important;
+  aspect-ratio: 1 / 1 !important;
+  transform: translateY(-30px) !important;
+}
+
+/* Games override — 5:6.38 portrait game cover (v10.683 user spec).
+   Width 60 chosen so the computed height (60 × 6.38/5 ≈ 77px) fits
+   comfortably within the compact card's row-span area (~72-80px). The
+   max-height:none unset is required because the base compact poster
+   rule above sets max-height:96 which would otherwise cap the height
+   and break the aspect ratio. Specificity (2,4,0) — beats both the base
+   rule above (2,3,0) AND the existing global game-poster aspect rule
+   later in this file at line ~4723 (2,3,0). */
+#community-view #activity-tab-view .shelfd-social-card.sl-activity-stack-compact-card[data-section="games"],
+.activity-page .shelfd-social-card.sl-activity-stack-compact-card[data-section="games"] {
+  grid-template-columns: 60px minmax(0, 1fr) !important;
+}
+#community-view #activity-tab-view .shelfd-social-card.sl-activity-stack-compact-card[data-section="games"] .sl-activity-poster,
+.activity-page .shelfd-social-card.sl-activity-stack-compact-card[data-section="games"] .sl-activity-poster {
+  width: 60px !important;
+  height: auto !important;
+  max-width: 60px !important;
+  max-height: none !important;
+  aspect-ratio: 5 / 6.38 !important;
 }
 
 #community-view #activity-tab-view .sl-activity-stack-compact-card .sl-rating-star,
@@ -4342,10 +4644,8 @@ body.light-mode .sl-activity-stack-carousel-showall {
 /* v10.259: when a stacked activity card is expanded inline and shows its
    child rows, lift the album cover up by 30px so it aligns with the body
    instead of sitting flush with the bottom dividing line. */
-#community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-poster--music,
-.activity-page .sl-activity-stack-compact-card .sl-activity-poster--music {
-  transform: translateY(-30px) !important;
-}
+/* v10.679: compact card music poster rule moved/consolidated — see the
+   COMPACT CARD POSTER CONSOLIDATION block earlier in this file. */
 
 /* v10.260: tighten the vertical spacing inside stacked-child media-review
    cards by ~25% (action â†’ title and title â†’ rating gaps), and add breathing
@@ -4416,7 +4716,14 @@ body.light-mode .sl-activity-stack-carousel-showall {
 .activity-card::after {
   content: '' !important;
   position: absolute !important;
-  bottom: 0 !important;
+  /* v10.675: divider lifted 9px above the card's bottom edge (was 0).
+     Applies to all card sections universally — the line now floats with
+     a 9px gap between itself and the card's bottom padding edge.
+     Movies / TV / anime cards retain their +21px bottom padding (v10.658),
+     so on those sections the line sits at (card-content-bottom + 21px
+     padding - 9px lift). On other sections it sits 9px above the card's
+     natural bottom edge. */
+  bottom: 9px !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
   width: 100vw !important;
@@ -4424,6 +4731,30 @@ body.light-mode .sl-activity-stack-carousel-showall {
   background: rgba(255,255,255,0.08) !important;
   pointer-events: none !important;
   z-index: 1 !important;
+}
+
+/* v10.654 / v10.655 / v10.658: Movies / TV / anime activity cards get
+   extra bottom padding so the card reads as visually taller (more breathing
+   room below the poster and interactions row). The bottom divider line
+   (.shelfd-social-card::after above) is anchored at bottom: 0 and follows
+   the new lower card edge automatically — no separate divider rule needed.
+
+   Scope: only movies / shows (TV) / anime sections — games / manga / books
+   / music keep the original tighter card height. Section discrimination
+   comes from the data-section attribute added to the article tag in
+   10-activity-feed.js (line 5602, v10.654).
+
+   Baseline: iPhone 14 Pro Max (430px viewport).
+   Progression: v10.654 = 6px → v10.655 = 12px → v10.658 = 21px (extra +9px
+   for even more vertical breathing room).
+   Fixed px so it renders identical on iPhone mini / regular / Max. */
+#community-view #activity-tab-view .shelfd-social-card[data-section="movies"],
+#community-view #activity-tab-view .shelfd-social-card[data-section="shows"],
+#community-view #activity-tab-view .shelfd-social-card[data-section="anime"],
+.activity-page .shelfd-social-card[data-section="movies"],
+.activity-page .shelfd-social-card[data-section="shows"],
+.activity-page .shelfd-social-card[data-section="anime"] {
+  padding-bottom: 21px !important;
 }
 #community-view #activity-tab-view .activity-feed-list .shelfd-social-card:last-child::after,
 .activity-page .activity-feed-list .shelfd-social-card:last-child::after,
@@ -4464,7 +4795,11 @@ body.light-mode .sl-activity-stack-carousel-showall {
 }
 
 /* copy-zone: override base grid-column:2 so it lands in column 1 of the
-   single-column sl-activity-main inner grid, not an implicit overflow column */
+   single-column sl-activity-main inner grid, not an implicit overflow column.
+   v10.682: reverted the v10.681 -12px margin-top — negative margin combined
+   with overflow:hidden was clipping the top of the title text. Body stays
+   at its natural top position (just below card padding-top, where it lands
+   when meta-row is hidden by v10.680). */
 #community-view #activity-tab-view .sl-activity-stack-compact-card .sl-activity-copy-zone,
 .activity-page .sl-activity-stack-compact-card .sl-activity-copy-zone {
   grid-column: 1 !important;
@@ -4491,17 +4826,4 @@ body.light-mode .sl-activity-stack-carousel-showall {
   aspect-ratio: 5 / 6.38 !important;
 }
 
-/* Poster 96×96px — chained class beats media-query overrides (2,3,0) > (2,2,0) */
-#community-view #activity-tab-view .shelfd-social-card.sl-activity-stack-compact-card,
-.activity-page .shelfd-social-card.sl-activity-stack-compact-card {
-  grid-template-columns: 96px minmax(0, 1fr) !important;
-}
-#community-view #activity-tab-view .shelfd-social-card.sl-activity-stack-compact-card .sl-activity-poster,
-.activity-page .shelfd-social-card.sl-activity-stack-compact-card .sl-activity-poster {
-  width: 96px !important;
-  max-width: 96px !important;
-  height: 96px !important;
-  max-height: 96px !important;
-  margin-top: 0 !important;
-}
 

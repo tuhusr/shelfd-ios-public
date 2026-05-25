@@ -2242,6 +2242,11 @@ function findDuplicateImportItemInList(item = {}, entry = {}, section, sourceDat
     const malMatch = sourceData[section].find(existing => existing && existing.id !== excludeId && getScreenListAnimeMalId(existing) === malId);
     if (malMatch) return malMatch;
   }
+  const appleMusicAlbumId = String(item.appleMusicAlbumId || entry.appleMusicAlbumId || '').trim();
+  if (appleMusicAlbumId) {
+    const appleMusicMatch = sourceData[section].find(existing => existing && existing.id !== excludeId && String(existing.appleMusicAlbumId || '').trim() === appleMusicAlbumId);
+    if (appleMusicMatch) return appleMusicMatch;
+  }
   const titleKeys = getDuplicateTitleKeys(item);
   if (!titleKeys.size) return null;
   return sourceData[section].find(existing => {
@@ -2282,6 +2287,10 @@ function repairDuplicateImportItem(existing = {}, incoming = {}, entry = {}, sec
   fill('mediaCategory', incoming.mediaCategory || (section || 'anime'));
   fill('librarySection', incoming.librarySection || (section || 'anime'));
   fill('source', incoming.source || entry.source || '');
+  fill('appleMusicAlbumId', incoming.appleMusicAlbumId || entry.appleMusicAlbumId || '');
+  fill('appleMusicSongIds', incoming.appleMusicSongIds || entry.appleMusicSongIds || []);
+  fill('appleMusicPlayParams', incoming.appleMusicPlayParams || entry.appleMusicPlayParams || null);
+  fill('tracks', incoming.tracks || entry.tracks || []);
   fill('steamAppId', incoming.steamAppId || entry.steamAppId || '');
   fill('steamUrl', incoming.steamUrl || entry.steamUrl || '');
   fill('igdbCoverUrl', incoming.igdbCoverUrl || entry.igdbCoverUrl || '');

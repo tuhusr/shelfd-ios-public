@@ -3390,7 +3390,24 @@ function renderCard(item, isDraggable) {
      placed in one of two slots so the status pill's element id stays
      unique (rendering it in both slots would duplicate the id). */
   const isMoviesWatchlistCard = activeSection === 'movies' && activeTab === 'planned';
-  const statusPillsHtml = !viewingUser ? `<div class="status-pills status-pills-selector-wrap" id="status-pills-${item.id}">${statusSelectorHtml}</div>` : '';
+  /* v10.734: hoist the status pill UP to sit directly beneath the media
+     title (with 8px line spacing) on the completed-status tabs for every
+     section that the user uses for "I finished this" tracking — Movies →
+     Watched, TV/Anime → Watched, Games → Played, Music → Listened. All
+     of these use status === 'watched' under the hood (single enum across
+     sections), so activeTab === 'watched' is the gate. Color override
+     for these pills lives in 01-mylists-cards-episodes.css under the
+     `.status-pills--under-title` modifier class added to the wrapper
+     below. The existing movies-watchlist gate (planned tab) is preserved
+     verbatim. */
+  const isCompletedTabHoist = activeTab === 'watched' && (
+    isScreenListMovieTvAnimeSection(activeSection)
+    || activeSection === 'games'
+    || activeSection === 'music'
+  );
+  const showStatusUnderTitle = isMoviesWatchlistCard || isCompletedTabHoist;
+  const statusPillsWrapClass = `status-pills status-pills-selector-wrap${showStatusUnderTitle ? ' status-pills--under-title' : ''}`;
+  const statusPillsHtml = !viewingUser ? `<div class="${statusPillsWrapClass}" id="status-pills-${item.id}">${statusSelectorHtml}</div>` : '';
   return `
     <div class="card ${type === "show" ? "show-card" : ""}${isGameCard ? " game-library-card" : ""}${isGamesWishlistCard ? " games-wishlist-card" : ""}${isCompetitiveGameCard ? " game-competitive-card" : ""}${isGamePlayingOrBacklogCard ? " game-playing-backlog-compact-card" : ""}${shouldShiftTvShowRatingLayout ? " tv-show-progress-rating-shift-card" : ""}${useRatingBubble ? " card-uses-rating-bubble" : ""}${isMoviesWatchlistCard ? " movies-watchlist-card" : ""} ${viewingUser ? "friend-view-card" : ""}${isDraggable ? ' card-draggable' : ''}" id="card-${item.id}" data-mylist-review-card data-library-item-id="${itemIdAttr}" data-library-section="${itemSectionAttr}" onclick="handleMyListCardReviewSurfaceClick(event,'${itemIdAttr}','${itemSectionAttr}')" ${dragAttrs}>
       <div class="card-header">
@@ -3402,7 +3419,7 @@ function renderCard(item, isDraggable) {
             <div class="card-title">${gameTitleMarkup}</div>
             ${!viewingUser ? `<button class="delete-btn" onclick="deleteItem(event,'${item.id}')" title="Delete">×</button>` : (currentUser ? `<button class="friend-card-add-btn${friendAlreadyAdded ? ' added' : ''}" data-friend-item-id="${escHtml(item.id)}" onclick="event.stopPropagation();openFriendAddModal(this.dataset.friendItemId, this)" title="Add to my list">+</button>` : '')}
           </div>
-          ${isMoviesWatchlistCard ? statusPillsHtml : ''}
+          ${showStatusUnderTitle ? statusPillsHtml : ''}
           ${gameStatsHtml}
           ${competitiveStatsHtml}
           ${(((activeTab === 'planned' && isScreenListMovieTvAnimeSection(activeSection) && !isMoviesWatchlistCard)
@@ -3433,7 +3450,7 @@ function renderCard(item, isDraggable) {
                 / books still show genre under their normal rules. */ ''}${activeTab === 'planned' && isScreenListMovieTvAnimeSection(activeSection) ? '' : (!isGameCard && !shouldTrimGameActivityMetadata && !isCompetitiveGameCard && !isGamesWishlistCard && (!shouldHideMyListCardGenre(activeSection, item) && item.genre) ? `<div class="card-genre">${escHtml(isScreenListWatchedMediaCard(activeSection, item) ? formatMyListGenreList(item.genre, 2) : item.genre)}</div>` : '')}
           ${gamesWishlistMetadataHtml}
           ${renderMyListWatchListMetadataHtml(item, activeSection, activeTab)}
-          ${!isMoviesWatchlistCard ? statusPillsHtml : ''}
+          ${!showStatusUnderTitle ? statusPillsHtml : ''}
           ${type === "show" ? (item.status === 'planned' ? `
             <div class="progress-area">
               <div class="progress-meta"><span id="progress-count-${item.id}">${totalEps > 0 ? `${totalEps} episodes` : 'Episodes TBD'}</span></div>
@@ -3664,17 +3681,45 @@ function getMyListReviewShareText() {
   return [title, dateLine].filter(Boolean).join(' - ');
 }
 
+function buildMyListMediaReviewShareUrl(postId = '', section = '') {
+  const cleanPostId = String(postId || '').trim();
+  if (!cleanPostId) return window.location.href;
+  const shareOrigin = window.SHELFD_SHARE_ORIGIN || 'https://myshelfd.com';
+  const url = new URL(`/review/${encodeURIComponent(cleanPostId)}`, shareOrigin);
+  const cleanSection = String(section || '').trim();
+  if (cleanSection) url.searchParams.set('section', cleanSection);
+  return url.toString();
+}
+
+async function getMyListMediaReviewSharePostId() {
+  const overlay = document.getElementById('mylist-media-review-page');
+  if (!overlay) return '';
+  let postId = String(overlay.dataset.reviewActivityId || '').trim();
+  if (postId) return postId;
+  if (overlay.dataset.reviewIsOwner === 'true' && typeof resolveMyListMediaReviewReplyTarget === 'function') {
+    try {
+      const target = await resolveMyListMediaReviewReplyTarget({ createLinkedIfOwner: true });
+      postId = String(overlay.dataset.reviewActivityId || target?.cardId || target?.id || '').trim();
+      if (postId && !/^activity-interaction-/i.test(postId)) return postId;
+    } catch (_) {}
+  }
+  return '';
+}
+
 async function shareMyListMediaReview(event = null) {
   event?.preventDefault?.();
   event?.stopPropagation?.();
   const text = getMyListReviewShareText();
+  const overlay = document.getElementById('mylist-media-review-page');
+  const postId = await getMyListMediaReviewSharePostId();
+  const shareUrl = buildMyListMediaReviewShareUrl(postId, overlay?.dataset?.reviewSection || '');
   try {
     if (navigator.share) {
-      await navigator.share({ title: text || 'Shelfd review', text, url: window.location.href });
+      await navigator.share({ title: text || 'Shelfd review', text, url: shareUrl });
       return;
     }
     if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(`${text}${text ? '\n' : ''}${window.location.href}`);
+      await navigator.clipboard.writeText(`${text}${text ? '\n' : ''}${shareUrl}`);
       if (typeof showToast === 'function') showToast('Review link copied');
     }
   } catch (_) {}
@@ -4693,6 +4738,67 @@ function openFullPageMediaReview(itemId = '', section = activeSection) {
 }
 window.openFullPageMediaReview = openFullPageMediaReview;
 
+let screenListSharedMediaReviewRouteActive = false;
+let screenListMediaReviewRouteOpening = false;
+
+async function loadSharedMediaReviewPost(postId = '') {
+  const cleanPostId = String(postId || '').trim();
+  if (!cleanPostId) return null;
+  if (Array.isArray(window.feedPosts)) {
+    const cached = window.feedPosts.find(post => String(post?.postId || post?.id || '') === cleanPostId);
+    if (cached) return cached;
+  }
+  if (typeof db === 'undefined' || !db?.collection) return null;
+  try {
+    const snap = await db.collection('feed').doc(cleanPostId).get();
+    if (!snap?.exists) return null;
+    const data = snap.data() || {};
+    const post = { ...data, postId: data.postId || cleanPostId, id: data.id || cleanPostId };
+    if (!Array.isArray(window.feedPosts)) window.feedPosts = [];
+    const existingIndex = window.feedPosts.findIndex(item => String(item?.postId || item?.id || '') === cleanPostId);
+    if (existingIndex >= 0) window.feedPosts[existingIndex] = { ...window.feedPosts[existingIndex], ...post };
+    else window.feedPosts.unshift(post);
+    return post;
+  } catch (error) {
+    console.warn('[review-route] shared review fetch failed:', error);
+    return null;
+  }
+}
+
+async function openSharedMediaReviewRoute(route = (typeof parseScreenListReviewRoute === 'function' ? parseScreenListReviewRoute() : null)) {
+  const postId = String(route?.postId || '').trim();
+  if (!postId || screenListMediaReviewRouteOpening) return false;
+  screenListMediaReviewRouteOpening = true;
+  screenListSharedMediaReviewRouteActive = false;
+  if (typeof prepareSharedMediaRouteView === 'function') prepareSharedMediaRouteView();
+  try {
+    await loadSharedMediaReviewPost(postId);
+    openFullPageMediaReview(postId, route?.section || '');
+    const opened = !!document.getElementById('mylist-media-review-page');
+    if (!opened) throw new Error('Shared review could not be opened');
+    screenListSharedMediaReviewRouteActive = true;
+    return true;
+  } catch (error) {
+    console.warn('[review-route] open failed:', error);
+    if (typeof showToast === 'function') showToast('Could not open review');
+    if (!currentUser && typeof showLandingPage === 'function') showLandingPage();
+    return false;
+  } finally {
+    screenListMediaReviewRouteOpening = false;
+  }
+}
+window.openSharedMediaReviewRoute = openSharedMediaReviewRoute;
+
+function finishSharedMediaReviewRouteAfterClose() {
+  if (!screenListSharedMediaReviewRouteActive) return;
+  screenListSharedMediaReviewRouteActive = false;
+  if (window.location.pathname.startsWith('/review/') || window.location.hash.startsWith('#review/')) {
+    try { history.replaceState(null, '', window.location.origin + '/'); } catch (_) {}
+  }
+  if (!currentUser && typeof showLandingPage === 'function') showLandingPage();
+}
+window.finishSharedMediaReviewRouteAfterClose = finishSharedMediaReviewRouteAfterClose;
+
 function closeFullPageMediaReview(immediate = false) {
   const overlay = document.getElementById('mylist-media-review-page');
   if (!overlay) return;
@@ -4703,7 +4809,10 @@ function closeFullPageMediaReview(immediate = false) {
     return;
   }
   overlay.classList.remove('is-open');
-  setTimeout(() => overlay.remove(), 320);
+  setTimeout(() => {
+    overlay.remove();
+    finishSharedMediaReviewRouteAfterClose();
+  }, 320);
 }
 window.closeFullPageMediaReview = closeFullPageMediaReview;
 
@@ -7159,7 +7268,7 @@ function renderGameMediaProfileDetails(details, rawgId = '') {
     </div>
     <div class="discover-media-body">
       <div class="discover-media-score-row">
-        <div class="discover-media-score"><span class="discover-media-score-star" aria-hidden="true">★</span><span class="discover-media-score-value">${escHtml(score)}</span></div>
+        <div class="discover-media-score"><span class="discover-media-score-star" aria-hidden="true">★</span><span class="discover-media-score-value">${escHtml(score)}</span>${score !== 'N/A' ? '<span class="discover-media-score-denominator">/5</span>' : ''}</div>
       </div>
       ${facts.length ? `<div class="discover-media-facts">${facts.map(fact => `<div class="${fact.priority ? 'primary' : ''}"><strong>${escHtml(fact.value)}</strong><span>${escHtml(fact.label)}</span></div>`).join('')}</div>` : ''}
       ${directTrailer ? `<div class="discover-media-trailer"><video controls playsinline preload="metadata" ${directTrailer.poster ? `poster="${escAttr(directTrailer.poster)}"` : ''}><source src="${escAttr(directTrailer.url)}"></video></div>` : ''}
@@ -7238,7 +7347,7 @@ function renderGameMediaProfileDetailsModern(details, rawgId = '') {
           <div class="discover-media-hero-main">
             <div class="discover-media-kicker">Game Profile${year ? ` · ${escHtml(year)}` : ''}</div>
             <h2>${escHtml(title)}</h2>
-            <div class="discover-media-score discover-media-score-hero"><span class="discover-media-score-star" aria-hidden="true">★</span><span class="discover-media-score-value">${escHtml(score)}</span></div>
+            <div class="discover-media-score discover-media-score-hero"><span class="discover-media-score-star" aria-hidden="true">★</span><span class="discover-media-score-value">${escHtml(score)}</span>${score !== 'N/A' ? '<span class="discover-media-score-denominator">/5</span>' : ''}</div>
           </div>
         </div>
         <p class="discover-media-synopsis" onclick="this.classList.toggle('expanded')">${escHtml(overview)}</p>
@@ -7765,112 +7874,11 @@ function showShelfdGoToShelfPopup(options = {}) {
 }
 window.showShelfdGoToShelfPopup = showShelfdGoToShelfPopup;
 
-function showDmE2eeMissingKeyWarningToast() {
-  const existing = document.querySelector('.app-toast, .dm-e2ee-key-warning-toast');
-  if (existing) existing.remove();
-  const toast = document.createElement('div');
-  toast.className = 'dm-e2ee-key-warning-toast';
-  toast.textContent = DM_E2EE_MISSING_KEY_TOAST;
-  toast.setAttribute('role', 'alert');
-  Object.assign(toast.style, {
-    position: 'fixed',
-    left: '50%',
-    top: '50%',
-    transform: 'translate(-50%, -46%)',
-    zIndex: '2147483647',
-    width: 'min(90vw, 430px)',
-    padding: '18px 20px',
-    borderRadius: '16px',
-    background: 'linear-gradient(135deg, #991b1b, #dc2626)',
-    border: '1px solid rgba(255,255,255,0.28)',
-    color: '#ffffff',
-    fontSize: '15px',
-    fontWeight: '900',
-    lineHeight: '1.35',
-    textAlign: 'center',
-    boxShadow: '0 22px 60px rgba(127,29,29,0.5), 0 0 0 1px rgba(255,255,255,0.08) inset',
-    textShadow: '0 1px 2px rgba(69,10,10,0.72)',
-    opacity: '0',
-    pointerEvents: 'none',
-    transition: 'opacity 180ms ease, transform 180ms ease'
-  });
-  document.body.appendChild(toast);
-  requestAnimationFrame(() => {
-    toast.style.opacity = '1';
-    toast.style.transform = 'translate(-50%, -50%)';
-  });
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translate(-50%, -54%)';
-    setTimeout(() => toast.remove(), 260);
-  }, 6000);
-}
-
-function showDmE2eeOwnKeyRequiredToast(text = DM_E2EE_OWN_KEY_TOAST) {
-  const existing = document.querySelector('.app-toast, .dm-e2ee-key-warning-toast, .dm-e2ee-own-key-toast');
-  if (existing) existing.remove();
-  const toast = document.createElement('div');
-  toast.className = 'dm-e2ee-own-key-toast';
-  toast.setAttribute('role', 'alertdialog');
-  Object.assign(toast.style, {
-    position: 'fixed',
-    left: '50%',
-    top: '50%',
-    transform: 'translate(-50%, -46%)',
-    zIndex: '2147483647',
-    width: 'min(92vw, 460px)',
-    padding: '46px 22px 22px',
-    borderRadius: '16px',
-    background: 'linear-gradient(135deg, #991b1b, #dc2626)',
-    border: '1px solid rgba(255,255,255,0.28)',
-    color: '#ffffff',
-    fontSize: '15px',
-    fontWeight: '900',
-    lineHeight: '1.42',
-    textAlign: 'center',
-    whiteSpace: 'pre-line',
-    boxShadow: '0 22px 60px rgba(127,29,29,0.5), 0 0 0 1px rgba(255,255,255,0.08) inset',
-    textShadow: '0 1px 2px rgba(69,10,10,0.72)',
-    opacity: '0',
-    transition: 'opacity 180ms ease, transform 180ms ease'
-  });
-
-  const close = document.createElement('button');
-  close.type = 'button';
-  close.textContent = 'EXIT';
-  close.setAttribute('aria-label', 'Close encryption warning');
-  Object.assign(close.style, {
-    position: 'absolute',
-    top: '10px',
-    left: '10px',
-    minWidth: '58px',
-    height: '28px',
-    border: '1px solid rgba(255,255,255,0.34)',
-    borderRadius: '999px',
-    background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
-    color: '#ffffff',
-    fontSize: '11px',
-    fontWeight: '900',
-    letterSpacing: '0',
-    cursor: 'pointer',
-    boxShadow: '0 8px 18px rgba(6,182,212,0.34)'
-  });
-  close.onclick = () => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translate(-50%, -54%)';
-    setTimeout(() => toast.remove(), 240);
-  };
-
-  const message = document.createElement('div');
-  message.textContent = text || DM_E2EE_OWN_KEY_TOAST;
-  toast.appendChild(close);
-  toast.appendChild(message);
-  document.body.appendChild(toast);
-  requestAnimationFrame(() => {
-    toast.style.opacity = '1';
-    toast.style.transform = 'translate(-50%, -50%)';
-  });
-}
+/* v10.761: showDmE2eeMissingKeyWarningToast + showDmE2eeOwnKeyRequiredToast
+   removed. Both used the empty-string constants DM_E2EE_MISSING_KEY_TOAST /
+   DM_E2EE_OWN_KEY_TOAST from 02-messages-e2ee.js (also removed in v10.761).
+   Neither function was called from anywhere — pure dead code from the
+   v280 E2EE rip. */
 
 let screenListAddAudioContext = null;
 function getScreenListAddAudioContext() {
@@ -9039,27 +9047,25 @@ function changeStatus(id, status) {
   const validStatuses = getMyListStatusButtonConfigs(record.section).map(entry => entry.status);
   if (!validStatuses.includes(status)) return;
   const wasCompleted = item.status === "watched";
-  if (status === "watched" && !wasCompleted && typeof openScreenListCompletionRatingPrompt === 'function') {
-    openScreenListCompletionRatingPrompt({
-      item: { ...item },
-      section: record.section,
-      status,
-      initialRating: Number(item.rating || 0),
-      source: 'my-list-status',
-      onApply: async (rating) => {
-        const updated = applyMyListStatusChange(id, status, rating, record.section);
-        return {
-          ok: !!updated,
-          item: updated ? { ...updated } : item,
-          section: record.section,
-          status,
-          rating: Number(rating || updated?.rating || 0) || 0
-        };
-      }
-    });
-    return;
-  }
+  /* v10.704: removed the legacy completion-rating modal entirely
+     (`openScreenListCompletionRatingPrompt`). When a user moves an item
+     to a completed status (Watched / Played / Listened — all share the
+     `watched` enum), commit the status change first, then instantly
+     route them to the full-page Shelf Log composer — the same "write
+     a review" page that opens when tapping the "+" comment button on
+     a card already in the Watched tab. Captures rating + date + review
+     text + tags + flags in one cohesive page instead of the cramped
+     legacy star-prompt overlay. */
   applyMyListStatusChange(id, status, null, record.section);
+  if (status === "watched" && !wasCompleted) {
+    try {
+      if (typeof openShelfLogComposer === 'function') {
+        openShelfLogComposer(id, record.section);
+      }
+    } catch (e) {
+      console.warn('[v10.704] openShelfLogComposer after status change failed:', e);
+    }
+  }
 }
 
 function removeWatchTogetherGroupFromLocalState(groupId = '') {
@@ -10764,6 +10770,58 @@ function formatShelfLogDateForInput(value) {
 }
 
 let shelfLogComposerState = null;
+/* v10.788: holds a pending draft when the user opens the composer from
+   the FPMP Watched flow BEFORE the item is added to their library. The
+   media is only persisted when the user taps Save in the composer; if
+   they tap Cancel (or background the page), this clears with no library
+   add. Shape: { type, tmdbId, fpmpBtn, section, draftItem } */
+let shelfLogComposerDraft = null;
+
+/* v10.788: FPMP entry point — opens the write-a-review composer for a
+   media item that is NOT yet in the user's library. The library add
+   only happens when the user confirms Save inside the composer (see
+   saveShelfLogComposer draft-handling branch). Tap-to-open is instant
+   because no addDiscoveryTitle await runs here — we synthesize a draft
+   item from the FPMP button dataset and hand it to the composer. */
+function openShelfLogComposerForNewMedia(type, tmdbId, fpmpBtn) {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
+  if (viewingUser) return;
+  const cleanType = String(type || '').toLowerCase();
+  const cleanId = String(tmdbId || '').trim();
+  if (!cleanType || !cleanId) return;
+  const title = fpmpBtn?.dataset?.discoverTitle || '';
+  const poster = fpmpBtn?.dataset?.discoverPoster || '';
+  const sectionFromType = cleanType === 'movie' ? 'movies'
+    : cleanType === 'game' ? 'games'
+    : cleanType === 'anime' ? 'anime'
+    : 'shows';
+  const draftId = 'shelflog-draft-' + Date.now() + '-' + cleanId;
+  shelfLogComposerDraft = {
+    type: cleanType,
+    tmdbId: cleanId,
+    fpmpBtn,
+    section: sectionFromType,
+    draftItem: {
+      id: draftId,
+      title,
+      cover: poster,
+      year: '',
+      status: 'watched',
+      rating: 0,
+      dateAdded: new Date().toISOString(),
+      mediaCategory: sectionFromType,
+      librarySection: sectionFromType,
+      episodes: [],
+      reviewText: '',
+      reviewTags: [],
+      cardComment: { text: '' }
+    }
+  };
+  openShelfLogComposer(draftId, sectionFromType);
+}
+if (typeof window !== 'undefined') {
+  window.openShelfLogComposerForNewMedia = openShelfLogComposerForNewMedia;
+}
 
 function openShelfLogComposer(itemId, sectionHint = '') {
   /* v10.242: accept an optional section hint so the FPReview Edit action
@@ -10780,6 +10838,15 @@ function openShelfLogComposer(itemId, sectionHint = '') {
       const found = (data[sec] || []).find(i => i?.id === itemId);
       if (found) { item = found; section = sec; break; }
     }
+  }
+  /* v10.788: DRAFT MODE — if the id matches a pending draft (set by
+     openShelfLogComposerForNewMedia when the user taps Watched on the
+     FPMP), use the in-memory draft item instead of looking in data[].
+     The item is NOT yet in the library; only on Save does the actual
+     addDiscoveryTitle write happen. Cancel removes the draft entirely. */
+  if (!item && shelfLogComposerDraft && shelfLogComposerDraft.draftItem && shelfLogComposerDraft.draftItem.id === itemId) {
+    item = shelfLogComposerDraft.draftItem;
+    section = shelfLogComposerDraft.section || section;
   }
   if (!item) return;
   if (viewingUser) return;
@@ -11175,6 +11242,12 @@ function attachShelfLogComposerEvents(overlay, item, section) {
 }
 
 function closeShelfLogComposer(opts = {}) {
+  /* v10.788: always clear shelfLogComposerDraft on close. If save
+     ran, it cleared the draft before calling close — this is a no-op.
+     If cancel/dismiss closed the composer without saving, this drops
+     the draft so the media is never added to the library, matching
+     the user's "only added on confirm Save" requirement. */
+  shelfLogComposerDraft = null;
   const overlay = document.getElementById('shelf-log-composer');
   if (!overlay) {
     shelfLogComposerState = null;
@@ -11198,6 +11271,32 @@ function closeShelfLogComposer(opts = {}) {
 async function saveShelfLogComposer() {
   const state = shelfLogComposerState;
   if (!state) return;
+  /* v10.788: DRAFT-MODE SAVE — if this composer was opened via
+     openShelfLogComposerForNewMedia (FPMP Watched flow), the item is NOT
+     yet in the library. Save is the moment we actually add it. Run
+     addDiscoveryTitle with the user's chosen rating (so the full-page
+     write-a-review save is the single transaction that creates the
+     entry), then patch state.itemId/section to the real id so the rest
+     of the function operates on the now-existing library item. */
+  if (shelfLogComposerDraft && shelfLogComposerDraft.draftItem && shelfLogComposerDraft.draftItem.id === state.itemId) {
+    const draft = shelfLogComposerDraft;
+    const ratingForAdd = Number(state.rating || 0);
+    let addResult = null;
+    try {
+      if (typeof addDiscoveryTitle === 'function') {
+        addResult = await addDiscoveryTitle(draft.type, draft.tmdbId, draft.fpmpBtn, 'watched', '+', ratingForAdd, { promptPost: false });
+      }
+    } catch (e) {
+      console.warn('[v10.788] draft-mode addDiscoveryTitle threw:', e);
+    }
+    if (!addResult || !addResult.ok || !addResult.item || !addResult.item.id) {
+      if (typeof showToast === 'function') showToast('Could not save review. Try again.');
+      return; // keep composer open so user can retry
+    }
+    state.itemId = String(addResult.item.id);
+    state.section = String(addResult.section || draft.section || state.section);
+    shelfLogComposerDraft = null;
+  }
   const item = (data[state.section] || []).find(i => i?.id === state.itemId);
   if (!item) { closeShelfLogComposer(); return; }
 
@@ -11264,14 +11363,24 @@ async function saveShelfLogComposer() {
   // Fire and forget — the FPReview opens regardless. The post has its own
   // replies array; the FPReview's Reply button routes there so reply counts
   // stay in sync between the activity card and the review page.
+  // v10.705: AFTER the Firestore write resolves, push the new/updated
+  // review post into the in-memory friend-activity live stream + bust the
+  // friend-activity cache + reload the activity tab if it's visible.
+  // Without this, the new card stayed invisible in the user's own activity
+  // feed until the next natural refresh — often several seconds or
+  // longer. With this, the card appears the instant Firestore acks the
+  // write. The FPReview still opens via the setTimeout below regardless.
   try {
     if (reviewText && item.reviewActivityId) {
-      updateLinkedMediaReviewFeedPost(item, state.section).catch(() => {});
+      updateLinkedMediaReviewFeedPost(item, state.section).then(success => {
+        if (success) pushOwnMediaReviewToActivityFeed(item, state.section, item.reviewActivityId, reviewText);
+      }).catch(() => {});
     } else if (reviewText) {
       createLinkedMediaReviewFeedPost(item, state.section).then(postId => {
         if (postId) {
           item.reviewActivityId = postId;
           try { save(); } catch (_) {}
+          pushOwnMediaReviewToActivityFeed(item, state.section, postId, reviewText);
         }
       }).catch(() => {});
     }
@@ -11365,6 +11474,69 @@ async function updateLinkedMediaReviewFeedPost(item, section) {
   } catch (error) {
     console.warn('[v10.220] updateLinkedMediaReviewFeedPost failed:', error);
     return false;
+  }
+}
+
+/* v10.705: After a write-a-review save, push the resulting feed post into
+   the in-memory friend-activity live stream so the user's own activity feed
+   reflects it immediately — no Firestore re-fetch round-trip latency before
+   the "Played / Watched / Listened to / Finished Watching {title}" card with
+   the Full Review button shows up at the top.
+
+   Mirrors the 4-call invalidation pattern used by
+   submitScreenListActivityPostPrompt (10-activity-feed.js): build activity
+   object → pushFriendActivityLiveEvents → null out friendActivityCache and
+   friendActivityPromise → loadActivityTabFeed if the activity tab is
+   currently visible.
+
+   Safe-defaults all the way down: every external symbol is feature-detected
+   (`typeof === 'function'` / `typeof !== 'undefined'`) so if any of the
+   activity-feed helpers haven't loaded yet, the save still completes
+   silently and the FPReview still opens. */
+function pushOwnMediaReviewToActivityFeed(item, section, postId, reviewText) {
+  if (!currentUser || !postId || !item) return;
+  try {
+    const itemSection = section || item.librarySection || item.mediaCategory || activeSection || '';
+    const safeItem = {
+      id: item.id,
+      title: item.title || '',
+      cover: item.cover || '',
+      year: item.year || '',
+      librarySection: itemSection,
+      mediaCategory: itemSection,
+      tmdbId: item.tmdbId || '',
+      malId: item.malId || '',
+      rawgId: item.rawgId || '',
+      rating: Number(item.rating || 0)
+    };
+    const activity = {
+      postId,
+      uid: currentUser.uid,
+      timestamp: Date.now(),
+      type: 'media-review',
+      eventType: 'review',
+      visibility: 'friends',
+      likes: [],
+      replies: [],
+      content: { text: String(reviewText || ''), headline: 'Wrote a review' },
+      reviewText: String(reviewText || ''),
+      reviewSourceItemId: item.id,
+      item: safeItem,
+      mediaKey: typeof getMediaKey === 'function' ? getMediaKey(safeItem) : '',
+      eventKey: `feed:${postId}`
+    };
+    if (typeof pushFriendActivityLiveEvents === 'function') {
+      pushFriendActivityLiveEvents([activity]);
+    }
+    try { if (typeof friendActivityCache !== 'undefined') friendActivityCache = null; } catch (_) {}
+    try { if (typeof friendActivityPromise !== 'undefined') friendActivityPromise = null; } catch (_) {}
+    if (typeof loadActivityTabFeed === 'function'
+        && typeof activeFriendsTab !== 'undefined'
+        && activeFriendsTab === 'activity') {
+      try { loadActivityTabFeed(); } catch (e) { console.warn('[v10.705] loadActivityTabFeed failed:', e); }
+    }
+  } catch (e) {
+    console.warn('[v10.705] pushOwnMediaReviewToActivityFeed failed:', e);
   }
 }
 
