@@ -333,6 +333,11 @@ function updateDirectMessageKeyboardLift() {
     page.classList.remove('dm-keyboard-active');
     page.style.setProperty('--dm-keyboard-bottom', '0px');
   }
+  /* v10.793: pin .dm-v2-panel top to visualViewport.offsetTop so iOS's
+     auto-scroll-to-input behavior doesn't drift the header above the
+     visible viewport when the keyboard opens. */
+  const offsetTop = (window.visualViewport && Math.round(window.visualViewport.offsetTop)) || 0;
+  page.style.setProperty('--vv-offset-top', offsetTop + 'px');
 }
 
 function resetDirectMessageKeyboardLift() {
@@ -340,6 +345,7 @@ function resetDirectMessageKeyboardLift() {
   if (!page) return;
   page.classList.remove('dm-keyboard-active');
   page.style.setProperty('--dm-keyboard-bottom', '0px');
+  page.style.setProperty('--vv-offset-top', '0px');
 }
 
 function initDirectMessageKeyboardLift() {
@@ -347,9 +353,15 @@ function initDirectMessageKeyboardLift() {
   window.__screenListDmKeyboardLiftReady = true;
 
   /* Single source of truth for keyboard state — visualViewport resize
-     fires per-frame while iOS animates the keyboard in/out. */
+     fires per-frame while iOS animates the keyboard in/out.
+     v10.793: also listen to `scroll` because visualViewport.offsetTop
+     changes during iOS auto-scroll-to-input fire scroll, not resize. */
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', () => {
+      if (!isDirectMessagesPageOpen()) return;
+      updateDirectMessageKeyboardLift();
+    });
+    window.visualViewport.addEventListener('scroll', () => {
       if (!isDirectMessagesPageOpen()) return;
       updateDirectMessageKeyboardLift();
     });
