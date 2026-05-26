@@ -2,7 +2,7 @@
    the new service worker, but activation no longer navigates/reloads clients.
    The page runtime shows a non-blocking "reopen app" notice instead so users
    can keep writing and saving data. */
-const CACHE = 'shelfd-v10-838-dm-dismiss-animation-fix';
+const CACHE = 'shelfd-v10-837-dm-anywhere-swipe';
 const DISCOVER_POSTER_CACHE = 'screenlist-discover-posters-v1';
 const MYLIST_POSTER_CACHE = 'screenlist-mylist-posters-v1';
 

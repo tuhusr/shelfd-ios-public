@@ -66,10 +66,6 @@
      is clipped to the new shape). On snap-back we restore the originals. */
   let dragSurfacePrevBorderRadius = '';
   let dragSurfacePrevOverflow = '';
-  /* v10.838: save previous inline animation value so the snap-back path
-     can restore it. We clear `animation` to `none` on activate to defeat
-     animation-fill-mode that would otherwise override our transition. */
-  let dragSurfacePrevAnimation = '';
   /* v10.837: anywhere-horizontal mode state.
      When a registered overlay has `anywhereHorizontal: true`, the gesture
      can start ANYWHERE on the page (not just within the EDGE_DETECT_PX
@@ -211,10 +207,6 @@
       backSelector: '.dm-v2-back',
       scrollSelector: '.dm-v2-list',
       anywhereHorizontal: true,
-      /* v10.838: 600ms dismiss animation (vs the generic 320ms) — matches
-         the muscle memory of the tap-back inbox-slide-in pace that users
-         experienced before the swipe was hooked up to the generic system. */
-      dismissAnimationMs: 600,
       getSurface() {
         const panel = document.querySelector('.dm-v2-panel');
         return (panel && panel.isConnected) ? panel : null;
@@ -433,17 +425,6 @@
     dragPrevTransform = dragSurface.style.transform || '';
     dragPrevTransition = dragSurface.style.transition || '';
     dragPrevWillChange = dragSurface.style.willChange || '';
-    /* v10.838: explicitly clear any inherited CSS animation on the surface.
-       The DM v2 panel ships with `animation: dmThreadEnterFromRight 600ms
-       cubic-bezier both` from the .dm-nav-open-thread class — animation-
-       fill-mode: both clamps the panel to the keyframe's final transform
-       AT A HIGHER CSS CASCADE LEVEL THAN INLINE STYLES. That means our
-       inline transition+transform for the dismiss never fires, the panel
-       sits still, the timeout finalizes, DOM is replaced — looks like an
-       instant close. Setting `animation: none` inline kills the animation
-       styles so our inline transition can drive the dismiss properly. */
-    dragSurfacePrevAnimation = dragSurface.style.animation || '';
-    dragSurface.style.animation = 'none';
     dragSurface.style.transition = 'none';
     dragSurface.style.willChange = 'transform';
     /* v10.384: Lock the outgoing page so it can't scroll while the
@@ -675,7 +656,6 @@
     const savedSurfaceTouchAction = dragSurfacePrevTouchAction;
     const savedSurfaceBorderRadius = dragSurfacePrevBorderRadius;
     const savedSurfaceOverflow = dragSurfacePrevOverflow;
-    const savedSurfaceAnimation = dragSurfacePrevAnimation;
     const scrollEl = dragScrollEl;
     const scrollPrevOverflow = dragScrollPrevOverflow;
     const scrollPrevTouchAction = dragScrollPrevTouchAction;
@@ -688,25 +668,13 @@
     if (!surface) return;
 
     if (dx >= TRIGGER_DELTA_PX) {
-      /* v10.838: per-config animation duration. Some pages need a more
-         gradual release feel than the generic 320ms (e.g. DM thread which
-         was previously animated via a 600ms inbox-slide-in tap-back —
-         users built muscle memory for that pace). Falls back to 320ms. */
-      const ms = (config && typeof config.dismissAnimationMs === 'number')
-        ? config.dismissAnimationMs : 320;
-      const motion = `${ms}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+      const motion = '320ms cubic-bezier(0.22, 1, 0.36, 1)';
       surface.style.transition = `transform ${motion}`;
-      /* v10.838: force a reflow so the browser commits the new transition
-         BEFORE the transform change is processed. Without this, both
-         style writes can batch into a single computed-style update and
-         the browser sees the transform change with no prior "old" state —
-         no transition fires, the panel just jumps. */
-      void surface.offsetWidth;
       surface.style.transform = 'translate3d(100vw, 0, 0)';
       surface.style.opacity = '1';
       window.setTimeout(() => {
         try { config && config.dismiss && config.dismiss(); } catch (_) {}
-      }, ms);
+      }, 320);
     } else {
       surface.style.transition = 'transform 220ms cubic-bezier(0.33, 1, 0.68, 1)';
       surface.style.transform = 'translate3d(0, 0, 0)';
@@ -719,8 +687,6 @@
         surface.style.touchAction = savedSurfaceTouchAction;
         surface.style.borderRadius = savedSurfaceBorderRadius;
         surface.style.overflow = savedSurfaceOverflow;
-        /* v10.838: restore inline animation we cleared on activate. */
-        surface.style.animation = savedSurfaceAnimation;
         if (scrollEl && scrollEl.isConnected) {
           scrollEl.style.overflow = scrollPrevOverflow;
           scrollEl.style.touchAction = scrollPrevTouchAction;
@@ -740,7 +706,6 @@
     const savedSurfaceTouchAction = dragSurfacePrevTouchAction;
     const savedSurfaceBorderRadius = dragSurfacePrevBorderRadius;
     const savedSurfaceOverflow = dragSurfacePrevOverflow;
-    const savedSurfaceAnimation = dragSurfacePrevAnimation;
     const scrollPrevOverflow = dragScrollPrevOverflow;
     const scrollPrevTouchAction = dragScrollPrevTouchAction;
     const scrollPrevOverscroll = dragScrollPrevOverscroll;
@@ -757,8 +722,6 @@
     surface.style.touchAction = savedSurfaceTouchAction;
     surface.style.borderRadius = savedSurfaceBorderRadius;
     surface.style.overflow = savedSurfaceOverflow;
-    /* v10.838: restore inline animation we cleared on activate. */
-    surface.style.animation = savedSurfaceAnimation;
     if (scrollEl && scrollEl.isConnected) {
       scrollEl.style.overflow = scrollPrevOverflow;
       scrollEl.style.touchAction = scrollPrevTouchAction;
@@ -783,7 +746,6 @@
     dragSurfacePrevTouchAction = '';
     dragSurfacePrevBorderRadius = '';
     dragSurfacePrevOverflow = '';
-    dragSurfacePrevAnimation = '';
   }
 
   window.addEventListener('touchstart', onTouchStart, { passive: true });

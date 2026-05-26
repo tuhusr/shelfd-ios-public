@@ -1,0 +1,1052 @@
+// ===== Comments Page =====
+let commentsItemId = null;
+let commentsMediaKey = null;
+let commentsUnsubscribe = null;
+let commentsScope = 'friends';
+let commentsRawItems = [];
+let commentsDrafts = { friends: '', global: '' };
+let commentsSubmitting = false;
+let commentCountCache = {};
+
+function getMediaKey(item) {
+  if (!item) return '';
+  if (item.imdbId) return 'imdb:' + item.imdbId;
+  if (item.tmdbId) {
+    const section = item.librarySection || item.mediaCategory || activeSection;
+    const tmdbType = isShowSection(section) ? 'tv' : 'movie';
+    const seasonSuffix = section === 'anime' && item.tmdbSeasonNumber ? `:s${item.tmdbSeasonNumber}` : '';
+    return `tmdb-${tmdbType}:${item.tmdbId}${seasonSuffix}`;
+  }
+  if (item.metacriticSlug) return 'game:' + item.metacriticSlug;
+  const title = (item.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const type = item.librarySection || item.mediaCategory || activeSection || 'media';
+  return type + ':' + title;
+}
+
+function getCachedCommentCount(mediaKey) {
+  if (!mediaKey) return 0;
+  return Number(commentCountCache[mediaKey] || 0);
+}
+
+function setCachedCommentCount(mediaKey, count) {
+  if (!mediaKey) return;
+  commentCountCache[mediaKey] = Math.max(0, Number(count) || 0);
+}
+
+function updateCommentCountBadges(mediaKey, count) {
+  if (!mediaKey) return;
+  document.querySelectorAll(`.comment-count[data-media-key="${CSS.escape(mediaKey)}"]`).forEach(el => {
+    el.textContent = String(Math.max(0, Number(count) || 0));
+  });
+}
+
+async function refreshVisibleCommentCounts() {
+  const badges = Array.from(document.querySelectorAll('.comment-count[data-media-key]'));
+  const uniqueKeys = Array.from(new Set(badges.map(el => el.dataset.mediaKey).filter(Boolean)));
+  if (!uniqueKeys.length) return;
+
+  await Promise.all(uniqueKeys.map(async mediaKey => {
+    if (isPreviewMode() && !currentUser) {
+      const previewCount = getPreviewCommentsForMedia(mediaKey).length;
+      setCachedCommentCount(mediaKey, previewCount);
+      updateCommentCountBadges(mediaKey, previewCount);
+      return;
+    }
+    try {
+      const snap = await db.collection('comments').doc(mediaKey).get();
+      const comments = snap.exists && Array.isArray(snap.data().comments) ? snap.data().comments : [];
+      setCachedCommentCount(mediaKey, comments.length);
+      updateCommentCountBadges(mediaKey, comments.length);
+    } catch (error) {
+      console.error('Comment count load failed:', error);
+      setCachedCommentCount(mediaKey, 0);
+      updateCommentCountBadges(mediaKey, 0);
+    }
+  }));
+}
+
+function isFriendVisibleComment(comment) {
+  if (!comment?.uid || !currentUser) return false;
+  return comment.uid === currentUser.uid || friends.includes(comment.uid);
+}
+
+function getScopedComments(comments, scope) {
+  const list = Array.isArray(comments) ? comments : [];
+  if (scope === 'global') {
+    return list.filter(comment => (comment.scope || 'global') !== 'friends');
+  }
+  if (!currentUser) return [];
+  return list.filter(comment => (comment.scope || 'global') === 'friends' && isFriendVisibleComment(comment));
+}
+
+function getCommentsEmptyMessage(scope) {
+  if (scope === 'friends') {
+    if (!currentUser) return 'Sign in to see friends-only comments.';
+    return 'No friends-only comments yet. Start the conversation with your friends.';
+  }
+  if (isPreviewMode() && !currentUser) return 'No preview global comments yet for this title.';
+  return 'No global comments yet. Be the first to say something.';
+}
+
+function renderCommentsToolbar() {
+  const countEl = document.getElementById('comments-count');
+  if (!countEl) return;
+  const filtered = getScopedComments(commentsRawItems, commentsScope);
+  countEl.innerHTML = `<div class="comments-count">${filtered.length} Comment${filtered.length !== 1 ? 's' : ''}</div>`;
+}
+
+function renderCommentsInput() {
+  const area = document.getElementById('comments-input-area');
+  if (!area) return;
+  if (!currentUser) {
+    if (isPreviewMode()) {
+      const note = commentsScope === 'friends'
+        ? 'Friends-only comments are visible after sign-in.'
+        : 'Preview Mode lets you read public comments, but nothing can be posted or saved.';
+      area.innerHTML = `
+        <div class="comment-input-area">
+          <div class="comment-input-right">
+            <div class="comment-input-footer">
+              <div class="comment-input-left">
+                <div class="comments-scope-tabs">
+                  <button type="button" class="comments-scope-tab${commentsScope === 'friends' ? ' active' : ''}" onclick="switchCommentsScope('friends')">Friends</button>
+                  <button type="button" class="comments-scope-tab${commentsScope === 'global' ? ' active' : ''}" onclick="switchCommentsScope('global')">Global</button>
+                </div>
+                <div class="comments-scope-note">${note}</div>
+              </div>
+            </div>
+          </div>
+        </div>`;
+      return;
+    }
+    area.innerHTML = '';
+    return;
+  }
+  const photo = (userProfile && userProfile.photo) || currentUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent((userProfile && userProfile.name) || currentUser.displayName || '?')}&background=1e2028&color=60a5fa`;
+  const placeholder = commentsScope === 'friends'
+    ? 'Write a friends-only comment...'
+    : 'Write a global comment...';
+  const buttonLabel = commentsScope === 'friends' ? 'Post to Friends' : 'Post Globally';
+  const note = commentsScope === 'friends'
+    ? 'Only you and confirmed friends can see these comments.'
+    : 'Anyone who opens this media can see these comments.';
+  const draft = commentsDrafts[commentsScope] || '';
+  area.innerHTML = `
+    <div class="comment-input-area">
+      <img class="comment-input-avatar" src="${photo}" alt="">
+      <div class="comment-input-right">
+        <textarea class="comment-textarea" id="comment-textarea" placeholder="${placeholder}" oninput="cacheCommentDraft(this.value)">${escHtml(draft)}</textarea>
+        <div class="comment-input-footer">
+          <div class="comment-input-left">
+            <div class="comments-scope-tabs">
+              <button type="button" class="comments-scope-tab${commentsScope === 'friends' ? ' active' : ''}" onclick="switchCommentsScope('friends')">Friends</button>
+              <button type="button" class="comments-scope-tab${commentsScope === 'global' ? ' active' : ''}" onclick="switchCommentsScope('global')">Global</button>
+            </div>
+            <div class="comments-scope-note">${note}</div>
+          </div>
+          <button type="button" class="comment-post-btn" onclick="postComment()"${commentsSubmitting ? ' disabled' : ''}>${buttonLabel}</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function cacheCommentDraft(value) {
+  commentsDrafts[commentsScope] = value || '';
+}
+
+function switchCommentsScope(scope) {
+  const input = document.getElementById('comment-textarea');
+  if (input) commentsDrafts[commentsScope] = input.value || '';
+  commentsScope = scope === 'global' ? 'global' : 'friends';
+  renderCommentsToolbar();
+  renderCommentsInput();
+  renderCommentsUI(commentsRawItems);
+}
+
+function dismissCommentsPageForProfileNavigation() {
+  if (commentsUnsubscribe) {
+    commentsUnsubscribe();
+    commentsUnsubscribe = null;
+  }
+  const commentsPageEl = document.getElementById('comments-page');
+  if (commentsPageEl) {
+    commentsPageEl.classList.remove('comments-page-animating', 'comments-page-animating-in', 'comments-page-closing', 'comments-page-open');
+    commentsPageEl.style.display = 'none';
+    commentsPageEl.style.position = '';
+    commentsPageEl.style.left = '';
+    commentsPageEl.style.top = '';
+    commentsPageEl.style.width = '';
+    commentsPageEl.style.height = '';
+    commentsPageEl.style.zIndex = '';
+    commentsPageEl.style.overflowY = '';
+    commentsPageEl.style.opacity = '';
+    commentsPageEl.style.transform = '';
+    commentsPageEl.style.pointerEvents = '';
+    commentsPageEl.setAttribute('aria-hidden', 'true');
+    commentsPageEl.style.removeProperty('--comments-origin-x');
+    commentsPageEl.style.removeProperty('--comments-origin-y');
+    commentsPageEl.removeEventListener('touchmove', handleCommentsPageBackdropTouchMove);
+  }
+  if (commentsCloseTimer) {
+    clearTimeout(commentsCloseTimer);
+    commentsCloseTimer = null;
+  }
+  unlockCommentsPageBackgroundScroll();
+  commentsItemId = null;
+  commentsMediaKey = null;
+  commentsScope = 'friends';
+  commentsRawItems = [];
+  commentsDrafts = { friends: '', global: '' };
+  commentsTransitionOrigin = null;
+  commentsTransitionOriginRect = null;
+  commentsPageClosing = false;
+  commentsCloseAnimation = null;
+  commentsRestoreView = null;
+  setBottomNavVisibility(true);
+}
+
+async function openCommentAuthorProfile(commentId) {
+  const rawComment = commentsRawItems.find(entry => entry.id === commentId);
+  const comment = rawComment ? (usersMap[rawComment.uid] ? { ...rawComment, ...usersMap[rawComment.uid] } : rawComment) : null;
+  if (!comment) return;
+
+  dismissCommentsPageForProfileNavigation();
+
+  if (isPreviewMode() || getPreviewCommunityUser(comment.uid)) {
+    openPreviewCommunityProfile(comment.uid);
+    return;
+  }
+
+  if (!currentUser || !comment.uid) return;
+  if (comment.uid === currentUser.uid) {
+    switchMainNav('mylist');
+    return;
+  }
+  if (friends.includes(comment.uid)) {
+    await viewUserList(comment.uid, comment.name || 'Anonymous', comment.photo || '');
+    return;
+  }
+
+  await switchMainNav('community');
+  switchFriendsTab('friends');
+  const searchInput = document.getElementById('friends-inline-search-input');
+  const query = comment.name || '';
+  if (searchInput) searchInput.value = query;
+  filterInlineFriendSearch(query);
+  showToast("Find this user to send a friend request");
+}
+
+
+let commentsTransitionOrigin = null;
+let commentsTransitionOriginRect = null;
+let commentsPageClosing = false;
+let commentsCloseAnimation = null;
+let commentsRestoreView = null;
+let commentsCloseTimer = null;
+let commentsScrollLockState = null;
+
+function lockCommentsPageBackgroundScroll() {
+  if (commentsScrollLockState) return;
+  const scrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+  const body = document.body;
+  commentsScrollLockState = {
+    scrollY,
+    bodyPosition: body.style.position,
+    bodyTop: body.style.top,
+    bodyLeft: body.style.left,
+    bodyRight: body.style.right,
+    bodyWidth: body.style.width,
+    bodyOverflow: body.style.overflow,
+    htmlOverflow: document.documentElement.style.overflow
+  };
+  body.style.position = 'fixed';
+  body.style.top = `-${scrollY}px`;
+  body.style.left = '0';
+  body.style.right = '0';
+  body.style.width = '100%';
+  body.style.overflow = 'hidden';
+  document.documentElement.style.overflow = 'hidden';
+  document.body.classList.add('comments-page-scroll-locked');
+}
+
+function unlockCommentsPageBackgroundScroll() {
+  const state = commentsScrollLockState;
+  if (!state) return;
+  commentsScrollLockState = null;
+  const body = document.body;
+  body.style.position = state.bodyPosition || '';
+  body.style.top = state.bodyTop || '';
+  body.style.left = state.bodyLeft || '';
+  body.style.right = state.bodyRight || '';
+  body.style.width = state.bodyWidth || '';
+  body.style.overflow = state.bodyOverflow || '';
+  document.documentElement.style.overflow = state.htmlOverflow || '';
+  document.body.classList.remove('comments-page-scroll-locked');
+  window.scrollTo(0, state.scrollY || 0);
+}
+
+function handleCommentsPageBackdropTouchMove(event) {
+  const target = event.target;
+  if (!target || !target.closest) return;
+  if (target.closest('#comments-page .main-content')) return;
+  if (event.cancelable) event.preventDefault();
+}
+
+function openCommentsBottomSheet(commentsPageEl) {
+  if (!commentsPageEl) return;
+  if (commentsCloseTimer) {
+    clearTimeout(commentsCloseTimer);
+    commentsCloseTimer = null;
+  }
+  commentsPageEl.style.display = 'block';
+  commentsPageEl.style.pointerEvents = '';
+  commentsPageEl.classList.remove('comments-page-animating', 'comments-page-animating-in', 'comments-page-closing', 'comments-page-open');
+  commentsPageEl.setAttribute('aria-hidden', 'false');
+  lockCommentsPageBackgroundScroll();
+  commentsPageEl.addEventListener('touchmove', handleCommentsPageBackdropTouchMove, { passive: false });
+  void commentsPageEl.offsetWidth;
+  requestAnimationFrame(() => commentsPageEl.classList.add('comments-page-open'));
+}
+
+function closeCommentsBottomSheet(commentsPageEl, onComplete) {
+  if (!commentsPageEl) {
+    if (typeof onComplete === 'function') onComplete();
+    return;
+  }
+  commentsPageEl.classList.remove('comments-page-open', 'comments-page-animating', 'comments-page-animating-in');
+  commentsPageEl.classList.add('comments-page-closing');
+  commentsPageEl.style.pointerEvents = 'none';
+  commentsPageEl.setAttribute('aria-hidden', 'true');
+  commentsPageEl.removeEventListener('touchmove', handleCommentsPageBackdropTouchMove);
+  unlockCommentsPageBackgroundScroll();
+  if (commentsCloseTimer) clearTimeout(commentsCloseTimer);
+  const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const hideMs = reduceMotion ? 0 : 380;
+  commentsCloseTimer = setTimeout(() => {
+    commentsCloseTimer = null;
+    if (typeof onComplete === 'function') onComplete();
+  }, hideMs);
+}
+
+function restoreCommentsSourceView() {
+  setBottomNavVisibility(true);
+
+  const navComm = document.getElementById('nav-community');
+  const activeMainTab = navComm && navComm.classList.contains('active') ? 'community' : 'mylist';
+  setMainNavVisibility(activeMainTab);
+
+  if (activeMainTab === 'community') {
+    loadCommunity();
+    return;
+  }
+
+  render();
+}
+
+function cleanupCommentsPageState() {
+  const commentsPageEl = document.getElementById('comments-page');
+  commentsPageEl.classList.remove('comments-page-animating', 'comments-page-animating-in', 'comments-page-closing', 'comments-page-open');
+  commentsPageEl.style.display = 'none';
+  commentsPageEl.style.position = '';
+  commentsPageEl.style.left = '';
+  commentsPageEl.style.top = '';
+  commentsPageEl.style.width = '';
+  commentsPageEl.style.height = '';
+  commentsPageEl.style.zIndex = '';
+  commentsPageEl.style.overflowY = '';
+  commentsPageEl.style.opacity = '';
+  commentsPageEl.style.transform = '';
+  commentsPageEl.style.pointerEvents = '';
+  commentsPageEl.setAttribute('aria-hidden', 'true');
+  commentsPageEl.style.removeProperty('--comments-origin-x');
+  commentsPageEl.style.removeProperty('--comments-origin-y');
+  commentsPageEl.removeEventListener('touchmove', handleCommentsPageBackdropTouchMove);
+  if (commentsCloseTimer) {
+    clearTimeout(commentsCloseTimer);
+    commentsCloseTimer = null;
+  }
+  unlockCommentsPageBackgroundScroll();
+
+  if (typeof commentsRestoreView === 'function') commentsRestoreView();
+
+  commentsItemId = null;
+  commentsMediaKey = null;
+  commentsScope = 'friends';
+  commentsRawItems = [];
+  commentsDrafts = { friends: '', global: '' };
+  commentsTransitionOrigin = null;
+  commentsTransitionOriginRect = null;
+  commentsPageClosing = false;
+  commentsCloseAnimation = null;
+  commentsRestoreView = null;
+}
+
+function cancelCommentsCloseIfNeeded() {
+  if (!commentsPageClosing) return;
+  if (commentsCloseTimer) {
+    clearTimeout(commentsCloseTimer);
+    commentsCloseTimer = null;
+  }
+  cleanupCommentsPageState();
+}
+
+function openCommentsPage(itemId, triggerEl) {
+  cancelCommentsCloseIfNeeded();
+
+  const sourceData = getVisibleListData();
+  const items = sourceData[activeSection];
+  const item = items.find(i => i.id === itemId);
+  if (!item) return;
+
+  commentsTransitionOrigin = triggerEl || null;
+  commentsTransitionOriginRect = null;
+  commentsItemId = itemId;
+  commentsMediaKey = getMediaKey(item);
+  commentsViewState = { type: 'item', itemId };
+
+  const commentsPageEl = document.getElementById('comments-page');
+  const triggerRect = triggerEl ? triggerEl.getBoundingClientRect() : null;
+  const startRect = triggerRect ? {
+    left: triggerRect.left,
+    top: triggerRect.top,
+    width: triggerRect.width,
+    height: triggerRect.height
+  } : null;
+  commentsTransitionOriginRect = startRect;
+
+  document.getElementById('mylist-view').style.display = 'none';
+  document.getElementById('community-view').style.display = 'none';
+  document.getElementById('mylist-header').style.display = 'none';
+  setBottomNavVisibility(false);
+  openCommentsBottomSheet(commentsPageEl);
+
+  const emoji = getSectionIcon(activeSection);
+  const coverHtml = item.cover
+    ? `<div class="comments-page-cover" style="background-image:url('${item.cover}')"></div>`
+    : `<div class="comments-page-cover no-img" style="display:flex;align-items:center;justify-content:center;font-size:24px;">${emoji}</div>`;
+  const sectionLabel = activeSection === 'anime' ? 'ANIME' : activeSection === 'shows' ? 'TV SHOW' : activeSection === 'movies' ? 'MOVIE' : 'GAME';
+
+  function renderCommentsHeader(yearVal) {
+    document.getElementById('comments-page-header').innerHTML = `
+      <div class="comments-page-header">
+        ${coverHtml}
+        <div class="comments-page-info">
+          <div class="comments-page-title">${escHtml(item.title)}</div>
+          <div class="comments-page-meta">${sectionLabel}${item.genre ? ' · ' + escHtml(item.genre) : ''}${yearVal ? ' · ' + yearVal : ''}</div>
+        </div>
+      </div>`;
+  }
+
+  renderCommentsHeader(item.year);
+
+  if (!item.year && !viewingUser) {
+    const tmdbType = isShowSection(activeSection) ? 'tv' : 'movie';
+    fetch(buildProxyUrl(TMDB_PROXY_BASE, `search/${tmdbType}`, { query: item.title }))
+      .then(r => r.json())
+      .then(json => {
+        const match = (json.results || [])[0];
+        if (match) {
+          const yr = (match.release_date || match.first_air_date || '').slice(0, 4);
+          if (yr) {
+            item.year = yr;
+            save();
+            renderCommentsHeader(yr);
+          }
+        }
+      }).catch(() => {});
+  }
+
+  commentsScope = currentUser ? 'friends' : 'global';
+  commentsDrafts = { friends: '', global: '' };
+  renderCommentsToolbar();
+  renderCommentsInput();
+  loadComments();
+  persistUiState();
+  const commentsSheet = commentsPageEl.querySelector('.main-content');
+  if (commentsSheet) commentsSheet.scrollTo({ top: 0, behavior: 'auto' });
+}
+
+function openCommentsPageForActivity(mediaKey, title, cover, commentId = '') {
+  cancelCommentsCloseIfNeeded();
+  const activityPage = document.getElementById('activity-page');
+  const communityView = document.getElementById('community-view');
+  const commentsPageEl = document.getElementById('comments-page');
+  commentsItemId = null;
+  commentsMediaKey = mediaKey;
+  commentsViewState = { type: 'activity', mediaKey, title, cover, commentId };
+  commentsTransitionOrigin = null;
+  commentsTransitionOriginRect = null;
+  if (activityPage?.classList.contains('active')) {
+    activityPage.classList.remove('active');
+    commentsRestoreView = () => {
+      activityPage.classList.add('active');
+      if (commentsPageEl) commentsPageEl.style.display = 'none';
+    };
+  } else {
+    syncMainNavButtons('community');
+    if (communityView) communityView.style.display = 'none';
+    commentsRestoreView = () => {
+      syncMainNavButtons('community');
+      if (communityView) communityView.style.display = 'block';
+      setBottomNavVisibility(true);
+    };
+  }
+  setBottomNavVisibility(false);
+  openCommentsBottomSheet(commentsPageEl);
+  const coverHtml = cover
+    ? `<div class="comments-page-cover" style="background-image:url('${escAttr(cover)}')"></div>`
+    : `<div class="comments-page-cover no-img" style="display:flex;align-items:center;justify-content:center;font-size:24px;">💬</div>`;
+  document.getElementById('comments-page-header').innerHTML = `
+    <div class="comments-page-header">
+      ${coverHtml}
+      <div class="comments-page-info">
+        <div class="comments-page-title">${escHtml(title || 'Comments')}</div>
+        <div class="comments-page-meta">FRIEND ACTIVITY</div>
+      </div>
+    </div>`;
+  commentsScope = 'global';
+  commentsDrafts = { friends: '', global: '' };
+  renderCommentsToolbar();
+  renderCommentsInput();
+  loadComments();
+  persistUiState();
+  const commentsSheet = commentsPageEl.querySelector('.main-content');
+  if (commentsSheet) commentsSheet.scrollTo({ top: 0, behavior: 'auto' });
+  if (commentId) {
+    setTimeout(() => {
+      const row = document.querySelector(`#comments-list .comment-item[data-comment-id="${CSS.escape(commentId)}"]`);
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        row.animate([
+          { backgroundColor: 'rgba(245, 158, 11, 0.18)' },
+          { backgroundColor: 'rgba(245, 158, 11, 0)' }
+        ], { duration: 1400, easing: 'ease-out' });
+      }
+    }, 450);
+  }
+}
+
+function closeCommentsPage() {
+  if (commentsPageClosing) return;
+  commentsPageClosing = true;
+
+  if (commentsUnsubscribe) { commentsUnsubscribe(); commentsUnsubscribe = null; }
+
+  const commentsPageEl = document.getElementById('comments-page');
+  commentsRestoreView = restoreCommentsSourceView;
+  commentsViewState = null;
+  persistUiState();
+  closeCommentsBottomSheet(commentsPageEl, cleanupCommentsPageState);
+}
+
+function loadComments() {
+  if (commentsUnsubscribe) commentsUnsubscribe();
+  if (isPreviewMode()) {
+    commentsUnsubscribe = null;
+    commentsRawItems = getPreviewCommentsForMedia(commentsMediaKey);
+    commentsRawItems.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    setCachedCommentCount(commentsMediaKey, commentsRawItems.length);
+    updateCommentCountBadges(commentsMediaKey, commentsRawItems.length);
+    renderCommentsToolbar();
+    renderCommentsUI(commentsRawItems);
+    return;
+  }
+  const ref = db.collection('comments').doc(commentsMediaKey);
+  commentsUnsubscribe = ref.onSnapshot(doc => {
+    commentsRawItems = (doc.exists && doc.data().comments) || [];
+    commentsRawItems.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    setCachedCommentCount(commentsMediaKey, commentsRawItems.length);
+    updateCommentCountBadges(commentsMediaKey, commentsRawItems.length);
+    renderCommentsToolbar();
+    renderCommentsUI(commentsRawItems);
+  }, err => {
+    console.error('Comments listen error:', err);
+    commentsRawItems = [];
+    setCachedCommentCount(commentsMediaKey, 0);
+    updateCommentCountBadges(commentsMediaKey, 0);
+    renderCommentsToolbar();
+    document.getElementById('comments-list').innerHTML = '<div class="comments-empty">Failed to load comments. Try again in a moment.</div>';
+  });
+}
+
+function renderCommentsUI(comments) {
+  const list = document.getElementById('comments-list');
+  const filtered = getScopedComments(comments, commentsScope);
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="comments-empty">${getCommentsEmptyMessage(commentsScope)}</div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(c => {
+      const photo = c.photo || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(c.name || 'U') + '&background=1e2028&color=60a5fa';
+      const isOwn = currentUser && c.uid === currentUser.uid;
+      const authorUser = usersMap[c.uid] ? { ...c, ...usersMap[c.uid] } : c;
+      const authorHtml = commentsScope === 'global' && (c.uid || getPreviewCommunityUser(c.uid))
+        ? `<button type="button" class="comment-author-btn" onclick="openCommentAuthorProfile('${c.id}')">${renderDisplayNameHTML(authorUser, 'Anonymous')}</button>`
+        : `<span class="comment-author">${renderDisplayNameHTML(authorUser, 'Anonymous')}</span>`;
+      return `<div class="comment-item" data-comment-id="${escAttr(c.id || '')}">
+      <img class="comment-avatar" src="${photo}" alt="">
+      <div class="comment-body">
+        <div class="comment-header">
+          ${authorHtml}
+          <span class="comment-time">${timeAgo(c.timestamp)}</span>
+          ${isOwn ? `<button class="comment-delete" onclick="deleteComment('${c.id}')">Delete</button>` : ''}
+        </div>
+        <div class="comment-text">${escHtml(c.text)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function postComment() {
+  if (typeof requireShelfdSignedInAction === 'function' && !requireShelfdSignedInAction()) return;
+  const input = document.getElementById('comment-textarea');
+  const button = document.querySelector('#comments-input-area .comment-post-btn');
+  if (!input) return;
+  const text = (input.value || '').trim();
+  if (!text || !currentUser || !commentsMediaKey || commentsSubmitting) return;
+
+  commentsSubmitting = true;
+  if (button) button.disabled = true;
+  input.disabled = true;
+
+    const comment = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+      uid: currentUser.uid,
+      name: (userProfile && userProfile.name) || currentUser.displayName || 'Anonymous',
+      photo: (userProfile && userProfile.photo) || currentUser.photoURL || '',
+      accountEmailLower: normalizeEmail(currentUser?.email),
+      isCreatorAdmin: normalizeEmail(currentUser?.email) === CREATOR_ADMIN_EMAIL,
+      text: text,
+    timestamp: Date.now(),
+    scope: commentsScope === 'global' ? 'global' : 'friends'
+  };
+
+  try {
+    const ref = db.collection('comments').doc(commentsMediaKey);
+    await ref.set({
+      comments: firebase.firestore.FieldValue.arrayUnion(comment),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    if (!viewingUser && commentsViewState?.type === 'item' && commentsItemId && typeof findOwnLibraryItemRecord === 'function') {
+      const record = findOwnLibraryItemRecord(commentsItemId, activeSection);
+      if (record.item && typeof markOwnItemLastEdited === 'function') {
+        markOwnItemLastEdited(record.item, record.section || activeSection);
+        save();
+      }
+    }
+    setCachedCommentCount(commentsMediaKey, Math.max(getCachedCommentCount(commentsMediaKey), commentsRawItems.length) + 1);
+    commentsRawItems = [comment, ...commentsRawItems.filter(c => c && c.id !== comment.id)];
+    commentsRawItems.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    renderCommentsToolbar();
+    renderCommentsUI(commentsRawItems);
+    commentsDrafts[commentsScope] = '';
+    if (document.getElementById('comment-textarea') === input) input.value = '';
+    renderCommentsInput();
+    updateCommentCountBadges(commentsMediaKey, getCachedCommentCount(commentsMediaKey));
+    showToast("Comment posted");
+  } catch(e) {
+    console.error('Post comment failed:', e);
+    showToast("Could not post comment. Try again.");
+  } finally {
+    commentsSubmitting = false;
+    const liveInput = document.getElementById('comment-textarea');
+    const liveButton = document.querySelector('#comments-input-area .comment-post-btn');
+    if (liveInput) liveInput.disabled = false;
+    if (liveButton) liveButton.disabled = false;
+  }
+}
+
+async function deleteComment(commentId) {
+  if (!commentsMediaKey || !currentUser) return;
+  try {
+    const ref = db.collection('comments').doc(commentsMediaKey);
+    await db.runTransaction(async transaction => {
+      const doc = await transaction.get(ref);
+      if (!doc.exists) return;
+      const comments = Array.isArray(doc.data().comments) ? doc.data().comments : [];
+      const target = comments.find(c => c.id === commentId);
+      if (!target || target.uid !== currentUser.uid) return;
+      transaction.set(ref, {
+        comments: comments.filter(c => c.id !== commentId)
+      }, { merge: true });
+      setCachedCommentCount(commentsMediaKey, comments.length - 1);
+    });
+    updateCommentCountBadges(commentsMediaKey, getCachedCommentCount(commentsMediaKey));
+    showToast("Comment deleted");
+  } catch(e) {
+    console.error('Delete comment failed:', e);
+    showToast("Could not delete comment. Try again.");
+  }
+}
+
+function timeAgo(ts) {
+  if (!ts) return '';
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + 'm ago';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + 'h ago';
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return days + 'd ago';
+  const months = Math.floor(days / 30);
+  if (months < 12) return months + 'mo ago';
+  return Math.floor(months / 12) + 'y ago';
+}
+
+// Auth functions
+/* v631: iOS PWA standalone mode cannot open popups (no window.opener). Detect
+   standalone + iOS / coarse-pointer up front and pick the redirect flow directly.
+   Otherwise we'd waste a round-trip on a doomed popup before falling back, which
+   on iOS PWA also leaves the keyboard in a broken state. */
+function _shelfdIsStandalonePWA() {
+  try {
+    if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+    if (typeof navigator !== 'undefined' && navigator.standalone === true) return true;
+  } catch (_) {}
+  return false;
+}
+function _shelfdIsIosLike() {
+  const ua = (navigator.userAgent || '') + ' ' + (navigator.platform || '');
+  if (/iPad|iPhone|iPod/.test(ua)) return true;
+  /* iPadOS 13+ identifies as Mac with touch */
+  if (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1) return true;
+  return false;
+}
+function signIn() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  /* Skip the popup attempt entirely on iOS PWA standalone — popups are blocked
+     and the failed open can stall the click gesture on some iOS versions. */
+  if (_shelfdIsStandalonePWA() || _shelfdIsIosLike()) {
+    try {
+      auth.signInWithRedirect(provider);
+    } catch (err) {
+      console.error('Redirect sign-in failed:', err);
+    }
+    return;
+  }
+  auth.signInWithPopup(provider).catch(err => {
+    console.error("Sign in failed:", err);
+    // Fallback for mobile browsers that block popups
+    auth.signInWithRedirect(provider);
+  });
+}
+
+/* v631: Complete a pending redirect sign-in as soon as Firebase Auth loads.
+   onAuthStateChanged still fires on success, but if the redirect failed
+   (e.g. Apple ITP blocked the third-party cookie), we want the error in
+   the console so we can diagnose. */
+(function initRedirectResult() {
+  try {
+    if (!auth || typeof auth.getRedirectResult !== 'function') return;
+    auth.getRedirectResult().catch(err => {
+      console.error('Redirect sign-in result error:', err);
+    });
+  } catch (err) {
+    console.error('Redirect-result handler init failed:', err);
+  }
+})();
+
+function confirmSignOut() {
+  closeSignOutModal();
+  stopFriendsDataListener();
+  stopWatchTogetherListener();
+  resetFriendsDataState();
+  document.body.classList.remove('profile-active');
+  setBottomNavVisibility(false);
+  auth.signOut().catch(err => {
+    console.error("Sign out failed:", err);
+    showToast("Could not log out. Try again.");
+  });
+}
+
+function signOut() {
+  openSignOutModal();
+}
+
+
+function markScreenListAppReadyForSplash() {
+  window.__shelfdAppReady = true;
+  try { window.dispatchEvent(new CustomEvent('shelfd:app-ready')); }
+  catch (error) { window.dispatchEvent(new Event('shelfd:app-ready')); }
+}
+
+function clearShelfdLegacyAccountLocalState() {
+  try { localStorage.removeItem('watchlist-tracker-data'); } catch (_) {}
+}
+
+function resetShelfdActiveAccountState(reason = 'auth-reset', nextUid = '') {
+  const previousUid = currentUser?.uid || '';
+  console.info('[shelfd-auth] resetting active account state', { reason, previousUid, nextUid });
+  try { if (saveTimeout) { clearTimeout(saveTimeout); saveTimeout = null; } } catch (_) {}
+  try { stopFriendsDataListener(); } catch (_) {}
+  try { stopWatchTogetherListener(); } catch (_) {}
+  try { if (typeof stopDirectMessageSharedThreadsListener === 'function') stopDirectMessageSharedThreadsListener(); } catch (_) {}
+  try { if (typeof resetFriendsDataState === 'function') resetFriendsDataState(); } catch (_) { try { usersMap = {}; } catch (e) {} }
+  try { if (typeof window.shelfdClearFavoritePeopleLocal === 'function') window.shelfdClearFavoritePeopleLocal(); } catch (_) {}
+  clearShelfdLegacyAccountLocalState();
+
+  landingPublicProfileActive = false;
+  currentUser = null;
+  viewingUser = null;
+  myData = null;
+  ownDataCache = null;
+  friendViewData = null;
+  profileViewingUser = null;
+  profileViewingProfile = null;
+  profileViewingData = null;
+  commentsViewState = null;
+  userProfile = null;
+  data = typeof getEmptyListData === 'function' ? getEmptyListData() : data;
+  DOC_REF = nextUid ? db.collection("watchlist").doc(nextUid) : null;
+  window.shelfdBlockedUids = new Set();
+  try {
+    document.body?.classList.remove(
+      'preview-mode',
+      'viewing-other-user',
+      'viewing-other-profile',
+      'landing-public-lists',
+      'guest-creator-lists',
+      'profile-active',
+      'own-profile-active'
+    );
+  } catch (_) {}
+}
+
+window.resetShelfdActiveAccountState = resetShelfdActiveAccountState;
+window.clearShelfdLegacyAccountLocalState = clearShelfdLegacyAccountLocalState;
+
+// Auth state listener
+auth.onAuthStateChanged(async (user) => {
+  const mediaRoute = parseScreenListMediaRoute();
+  const albumRoute = typeof parseScreenListAlbumRoute === 'function' ? parseScreenListAlbumRoute() : null;
+  const profileRoute = typeof parseScreenListProfileRoute === 'function' ? parseScreenListProfileRoute() : null;
+  if (user) {
+    const previousUid = currentUser?.uid || '';
+    const incomingUid = user.uid || '';
+    const staleProfileUid = !!(userProfile?.uid && incomingUid && userProfile.uid !== incomingUid);
+    const staleDocUid = !!(DOC_REF?.id && incomingUid && DOC_REF.id !== incomingUid);
+    if ((previousUid && previousUid !== incomingUid) || staleProfileUid || staleDocUid) {
+      resetShelfdActiveAccountState('auth-user-change', incomingUid);
+    }
+    console.info('[shelfd-auth] auth state user', {
+      uid: incomingUid,
+      previousUid,
+      email: user.email || '',
+      staleProfileUid,
+      staleDocUid
+    });
+    window.__shelfdAuthUidDebug = {
+      stage: 'onAuthStateChanged',
+      uid: incomingUid,
+      previousUid,
+      email: user.email || '',
+      at: new Date().toISOString()
+    };
+    if (typeof setShelfdGuestBrowsing === 'function') setShelfdGuestBrowsing(false, { persist: false });
+    /* v804: when the new email-signup flow is mid-flight, that flow owns the
+       UI (it just kicked off the setup overlay). We still set currentUser
+       and DOC_REF so the rest of the app behaves, but we hand routing to
+       the setup flow and skip render() / shell-swap entirely. The signup
+       handler called saveUserProfile() itself, so nothing is missed. */
+    if (window.__shelfdSignupInProgress) {
+      landingPublicProfileActive = false;
+      currentUser = user;
+      DOC_REF = db.collection("watchlist").doc(user.uid);
+      exitPreviewMode();
+      markScreenListAppReadyForSplash();
+      return;
+    }
+    landingPublicProfileActive = false;
+    currentUser = user;
+    DOC_REF = db.collection("watchlist").doc(user.uid);
+    exitPreviewMode();
+    /* v10.761: HYDRATE DM INBOX FROM DEVICE CACHE — fires IMMEDIATELY after
+       currentUser is assigned, BEFORE the 1.5s deferred startup that attaches
+       friendsDataListener + startDirectMessageSharedThreadsListener below.
+       If user taps DMs in the first 1500ms (or while the cold Firestore
+       round-trip is in flight), the inbox row list paints instantly from
+       the last-saved snapshot instead of staying blank for ~37s. The shared
+       dmThreads listener's merge logic does newer-wins by updatedAtMs, so
+       fresh data overlays cleanly when it arrives. See 09b-dm-inbox-cache.js. */
+    if (typeof hydrateDmInboxFromCache === 'function') {
+      try { hydrateDmInboxFromCache(user.uid); }
+      catch (e) { console.warn('[v10.761] DM inbox cache hydrate failed:', e); }
+    }
+    if (mediaRoute || albumRoute || profileRoute?.uid) {
+      prepareSharedMediaRouteView();
+    } else {
+      document.getElementById("login-screen").style.display = "none";
+      document.getElementById("app-container").style.display = "block";
+    }
+    /* v10.696: FIRST-PAINT FAST PATH (Instagram/Twitter-style).
+       Previously: splash stayed up until `await load()` (Firestore round-trip)
+       + `saveUserProfile()` + listener attachments + `render()` ALL completed.
+       That's 3+ sequential network round-trips before the user sees the
+       shelf — easily 2–5 seconds of stale splash on a cold launch.
+
+       Now: if we have a `screenlist-own-data-backup-<uid>` snapshot in
+       localStorage from a previous session, we hydrate `data` from it,
+       paint the shelf, and fire `shelfd:app-ready` IMMEDIATELY. The
+       splash hides while Firestore reconciliation continues in the
+       background. When `await load()` returns with fresh data below,
+       the existing `render()` call repaints with the canonical data.
+
+       v10.697: also tracks `__shelfdFastPaintFired` so the reconciliation
+       pass at the bottom can skip `setDefaultMyListsWatchingView()` —
+       otherwise the user gets yanked back to My Lists ~1-3s after cold
+       launch if they navigated away during reconciliation. */
+    let __shelfdFastPaintFired = false;
+    try {
+      const __shelfdCanFastPaint = !mediaRoute && !albumRoute && !profileRoute?.uid
+        && typeof readOwnLocalBackup === 'function'
+        && typeof cloneListData === 'function'
+        && typeof listDataItemCount === 'function';
+      if (__shelfdCanFastPaint) {
+        const __shelfdCached = readOwnLocalBackup();
+        if (__shelfdCached && listDataItemCount(__shelfdCached) > 0) {
+          data = __shelfdCached;
+          ownDataCache = cloneListData(__shelfdCached);
+          try {
+            if (typeof setDefaultMyListsWatchingView === 'function') {
+              setDefaultMyListsWatchingView();
+            } else {
+              activeSection = activeSection || "shows";
+              activeTab = activeTab || "watching";
+            }
+          } catch (e) { console.warn('[v10.696] fast-paint default view failed:', e); }
+          try { render(); } catch (e) { console.warn('[v10.696] fast-paint render failed:', e); }
+          try { markScreenListAppReadyForSplash(); }
+          catch (e) { console.warn('[v10.696] fast-paint app-ready failed:', e); }
+          __shelfdFastPaintFired = true;
+        }
+      }
+    } catch (e) { console.warn('[v10.696] fast-paint outer guard tripped:', e); }
+    await load();
+    /* v10.702: Gate onboarding before saveUserProfile() so brand-new
+       Apple accounts with no users/{uid} doc enter setup instead of
+       having saveUserProfile auto-create a profile and bypass setup. */
+    if (typeof window.__shelfdAuthOnboardingGate === 'function') {
+      try {
+        const gated = await window.__shelfdAuthOnboardingGate(user);
+        if (gated) {
+          markScreenListAppReadyForSplash();
+          return;
+        }
+      } catch (e) {
+        console.warn('[shelfd-auth] onboarding gate threw:', e);
+      }
+    }
+    await saveUserProfile(user);
+    /* v10.762: CRITICAL LISTENERS attach IMMEDIATELY, not deferred 1.5s.
+       startFriendsDataListener + startDirectMessageSharedThreadsListener
+       are what Activity feed, Friends page, Discover "What Your Friends Are
+       Watching", and DM inbox all depend on. With Firestore offline
+       persistence enabled (see 01-firebase-login-state.js v10.762), the
+       first snapshot fires from cached IndexedDB data typically within
+       ~100ms — making those surfaces appear nearly instantly on every
+       cold launch after the first. Network refresh follows when the
+       cold connection settles. Previously these sat behind a 1500ms
+       setTimeout (v10.697) meant to keep first-paint smooth for the
+       shelf, but the cost was 1.5s of staring at a blank Friends /
+       Activity / Discover-friends-row. The shelf doesn't depend on
+       these listeners, so moving them up does not regress it. */
+    try { startFriendsDataListener(); } catch (e) { console.warn('[v10.762] immediate startFriendsDataListener failed:', e); }
+    if (typeof startDirectMessageSharedThreadsListener === 'function') {
+      try { startDirectMessageSharedThreadsListener(); } catch (e) { console.warn('[v10.762] immediate startDirectMessageSharedThreadsListener failed:', e); }
+    }
+    /* v10.697 (kept): TRULY-BACKGROUND WORK still deferred 1.5s past first
+       paint. None of these gate a visible page render — just badges,
+       backfills, secondary listeners. */
+    setTimeout(() => {
+      /* v10.761: ensureDirectMessageEncryptionReady removed (E2EE deprecated v280). */
+      try { bootstrapUserCountIfNeeded(); } catch (e) { console.warn('[v10.697] deferred bootstrapUserCountIfNeeded failed:', e); }
+      try { startWatchTogetherListener(); } catch (e) { console.warn('[v10.697] deferred startWatchTogetherListener failed:', e); }
+      if (typeof attachShelfdNotificationsListener === 'function') {
+        try { attachShelfdNotificationsListener(); } catch (e) { console.warn('[v10.697] deferred attachShelfdNotificationsListener failed:', e); }
+      }
+      if (typeof backfillRecentActivityNotifications === 'function') {
+        try { backfillRecentActivityNotifications(); } catch (e) {}
+      }
+      if (typeof window.shelfdLoadFavoritePeople === 'function') {
+        try { window.shelfdLoadFavoritePeople(); } catch (e) { console.warn('[v10.697] deferred shelfdLoadFavoritePeople failed:', e); }
+      }
+    }, 1500);
+    if (mediaRoute) {
+      await openSharedMediaProfileRoute(mediaRoute);
+      markScreenListAppReadyForSplash();
+      return;
+    }
+    if (albumRoute && typeof openSharedAlbumRoute === 'function') {
+      await openSharedAlbumRoute(albumRoute);
+      markScreenListAppReadyForSplash();
+      return;
+    }
+    if (profileRoute?.uid && (profileRoute.section || window.location.pathname.startsWith('/profile-card/'))) {
+      await openProfileRouteDirect(profileRoute);
+      markScreenListAppReadyForSplash();
+      return;
+    }
+    /* v10.697: AUTO-FORCE-BACK FIX. Previously `setDefaultMyListsWatchingView()`
+       always ran at the bottom — even on returning users who fast-painted
+       and then navigated to Activity / Discover / DMs during the
+       reconciliation gap. That call resets activeSection/activeTab AND
+       calls syncMainNavButtons('mylist') + setMainNavVisibility('mylist'),
+       yanking the user back to My Lists 1–3s after launch.
+       Fix: only force the default view on first-time sign-ins (no fast
+       paint fired). For returning users, just re-render in place so any
+       Firestore-side drift becomes visible on whichever tab they're on. */
+    if (!__shelfdFastPaintFired) {
+      setDefaultMyListsWatchingView();
+      render();
+    } else {
+      try { render(); } catch (e) { console.warn('[v10.697] reconciliation render failed:', e); }
+    }
+    markScreenListAppReadyForSplash();
+  } else {
+    /* v10.761: clear the device-cached DM inbox for the user who just
+       signed out, so a shared device doesn't leak their inbox preview
+       to whoever signs in next. Capture the uid BEFORE we null out
+       currentUser below. Other uids' caches stay put — keyed by uid
+       so per-account snapshots don't collide. */
+    const signingOutUid = currentUser?.uid || '';
+    if (signingOutUid && typeof clearDmInboxCacheForUid === 'function') {
+      try { clearDmInboxCacheForUid(signingOutUid); }
+      catch (e) { console.warn('[v10.761] DM inbox cache clear failed:', e); }
+    }
+    clearShelfdLegacyAccountLocalState();
+    stopFriendsDataListener();
+    stopWatchTogetherListener();
+    resetFriendsDataState();
+    /* v730: drop favoritePeople cache so the next signed-in user starts
+       with a clean slate (and signed-out users don't see leftover state). */
+    if (typeof window.shelfdClearFavoritePeopleLocal === 'function') {
+      window.shelfdClearFavoritePeopleLocal();
+    }
+    landingPublicProfileActive = false;
+    currentUser = null;
+    DOC_REF = null;
+    userProfile = null;
+    ownDataCache = null;
+    myData = null;
+    viewingUser = null;
+    friendViewData = null;
+    profileViewingUser = null;
+    profileViewingProfile = null;
+    profileViewingData = null;
+    if (typeof shouldRestoreShelfdGuestBrowsing === 'function' && shouldRestoreShelfdGuestBrowsing() && typeof continueWithoutSignIn === 'function') {
+      await continueWithoutSignIn({ restoring: true });
+      markScreenListAppReadyForSplash();
+      return;
+    }
+    syncSignedOutRoute();
+    markScreenListAppReadyForSplash();
+  }
+});
+
+window.addEventListener('hashchange', syncSignedOutRoute);
+window.addEventListener('beforeunload', persistUiState);
+bindMobileBottomDockSwipe();
+// Shelfd split runtime guard v302-splash-until-app-ready.
+window.__shelfdSplitScriptsLoaded = true;
+window.__shelfdSplitScriptsLoading = false;
