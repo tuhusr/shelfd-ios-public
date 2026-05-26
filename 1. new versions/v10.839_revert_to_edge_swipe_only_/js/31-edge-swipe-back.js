@@ -70,9 +70,18 @@
      can restore it. We clear `animation` to `none` on activate to defeat
      animation-fill-mode that would otherwise override our transition. */
   let dragSurfacePrevAnimation = '';
-  /* v10.839: REMOVED needsHorizontalCommit / pendingDragSurface /
-     pendingDragConfig — anywhereHorizontal was reverted because it
-     caused false-positive tap registrations on the inbox underneath. */
+  /* v10.837: anywhere-horizontal mode state.
+     When a registered overlay has `anywhereHorizontal: true`, the gesture
+     can start ANYWHERE on the page (not just within the EDGE_DETECT_PX
+     strip). In that case we defer applying inline-style mutations to the
+     drag surface until the user has committed to a horizontal motion
+     (dx >= 14 AND dx > |dy| * 1.18). Until then we hold a reference to
+     the candidate surface/config in `pending*`, and let vertical scroll
+     through untouched. If vertical dominates first (|dy| > 18 AND |dy| >
+     |dx| * 1.05) we cancel — the user wanted to scroll, not navigate back. */
+  let needsHorizontalCommit = false;
+  let pendingDragSurface = null;
+  let pendingDragConfig = null;
   /* v10.837: tracks whether the config.onDragStart() hook has fired for
      this gesture. Fires exactly once, the first frame the surface visibly
      translates — perfect moment to render any underlay so it's revealed
@@ -181,36 +190,30 @@
         try { if (typeof window.closeFullPageMediaReview === 'function') window.closeFullPageMediaReview(); } catch (_) {}
       }
     },
-    /* v10.836 / v10.839: DM v2 thread page (edge-swipe only).
+    /* v10.836/v10.837: DM v2 thread page.
        - .dm-v2-panel is position: fixed; top: 0; bottom: var(--dm-keyboard-
          bottom) — drags cleanly under finger via inline transform.
-       - `onDragStart` renders the inbox underlay the instant the chat
-         starts translating. The underlay sits at z-index 4890 (chat
-         panel is 4900) so the inbox is revealed in sync with the chat
-         sliding right — no "dark void" frame.
-       - `dismissAnimationMs: 600` (v10.838) — the release animation
-         feels gradual, matching the tap-back inbox-slide-in pace.
+       - `anywhereHorizontal: true` (v10.837): the gesture starts anywhere
+         on the page, not just within EDGE_DETECT_PX. The horizontal-commit
+         logic in onTouchMove keeps vertical message-list scrolling intact
+         until the user clearly intends a horizontal swipe.
+       - `onDragStart` (v10.837): renders the inbox underlay at the precise
+         moment the chat starts translating. The underlay sits at z-index
+         4890 (the chat panel is 4900) so the inbox is revealed in sync
+         with the chat sliding right — no "dark void" frame.
        - Dismiss calls closeDirectMessageThread with `fromGenericSwipe:
          true` so the inbox slide-in animation plays but the panel-
          transform classes (with !important) don't fight the inline
          transform that just animated to 100vw.
        - .dm-v2-list scrollable child is locked during the drag so
-         vertical scroll doesn't bleed through.
-       - anywhereHorizontal was tried in v10.837 then reverted in v10.839
-         — page-wide swipe caused false-positive tap registrations on
-         the inbox cards behind the chat. */
+         vertical scroll doesn't bleed through once committed. */
     {
       backSelector: '.dm-v2-back',
       scrollSelector: '.dm-v2-list',
-      /* v10.839: REVERTED anywhereHorizontal. Page-wide horizontal swipe
-         caused false-positive tap registrations on inbox cards behind the
-         chat because the chat panel and the inbox underlay overlapped in
-         pointer space during the transition. Back to edge-only swipe
-         from the left 24px strip — vertical message scrolling no longer
-         competes with horizontal-commit detection, and the chat panel
-         stays in front of the inbox until the dismiss finalizes. */
+      anywhereHorizontal: true,
       /* v10.838: 600ms dismiss animation (vs the generic 320ms) — matches
-         the muscle memory of the tap-back inbox-slide-in pace. */
+         the muscle memory of the tap-back inbox-slide-in pace that users
+         experienced before the swipe was hooked up to the generic system. */
       dismissAnimationMs: 600,
       getSurface() {
         const panel = document.querySelector('.dm-v2-panel');
@@ -473,22 +476,44 @@
     window.addEventListener('touchmove', dragPreventScrollHandler, { passive: false });
   }
 
-  /* v10.839: REMOVED findAnywhereHorizontalDraggable and the anywhere-
-     horizontal touchstart/touchmove branches. Page-wide swipe caused
-     false-positive tap registrations on the inbox cards behind the chat
-     panel. Reverted to edge-only swipe (touchstart within 24px of the
-     left edge). The DM thread config still has onDragStart and
-     dismissAnimationMs: 600 — those work fine with edge mode. */
+  /* v10.837: scan DRAGGABLE_OVERLAYS for any entry with anywhereHorizontal
+     that currently has a visible surface. Used when touchstart begins
+     OUTSIDE the EDGE_DETECT_PX strip — only valid if such an overlay is
+     active. Returns { surface, config } or null. */
+  function findAnywhereHorizontalDraggable() {
+    for (const config of DRAGGABLE_OVERLAYS) {
+      if (!config.anywhereHorizontal) continue;
+      try {
+        const btn = document.querySelector(config.backSelector);
+        if (!btn || !isElementVisible(btn)) continue;
+        const surface = config.getSurface && config.getSurface();
+        if (surface && surface.isConnected) return { config, surface };
+      } catch (_) {}
+    }
+    return null;
+  }
 
   function onTouchStart(event) {
     if (event.touches.length !== 1) return;          // multi-touch → not our gesture
     if (isInputFocused()) return;
     const touch = event.touches[0];
-    if (touch.clientX > EDGE_DETECT_PX) return;       // not at left edge
+    const isEdgeStart = touch.clientX <= EDGE_DETECT_PX;
     /* v10.272: don't fight horizontal swipe carousels. */
     if (isTouchInsideCarousel(event)) return;
-    /* If no back target exists at all on this page, don't even start. */
-    if (!findBackTarget()) return;
+
+    /* v10.837: anywhere-horizontal mode. If the touch is NOT at the edge,
+       check if any overlay registered with `anywhereHorizontal: true` is
+       currently showing. If yes, allow the gesture to start anywhere but
+       defer surface activation until horizontal motion is committed (so
+       vertical scroll inside the page works normally up until then). */
+    let anywhereDraggable = null;
+    if (!isEdgeStart) {
+      anywhereDraggable = findAnywhereHorizontalDraggable();
+      if (!anywhereDraggable) return;       // not edge AND no anywhere overlay
+    } else {
+      /* Edge mode: if no back target exists on this page at all, bail. */
+      if (!findBackTarget()) return;
+    }
 
     startX = touch.clientX;
     startY = touch.clientY;
@@ -498,12 +523,22 @@
     cancelled = false;
     dragStartHookFired = false;
 
-    /* v10.383: If a draggable overlay is showing, grab its surface and
-       prepare it for direct-manipulation drag. */
-    const draggable = findDraggableForCurrentBack();
-    if (draggable) {
-      activateDragSurface(draggable.surface, draggable.config);
+    if (isEdgeStart) {
+      /* Edge mode — set up the surface immediately. Original behavior. */
+      const draggable = findDraggableForCurrentBack();
+      if (draggable) {
+        activateDragSurface(draggable.surface, draggable.config);
+      } else {
+        dragSurface = null;
+        dragConfig = null;
+      }
     } else {
+      /* Anywhere mode — hold the surface reference but DON'T mutate inline
+         styles yet. Vertical scroll must still work until we know this is
+         a horizontal swipe. */
+      pendingDragSurface = anywhereDraggable.surface;
+      pendingDragConfig = anywhereDraggable.config;
+      needsHorizontalCommit = true;
       dragSurface = null;
       dragConfig = null;
     }
@@ -516,8 +551,39 @@
     const dx = touch.clientX - startX;
     const dy = Math.abs(touch.clientY - startY);
 
-    /* Tight vertical-cancel threshold so diagonally-down swipes don't
-       accidentally trigger back. */
+    /* v10.837: anywhere-horizontal mode — must commit to a direction
+       before we manipulate any styles or steal the gesture. */
+    if (needsHorizontalCommit) {
+      /* Vertical wins: let the page scroll normally, abort our gesture. */
+      if (dy > 18 && dy > Math.abs(dx) * 1.05) {
+        active = false;
+        cancelled = true;
+        needsHorizontalCommit = false;
+        pendingDragSurface = null;
+        pendingDragConfig = null;
+        return;
+      }
+      /* Horizontal commit: dx must be both substantial AND clearly
+         dominant over the vertical component. 14px / 1.18 ratio matches
+         the iMessage/Twitter feel — far enough to mean intent, but tight
+         enough that tiny rightward jitters during a vertical scroll
+         don't accidentally engage. */
+      if (dx >= 14 && dx > dy * 1.18) {
+        needsHorizontalCommit = false;
+        activateDragSurface(pendingDragSurface, pendingDragConfig);
+        pendingDragSurface = null;
+        pendingDragConfig = null;
+        /* fall through to the drag logic below — the surface is now live. */
+      } else {
+        /* Still ambiguous — wait without touching the surface or scroll. */
+        lastX = touch.clientX;
+        return;
+      }
+    }
+
+    /* Edge-mode vertical cancel (legacy behavior — fires only when the
+       gesture started at the edge so we never activated the anywhere
+       commit path). Tight threshold to avoid diagonal false-positives. */
     if (dy > VERTICAL_CANCEL_PX && dy > Math.abs(dx)) {
       active = false;
       cancelled = true;
@@ -551,6 +617,12 @@
     const dx = lastX - startX;
     const duration = Date.now() - startTs;
     active = false;
+    /* v10.837: never-committed anywhere-mode → just tear down state. */
+    if (needsHorizontalCommit) {
+      needsHorizontalCommit = false;
+      pendingDragSurface = null;
+      pendingDragConfig = null;
+    }
 
     if (cancelled || duration > MAX_DURATION_MS) {
       snapIndicatorBack();
@@ -573,6 +645,10 @@
   function onTouchCancel() {
     active = false;
     cancelled = false;
+    /* v10.837: clear anywhere-mode pending state. */
+    needsHorizontalCommit = false;
+    pendingDragSurface = null;
+    pendingDragConfig = null;
     snapIndicatorBack();
     releaseDragSurface(true);
   }
