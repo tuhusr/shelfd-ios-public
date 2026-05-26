@@ -2337,34 +2337,7 @@ function openProfileDatabaseFavorite(event, card) {
   }
 }
 
-/* v10.841: helper — renders the Pro-lock overlay that replaces the
-   normal slot UI when slot index > 0 and the viewer isn't a bypass
-   account. The overlay sits at the same position as the poster card so
-   the row's grid still has 3 equal-width slots, just two of them are
-   locked with a Pro badge. */
-function getProfileTop3SlotLockHTML(index) {
-  return `<div class="profile-fav-poster-card profile-fav-slot-locked" data-profile-slot-locked="1" data-profile-slot-index="${index}" aria-label="Locked — Pro feature">
-    ${getProfileCardRankHTML(index)}
-    <div class="profile-fav-poster profile-fav-slot-locked-poster" aria-hidden="true">
-      <div class="profile-fav-slot-locked-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="5" y="10" width="14" height="10" rx="2"></rect>
-          <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
-        </svg>
-      </div>
-      <div class="profile-fav-slot-locked-badge">Pro</div>
-    </div>
-    <div class="profile-fav-name profile-fav-slot-locked-name">Pro feature</div>
-  </div>`;
-}
-
-/* v10.841: slot is locked when its index is 1 or 2 and the active profile
-   is not the developer / creator-admin (kingkooom). Slot 0 always editable. */
-function isProfileTop3SlotLocked(slotIndex, bypassTop3Lock) {
-  return slotIndex > 0 && !bypassTop3Lock;
-}
-
-function renderDatabaseFavoriteRow(key, pins, bypassTop3Lock = true) {
+function renderDatabaseFavoriteRow(key, pins) {
   const config = getProfileFavoriteConfig(key);
   if (!config) return '';
   const visible = isProfileRowVisible(key);
@@ -2372,10 +2345,6 @@ function renderDatabaseFavoriteRow(key, pins, bypassTop3Lock = true) {
   const rowHead = `<div class="profile-fav-row-head"><div class="profile-fav-row-title">${escHtml(config.label)}</div>${renderProfileVisibilityToggle(key)}</div>`;
   if (!visible) return editing ? `<div class="profile-fav-row">${rowHead}<div class="profile-hidden-note">Hidden from profile. Toggle Display to show this row again.</div></div>` : '';
   const slots = [0,1,2].map(i => {
-    /* v10.841: slots 1 + 2 are Pro-locked unless the viewer is the developer
-       account. Locked slots render a static lock overlay with no click handlers
-       — the user must upgrade to Pro to use them. */
-    if (isProfileTop3SlotLocked(i, bypassTop3Lock)) return getProfileTop3SlotLockHTML(i);
     const entry = getProfileDatabaseFavoriteDisplay(config, pins[config.key]?.[i]);
     const title = entry.title || '';
     const image = entry.image || '';
@@ -2397,7 +2366,7 @@ function renderDatabaseFavoriteRow(key, pins, bypassTop3Lock = true) {
   return `<div class="profile-fav-row">${rowHead}<div class="profile-fav-poster-grid">${slots}</div></div>`;
 }
 
-function renderManualFavoriteRow(key, showcase, bypassTop3Lock = true) {
+function renderManualFavoriteRow(key, showcase) {
   const config = getProfileFavoriteConfig(key);
   if (!config) return '';
   const visible = isProfileRowVisible(key);
@@ -2406,8 +2375,6 @@ function renderManualFavoriteRow(key, showcase, bypassTop3Lock = true) {
   if (!visible) return editing ? `<div class="profile-fav-row">${rowHead}<div class="profile-hidden-note">Hidden from profile. Toggle Display to show this row again.</div></div>` : '';
   const entries = showcase[key] || [0,1,2].map(() => getEmptyManualFavorite());
   const slots = [0,1,2].map(i => {
-    /* v10.841: slots 1 + 2 are Pro-locked unless the viewer is the developer. */
-    if (isProfileTop3SlotLocked(i, bypassTop3Lock)) return getProfileTop3SlotLockHTML(i);
     const entry = entries[i] || getEmptyManualFavorite();
     const rating = isProfileNoRatingFavoriteKey(key) ? '' : (entry.rating || '');
     const cover = entry.image ? `style="background-image:url('${escAttr(entry.image)}')"` : '';
@@ -2422,13 +2389,10 @@ function renderManualFavoriteRow(key, showcase, bypassTop3Lock = true) {
   return `<div class="profile-fav-row">${rowHead}<div class="profile-fav-poster-grid">${slots}</div></div>`;
 }
 
-function renderProfileMediaGroup(group, stats, pins, showcase, bypassTop3Lock = true) {
+function renderProfileMediaGroup(group, stats, pins, showcase) {
   const editing = !isViewingOtherProfile() && profileEditModeOpen;
-  /* v10.841: 'overall' row is always fully unlocked (slot 0, 1, 2 all
-     editable for everyone) — the slot lock applies only to category rows. */
-  const groupBypass = group.key === 'overall' ? true : bypassTop3Lock;
   const statHtml = group.statKeys.length ? `<div class="profile-group-stats profile-group-stats-showcase-labels">${group.statKeys.map(key => `<div class="profile-group-stat" data-profile-group-stat="${escAttr(key)}"><div class="profile-group-stat-value">${getProfileStatValueHTML(stats, key)}</div><div class="profile-group-stat-label">${getProfileShowcaseStatLabelHTML(key)}</div></div>`).join('')}</div>` : '';
-  const rows = group.rows.map(rowKey => PROFILE_DATABASE_FAVORITES.some(item => item.key === rowKey) ? renderDatabaseFavoriteRow(rowKey, pins, groupBypass) : renderManualFavoriteRow(rowKey, showcase, groupBypass)).join('');
+  const rows = group.rows.map(rowKey => PROFILE_DATABASE_FAVORITES.some(item => item.key === rowKey) ? renderDatabaseFavoriteRow(rowKey, pins) : renderManualFavoriteRow(rowKey, showcase)).join('');
   const sectionShareBtn = editing ? '' : `<button type="button" class="profile-section-share-btn" onclick="shareProfileFavoriteRow(event, this)" aria-label="Share ${escAttr(group.title)}">${getProfileFavoriteShareIconHTML()}</button>`;
   return `<section class="profile-media-group ${group.wide ? 'profile-media-group-wide' : ''}" data-profile-group="${escAttr(group.key)}">${sectionShareBtn}<div class="profile-media-head"><div class="profile-media-title-wrap"><div class="profile-media-title">${getProfileGroupTitleHTML(group)}</div><div class="profile-media-sub">${escHtml(group.sub)}</div></div></div>${statHtml}${rows}</section>`;
 }
@@ -2518,14 +2482,11 @@ function renderProfileFavorites() {
   else profileViewingProfile = profile;
   const stats = calculateProfileStats();
   const bypassTop3Lock = isProfileTop3ProBypassProfile(profile);
-  /* v10.841: ALL category groups now show for everyone — the Pro lock has
-     moved from "hide entire row" to "per-slot lock" (slot #1 unlocked,
-     slots #2 + #3 locked unless viewer is the developer account). Removed
-     the trailing renderProfileTop3ProLockedCard() — its replacement is
-     the inline lock overlay rendered by getProfileTop3SlotLockHTML(). */
   const renderedGroups = PROFILE_MEDIA_GROUPS
     .filter(group => isProfileSectionVisibleFromListTabs(group.key, profile))
-    .map(group => renderProfileMediaGroup(group, stats, pins, showcase, bypassTop3Lock));
+    .filter(group => bypassTop3Lock || group.key === 'overall')
+    .map(group => renderProfileMediaGroup(group, stats, pins, showcase));
+  if (!bypassTop3Lock) renderedGroups.push(renderProfileTop3ProLockedCard());
   grid.innerHTML = renderedGroups.join('');
 }
 

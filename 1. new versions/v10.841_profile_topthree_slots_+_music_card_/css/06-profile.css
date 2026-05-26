@@ -1004,35 +1004,6 @@
   .profile-hidden-note { border: 1px dashed rgba(167,139,250,0.22); border-radius: 16px; padding: 14px; color: #8f86aa; font-size: 12px; text-align: center; background: rgba(255,255,255,0.025); }
   .profile-fav-poster-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
   .profile-fav-poster-card { position: relative; min-width: 0; border: 1px solid rgba(167,139,250,0.13); border-radius: 18px; padding: 8px; background: rgba(255,255,255,0.035); text-align: center; }
-  /* v10.841: per-slot Pro lock (slots #2 and #3 in every category row).
-     Same card footprint as a normal slot so the 3-column grid stays even.
-     Static — no click handlers — and a Pro badge stamped on top. */
-  .profile-fav-poster-card.profile-fav-slot-locked { cursor: default; opacity: 0.85; pointer-events: none; }
-  .profile-fav-poster-card.profile-fav-slot-locked .profile-fav-poster.profile-fav-slot-locked-poster {
-    position: relative;
-    background: linear-gradient(135deg, rgba(38,28,72,0.85), rgba(15,10,38,0.92));
-    border: 1px dashed rgba(167,139,250,0.30);
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
-  }
-  .profile-fav-poster-card.profile-fav-slot-locked .profile-fav-slot-locked-icon {
-    color: rgba(196,181,253,0.78);
-    width: 28px; height: 28px;
-    display: inline-flex; align-items: center; justify-content: center;
-  }
-  .profile-fav-poster-card.profile-fav-slot-locked .profile-fav-slot-locked-icon svg { width: 100%; height: 100%; }
-  .profile-fav-poster-card.profile-fav-slot-locked .profile-fav-slot-locked-badge {
-    color: #c4b5fd;
-    background: rgba(124,58,237,0.18);
-    border: 1px solid rgba(167,139,250,0.34);
-    border-radius: 999px;
-    padding: 3px 9px;
-    font-size: 9px; font-weight: 900; letter-spacing: 1.1px; text-transform: uppercase;
-  }
-  .profile-fav-poster-card.profile-fav-slot-locked .profile-fav-slot-locked-name {
-    margin-top: 6px;
-    color: rgba(196,181,253,0.62);
-    font-size: 10px; font-weight: 700; letter-spacing: 0.4px;
-  }
   .profile-fav-share-btn { display: none; }
   .profile-fav-share-icon { width: 10px; height: 10px; display: block; }
   .profile-section-share-btn { position: absolute; top: 12px; right: 12px; z-index: 4; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: none; background: transparent; color: #ffffff; cursor: pointer; opacity: 0.8; transition: opacity 0.18s; }
