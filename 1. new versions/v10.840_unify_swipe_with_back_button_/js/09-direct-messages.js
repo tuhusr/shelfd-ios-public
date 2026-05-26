@@ -456,12 +456,9 @@ function unlockBodyForDirectMessagesPage() {
 /* v71: mobile DM swipe-right close */
 let directMessagesSwipeState = null;
 let directMessagesSwipeRaf = 0;
-/* v10.840: thread edge swipe restored — generic 31-edge-swipe-back.js
-   no longer handles DM thread because its inline-transform path didn't
-   match the back button's CSS-variable-driven animation. The custom
-   system below uses --dm-thread-swipe-x (same mechanism as tap-back),
-   so swipe and tap-back are now visually identical. */
-const DIRECT_MESSAGES_THREAD_EDGE_SWIPE_PX = 34;
+/* v10.836: DIRECT_MESSAGES_THREAD_EDGE_SWIPE_PX removed — thread-page
+   swipe-back is handled by 31-edge-swipe-back.js. Only inbox page-level
+   swipe remains here. */
 const DIRECT_MESSAGES_PAGE_EDGE_SWIPE_PX = 24;
 const DIRECT_MESSAGES_THREAD_NAV_ANIMATION_MS = 600;
 
@@ -483,24 +480,13 @@ function shouldIgnoreDirectMessagesSwipe(target, allowInteractiveEdgeSwipe = fal
   return !!target.closest('button, a');
 }
 
-/* v10.840: thread branch restored — drives --dm-thread-swipe-x which the
-   CSS rule on .dm-thread-swipe-revealing .dm-v2-panel translates to a
-   transform with !important. Border-radius grows to 30px as the panel
-   slides out (matches iOS native page-transition feel). */
+/* v10.836: applyDirectMessagesSwipeVisual no longer has a thread branch.
+   Thread mode is handled by 31-edge-swipe-back.js. Only inbox page-level
+   swipe values flow through here. */
 function applyDirectMessagesSwipeVisual(page, x) {
   if (!page) return;
   const viewport = Math.max(320, window.innerWidth || 390);
   const nextX = Math.max(0, Math.min(x, viewport + 40));
-  const state = directMessagesSwipeState;
-  if (state?.mode === 'thread') {
-    const progress = Math.min(1, nextX / Math.min(viewport, 430));
-    const radius = Math.round(10 + progress * 20);
-    page.style.setProperty('--dm-thread-swipe-x', nextX + 'px');
-    page.style.setProperty('--dm-thread-swipe-radius', `${radius}px`);
-    page.style.setProperty('--dm-swipe-x', '0px');
-    page.style.setProperty('--dm-swipe-opacity', '1');
-    return;
-  }
   const nextOpacity = Math.max(0.28, 1 - (nextX / Math.min(viewport, 430)) * 0.82);
   page.style.setProperty('--dm-swipe-x', nextX + 'px');
   page.style.setProperty('--dm-swipe-opacity', String(nextOpacity));
@@ -515,48 +501,16 @@ function scheduleDirectMessagesSwipeVisual(page, x) {
   });
 }
 
-/* v10.840: restored — adds the dm-thread-swipe-revealing class on
-   touchstart (so the CSS rule with !important transform = var begins
-   driving the panel) and creates the inbox underlay snapshot for the
-   reveal-behind effect. Mirror cleanup on cancel/abort. */
-function prepareDirectMessageThreadSwipeReveal(page, state) {
-  if (!page || !state || state.mode !== 'thread') return;
-  if (state.prepared) return;
-  state.prepared = true;
-  renderDirectMessageSwipeInboxUnderlay(page);
-  page.classList.add('dm-thread-swipe-revealing');
-  page.style.setProperty('--dm-thread-swipe-x', '0px');
-  page.style.setProperty('--dm-thread-swipe-radius', '0px');
-  resetDirectMessageKeyboardLift();
-}
-
-function cleanupDirectMessageThreadSwipeReveal(page, state) {
-  if (!page || !state || state.mode !== 'thread' || !state.prepared) return;
-  state.prepared = false;
-  page.classList.remove('dm-thread-swipe-revealing', 'dm-thread-swipe-cancel', 'dm-thread-swipe-closing');
-  page.style.setProperty('--dm-thread-swipe-x', '0px');
-  page.style.setProperty('--dm-thread-swipe-radius', '0px');
-  page.querySelectorAll('.dm-thread-swipe-underlay').forEach(node => node.remove());
-}
+/* v10.836: prepareDirectMessageThreadSwipeReveal +
+   cleanupDirectMessageThreadSwipeReveal removed — only the touchstart/move
+   thread branch (now disabled) ever called them. The tap-back animation
+   in closeDirectMessageThread() inlines its own setup using
+   renderDirectMessageSwipeInboxUnderlay() + classes/vars directly. */
 
 function finishDirectMessagesSwipeClose(page, state = directMessagesSwipeState) {
   if (!page) return;
   const viewport = Math.max(320, window.innerWidth || 390);
-  /* v10.840: thread branch restored — adds dm-thread-swipe-closing class
-     so the CSS transition fires (transform 0.30s cubic-bezier from
-     current --dm-thread-swipe-x to viewport+48). Same animation flow as
-     the tap-back, just driven from a different starting position. */
-  if (state?.mode === 'thread') {
-    page.classList.remove('dm-swiping', 'dm-thread-swipe-cancel');
-    page.classList.add('dm-thread-swipe-closing');
-    page.style.setProperty('--dm-thread-swipe-x', (viewport + 48) + 'px');
-    page.style.setProperty('--dm-thread-swipe-radius', '30px');
-    window.setTimeout(() => {
-      closeDirectMessageThread({ animate: false });
-      resetDirectMessagesSwipeVisual(page);
-    }, 310);
-    return;
-  }
+  /* v10.836: removed thread branch — generic edge-swipe-back.js owns it. */
   page.classList.remove('dm-swiping', 'dm-swipe-cancel');
   page.classList.add('dm-swipe-closing');
   page.style.setProperty('--dm-swipe-x', (viewport + 48) + 'px');
@@ -569,21 +523,7 @@ function finishDirectMessagesSwipeClose(page, state = directMessagesSwipeState) 
 
 function cancelDirectMessagesSwipeClose(page, state = directMessagesSwipeState) {
   if (!page) return;
-  /* v10.840: thread branch restored — adds dm-thread-swipe-cancel which
-     triggers a snap-back CSS transition (transform 0.26s back to 0). */
-  if (state?.mode === 'thread') {
-    page.classList.remove('dm-swiping', 'dm-thread-swipe-closing');
-    page.classList.add('dm-thread-swipe-cancel');
-    page.style.setProperty('--dm-thread-swipe-x', '0px');
-    page.style.setProperty('--dm-thread-swipe-radius', '0px');
-    window.setTimeout(() => {
-      page.classList.remove('dm-thread-swipe-cancel', 'dm-thread-swipe-revealing');
-      page.style.setProperty('--dm-thread-swipe-x', '0px');
-      page.style.setProperty('--dm-thread-swipe-radius', '0px');
-      page.querySelectorAll('.dm-thread-swipe-underlay').forEach(node => node.remove());
-    }, 270);
-    return;
-  }
+  /* v10.836: removed thread branch — generic edge-swipe-back.js owns it. */
   page.classList.remove('dm-swiping', 'dm-swipe-closing');
   page.classList.add('dm-swipe-cancel');
   page.style.setProperty('--dm-swipe-x', '0px');
@@ -601,29 +541,34 @@ function initDirectMessagesSwipeClose() {
     if (!isDirectMessagesPageOpen() || event.touches.length !== 1) return;
     const touch = event.touches[0];
     const isThreadMode = activeDmThreadId && !activeDmGroupEditThreadId;
-    /* v10.840: thread mode re-enabled. Uses the SAME CSS-variable mechanism
-       as the back-button tap-back (closeDirectMessageThread), so swipe
-       and tap-back animations are now visually unified. The generic
-       31-edge-swipe-back.js no longer competes here. */
-    const edgeSwipe = isThreadMode
-      ? touch.clientX <= DIRECT_MESSAGES_THREAD_EDGE_SWIPE_PX
-      : touch.clientX <= DIRECT_MESSAGES_PAGE_EDGE_SWIPE_PX;
+    /* v10.836: thread-page swipe-back is handled by 31-edge-swipe-back.js
+       (the same generic system used by the discovery media profile and every
+       other back-buttoned page in the app). Two systems on the same
+       touchstart caused a CSS specificity collision — the !important
+       transform rule on .dm-thread-swipe-revealing .dm-v2-panel would beat
+       the generic system's inline transform, snapping the panel to 0px
+       the instant the user touched the edge. Skipping thread mode here
+       leaves only the generic drag-to-dismiss flow active for thread
+       swipe-back. The page-level (inbox) swipe-close path below stays
+       active because the generic system doesn't cover the inbox close. */
+    if (isThreadMode) return;
+    const edgeSwipe = touch.clientX <= DIRECT_MESSAGES_PAGE_EDGE_SWIPE_PX;
     if (!edgeSwipe || shouldIgnoreDirectMessagesSwipe(event.target, isThreadMode)) return;
     const now = performance.now();
+    /* v10.836: mode is always 'page' here (thread mode short-circuited above).
+       Removed unused `ghost` and `prepared` fields. */
     directMessagesSwipeState = {
       startX: touch.clientX,
       startY: touch.clientY,
       lastX: touch.clientX,
       lastT: now,
       startT: now,
-      mode: isThreadMode ? 'thread' : 'page',
+      mode: 'page',
       threadId: activeDmThreadId || '',
       pendingX: 0,
       swiping: false,
-      verticalLocked: false,
-      prepared: false
+      verticalLocked: false
     };
-    if (isThreadMode) prepareDirectMessageThreadSwipeReveal(page, directMessagesSwipeState);
   }, { passive: true });
 
   page.addEventListener('touchmove', (event) => {
@@ -639,13 +584,11 @@ function initDirectMessagesSwipeClose() {
     if (!directMessagesSwipeState.swiping) {
       if (dx < 0 || (Math.abs(dy) > 18 && Math.abs(dy) > Math.abs(dx) * 1.05)) {
         directMessagesSwipeState.verticalLocked = true;
-        cleanupDirectMessageThreadSwipeReveal(page, directMessagesSwipeState);
         return;
       }
       if (directMessagesSwipeState.verticalLocked) return;
       if (dx < 14 || dx < Math.abs(dy) * 1.18) return;
       directMessagesSwipeState.swiping = true;
-      prepareDirectMessageThreadSwipeReveal(page, directMessagesSwipeState);
       page.classList.add('dm-swiping');
     }
 
@@ -665,7 +608,6 @@ function initDirectMessagesSwipeClose() {
     }
     const page = document.getElementById('direct-messages-page');
     if (!state.swiping) {
-      cleanupDirectMessageThreadSwipeReveal(page, state);
       return;
     }
     const elapsed = Math.max(1, performance.now() - state.startT);
@@ -2622,21 +2564,50 @@ function openDirectMessageThread(threadId = '') {
 
 function closeDirectMessageThread(options = {}) {
   const animate = options !== false && options?.animate !== false;
+  /* v10.836: when called from the generic 31-edge-swipe-back drag, the panel
+     is ALREADY translated to 100vw via inline style. Skip the panel-transform
+     classes (.dm-thread-swipe-revealing / .dm-thread-swipe-closing) that
+     would force `transform: translate3d(var(--dm-thread-swipe-x), 0, 0)
+     !important` and snap the panel back to 0px before re-animating it off-
+     screen. Keep the inbox slide-in animation (.dm-nav-close-thread on the
+     underlay) so the visual continuity matches the tap-back path. */
+  const fromGenericSwipe = !!(options && options.fromGenericSwipe);
   const page = document.getElementById('direct-messages-page');
   if (animate && page && activeDmThreadId) {
     const viewport = Math.max(320, window.innerWidth || 390);
     resetDirectMessageKeyboardLift();
-    renderDirectMessageSwipeInboxUnderlay(page);
+    /* v10.837: when fromGenericSwipe, the underlay was already rendered by
+       the 31-edge-swipe-back onDragStart hook the instant the drag began —
+       so the inbox was visible behind the chat throughout the swipe. Re-
+       rendering here would cause a brief remove+recreate flicker. Skip. */
+    if (!fromGenericSwipe) {
+      renderDirectMessageSwipeInboxUnderlay(page);
+    }
     page.classList.remove('dm-nav-open-thread', 'dm-thread-swipe-cancel');
-    page.classList.add('dm-thread-swipe-revealing', 'dm-nav-close-thread');
-    page.style.setProperty('--dm-thread-swipe-x', '0px');
-    page.style.setProperty('--dm-thread-swipe-radius', '0px');
-    void page.offsetWidth;
-    requestAnimationFrame(() => {
-      page.classList.add('dm-thread-swipe-closing');
-      page.style.setProperty('--dm-thread-swipe-x', (viewport + 48) + 'px');
+    if (fromGenericSwipe) {
+      /* v10.837: do NOT add `dm-nav-close-thread` — its `dmInboxEnterFromLeft`
+         keyframe animation would reset the underlay to translate3d(-32vw,0,0)
+         at frame 0 and slide back, causing a visible jump after the chat
+         finishes its drag (the underlay was sitting at translate3d(0,0,0)
+         throughout the swipe). No class needed — the underlay is already at
+         its final position, just finalize state. */
+    } else {
+      page.classList.add('dm-thread-swipe-revealing', 'dm-nav-close-thread');
+      page.style.setProperty('--dm-thread-swipe-x', '0px');
       page.style.setProperty('--dm-thread-swipe-radius', '0px');
-    });
+      void page.offsetWidth;
+      requestAnimationFrame(() => {
+        page.classList.add('dm-thread-swipe-closing');
+        page.style.setProperty('--dm-thread-swipe-x', (viewport + 48) + 'px');
+        page.style.setProperty('--dm-thread-swipe-radius', '0px');
+      });
+    }
+    /* v10.837: when triggered by a swipe, finalize on the next frame —
+       the chat already finished its slide-out via the generic system's
+       320ms transition before dismiss fired, so there's nothing left to
+       wait for. Tap-back path keeps the 640ms timeout for its slide
+       animation to play. */
+    const finalizeDelay = fromGenericSwipe ? 16 : (DIRECT_MESSAGES_THREAD_NAV_ANIMATION_MS + 40);
     window.setTimeout(() => {
       activeDmGroupEditThreadId = '';
       dmGroupEditPhotoData = '';
@@ -2650,7 +2621,7 @@ function closeDirectMessageThread(options = {}) {
         });
       });
       persistUiState();
-    }, DIRECT_MESSAGES_THREAD_NAV_ANIMATION_MS + 40);
+    }, finalizeDelay);
     return;
   }
   activeDmGroupEditThreadId = '';
@@ -2776,9 +2747,9 @@ function renderDirectMessageSwipeInboxUnderlay(page = document.getElementById('d
   page.appendChild(underlay);
   return underlay;
 }
-/* v10.840: removed window exposure — the generic edge-swipe-back system
-   no longer drives DM thread swipes. The custom system in this file
-   calls renderDirectMessageSwipeInboxUnderlay directly. */
+/* v10.837: expose so 31-edge-swipe-back.js can render the inbox underlay
+   at drag-start (instant reveal behind the chat as it slides right). */
+window.renderDirectMessageSwipeInboxUnderlay = renderDirectMessageSwipeInboxUnderlay;
 
 async function sendDirectMessage(threadId = '') {
   const input = document.getElementById('dm-message-input');

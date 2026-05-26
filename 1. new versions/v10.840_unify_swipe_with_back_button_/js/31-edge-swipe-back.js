@@ -124,12 +124,13 @@
     '.mylist-episode-page-back',
     /* v10.386: My List → Full Page Media Review */
     '.mylist-media-review-back',
-    /* v10.840: .dm-v2-back removed — DM thread swipe-back is handled by
-       the custom system in 09-direct-messages.js which drives the
-       transform via --dm-thread-swipe-x. Both swipe and tap-back use
-       the same CSS-variable mechanism, so animations are visually
-       identical. Generic system inline transform would override the
-       CSS path and break the unified flow. */
+    /* v10.836: DM v2 thread page — handled by an explicit
+       DRAGGABLE_OVERLAYS entry below so dismiss can call
+       closeDirectMessageThread({ fromGenericSwipe: true }) and skip the
+       panel-transform animation that would otherwise fight the inline
+       transform from this drag. Selector still listed here as a fallback
+       so findBackTarget() can locate it for the gesture-start gate. */
+    '.dm-v2-back',
     /* Generic */
     '[aria-label="Back" i]',
     '[aria-label="Go back" i]',
@@ -180,15 +181,57 @@
         try { if (typeof window.closeFullPageMediaReview === 'function') window.closeFullPageMediaReview(); } catch (_) {}
       }
     },
-    /* v10.840: DM v2 thread page entry REMOVED. The custom DM swipe-back
-       system in 09-direct-messages.js (initDirectMessagesSwipeClose) is
-       re-enabled instead. That system drives the .dm-v2-panel transform
-       via the --dm-thread-swipe-x CSS variable — the EXACT same mechanism
-       as the back-button tap-back in closeDirectMessageThread(). So swipe
-       and tap-back animations are now visually identical (same 300ms CSS
-       transition, same easing, same inbox-slide-in via dmInboxEnterFromLeft).
-       Generic system being involved here only caused the two mechanisms
-       to fight (CSS !important transform vs inline transform). */
+    /* v10.836 / v10.839: DM v2 thread page (edge-swipe only).
+       - .dm-v2-panel is position: fixed; top: 0; bottom: var(--dm-keyboard-
+         bottom) — drags cleanly under finger via inline transform.
+       - `onDragStart` renders the inbox underlay the instant the chat
+         starts translating. The underlay sits at z-index 4890 (chat
+         panel is 4900) so the inbox is revealed in sync with the chat
+         sliding right — no "dark void" frame.
+       - `dismissAnimationMs: 600` (v10.838) — the release animation
+         feels gradual, matching the tap-back inbox-slide-in pace.
+       - Dismiss calls closeDirectMessageThread with `fromGenericSwipe:
+         true` so the inbox slide-in animation plays but the panel-
+         transform classes (with !important) don't fight the inline
+         transform that just animated to 100vw.
+       - .dm-v2-list scrollable child is locked during the drag so
+         vertical scroll doesn't bleed through.
+       - anywhereHorizontal was tried in v10.837 then reverted in v10.839
+         — page-wide swipe caused false-positive tap registrations on
+         the inbox cards behind the chat. */
+    {
+      backSelector: '.dm-v2-back',
+      scrollSelector: '.dm-v2-list',
+      /* v10.839: REVERTED anywhereHorizontal. Page-wide horizontal swipe
+         caused false-positive tap registrations on inbox cards behind the
+         chat because the chat panel and the inbox underlay overlapped in
+         pointer space during the transition. Back to edge-only swipe
+         from the left 24px strip — vertical message scrolling no longer
+         competes with horizontal-commit detection, and the chat panel
+         stays in front of the inbox until the dismiss finalizes. */
+      /* v10.838: 600ms dismiss animation (vs the generic 320ms) — matches
+         the muscle memory of the tap-back inbox-slide-in pace. */
+      dismissAnimationMs: 600,
+      getSurface() {
+        const panel = document.querySelector('.dm-v2-panel');
+        return (panel && panel.isConnected) ? panel : null;
+      },
+      onDragStart() {
+        try {
+          if (typeof window.renderDirectMessageSwipeInboxUnderlay === 'function') {
+            const page = document.getElementById('direct-messages-page');
+            window.renderDirectMessageSwipeInboxUnderlay(page);
+          }
+        } catch (_) {}
+      },
+      dismiss() {
+        try {
+          if (typeof window.closeDirectMessageThread === 'function') {
+            window.closeDirectMessageThread({ animate: true, fromGenericSwipe: true });
+          }
+        } catch (_) {}
+      }
+    }
   ];
 
   function isElementVisible(el) {
