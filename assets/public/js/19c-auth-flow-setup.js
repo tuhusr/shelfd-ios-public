@@ -221,8 +221,12 @@
     const el = $(id);
     if (!el) return false;
     el.setAttribute('aria-hidden', 'false');
+    resetAuthPanelScroll(el);
     /* rAF so the transform transition kicks in cleanly from translateY(100%) */
-    requestAnimationFrame(() => el.classList.add('is-open'));
+    requestAnimationFrame(() => {
+      el.classList.add('is-open');
+      resetAuthPanelScroll(el);
+    });
     document.body.classList.add('shelfd-auth-page-open');
     /* v834: hide the entire landing/app shell so the GIS Google iframe
        (the iOS PWA keyboard blocker) can't intercept input hit-tests. */
@@ -245,6 +249,22 @@
   }
   function closeAllPanels() {
     OPEN_PANEL_STACK.slice().forEach(closePanel);
+  }
+
+  function resetAuthPanelScroll(panelOrId) {
+    const panel = typeof panelOrId === 'string' ? $(panelOrId) : panelOrId;
+    if (!panel) return;
+    try { panel.scrollTop = 0; } catch (_) {}
+    try { panel.scrollTo({ top: 0, left: 0, behavior: 'auto' }); } catch (_) {}
+    panel.querySelectorAll('.shelfd-auth-shell, .shelfd-auth-form, .shelfd-setup-step').forEach(el => {
+      try { el.scrollTop = 0; } catch (_) {}
+    });
+  }
+
+  function focusWithoutScrolling(el) {
+    if (!el) return;
+    try { el.focus({ preventScroll: true }); return; } catch (_) {}
+    try { el.focus(); } catch (_) {}
   }
 
   /* ───────── Eye toggles ───────── */
@@ -814,8 +834,14 @@
 
     setSetupStep(step);
     openPanel('shelfd-setup-page');
-    if (step === 1) setTimeout(() => { try { $('shelfd-setup-username').focus(); } catch(_){} }, 80);
-    if (step === 2) setTimeout(() => { try { $('shelfd-setup-display-name').focus(); } catch(_){} }, 80);
+    resetAuthPanelScroll(root);
+    requestAnimationFrame(() => resetAuthPanelScroll(root));
+    setTimeout(() => {
+      resetAuthPanelScroll(root);
+      if (step === 1) focusWithoutScrolling($('shelfd-setup-username'));
+      if (step === 2) focusWithoutScrolling($('shelfd-setup-display-name'));
+      resetAuthPanelScroll(root);
+    }, 120);
   }
 
   function setSetupStep(step) {
@@ -826,6 +852,7 @@
     root.querySelectorAll('[data-setup-step]').forEach(el => {
       el.hidden = Number(el.dataset.setupStep) !== n;
     });
+    resetAuthPanelScroll(root);
   }
 
   function closeShelfdSetupPage(opts) {
