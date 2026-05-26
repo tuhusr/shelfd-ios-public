@@ -233,8 +233,8 @@
 <link rel="stylesheet" href="/css/17-auth-flow-setup.css?v=10842_app_review_auth_delete_fixes">
 <link rel="stylesheet" href="/css/18-dm-instagram-rebuild.css?v=10828_dm_new_message_modal_position_lock">
 
-<meta name="screenlist-build-version" content="2026-05-26-v10.842_app_review_auth_delete_fixes">
-<script>window.SHELFD_SHARE_ORIGIN = "https://myshelfd.com"; window.SCREENLIST_BUILD_VERSION = "2026-05-26-v10.842_app_review_auth_delete_fixes"; window.SCREENLIST_DISPLAY_VERSION = "v10.842-May 26th, 2026";</script>
+<meta name="screenlist-build-version" content="2026-05-26-v10.843_delete_modal_onboarding_layer">
+<script>window.SHELFD_SHARE_ORIGIN = "https://myshelfd.com"; window.SCREENLIST_BUILD_VERSION = "2026-05-26-v10.843_delete_modal_onboarding_layer"; window.SCREENLIST_DISPLAY_VERSION = "v10.843-May 26th, 2026";</script>
 <script>
   /* v10.588: cleanup â€” removed dead window.continueWithoutSignIn
      (button deleted v10.544), [data-landing-creator-action] (removed
@@ -1491,18 +1491,6 @@
   </div>
 </div>
 
-<!-- v10.543: Delete account confirm modal -->
-<div class="modal-overlay" id="delete-account-modal" style="display:none" onclick="closeDeleteAccountModal()">
-  <div class="modal" onclick="event.stopPropagation()" style="max-width:390px;text-align:center;">
-    <h3 style="margin-bottom:10px;">Delete Account?</h3>
-    <p style="color:#9990b3;font-size:14px;line-height:1.5;margin-bottom:20px;">This permanently deletes your Shelfd profile, lists, ratings, and all activity. <strong style="color:#f8f4ff;">This cannot be undone.</strong></p>
-    <div class="modal-actions" style="justify-content:center;">
-      <button class="btn-secondary" onclick="closeDeleteAccountModal()">Cancel</button>
-      <button class="btn-danger" id="delete-account-confirm-btn" onclick="confirmDeleteAccount()">Delete</button>
-    </div>
-  </div>
-</div>
-
 <!-- Modal -->
 <div class="modal-overlay" id="modal" style="display:none" onclick="closeModal()">
   <div class="modal add-title-modal" onclick="event.stopPropagation()">
@@ -1742,6 +1730,19 @@
 
 
 </div> <!-- end app-container -->
+
+<!-- v10.843: Delete account confirm modal lives outside #app-container so it
+     can appear above auth/onboarding pages while the app shell is hidden. -->
+<div class="modal-overlay" id="delete-account-modal" style="display:none" onclick="closeDeleteAccountModal()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:390px;text-align:center;">
+    <h3 style="margin-bottom:10px;">Delete Account?</h3>
+    <p style="color:#9990b3;font-size:14px;line-height:1.5;margin-bottom:20px;">This permanently deletes your Shelfd profile, lists, ratings, and all activity. <strong style="color:#f8f4ff;">This cannot be undone.</strong></p>
+    <div class="modal-actions" style="justify-content:center;">
+      <button class="btn-secondary" onclick="closeDeleteAccountModal()">Cancel</button>
+      <button class="btn-danger" id="delete-account-confirm-btn" onclick="confirmDeleteAccount()">Delete</button>
+    </div>
+  </div>
+</div>
 
 <!-- v10.695: Firebase 10.12.0 SDKs bundled locally instead of fetched from
      gstatic.com on every cold start. Saves ~550 KB of parser-blocking
