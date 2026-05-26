@@ -2576,21 +2576,10 @@ function closeDirectMessageThread(options = {}) {
   if (animate && page && activeDmThreadId) {
     const viewport = Math.max(320, window.innerWidth || 390);
     resetDirectMessageKeyboardLift();
-    /* v10.837: when fromGenericSwipe, the underlay was already rendered by
-       the 31-edge-swipe-back onDragStart hook the instant the drag began —
-       so the inbox was visible behind the chat throughout the swipe. Re-
-       rendering here would cause a brief remove+recreate flicker. Skip. */
-    if (!fromGenericSwipe) {
-      renderDirectMessageSwipeInboxUnderlay(page);
-    }
+    renderDirectMessageSwipeInboxUnderlay(page);
     page.classList.remove('dm-nav-open-thread', 'dm-thread-swipe-cancel');
     if (fromGenericSwipe) {
-      /* v10.837: do NOT add `dm-nav-close-thread` — its `dmInboxEnterFromLeft`
-         keyframe animation would reset the underlay to translate3d(-32vw,0,0)
-         at frame 0 and slide back, causing a visible jump after the chat
-         finishes its drag (the underlay was sitting at translate3d(0,0,0)
-         throughout the swipe). No class needed — the underlay is already at
-         its final position, just finalize state. */
+      page.classList.add('dm-nav-close-thread');
     } else {
       page.classList.add('dm-thread-swipe-revealing', 'dm-nav-close-thread');
       page.style.setProperty('--dm-thread-swipe-x', '0px');
@@ -2602,12 +2591,6 @@ function closeDirectMessageThread(options = {}) {
         page.style.setProperty('--dm-thread-swipe-radius', '0px');
       });
     }
-    /* v10.837: when triggered by a swipe, finalize on the next frame —
-       the chat already finished its slide-out via the generic system's
-       320ms transition before dismiss fired, so there's nothing left to
-       wait for. Tap-back path keeps the 640ms timeout for its slide
-       animation to play. */
-    const finalizeDelay = fromGenericSwipe ? 16 : (DIRECT_MESSAGES_THREAD_NAV_ANIMATION_MS + 40);
     window.setTimeout(() => {
       activeDmGroupEditThreadId = '';
       dmGroupEditPhotoData = '';
@@ -2621,7 +2604,7 @@ function closeDirectMessageThread(options = {}) {
         });
       });
       persistUiState();
-    }, finalizeDelay);
+    }, DIRECT_MESSAGES_THREAD_NAV_ANIMATION_MS + 40);
     return;
   }
   activeDmGroupEditThreadId = '';
@@ -2747,9 +2730,6 @@ function renderDirectMessageSwipeInboxUnderlay(page = document.getElementById('d
   page.appendChild(underlay);
   return underlay;
 }
-/* v10.837: expose so 31-edge-swipe-back.js can render the inbox underlay
-   at drag-start (instant reveal behind the chat as it slides right). */
-window.renderDirectMessageSwipeInboxUnderlay = renderDirectMessageSwipeInboxUnderlay;
 
 async function sendDirectMessage(threadId = '') {
   const input = document.getElementById('dm-message-input');

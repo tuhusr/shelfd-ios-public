@@ -66,23 +66,6 @@
      is clipped to the new shape). On snap-back we restore the originals. */
   let dragSurfacePrevBorderRadius = '';
   let dragSurfacePrevOverflow = '';
-  /* v10.837: anywhere-horizontal mode state.
-     When a registered overlay has `anywhereHorizontal: true`, the gesture
-     can start ANYWHERE on the page (not just within the EDGE_DETECT_PX
-     strip). In that case we defer applying inline-style mutations to the
-     drag surface until the user has committed to a horizontal motion
-     (dx >= 14 AND dx > |dy| * 1.18). Until then we hold a reference to
-     the candidate surface/config in `pending*`, and let vertical scroll
-     through untouched. If vertical dominates first (|dy| > 18 AND |dy| >
-     |dx| * 1.05) we cancel — the user wanted to scroll, not navigate back. */
-  let needsHorizontalCommit = false;
-  let pendingDragSurface = null;
-  let pendingDragConfig = null;
-  /* v10.837: tracks whether the config.onDragStart() hook has fired for
-     this gesture. Fires exactly once, the first frame the surface visibly
-     translates — perfect moment to render any underlay so it's revealed
-     in sync with the chat sliding out. */
-  let dragStartHookFired = false;
 
   function isTouchDevice() {
     return 'ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0;
@@ -186,38 +169,20 @@
         try { if (typeof window.closeFullPageMediaReview === 'function') window.closeFullPageMediaReview(); } catch (_) {}
       }
     },
-    /* v10.836/v10.837: DM v2 thread page.
-       - .dm-v2-panel is position: fixed; top: 0; bottom: var(--dm-keyboard-
-         bottom) — drags cleanly under finger via inline transform.
-       - `anywhereHorizontal: true` (v10.837): the gesture starts anywhere
-         on the page, not just within EDGE_DETECT_PX. The horizontal-commit
-         logic in onTouchMove keeps vertical message-list scrolling intact
-         until the user clearly intends a horizontal swipe.
-       - `onDragStart` (v10.837): renders the inbox underlay at the precise
-         moment the chat starts translating. The underlay sits at z-index
-         4890 (the chat panel is 4900) so the inbox is revealed in sync
-         with the chat sliding right — no "dark void" frame.
-       - Dismiss calls closeDirectMessageThread with `fromGenericSwipe:
-         true` so the inbox slide-in animation plays but the panel-
-         transform classes (with !important) don't fight the inline
-         transform that just animated to 100vw.
-       - .dm-v2-list scrollable child is locked during the drag so
-         vertical scroll doesn't bleed through once committed. */
+    /* v10.836: DM v2 thread page. .dm-v2-panel is position: fixed; top: 0;
+       bottom: var(--dm-keyboard-bottom) — drags cleanly under finger via
+       inline transform. Dismiss calls closeDirectMessageThread with
+       `fromGenericSwipe: true` so the inbox slide-in animation plays but
+       the panel-transform classes (which carry !important) don't fight
+       the inline transform that just animated to 100vw. The .dm-v2-list
+       scrollable child is locked during the drag so vertical scroll
+       doesn't bleed through. */
     {
       backSelector: '.dm-v2-back',
       scrollSelector: '.dm-v2-list',
-      anywhereHorizontal: true,
       getSurface() {
         const panel = document.querySelector('.dm-v2-panel');
         return (panel && panel.isConnected) ? panel : null;
-      },
-      onDragStart() {
-        try {
-          if (typeof window.renderDirectMessageSwipeInboxUnderlay === 'function') {
-            const page = document.getElementById('direct-messages-page');
-            window.renderDirectMessageSwipeInboxUnderlay(page);
-          }
-        } catch (_) {}
       },
       dismiss() {
         try {
@@ -415,111 +380,80 @@
     return false;
   }
 
-  /* v10.837: extracted into its own function so it can run lazily for
-     anywhere-horizontal mode. Sets up the inline styles / scroll-lock /
-     preventDefault listener that turn an element into a dragged surface. */
-  function activateDragSurface(surface, config) {
-    if (!surface) return;
-    dragSurface = surface;
-    dragConfig = config || {};
-    dragPrevTransform = dragSurface.style.transform || '';
-    dragPrevTransition = dragSurface.style.transition || '';
-    dragPrevWillChange = dragSurface.style.willChange || '';
-    dragSurface.style.transition = 'none';
-    dragSurface.style.willChange = 'transform';
-    /* v10.384: Lock the outgoing page so it can't scroll while the
-       surface is being dragged. */
-    dragSurfacePrevTouchAction = dragSurface.style.touchAction || '';
-    dragSurface.style.touchAction = 'none';
-    /* v10.385/v10.388: rounded corners during the slide-out. */
-    dragSurfacePrevBorderRadius = dragSurface.style.borderRadius || '';
-    dragSurfacePrevOverflow = dragSurface.style.overflow || '';
-    dragSurface.style.borderRadius = '45px';
-    dragSurface.style.overflow = 'hidden';
-    /* v10.386/v10.486: scroll-container lock. */
-    const scrollSelector = dragConfig.scrollSelector;
-    const scrollEl = dragConfig.scrollEl
-      || (scrollSelector ? dragSurface.querySelector(scrollSelector) : null);
-    if (scrollEl) {
-      dragScrollEl = scrollEl;
-      dragScrollTop = scrollEl.scrollTop;
-      dragScrollPrevOverflow = scrollEl.style.overflow || '';
-      dragScrollPrevTouchAction = scrollEl.style.touchAction || '';
-      dragScrollPrevOverscroll = scrollEl.style.overscrollBehavior || '';
-      scrollEl.style.overflow = 'hidden';
-      scrollEl.style.touchAction = 'none';
-      scrollEl.style.overscrollBehavior = 'none';
-      scrollEl.scrollTop = dragScrollTop;
-    }
-    dragPreventScrollHandler = function (e) {
-      if (dragSurface && e.cancelable) e.preventDefault();
-    };
-    window.addEventListener('touchmove', dragPreventScrollHandler, { passive: false });
-  }
-
-  /* v10.837: scan DRAGGABLE_OVERLAYS for any entry with anywhereHorizontal
-     that currently has a visible surface. Used when touchstart begins
-     OUTSIDE the EDGE_DETECT_PX strip — only valid if such an overlay is
-     active. Returns { surface, config } or null. */
-  function findAnywhereHorizontalDraggable() {
-    for (const config of DRAGGABLE_OVERLAYS) {
-      if (!config.anywhereHorizontal) continue;
-      try {
-        const btn = document.querySelector(config.backSelector);
-        if (!btn || !isElementVisible(btn)) continue;
-        const surface = config.getSurface && config.getSurface();
-        if (surface && surface.isConnected) return { config, surface };
-      } catch (_) {}
-    }
-    return null;
-  }
-
   function onTouchStart(event) {
     if (event.touches.length !== 1) return;          // multi-touch → not our gesture
     if (isInputFocused()) return;
     const touch = event.touches[0];
-    const isEdgeStart = touch.clientX <= EDGE_DETECT_PX;
-    /* v10.272: don't fight horizontal swipe carousels. */
+    if (touch.clientX > EDGE_DETECT_PX) return;       // not at left edge
+    /* v10.272: don't fight horizontal swipe carousels. If the touch began
+       inside one, let it own the gesture entirely. */
     if (isTouchInsideCarousel(event)) return;
-
-    /* v10.837: anywhere-horizontal mode. If the touch is NOT at the edge,
-       check if any overlay registered with `anywhereHorizontal: true` is
-       currently showing. If yes, allow the gesture to start anywhere but
-       defer surface activation until horizontal motion is committed (so
-       vertical scroll inside the page works normally up until then). */
-    let anywhereDraggable = null;
-    if (!isEdgeStart) {
-      anywhereDraggable = findAnywhereHorizontalDraggable();
-      if (!anywhereDraggable) return;       // not edge AND no anywhere overlay
-    } else {
-      /* Edge mode: if no back target exists on this page at all, bail. */
-      if (!findBackTarget()) return;
-    }
-
+    /* If no back target exists at all on this page, don't even start. Avoids
+       false-positive gestures on the root landing screen. */
+    if (!findBackTarget()) return;
     startX = touch.clientX;
     startY = touch.clientY;
     lastX = touch.clientX;
     startTs = Date.now();
     active = true;
     cancelled = false;
-    dragStartHookFired = false;
 
-    if (isEdgeStart) {
-      /* Edge mode — set up the surface immediately. Original behavior. */
-      const draggable = findDraggableForCurrentBack();
-      if (draggable) {
-        activateDragSurface(draggable.surface, draggable.config);
-      } else {
-        dragSurface = null;
-        dragConfig = null;
+    /* v10.383: If a draggable overlay is showing (e.g. the My List episode
+       page), grab its surface and prepare it for direct-manipulation drag.
+       The surface follows the finger horizontally; the indicator stays
+       hidden because the moving page itself is the visual feedback. */
+    const draggable = findDraggableForCurrentBack();
+    if (draggable) {
+      dragSurface = draggable.surface;
+      dragConfig = draggable.config;
+      dragPrevTransform = dragSurface.style.transform || '';
+      dragPrevTransition = dragSurface.style.transition || '';
+      dragPrevWillChange = dragSurface.style.willChange || '';
+      dragSurface.style.transition = 'none';
+      dragSurface.style.willChange = 'transform';
+
+      /* v10.384: Lock the outgoing page so it can't scroll while the
+         surface is being dragged. Three layers of defense:
+           1) freeze the scroll container's overflow + touch-action and
+              preserve its current scrollTop so nothing visually jumps,
+           2) set touch-action: none on the surface itself so the browser
+              never tries to interpret the move as a native pan,
+           3) attach a non-passive touchmove listener that preventDefault's
+              every move while the drag is live, killing any momentum
+              scroll that might already be in flight. */
+      dragSurfacePrevTouchAction = dragSurface.style.touchAction || '';
+      dragSurface.style.touchAction = 'none';
+      /* v10.385: round the outgoing page's corners while it's being
+         swiped out. v10.388: bumped to 45px per spec; overflow:hidden so
+         internal content (poster, episode rows) is clipped to the rounded
+         shape. */
+      dragSurfacePrevBorderRadius = dragSurface.style.borderRadius || '';
+      dragSurfacePrevOverflow = dragSurface.style.overflow || '';
+      dragSurface.style.borderRadius = '45px';
+      dragSurface.style.overflow = 'hidden';
+      /* v10.386: scroll element is selected per draggable-overlay config so
+         every page can name its own scroll container.
+         v10.486: also accept a pre-resolved element via `config.scrollEl`
+         (used by the generic fallback so we don't need a selector). */
+      const scrollSelector = dragConfig && dragConfig.scrollSelector;
+      const scrollEl = (dragConfig && dragConfig.scrollEl)
+        || (scrollSelector ? dragSurface.querySelector(scrollSelector) : null);
+      if (scrollEl) {
+        dragScrollEl = scrollEl;
+        dragScrollTop = scrollEl.scrollTop;
+        dragScrollPrevOverflow = scrollEl.style.overflow || '';
+        dragScrollPrevTouchAction = scrollEl.style.touchAction || '';
+        dragScrollPrevOverscroll = scrollEl.style.overscrollBehavior || '';
+        scrollEl.style.overflow = 'hidden';
+        scrollEl.style.touchAction = 'none';
+        scrollEl.style.overscrollBehavior = 'none';
+        scrollEl.scrollTop = dragScrollTop;
       }
+      dragPreventScrollHandler = function (e) {
+        if (dragSurface && e.cancelable) e.preventDefault();
+      };
+      window.addEventListener('touchmove', dragPreventScrollHandler, { passive: false });
     } else {
-      /* Anywhere mode — hold the surface reference but DON'T mutate inline
-         styles yet. Vertical scroll must still work until we know this is
-         a horizontal swipe. */
-      pendingDragSurface = anywhereDraggable.surface;
-      pendingDragConfig = anywhereDraggable.config;
-      needsHorizontalCommit = true;
       dragSurface = null;
       dragConfig = null;
     }
@@ -532,39 +466,8 @@
     const dx = touch.clientX - startX;
     const dy = Math.abs(touch.clientY - startY);
 
-    /* v10.837: anywhere-horizontal mode — must commit to a direction
-       before we manipulate any styles or steal the gesture. */
-    if (needsHorizontalCommit) {
-      /* Vertical wins: let the page scroll normally, abort our gesture. */
-      if (dy > 18 && dy > Math.abs(dx) * 1.05) {
-        active = false;
-        cancelled = true;
-        needsHorizontalCommit = false;
-        pendingDragSurface = null;
-        pendingDragConfig = null;
-        return;
-      }
-      /* Horizontal commit: dx must be both substantial AND clearly
-         dominant over the vertical component. 14px / 1.18 ratio matches
-         the iMessage/Twitter feel — far enough to mean intent, but tight
-         enough that tiny rightward jitters during a vertical scroll
-         don't accidentally engage. */
-      if (dx >= 14 && dx > dy * 1.18) {
-        needsHorizontalCommit = false;
-        activateDragSurface(pendingDragSurface, pendingDragConfig);
-        pendingDragSurface = null;
-        pendingDragConfig = null;
-        /* fall through to the drag logic below — the surface is now live. */
-      } else {
-        /* Still ambiguous — wait without touching the surface or scroll. */
-        lastX = touch.clientX;
-        return;
-      }
-    }
-
-    /* Edge-mode vertical cancel (legacy behavior — fires only when the
-       gesture started at the edge so we never activated the anywhere
-       commit path). Tight threshold to avoid diagonal false-positives. */
+    /* Cancel if it's becoming a vertical scroll. We use a tight threshold
+       so that diagonally-down swipes don't accidentally trigger back. */
     if (dy > VERTICAL_CANCEL_PX && dy > Math.abs(dx)) {
       active = false;
       cancelled = true;
@@ -576,17 +479,10 @@
     if (dragSurface) {
       /* v10.383: drag the page itself. Clamp at 0 so the surface never
          travels leftward past its resting position. Opacity stays at 1 —
-         the underlying page is revealed by the surface moving. */
+         the underlying My List page is revealed by the surface moving. */
       const tx = Math.max(0, dx);
       dragSurface.style.transform = `translate3d(${tx}px, 0, 0)`;
       dragSurface.style.opacity = '1';
-      /* v10.837: fire onDragStart() the first frame we actually move the
-         surface. Perfect timing for the page to render any underlay (e.g.
-         the DM inbox) so it's revealed in sync with the chat sliding. */
-      if (!dragStartHookFired && tx > 0) {
-        dragStartHookFired = true;
-        try { dragConfig && dragConfig.onDragStart && dragConfig.onDragStart(); } catch (_) {}
-      }
     } else if (dx > 6) {
       updateIndicator(dx);
     }
@@ -598,12 +494,6 @@
     const dx = lastX - startX;
     const duration = Date.now() - startTs;
     active = false;
-    /* v10.837: never-committed anywhere-mode → just tear down state. */
-    if (needsHorizontalCommit) {
-      needsHorizontalCommit = false;
-      pendingDragSurface = null;
-      pendingDragConfig = null;
-    }
 
     if (cancelled || duration > MAX_DURATION_MS) {
       snapIndicatorBack();
@@ -626,10 +516,6 @@
   function onTouchCancel() {
     active = false;
     cancelled = false;
-    /* v10.837: clear anywhere-mode pending state. */
-    needsHorizontalCommit = false;
-    pendingDragSurface = null;
-    pendingDragConfig = null;
     snapIndicatorBack();
     releaseDragSurface(true);
   }
