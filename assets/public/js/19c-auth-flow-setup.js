@@ -888,6 +888,8 @@
     const usernameLower = username.toLowerCase();
     const emailLower = String((user.email || '')).toLowerCase();
     const db = firebase.firestore();
+    const serverTimestamp = firebase.firestore.FieldValue.serverTimestamp();
+    const usernameChangedAtMs = Date.now();
     const usernameRef = db.collection('usernames').doc(usernameLower);
     const userRef = db.collection('users').doc(user.uid);
 
@@ -951,6 +953,8 @@
         accountEmailLower: emailLower,
         usernameHandle: username,
         usernameHandleLower: usernameLower,
+        usernameLastChangedAt: serverTimestamp,
+        usernameLastChangedAtMs: usernameChangedAtMs,
         name: username,
         nameLower: usernameLower,
         customName: username,
@@ -963,6 +967,7 @@
       }, { merge: true });
     } catch (userErr) {
       console.error('[shelfd-auth] users/{uid} write FAILED after username reservation', userErr);
+      try { await usernameRef.delete(); } catch (releaseErr) { console.warn('[shelfd-auth] username reservation release failed after profile write error', releaseErr); }
       setBusy('setupUsername', false);
       if (isResourceExhausted(userErr)) {
         setBanner($('shelfd-setup-username-error'), quotaUserMessage(), 'error');
@@ -995,6 +1000,7 @@
           customName: username,
           usernameHandle: username,
           usernameHandleLower: usernameLower,
+          usernameLastChangedAtMs: usernameChangedAtMs,
           onboardingComplete: false,
           onboardingStep: 2
         });
@@ -1005,7 +1011,8 @@
           uid: user.uid,
           name: username,
           usernameHandle: username,
-          usernameHandleLower: usernameLower
+          usernameHandleLower: usernameLower,
+          usernameLastChangedAtMs: usernameChangedAtMs
         };
       }
       if (typeof window.applyProfile === 'function') window.applyProfile();

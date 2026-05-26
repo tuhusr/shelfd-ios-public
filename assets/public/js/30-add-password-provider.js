@@ -43,10 +43,10 @@
     if (!user) return false;
     if (!user.email) return false;
     if (userHasPasswordProvider(user)) return false;
-    /* Allow if Google is the (only) sign-in method right now. Any user
-       missing the password provider is a valid target — Google is the
-       most common case but Apple etc. would also benefit. */
-    return true;
+    /* App Review guideline 4: Apple-authenticated users must not be asked
+       to create a password after using Sign in with Apple. This migration
+       prompt is only for legacy Google accounts without password sign-in. */
+    return userHasGoogleProvider(user);
   }
 
   /* ---------- Password policy (mirrors 19b) ---------- */

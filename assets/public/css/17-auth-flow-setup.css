@@ -796,6 +796,23 @@ body.guest-browsing-mode .user-avatar {
 }
 .shelfd-auth-text-link:hover { color: #ffffff; text-decoration: underline; }
 
+.shelfd-auth-delete-account-link {
+  width: max-content;
+  max-width: 100%;
+  align-self: center;
+  margin: 4px auto 0;
+  padding: 8px 10px;
+  color: rgba(248, 113, 113, 0.88);
+  font-size: 13px;
+  font-weight: 600;
+}
+.shelfd-auth-delete-account-link:hover {
+  color: #fecaca;
+}
+.shelfd-setup-delete-account-link {
+  margin-top: auto;
+}
+
 /* â”€â”€â”€â”€â”€â”€â”€ SETUP FLOW â”€â”€â”€â”€â”€â”€â”€ */
 .shelfd-setup-shell {
   padding: 28px 22px 24px;

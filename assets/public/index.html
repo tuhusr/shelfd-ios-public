@@ -230,11 +230,11 @@
 <link rel="stylesheet" href="/css/14-live-update-discover-controls.css?v=10829_games_discovery_poster_top_radius">
 <link rel="stylesheet" href="/css/15-universal-discovery-search.css?v=10592_revert_var_keep_disable_bounce">
 <link rel="stylesheet" href="/css/16-light-mode-contrast.css?v=10817_dm_button_stroke_2">
-<link rel="stylesheet" href="/css/17-auth-flow-setup.css?v=10832_profile_top3_slot_pro_lock">
+<link rel="stylesheet" href="/css/17-auth-flow-setup.css?v=10842_app_review_auth_delete_fixes">
 <link rel="stylesheet" href="/css/18-dm-instagram-rebuild.css?v=10828_dm_new_message_modal_position_lock">
 
-<meta name="screenlist-build-version" content="2026-05-25-v10.841_profile_per_slot_pro_lock">
-<script>window.SHELFD_SHARE_ORIGIN = "https://myshelfd.com"; window.SCREENLIST_BUILD_VERSION = "2026-05-25-v10.841_profile_per_slot_pro_lock"; window.SCREENLIST_DISPLAY_VERSION = "v10.841-May 25th, 2026";</script>
+<meta name="screenlist-build-version" content="2026-05-26-v10.842_app_review_auth_delete_fixes">
+<script>window.SHELFD_SHARE_ORIGIN = "https://myshelfd.com"; window.SCREENLIST_BUILD_VERSION = "2026-05-26-v10.842_app_review_auth_delete_fixes"; window.SCREENLIST_DISPLAY_VERSION = "v10.842-May 26th, 2026";</script>
 <script>
   /* v10.588: cleanup â€” removed dead window.continueWithoutSignIn
      (button deleted v10.544), [data-landing-creator-action] (removed
@@ -588,6 +588,7 @@
       <div class="shelfd-auth-error" id="shelfd-verify-error" role="alert" hidden></div>
       <button type="button" class="shelfd-auth-submit" id="shelfd-verify-continue" onclick="handleShelfdVerifyContinue()">I verified my email</button>
       <button type="button" class="shelfd-auth-text-link" id="shelfd-verify-resend" onclick="handleShelfdResendVerification()">Resend verification email</button>
+      <button type="button" class="shelfd-auth-text-link shelfd-auth-delete-account-link" onclick="openDeleteAccountModal()">Delete Account</button>
     </div>
   </div>
 </div>
@@ -663,6 +664,7 @@
       <p class="shelfd-setup-copy shelfd-setup-welcome-copy">Let's start building your shelf.</p>
       <button class="shelfd-auth-submit shelfd-setup-welcome-cta" type="button" onclick="shelfdSetupFinish()">Start Building My Shelf</button>
     </div>
+    <button type="button" class="shelfd-auth-text-link shelfd-auth-delete-account-link shelfd-setup-delete-account-link" onclick="openDeleteAccountModal()">Delete Account</button>
   </div>
 </div>
 
@@ -1864,7 +1866,7 @@
 <script src="/js/18-search-page.js?v=10494_search_people_fuzzy_aliases_stopwords"></script>
 <script src="/js/19-gis-signin.js?v=907_landing_google_cleanup"></script>
 <script src="/js/19b-email-password-auth.js?v=10796_verify_continue_myshelfd"></script>
-<script src="/js/19c-auth-flow-setup.js?v=10811_onboarding_username_at"></script>
+<script src="/js/19c-auth-flow-setup.js?v=10842_app_review_auth_delete_fixes"></script>
 <script src="/js/19d-apple-signin.js?v=10646_ios_native_auth_bridge_aliases"></script>
 <script src="/js/19e-google-native-signin.js?v=10646_ios_native_auth_bridge_aliases"></script>
 <script src="/js/22-favorite-people.js?v=10730_fav_person_no_revert"></script>
@@ -1873,7 +1875,7 @@
 <script src="/js/27-music-album-shelf-page.js?v=10726_myshelfd_share_domain"></script>
 <script src="/js/28-music-artist-profile.js?v=10246_artist_profile"></script>
 <script src="/js/29-favorite-artists.js?v=10258_artist_heart"></script>
-<script src="/js/30-add-password-provider.js?v=10279_auto_open_for_google_users"></script>
+<script src="/js/30-add-password-provider.js?v=10842_app_review_auth_delete_fixes"></script>
 <script src="/js/31-edge-swipe-back.js?v=10840_unify_swipe_with_back"></script>
 <script src="/js/32-stack-carousel.js?v=10272_stack_carousel_init"></script>
 <script src="/js/33-push-notifications.js?v=10584_push_force_existing"></script>
