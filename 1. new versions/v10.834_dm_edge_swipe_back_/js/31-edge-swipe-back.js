@@ -112,12 +112,6 @@
     '.mylist-episode-page-back',
     /* v10.386: My List → Full Page Media Review */
     '.mylist-media-review-back',
-    /* v10.834: DM v2 thread page (Direct Messages chat) — enables the
-       same edge-swipe-from-left drag-to-dismiss the media profile uses.
-       The generic findGenericPageSurface() walks up from this button to
-       .dm-v2-panel (the fixed full-viewport thread panel) and drags it
-       horizontally under the finger at compositor-level 120fps. */
-    '.dm-v2-back',
     /* Generic */
     '[aria-label="Back" i]',
     '[aria-label="Go back" i]',
