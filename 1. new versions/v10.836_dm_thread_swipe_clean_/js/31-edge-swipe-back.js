@@ -112,12 +112,11 @@
     '.mylist-episode-page-back',
     /* v10.386: My List → Full Page Media Review */
     '.mylist-media-review-back',
-    /* v10.836: DM v2 thread page — handled by an explicit
-       DRAGGABLE_OVERLAYS entry below so dismiss can call
-       closeDirectMessageThread({ fromGenericSwipe: true }) and skip the
-       panel-transform animation that would otherwise fight the inline
-       transform from this drag. Selector still listed here as a fallback
-       so findBackTarget() can locate it for the gesture-start gate. */
+    /* v10.834: DM v2 thread page (Direct Messages chat) — enables the
+       same edge-swipe-from-left drag-to-dismiss the media profile uses.
+       The generic findGenericPageSurface() walks up from this button to
+       .dm-v2-panel (the fixed full-viewport thread panel) and drags it
+       horizontally under the finger at compositor-level 120fps. */
     '.dm-v2-back',
     /* Generic */
     '[aria-label="Back" i]',
@@ -167,29 +166,6 @@
       },
       dismiss() {
         try { if (typeof window.closeFullPageMediaReview === 'function') window.closeFullPageMediaReview(); } catch (_) {}
-      }
-    },
-    /* v10.836: DM v2 thread page. .dm-v2-panel is position: fixed; top: 0;
-       bottom: var(--dm-keyboard-bottom) — drags cleanly under finger via
-       inline transform. Dismiss calls closeDirectMessageThread with
-       `fromGenericSwipe: true` so the inbox slide-in animation plays but
-       the panel-transform classes (which carry !important) don't fight
-       the inline transform that just animated to 100vw. The .dm-v2-list
-       scrollable child is locked during the drag so vertical scroll
-       doesn't bleed through. */
-    {
-      backSelector: '.dm-v2-back',
-      scrollSelector: '.dm-v2-list',
-      getSurface() {
-        const panel = document.querySelector('.dm-v2-panel');
-        return (panel && panel.isConnected) ? panel : null;
-      },
-      dismiss() {
-        try {
-          if (typeof window.closeDirectMessageThread === 'function') {
-            window.closeDirectMessageThread({ animate: true, fromGenericSwipe: true });
-          }
-        } catch (_) {}
       }
     }
   ];
