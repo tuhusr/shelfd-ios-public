@@ -3,24 +3,24 @@
 window.__shelfdSplitScriptsLoading = true;
 window.__shelfdSplitChunkVersion = '364-force-fresh';
 
-// ScreenList deploy auto-refresh: browser + PWA clients show a clear update screen before reloading.
+// ScreenList deploy notice: browser + PWA clients are told to reopen without forcing a refresh.
 (function initScreenListDeployAutoRefresh() {
   const currentVersion = String(window.SCREENLIST_BUILD_VERSION || '').trim();
   if (!currentVersion || window.__screenListDeployAutoRefreshReady) return;
   window.__screenListDeployAutoRefreshReady = true;
 
   let checking = false;
-  let reloading = false;
+  let updateNoticeShown = false;
   let lastCheckAt = 0;
   let serviceWorkerRefreshBound = false;
-  let deferredReloadScheduled = false;
+  let deferredNoticeScheduled = false;
 
   const MIN_CHECK_GAP_MS = 15000;
   const CHECK_INTERVAL_MS = 60000;
   const LIVE_UPDATE_SPLASH_KEY = 'screenlist-live-update-splash-v3';
-  const LIVE_UPDATE_RELOAD_DELAY_MS = 3000;
   const LIVE_UPDATE_AFTER_LOAD_HOLD_MS = 700;
   const LIVE_UPDATE_APP_READY_TIMEOUT_MS = 10000;
+  const LIVE_UPDATE_NOTICE_VISIBLE_MS = 6000;
   const LIVE_UPDATE_LOGO_SRC = '/live_update_splash_logo.png?v=362-pwa-edge-no-store';
   /* v746: bumped key forces standalone PWAs to run the one-shot
      full-cache wipe + SW unregister + reload one more time on next
@@ -36,13 +36,13 @@ window.__shelfdSplitChunkVersion = '364-force-fresh';
     );
   }
 
-  function scheduleDeferredReloadCheck() {
-    if (deferredReloadScheduled) return;
-    deferredReloadScheduled = true;
+  function scheduleDeferredUpdateNotice(nextVersion = '') {
+    if (deferredNoticeScheduled) return;
+    deferredNoticeScheduled = true;
     setTimeout(() => {
-      deferredReloadScheduled = false;
-      if (reloading || isCriticalOverlayOpen() || document.hidden) return;
-      reloadAfterVisibleSplash();
+      deferredNoticeScheduled = false;
+      if (document.hidden) return;
+      showLiveUpdateNotice(nextVersion);
     }, 1200);
   }
 
@@ -230,22 +230,144 @@ window.__shelfdSplitChunkVersion = '364-force-fresh';
     else window.addEventListener('DOMContentLoaded', run, { once: true });
   }
 
-  function reloadAfterVisibleSplash() {
-    if (isCriticalOverlayOpen()) {
-      scheduleDeferredReloadCheck();
-      return;
-    }
-    try { sessionStorage.setItem(LIVE_UPDATE_SPLASH_KEY, '1'); } catch (error) {}
+  function ensureLiveUpdateNoticeStyles() {
+    if (document.getElementById('screenlist-live-update-notice-style')) return;
+    const style = document.createElement('style');
+    style.id = 'screenlist-live-update-notice-style';
+    style.textContent = `
+      #screenlist-live-update-notice {
+        position: fixed;
+        z-index: 2147483647;
+        top: max(10px, env(safe-area-inset-top, 0px));
+        left: 50%;
+        width: min(92vw, 430px);
+        min-height: 42px;
+        padding: 10px 16px;
+        border: 1px solid rgba(187,247,208,0.34);
+        border-radius: 999px;
+        background: rgba(22,163,74,0.60);
+        -webkit-backdrop-filter: blur(18px) saturate(150%);
+        backdrop-filter: blur(18px) saturate(150%);
+        box-shadow: 0 18px 44px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.22);
+        color: #ffffff;
+        font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        font-size: 15px;
+        font-weight: 300;
+        line-height: 1.28;
+        letter-spacing: 0;
+        text-align: center;
+        pointer-events: none;
+        touch-action: pan-y;
+        user-select: none;
+        -webkit-user-select: none;
+        opacity: 0;
+        --screenlist-live-update-notice-y: 0px;
+        transform: translate3d(-50%, calc(-100% - max(24px, env(safe-area-inset-top, 0px))), 0) scale(0.98);
+        transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease;
+      }
+      #screenlist-live-update-notice.is-open {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translate3d(-50%, var(--screenlist-live-update-notice-y), 0) scale(1);
+      }
+      #screenlist-live-update-notice.is-dragging {
+        transition: none;
+      }
+      #screenlist-live-update-notice.is-closing {
+        opacity: 0;
+        pointer-events: none;
+        transform: translate3d(-50%, calc(-100% - max(24px, env(safe-area-inset-top, 0px))), 0) scale(0.98);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #screenlist-live-update-notice { transition: none; }
+      }
+    `;
+    (document.head || document.documentElement).appendChild(style);
+  }
+
+  function closeLiveUpdateNotice(notice) {
+    const el = notice || document.getElementById('screenlist-live-update-notice');
+    if (!el) return;
+    try { clearTimeout(window.__screenListLiveUpdateNoticeTimer); } catch (error) {}
+    el.classList.remove('is-open', 'is-dragging');
+    el.classList.add('is-closing');
+    el.style.removeProperty('--screenlist-live-update-notice-y');
+    setTimeout(() => {
+      try {
+        el.classList.remove('is-closing');
+        el.remove();
+      } catch (error) {}
+    }, 280);
+  }
+
+  function bindLiveUpdateNoticeDismiss(notice) {
+    if (!notice || notice.dataset.dismissReady === 'true') return;
+    notice.dataset.dismissReady = 'true';
+    let pointerId = null;
+    let startY = 0;
+    let dragging = false;
+
+    const endDrag = (event) => {
+      if (pointerId !== null && event?.pointerId !== pointerId) return;
+      const currentY = Number(notice.dataset.dragY || '0') || 0;
+      pointerId = null;
+      dragging = false;
+      notice.classList.remove('is-dragging');
+      notice.releasePointerCapture?.(event?.pointerId);
+      delete notice.dataset.dragY;
+      if (currentY <= -34) {
+        closeLiveUpdateNotice(notice);
+        return;
+      }
+      notice.style.setProperty('--screenlist-live-update-notice-y', '0px');
+    };
+
+    notice.addEventListener('pointerdown', (event) => {
+      if (event.button && event.button !== 0) return;
+      pointerId = event.pointerId;
+      startY = event.clientY || 0;
+      dragging = true;
+      notice.classList.add('is-dragging');
+      notice.setPointerCapture?.(pointerId);
+    });
+    notice.addEventListener('pointermove', (event) => {
+      if (!dragging || event.pointerId !== pointerId) return;
+      const dy = Math.min(0, Math.round((event.clientY || 0) - startY));
+      notice.dataset.dragY = String(dy);
+      notice.style.setProperty('--screenlist-live-update-notice-y', `${dy}px`);
+    });
+    notice.addEventListener('pointerup', endDrag);
+    notice.addEventListener('pointercancel', endDrag);
+  }
+
+  function showLiveUpdateNotice(nextVersion = '') {
+    updateNoticeShown = true;
     const run = () => {
-      showLiveUpdateSplash();
-      setTimeout(() => window.location.reload(), LIVE_UPDATE_RELOAD_DELAY_MS);
+      ensureLiveUpdateNoticeStyles();
+      let notice = document.getElementById('screenlist-live-update-notice');
+      if (!notice) {
+        notice = document.createElement('div');
+        notice.id = 'screenlist-live-update-notice';
+        notice.setAttribute('role', 'status');
+        notice.setAttribute('aria-live', 'polite');
+        document.body.appendChild(notice);
+      }
+      bindLiveUpdateNoticeDismiss(notice);
+      notice.textContent = 'A live update was deployed. Reopen the app to apply changes.';
+      notice.dataset.nextVersion = String(nextVersion || '');
+      notice.classList.remove('is-closing', 'is-dragging');
+      notice.style.setProperty('--screenlist-live-update-notice-y', '0px');
+      requestAnimationFrame(() => notice.classList.add('is-open'));
+      try { clearTimeout(window.__screenListLiveUpdateNoticeTimer); } catch (error) {}
+      window.__screenListLiveUpdateNoticeTimer = setTimeout(() => closeLiveUpdateNotice(notice), LIVE_UPDATE_NOTICE_VISIBLE_MS);
+      try { localStorage.setItem('screenlist-last-live-update-notice', String(Date.now())); } catch (error) {}
     };
     if (document.body) run();
     else window.addEventListener('DOMContentLoaded', run, { once: true });
   }
 
   async function checkForScreenListDeployUpdate(force) {
-    if (checking || reloading) return;
+    if (checking || updateNoticeShown) return;
     const now = Date.now();
     if (!force && now - lastCheckAt < MIN_CHECK_GAP_MS) return;
     lastCheckAt = now;
@@ -258,9 +380,7 @@ window.__shelfdSplitChunkVersion = '364-force-fresh';
       if (!res.ok) return;
       const nextVersion = readVersionFromHtml(await res.text());
       if (nextVersion && nextVersion !== currentVersion) {
-        reloading = true;
-        try { localStorage.setItem('screenlist-last-auto-refresh', String(now)); } catch (error) {}
-        reloadAfterVisibleSplash();
+        showLiveUpdateNotice(nextVersion);
       }
     } catch (error) {
       console.warn('ScreenList update check failed:', error);
@@ -277,14 +397,8 @@ window.__shelfdSplitChunkVersion = '364-force-fresh';
       if (!serviceWorkerRefreshBound) {
         serviceWorkerRefreshBound = true;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
-          if (reloading) return;
-          reloading = true;
-          if (isCriticalOverlayOpen()) {
-            reloading = false;
-            scheduleDeferredReloadCheck();
-            return;
-          }
-          reloadAfterVisibleSplash();
+          if (updateNoticeShown) return;
+          scheduleDeferredUpdateNotice();
         });
       }
       if (registration.waiting) {
@@ -303,30 +417,10 @@ window.__shelfdSplitChunkVersion = '364-force-fresh';
   }
 
   async function resetStandalonePwaCachesOnce() {
-    const isStandalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
-    if (!isStandalone) return false;
-    try {
-      if (localStorage.getItem(PWA_CACHE_RESET_KEY) === '1') return false;
-    } catch (error) {}
-    try {
-      if ('serviceWorker' in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(registrations.map(registration => registration.unregister().catch(() => false)));
-      }
-      if ('caches' in window) {
-        const keys = await caches.keys();
-        await Promise.all(
-          keys
-            .filter(key => /^shelfd-/i.test(String(key || '')))
-            .map(key => caches.delete(key))
-        );
-      }
-      try { localStorage.setItem(PWA_CACHE_RESET_KEY, '1'); } catch (error) {}
-      return true;
-    } catch (error) {
-      console.warn('Shelfd standalone cache reset failed:', error);
-      return false;
-    }
+    /* v10.981: disabled the old standalone cache-reset reload path.
+       Open sessions must keep running so users can finish edits and Firestore
+       writes. The active update path now only shows the reopen-app notice. */
+    return false;
   }
 
   function showStartupSplashIfNeeded() {
@@ -344,11 +438,7 @@ window.__shelfdSplitChunkVersion = '364-force-fresh';
   }
 
   async function startScreenListLiveUpdateRuntime() {
-    const resetPerformed = await resetStandalonePwaCachesOnce();
-    if (resetPerformed) {
-      window.location.replace(window.location.pathname + window.location.search + window.location.hash);
-      return;
-    }
+    await resetStandalonePwaCachesOnce();
     finishReloadSplashIfNeeded();
     /* v10.506: fire the Capacitor cold-launch splash AFTER the live-update
        splash check so a live-update reload (sessionStorage flag set) takes

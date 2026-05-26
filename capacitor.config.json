@@ -3,22 +3,23 @@
   "appName": "Shelfd",
   "webDir": "assets/public",
   "server": {
-    "url": "https://myscreenlist.com",
+    "url": "https://myshelfd.com",
     "cleartext": false
   },
   "ios": {
     "contentInset": "never",
-    "backgroundColor": "#181c20",
+    "backgroundColor": "#0E0E0E",
     "appendUserAgent": " ShelfdNativeNoInset"
   },
-  "backgroundColor": "#181c20",
+  "backgroundColor": "#0E0E0E",
   "plugins": {
     "PushNotifications": {
       "presentationOptions": ["badge", "sound", "alert"]
     },
     "StatusBar": {
-      "style": "dark",
-      "backgroundColor": "#181c20"
+      "overlaysWebView": true,
+      "style": "DARK",
+      "backgroundColor": "#0E0E0E"
     }
   }
 }

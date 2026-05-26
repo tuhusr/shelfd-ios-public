@@ -2396,6 +2396,38 @@ function renderProfileMediaGroup(group, stats, pins, showcase) {
   const sectionShareBtn = editing ? '' : `<button type="button" class="profile-section-share-btn" onclick="shareProfileFavoriteRow(event, this)" aria-label="Share ${escAttr(group.title)}">${getProfileFavoriteShareIconHTML()}</button>`;
   return `<section class="profile-media-group ${group.wide ? 'profile-media-group-wide' : ''}" data-profile-group="${escAttr(group.key)}">${sectionShareBtn}<div class="profile-media-head"><div class="profile-media-title-wrap"><div class="profile-media-title">${getProfileGroupTitleHTML(group)}</div><div class="profile-media-sub">${escHtml(group.sub)}</div></div></div>${statHtml}${rows}</section>`;
 }
+
+function isProfileTop3ProBypassProfile(profile = getActiveProfile()) {
+  const uid = String(profile?.uid || profileViewingUser?.uid || currentUser?.uid || '').trim();
+  const handle = String(profile?.usernameHandleLower || profile?.usernameHandle || '').trim().replace(/^@+/, '').toLowerCase();
+  const email = normalizeEmail(profile?.emailLower || profile?.accountEmailLower || currentUser?.email || '');
+  if (typeof isCreatorAdmin === 'function' && isCreatorAdmin({ ...profile, uid, emailLower: email })) return true;
+  if (typeof CREATOR_PUBLIC_UID !== 'undefined' && uid === CREATOR_PUBLIC_UID) return true;
+  if (typeof CREATOR_ADMIN_EMAIL !== 'undefined' && email === CREATOR_ADMIN_EMAIL) return true;
+  return handle === 'kingkooom';
+}
+
+function renderProfileTop3ProLockedCard() {
+  return `<section class="profile-top3-pro-lock-card" data-profile-group="top3-pro-lock" aria-label="Locked Top 3 category showcase">
+    <div class="profile-top3-pro-lock-backdrop" aria-hidden="true">
+      <span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="profile-top3-pro-lock-content">
+      <div class="profile-top3-pro-lock-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="5" y="10" width="14" height="10" rx="2"></rect>
+          <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+        </svg>
+      </div>
+      <div class="profile-top3-pro-lock-copy">
+        <div class="profile-top3-pro-lock-title">Category Top 3 Showcase</div>
+        <div class="profile-top3-pro-lock-sub">Top 3 Movies, TV Shows, Anime, Games, and Albums will be a Pro feature.</div>
+        <div class="profile-top3-pro-lock-badge">Pro feature</div>
+      </div>
+    </div>
+  </section>`;
+}
+
 function readProfileDraftFromPage(target) {
   if (isViewingOtherProfile()) return target || getActiveProfile();
   const next = target || normalizeUserProfile(userProfile || {});
@@ -2449,10 +2481,13 @@ function renderProfileFavorites() {
   if (!isViewingOtherProfile()) userProfile = profile;
   else profileViewingProfile = profile;
   const stats = calculateProfileStats();
-  grid.innerHTML = PROFILE_MEDIA_GROUPS
+  const bypassTop3Lock = isProfileTop3ProBypassProfile(profile);
+  const renderedGroups = PROFILE_MEDIA_GROUPS
     .filter(group => isProfileSectionVisibleFromListTabs(group.key, profile))
-    .map(group => renderProfileMediaGroup(group, stats, pins, showcase))
-    .join('');
+    .filter(group => bypassTop3Lock || group.key === 'overall')
+    .map(group => renderProfileMediaGroup(group, stats, pins, showcase));
+  if (!bypassTop3Lock) renderedGroups.push(renderProfileTop3ProLockedCard());
+  grid.innerHTML = renderedGroups.join('');
 }
 
 function safeProfileUrl(value) {
@@ -2697,12 +2732,8 @@ function renderProfilePage() {
   const urlRow = document.getElementById('profile-url-row');
   const preview = document.getElementById('profile-preview');
   const creatorBadge = document.getElementById('profile-creator-badge');
-  const heroCard = document.querySelector('.profile-hero-card');
   let heroLogoutBtn = document.getElementById('profile-card-logout-btn');
-  if (heroCard && !heroLogoutBtn) {
-    heroCard.insertAdjacentHTML('afterbegin', '<button type="button" id="profile-card-logout-btn" class="profile-card-logout-btn" onclick="openSignOutModal()">Log out</button>');
-    heroLogoutBtn = document.getElementById('profile-card-logout-btn');
-  }
+  if (heroLogoutBtn) heroLogoutBtn.remove();
   const creativeTeamProfile = isCreativeTeamUser(profile);
   if (profilePage) {
     profilePage.classList.toggle('viewing-other-profile', viewingOther);
@@ -2971,6 +3002,22 @@ function readProfileFromPage() {
 // Save user profile to Firestore
 async function saveUserProfile(user) {
   try {
+    if (!user?.uid) return;
+    const liveAuthUid = (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser?.uid) || '';
+    if (liveAuthUid && liveAuthUid !== user.uid) {
+      console.warn('[shelfd-auth] blocked profile save for stale auth user', {
+        requestedUid: user.uid,
+        liveAuthUid
+      });
+      return;
+    }
+    if (userProfile?.uid && userProfile.uid !== user.uid) {
+      console.warn('[shelfd-auth] clearing stale profile before saveUserProfile', {
+        staleProfileUid: userProfile.uid,
+        authUid: user.uid
+      });
+      userProfile = null;
+    }
     const accountEmailLower = normalizeEmail(user?.email);
     const creatorAccount = String(user?.uid || '').trim() === CREATOR_PUBLIC_UID || accountEmailLower === CREATOR_ADMIN_EMAIL;
     const existing = await db.collection("users").doc(user.uid).get();
@@ -3047,12 +3094,23 @@ async function saveUserProfile(user) {
       emailLower: accountEmailLower,
       accountEmailLower: accountEmailLower,
       isCreatorAdmin: creatorAccount,
-      isPublic: creatorAccount
+      isPublic: true
     };
     await syncCreatorPublicProfileMirror(user, userProfile, creatorAccount ? data : null);
     applyThemeMode(userProfile.themeMode || getDefaultThemeMode(), true);
     applyProfile();
-  } catch(e) { console.error("Profile save failed:", e); }
+  } catch(e) {
+    console.error("Profile save failed:", e);
+    if (user?.uid && (!userProfile || userProfile.uid !== user.uid)) {
+      userProfile = normalizeUserProfile({
+        uid: user.uid,
+        name: user.displayName || 'Anonymous',
+        photo: user.photoURL || '',
+        emailLower: normalizeEmail(user.email),
+        accountEmailLower: normalizeEmail(user.email)
+      });
+    }
+  }
 }
 
 function applyProfile() {
@@ -4698,6 +4756,118 @@ function closeDeleteAccountModal() {
   if (btn) { btn.disabled = false; btn.textContent = 'Delete'; }
 }
 
+async function deleteAccountQuerySnapshot(snapshot, label) {
+  if (!snapshot || snapshot.empty) return;
+  const refs = [];
+  snapshot.forEach(doc => refs.push(doc.ref));
+  for (let i = 0; i < refs.length; i += 450) {
+    const batch = db.batch();
+    refs.slice(i, i + 450).forEach(ref => batch.delete(ref));
+    await batch.commit();
+  }
+  console.info('[deleteAccount] deleted ' + refs.length + ' ' + label + ' document(s)');
+}
+
+async function getDeleteAccountProfileSnapshot(uid) {
+  try {
+    const snap = await db.collection('users').doc(uid).get();
+    return snap && snap.exists ? snap : null;
+  } catch (err) {
+    console.warn('[deleteAccount] could not read profile before cleanup:', err?.code || err?.message || err);
+    return null;
+  }
+}
+
+function collectDeleteAccountUsernameHandles(profileData = {}) {
+  const handles = new Set();
+  [
+    profileData.usernameHandleLower,
+    profileData.handleLower,
+    profileData.usernameHandle,
+    profileData.userHandle,
+    profileData.username,
+    userProfile?.usernameHandleLower,
+    userProfile?.usernameHandle,
+    userProfile?.userHandle,
+    userProfile?.username
+  ].forEach(value => {
+    const clean = String(value || '').trim().replace(/^@+/, '').toLowerCase();
+    if (clean) handles.add(clean);
+  });
+  return Array.from(handles);
+}
+
+async function deleteAccountUsernameClaims(uid, profileData = {}) {
+  const usernamesRef = db.collection('usernames');
+  const refsById = new Map();
+
+  collectDeleteAccountUsernameHandles(profileData).forEach(handleLower => {
+    refsById.set(handleLower, usernamesRef.doc(handleLower));
+  });
+
+  try {
+    const ownedSnap = await usernamesRef.where('uid', '==', uid).get();
+    ownedSnap.forEach(doc => refsById.set(doc.id, doc.ref));
+  } catch (err) {
+    console.warn('[deleteAccount] username lookup by uid failed:', err?.code || err?.message || err);
+  }
+
+  for (const [handleLower, ref] of refsById.entries()) {
+    const snap = await ref.get();
+    if (!snap.exists) continue;
+    const ownerUid = String(snap.data()?.uid || '').trim();
+    if (ownerUid && ownerUid !== uid) {
+      console.warn('[deleteAccount] skipped username owned by another uid:', handleLower, ownerUid);
+      continue;
+    }
+    await ref.delete();
+    console.info('[deleteAccount] released username:', handleLower);
+  }
+}
+
+async function cleanupAccountOwnedFirestoreData(user) {
+  const uid = String(user?.uid || '').trim();
+  if (!uid) return;
+  const profileSnap = await getDeleteAccountProfileSnapshot(uid);
+  const profileData = profileSnap?.data?.() || {};
+
+  await deleteAccountUsernameClaims(uid, profileData);
+
+  try {
+    const sectionsSnap = await db.collection('watchlist').doc(uid).collection('sections').get();
+    await deleteAccountQuerySnapshot(sectionsSnap, 'watchlist section');
+  } catch (err) {
+    console.warn('[deleteAccount] watchlist sections cleanup failed:', err?.code || err?.message || err);
+  }
+
+  try {
+    await db.collection('watchlist').doc(uid).delete();
+  } catch (err) {
+    console.warn('[deleteAccount] watchlist cleanup failed:', err?.code || err?.message || err);
+  }
+
+  try {
+    const feedSnap = await db.collection('feed').where('uid', '==', uid).get();
+    await deleteAccountQuerySnapshot(feedSnap, 'feed');
+  } catch (err) {
+    console.warn('[deleteAccount] feed cleanup failed:', err?.code || err?.message || err);
+  }
+
+  try {
+    const activitiesSnap = await db.collection('activities').where('uid', '==', uid).get();
+    await deleteAccountQuerySnapshot(activitiesSnap, 'activity');
+  } catch (err) {
+    console.warn('[deleteAccount] activities cleanup skipped/failed; Firestore rules may still block owner delete:', err?.code || err?.message || err);
+  }
+
+  try {
+    if (profileSnap) await profileSnap.ref.delete();
+    else await db.collection('users').doc(uid).delete();
+  } catch (err) {
+    console.warn('[deleteAccount] user profile cleanup failed:', err?.code || err?.message || err);
+  }
+}
+
 async function confirmDeleteAccount() {
   const user = auth.currentUser;
   if (!user) {
@@ -4711,11 +4881,9 @@ async function confirmDeleteAccount() {
   try {
     /* 1. Wipe the Firestore user document. Best-effort — if it fails
           we still proceed to delete the Auth account. */
-    try {
-      await db.collection('users').doc(user.uid).delete();
-    } catch (firestoreErr) {
-      console.warn('[deleteAccount] Firestore delete failed (continuing):', firestoreErr);
-    }
+    /* v10.813: cleanup now includes username claims, watchlist, feed posts,
+       activity attempts, and the profile doc before Auth deletion. */
+    await cleanupAccountOwnedFirestoreData(user);
 
     /* 2. Delete the Firebase Auth account. */
     await user.delete();
@@ -5030,7 +5198,7 @@ function clearProfileCharacterSlotFromEditor() {
                                 server-side. Tamper-proof.
 
    On username change we:
-     1. Validate (USERNAME_RE: 6–20, letters/digits/_)
+     1. Validate (USERNAME_RE: 1–20, at least one letter, letters/digits/_)
      2. Check 14-day cooldown client-side (UX) — server rule enforces too
      3. CREATE the new usernames/{newLower} doc (rule blocks if taken)
      4. UPDATE users/{uid} with new handle + usernameLastChangedAtMs
@@ -5041,7 +5209,7 @@ function clearProfileCharacterSlotFromEditor() {
    ════════════════════════════════════════════════════════════════════════ */
 
 const PROFILE_USERNAME_COOLDOWN_MS = 14 * 24 * 60 * 60 * 1000;
-const PROFILE_USERNAME_RE = /^[a-zA-Z0-9_]{6,20}$/;
+const PROFILE_USERNAME_RE = /^(?=.*[a-zA-Z])[a-zA-Z0-9_]{1,20}$/;
 
 function getProfileUsernameLastChangedMs() {
   if (!userProfile) return 0;
@@ -5162,7 +5330,7 @@ window.saveUsernameHandleChange = async function() {
   const newHandleLower = newHandle.toLowerCase();
   /* Empty / unchanged / invalid format guards before we touch Firestore. */
   if (!PROFILE_USERNAME_RE.test(newHandle)) {
-    setProfileEditError(errorEl, 'Username must be 6–20 chars: letters, numbers, underscore only.');
+    setProfileEditError(errorEl, 'Username needs at least 1 letter and can only use letters, numbers, and underscores.');
     return;
   }
   if (newHandleLower === oldHandleLower) {

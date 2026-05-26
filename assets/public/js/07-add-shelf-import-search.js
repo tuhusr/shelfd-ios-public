@@ -2712,11 +2712,13 @@ async function submitModal(status, rating = 0, itemOverride = null) {
       reportLocalStorageWarn('screenlist-own-data-backup-' + currentUser.uid, err);
     }
   }
-  try {
-    localStorage.setItem('watchlist-tracker-data', JSON.stringify(safeData));
-  } catch (err) {
-    localStorageOk = false;
-    reportLocalStorageWarn('watchlist-tracker-data', err);
+  if (!currentUser) {
+    try {
+      localStorage.setItem('watchlist-tracker-data', JSON.stringify(safeData));
+    } catch (err) {
+      localStorageOk = false;
+      reportLocalStorageWarn('watchlist-tracker-data', err);
+    }
   }
 
   activeSection = targetSection;

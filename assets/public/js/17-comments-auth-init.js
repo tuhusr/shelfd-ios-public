@@ -771,12 +771,78 @@ function markScreenListAppReadyForSplash() {
   catch (error) { window.dispatchEvent(new Event('shelfd:app-ready')); }
 }
 
+function clearShelfdLegacyAccountLocalState() {
+  try { localStorage.removeItem('watchlist-tracker-data'); } catch (_) {}
+}
+
+function resetShelfdActiveAccountState(reason = 'auth-reset', nextUid = '') {
+  const previousUid = currentUser?.uid || '';
+  console.info('[shelfd-auth] resetting active account state', { reason, previousUid, nextUid });
+  try { if (saveTimeout) { clearTimeout(saveTimeout); saveTimeout = null; } } catch (_) {}
+  try { stopFriendsDataListener(); } catch (_) {}
+  try { stopWatchTogetherListener(); } catch (_) {}
+  try { if (typeof stopDirectMessageSharedThreadsListener === 'function') stopDirectMessageSharedThreadsListener(); } catch (_) {}
+  try { if (typeof resetFriendsDataState === 'function') resetFriendsDataState(); } catch (_) { try { usersMap = {}; } catch (e) {} }
+  try { if (typeof window.shelfdClearFavoritePeopleLocal === 'function') window.shelfdClearFavoritePeopleLocal(); } catch (_) {}
+  clearShelfdLegacyAccountLocalState();
+
+  landingPublicProfileActive = false;
+  currentUser = null;
+  viewingUser = null;
+  myData = null;
+  ownDataCache = null;
+  friendViewData = null;
+  profileViewingUser = null;
+  profileViewingProfile = null;
+  profileViewingData = null;
+  commentsViewState = null;
+  userProfile = null;
+  data = typeof getEmptyListData === 'function' ? getEmptyListData() : data;
+  DOC_REF = nextUid ? db.collection("watchlist").doc(nextUid) : null;
+  window.shelfdBlockedUids = new Set();
+  try {
+    document.body?.classList.remove(
+      'preview-mode',
+      'viewing-other-user',
+      'viewing-other-profile',
+      'landing-public-lists',
+      'guest-creator-lists',
+      'profile-active',
+      'own-profile-active'
+    );
+  } catch (_) {}
+}
+
+window.resetShelfdActiveAccountState = resetShelfdActiveAccountState;
+window.clearShelfdLegacyAccountLocalState = clearShelfdLegacyAccountLocalState;
+
 // Auth state listener
 auth.onAuthStateChanged(async (user) => {
   const mediaRoute = parseScreenListMediaRoute();
   const albumRoute = typeof parseScreenListAlbumRoute === 'function' ? parseScreenListAlbumRoute() : null;
   const profileRoute = typeof parseScreenListProfileRoute === 'function' ? parseScreenListProfileRoute() : null;
   if (user) {
+    const previousUid = currentUser?.uid || '';
+    const incomingUid = user.uid || '';
+    const staleProfileUid = !!(userProfile?.uid && incomingUid && userProfile.uid !== incomingUid);
+    const staleDocUid = !!(DOC_REF?.id && incomingUid && DOC_REF.id !== incomingUid);
+    if ((previousUid && previousUid !== incomingUid) || staleProfileUid || staleDocUid) {
+      resetShelfdActiveAccountState('auth-user-change', incomingUid);
+    }
+    console.info('[shelfd-auth] auth state user', {
+      uid: incomingUid,
+      previousUid,
+      email: user.email || '',
+      staleProfileUid,
+      staleDocUid
+    });
+    window.__shelfdAuthUidDebug = {
+      stage: 'onAuthStateChanged',
+      uid: incomingUid,
+      previousUid,
+      email: user.email || '',
+      at: new Date().toISOString()
+    };
     if (typeof setShelfdGuestBrowsing === 'function') setShelfdGuestBrowsing(false, { persist: false });
     /* v804: when the new email-signup flow is mid-flight, that flow owns the
        UI (it just kicked off the setup overlay). We still set currentUser
@@ -948,6 +1014,7 @@ auth.onAuthStateChanged(async (user) => {
       try { clearDmInboxCacheForUid(signingOutUid); }
       catch (e) { console.warn('[v10.761] DM inbox cache clear failed:', e); }
     }
+    clearShelfdLegacyAccountLocalState();
     stopFriendsDataListener();
     stopWatchTogetherListener();
     resetFriendsDataState();
@@ -959,6 +1026,7 @@ auth.onAuthStateChanged(async (user) => {
     landingPublicProfileActive = false;
     currentUser = null;
     DOC_REF = null;
+    userProfile = null;
     ownDataCache = null;
     myData = null;
     viewingUser = null;

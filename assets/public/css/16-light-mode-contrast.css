@@ -10411,6 +10411,90 @@ body.light-mode #mylist-view .mylist-search-row .search-input {
   font-size: 16px !important;
 }
 
+/* v981: My Lists global shelf search. The composer now lives inside the
+   toolbar, between Sort and the search button, and expands left from the
+   magnifying glass instead of sliding down under the status tabs. */
+#mylist-view #mylist-toolbar .toolbar-right,
+body.main-tab-mylist #mylist-view #mylist-toolbar .toolbar-right,
+body.main-tab-mylist #mylist-view #mylist-toolbar .toolbar-right:has(#sort-dropdown-btn):has(#mylist-search-toggle-btn) {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  gap: 7px !important;
+}
+
+#mylist-view #mylist-toolbar #sort-dropdown-btn,
+#mylist-view #mylist-toolbar #mylist-search-toggle-btn {
+  flex: 0 0 36px !important;
+}
+
+#mylist-view #mylist-toolbar .toolbar-right #mylist-search-row {
+  display: flex !important;
+  align-items: center !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  width: auto !important;
+  gap: 6px !important;
+  padding: 0 !important;
+  margin: 0 -7px 0 0 !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  transform: scaleX(0.08) translateX(8px) !important;
+  transform-origin: right center !important;
+  pointer-events: none !important;
+  animation: none !important;
+  will-change: max-width, opacity, transform !important;
+  transition:
+    max-width 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 150ms ease,
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    margin 220ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+#mylist-view #mylist-toolbar .toolbar-right #mylist-search-row[hidden] {
+  display: none !important;
+}
+
+#mylist-view #mylist-toolbar .toolbar-right #mylist-search-row.is-open {
+  max-width: min(340px, calc(100vw - 106px)) !important;
+  margin-right: 0 !important;
+  opacity: 1 !important;
+  transform: scaleX(1) translateX(0) !important;
+  pointer-events: auto !important;
+}
+
+#mylist-view #mylist-toolbar .toolbar-right #mylist-search-row .search-input {
+  display: block !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 36px !important;
+  padding: 0 13px !important;
+}
+
+#mylist-view #mylist-toolbar .toolbar-right #mylist-search-row .mylist-search-clear-btn {
+  flex: 0 0 30px !important;
+}
+
+@media (max-width: 700px) {
+  #mylist-view #mylist-toolbar .toolbar-right,
+  body.main-tab-mylist #mylist-view #mylist-toolbar .toolbar-right,
+  body.main-tab-mylist #mylist-view #mylist-toolbar .toolbar-right:has(#sort-dropdown-btn):has(#mylist-search-toggle-btn) {
+    display: flex !important;
+    grid-template-columns: none !important;
+    gap: 6px !important;
+  }
+
+  #mylist-view #mylist-toolbar .toolbar-right #mylist-search-row.is-open {
+    max-width: min(100%, calc(100vw - 104px)) !important;
+  }
+}
+
 .discover-friends-scroll-btn {
   display: none;
 }
@@ -11255,7 +11339,10 @@ body .discover-card-title-row {
    v10.150: bumped selector specificity to 0,3,0 so this rule beats
    the per-tab overrides (Discover 26px, Community 25/28px, My Lists
    24/25px, mobile-portrait 18px clamp).
-   v10.151: size 15px â†’ 18px (15px read too small). */
+   v10.151: size 15px â†’ 18px (15px read too small).
+   v10.814: heavier 1.5px stroke for the top-right DM glyph.
+   v10.816: match cog scale with 24px glyph and 3px stroke.
+   v10.817: tune stroke down to 2px. */
 body .header-dm-icon,
 body .header-dm-icon svg,
 body.main-tab-discover .header-dm-icon,
@@ -11264,8 +11351,22 @@ body.main-tab-community .header-dm-icon,
 body.main-tab-community .header-dm-icon svg,
 body.main-tab-mylist .header-dm-icon,
 body.main-tab-mylist .header-dm-icon svg {
-  width: 18px !important;
-  height: 18px !important;
+  width: 24px !important;
+  height: 24px !important;
+}
+body .header-dm-icon svg,
+body .header-dm-icon svg path,
+body.main-tab-discover .header-dm-icon svg,
+body.main-tab-discover .header-dm-icon svg path,
+body.main-tab-community .header-dm-icon svg,
+body.main-tab-community .header-dm-icon svg path,
+body.main-tab-mylist .header-dm-icon svg,
+body.main-tab-mylist .header-dm-icon svg path {
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2px !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
 }
 
 /* v10.757: Soft 1px divider between header and page body on

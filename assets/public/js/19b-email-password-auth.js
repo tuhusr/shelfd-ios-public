@@ -51,7 +51,9 @@
 
   /* ---------- Constants ---------- */
   const MIN_PASSWORD_LEN = 12;
-  const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
+  const USERNAME_RE = /^[a-zA-Z0-9_]{1,20}$/;
+  const USERNAME_LETTER_RE = /[a-zA-Z]/;
+  const SHELFD_VERIFY_CONTINUE_URL = 'https://myshelfd.com/auth/verify?source=email';
   const GENERIC_SIGNIN_ERROR = "That username/email and password don't match an account.";
   const GENERIC_RESET_CONFIRM = 'If an account exists for that email, we sent a reset link. Check your inbox (and spam).';
 
@@ -79,7 +81,8 @@
     return String(value || '').includes('@');
   }
   function isValidUsername(value) {
-    return USERNAME_RE.test(String(value || '').trim());
+    const clean = String(value || '').trim();
+    return USERNAME_RE.test(clean) && USERNAME_LETTER_RE.test(clean);
   }
   function passwordStrength(pw) {
     const s = String(pw || '');
@@ -102,6 +105,13 @@
   }
   function meetsPasswordPolicy(pw) {
     return passwordStrength(pw).score >= 2;
+  }
+
+  function getVerificationActionCodeSettings() {
+    return {
+      url: SHELFD_VERIFY_CONTINUE_URL,
+      handleCodeInApp: false
+    };
   }
 
   /* ---------- Mode toggle (signin <-> signup) ---------- */
@@ -175,11 +185,11 @@
     if (!field || !hint) return;
     const v = field.value.trim();
     if (!v) {
-      hint.textContent = 'Letters, numbers, and underscore only.';
+      hint.textContent = 'Use at least 1 letter. Letters, numbers, and underscore only.';
       hint.dataset.kind = '';
     } else if (!isValidUsername(v)) {
-      hint.textContent = 'Username must be 3–20 chars: letters, numbers, underscore.';
       hint.dataset.kind = 'error';
+      hint.textContent = 'Username needs at least 1 letter and can only use letters, numbers, and underscore.';
     } else {
       hint.textContent = 'Looks good.';
       hint.dataset.kind = 'ok';
@@ -401,14 +411,14 @@
     const email = String(($('login-email-signup-email') ? $('login-email-signup-email').value : '')).trim();
     const password = ($('login-email-signup-password') ? $('login-email-signup-password').value : '') || '';
     const confirm = ($('login-email-signup-confirm') ? $('login-email-signup-confirm').value : '') || '';
-
-    /* Hard validation gates BEFORE we hit Firebase quota. */
     if (!isValidUsername(username)) {
       setMessage($('login-email-signup-error'),
-        'Username must be 3–20 chars: letters, numbers, underscore.',
+        'Username needs at least 1 letter and can only use letters, numbers, and underscore.',
         'error');
       return;
     }
+
+    /* Hard validation gates BEFORE we hit Firebase quota. */
     if (!isValidEmail(email)) {
       setMessage($('login-email-signup-error'), 'Please enter a valid email address.', 'error');
       return;
@@ -446,9 +456,29 @@
         return;
       }
 
+      try {
+        if (typeof window.resetShelfdActiveAccountState === 'function') {
+          window.resetShelfdActiveAccountState('pre-legacy-email-signup', '');
+        }
+      } catch (resetErr) {
+        console.warn('[email-auth] pre-signup state reset failed:', resetErr);
+      }
+
       const cred = await firebase.auth().createUserWithEmailAndPassword(email, password);
       const user = cred && cred.user;
       if (!user) throw new Error('No user returned from Firebase');
+      console.info('[email-auth] createUserWithEmailAndPassword complete', {
+        createdUid: user.uid,
+        authCurrentUid: firebase.auth().currentUser?.uid || '',
+        email: user.email || email
+      });
+      window.__shelfdAuthUidDebug = {
+        stage: 'legacyCreateUserWithEmailAndPassword',
+        createdUid: user.uid,
+        authCurrentUid: firebase.auth().currentUser?.uid || '',
+        email: user.email || email,
+        at: new Date().toISOString()
+      };
 
       /* Set displayName on the Firebase user (original case preserved). */
       try { await user.updateProfile({ displayName: username }); }
@@ -475,7 +505,7 @@
           'error');
       }
 
-      try { await user.sendEmailVerification(); }
+      try { await user.sendEmailVerification(getVerificationActionCodeSettings()); }
       catch (e) { console.warn('[email-auth] sendEmailVerification failed (non-fatal):', e); }
 
       setMessage($('login-email-signup-message'),

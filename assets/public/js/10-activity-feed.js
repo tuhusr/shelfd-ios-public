@@ -17,6 +17,12 @@ function getActivityEventType(activity) {
   return 'added';
 }
 
+function isScreenListRemovalActivity(activity = {}) {
+  if (!activity || typeof activity !== 'object') return false;
+  return String(activity.eventType || activity.type || '').trim().toLowerCase() === 'removed'
+    || String(getActivityEventType(activity) || '').trim().toLowerCase() === 'removed';
+}
+
 function getActivityVerbPhrase(eventType, item = {}) {
   const section = item.librarySection || item.mediaCategory || '';
   const isGame = section === 'games';
@@ -1517,24 +1523,26 @@ async function createFeedPost(postData) {
      live update: one onSnapshot listener, attached when the tab is opened
      render:      one renderNotificationsList() — draws the full array
 
-   4 supported types only:
+   Supported types:
      - activity_like      (friend liked your activity card)
      - activity_comment   (friend commented on your activity card)
      - friend_request     (friend sent you a friend request)
      - friend_accept      (friend accepted your friend request)
+     - shared_watch_request (friend requested Shared Watch approval)
 
    Deterministic doc IDs prevent duplicates:
      activity_like:{activityId}:{actorUid}
      activity_comment:{activityId}:{commentId|actorUid}
      friend_request:{actorUid}
      friend_accept:{actorUid}
+     shared_watch_request:{groupId}:{actorUid}
    (recipientUid is the parent doc ID, so it doesn't need to be in the
    child ID.)
    ============================================================================= */
 
 const SHELFD_NOTIFICATIONS_WINDOW_MS = 11 * 24 * 60 * 60 * 1000;
 const SHELFD_NOTIFICATIONS_LISTENER_LIMIT = 80;
-const SHELFD_NOTIFICATIONS_VALID_TYPES = ['activity_like', 'activity_comment', 'friend_request', 'friend_accept'];
+const SHELFD_NOTIFICATIONS_VALID_TYPES = ['activity_like', 'activity_comment', 'friend_request', 'friend_accept', 'shared_watch_request'];
 
 let activityNotificationsList = [];
 let activityNotificationsLoadedOnce = false;
@@ -1563,6 +1571,7 @@ function buildShelfdNotificationDocId(options = {}) {
   }
   if (type === 'friend_request') return `friend_request:${actor}`;
   if (type === 'friend_accept') return `friend_accept:${actor}`;
+  if (type === 'shared_watch_request') return `shared_watch_request:${activity}:${actor}`;
   return `${sanitizeShelfdNotifIdPart(type)}:${activity}:${actor}`;
 }
 
@@ -1630,8 +1639,8 @@ async function createActivityNotification(options = {}) {
   let type = String(options.type || '').trim();
 
   /* v10.145: Type normalization — older trigger sites passed 'feed_like',
-     'comment_reply', 'comment_like', or 'shared_watch_request'. Collapse
-     to the 4 canonical types or drop the write. */
+     'comment_reply', or 'comment_like'. Collapse legacy aliases to the
+     canonical types or drop the write. */
   if (type === 'feed_like') type = 'activity_like';
   if (type === 'comment_reply') type = 'activity_comment';
   if (!SHELFD_NOTIFICATIONS_VALID_TYPES.includes(type)) return false;
@@ -1657,6 +1666,9 @@ async function createActivityNotification(options = {}) {
     targetCommentId: String(options.targetCommentId || '').trim(),
     targetKind: String(options.targetKind || (type.startsWith('activity_') ? 'activity' : 'friend_request')).trim(),
     targetCollection: String(options.targetCollection || '').trim(),
+    watchTogetherGroupId: String(options.watchTogetherGroupId || '').trim(),
+    watchTogetherMode: String(options.watchTogetherMode || '').trim(),
+    watchTogetherSection: String(options.watchTogetherSection || '').trim(),
     mediaTitle: String(media.mediaTitle || '').trim(),
     mediaPoster: String(media.mediaPoster || '').trim(),
     textSnippet: String(options.textSnippet || '').trim().slice(0, 180),
@@ -1711,7 +1723,10 @@ async function createActivityNotification(options = {}) {
               targetActivityId: payload.targetActivityId || '',
               targetCommentId: payload.targetCommentId || '',
               targetKind: payload.targetKind || '',
-              targetCollection: payload.targetCollection || ''
+              targetCollection: payload.targetCollection || '',
+              watchTogetherGroupId: payload.watchTogetherGroupId || '',
+              watchTogetherMode: payload.watchTogetherMode || '',
+              watchTogetherSection: payload.watchTogetherSection || ''
             }
           })
         }).catch(() => {});
@@ -1813,6 +1828,12 @@ function getShelfdNotificationCopy(notification = {}) {
   if (type === 'activity_comment') return `${name} commented on your activity.`;
   if (type === 'friend_request') return `${name} sent you a friend request.`;
   if (type === 'friend_accept') return `${name} accepted your friend request.`;
+  if (type === 'shared_watch_request') {
+    const mode = String(notification.watchTogetherMode || '').trim();
+    return mode === 'planned'
+      ? `${name} requested to add you to Plan Together.`
+      : `${name} requested to add you to Watched Together.`;
+  }
   return `${name} interacted with your activity.`;
 }
 
@@ -1830,6 +1851,7 @@ function getShelfdNotificationAccentClass(type = '') {
   if (type === 'activity_like') return 'like';
   if (type === 'activity_comment') return 'comment';
   if (type === 'friend_request' || type === 'friend_accept') return 'friend';
+  if (type === 'shared_watch_request') return 'comment';
   return 'default';
 }
 
@@ -1877,7 +1899,7 @@ function renderActivityNotificationsList() {
     return;
   }
   if (!activityNotificationsList.length) {
-    feed.innerHTML = `${headerHtml}<div class="activity-notifications-empty"><strong>No notifications yet</strong><span>Likes, comments, and friend events from the last 11 days will show up here.</span></div>`;
+    feed.innerHTML = `${headerHtml}<div class="activity-notifications-empty"><strong>No notifications yet</strong><span>Likes, comments, friend events, and Shared Watch requests from the last 11 days will show up here.</span></div>`;
     return;
   }
   feed.innerHTML = `${headerHtml}<div class="activity-notifications-shell">${activityNotificationsList.map(buildActivityNotificationRowHTML).join('')}</div>`;
@@ -1900,6 +1922,17 @@ async function openActivityNotificationTarget(notificationId = '') {
   if (!notification) return;
 
   const type = String(notification.type || '').trim();
+  /* Shared Watch requests -> open the Watch Requests surface. */
+  if (type === 'shared_watch_request') {
+    const groupId = String(notification.watchTogetherGroupId || notification.targetActivityId || '').trim();
+    if (typeof window.routeWatchTogetherNotificationTarget === 'function') {
+      try { await window.routeWatchTogetherNotificationTarget(groupId); return; } catch (e) {}
+    }
+    if (typeof switchActivitySubTab === 'function') {
+      try { await switchActivitySubTab('friendWatch'); } catch (e) {}
+    }
+    return;
+  }
   /* Friend events → open the actor's profile / user list. */
   if (type === 'friend_request' || type === 'friend_accept') {
     const actorUid = String(notification.actorUid || '').trim();
@@ -3526,8 +3559,9 @@ async function toggleFeedReplyLike(postId, replyId, btnEl) {
     newReplies[idx] = target;
     await ref.update({ replies: newReplies });
     /* v10.145: removed the `comment_like` notification trigger. The
-       rebuilt notifications system supports only 4 types
-       (activity_like, activity_comment, friend_request, friend_accept);
+       rebuilt notifications system supports canonical social types
+       (activity_like, activity_comment, friend_request, friend_accept,
+       shared_watch_request);
        likes on individual comments are not one of them, so we no
        longer write a notification doc here. The like itself still
        persists to the comment's `likes` array above. */
@@ -5829,7 +5863,7 @@ function renderFriendActivityItems(feed, activities, options = {}) {
      silently no-op-ing. Clearing in-place keeps the same object identity so
      window stays in sync with every re-render. */
   Object.keys(friendActivityClickTargets).forEach(k => { delete friendActivityClickTargets[k]; });
-  activities = collapseStackedActivityBurstActivities(Array.isArray(activities) ? activities : []);
+  activities = collapseStackedActivityBurstActivities((Array.isArray(activities) ? activities : []).filter(activity => !isScreenListRemovalActivity(activity)));
 
   /* v10.552: filter out posts from blocked users instantly — no
      re-fetch needed, the Set is updated the moment a block is confirmed. */
@@ -6262,7 +6296,9 @@ function getFriendActivityCacheKey(dayLimit = 7) {
 }
 
 function cloneFriendActivityList(activities = []) {
-  return (Array.isArray(activities) ? activities : []).map(activity => ({
+  return (Array.isArray(activities) ? activities : [])
+    .filter(activity => !isScreenListRemovalActivity(activity))
+    .map(activity => ({
     ...activity,
     item: activity.item ? { ...activity.item } : activity.item
   }));
@@ -6770,6 +6806,7 @@ async function fetchAllFriendActivities(dayLimit = 7) {
   })));
   friendActivityLiveEvents.forEach(event => {
     if (!event || !friendUidSet.has(event.uid)) return;
+    if (isScreenListRemovalActivity(event)) return;
     const eventTime = parseFriendActivityTime(event.timestamp || event.item?.dateAdded);
     if (cutoff && eventTime && eventTime < parseFriendActivityTime(cutoff)) return;
     activities.push({
@@ -6809,7 +6846,7 @@ async function fetchAllFriendActivities(dayLimit = 7) {
      already has a synthesized completion-like activity. See the function's
      comment for rationale. Runs OUTSIDE mergeRelatedLibraryActivities so the
      dropped activities never hit the merge keying logic. */
-  const mergedActivities = collapseStackedActivityBurstActivities(collapseImportBatchActivities(mergeRelatedLibraryActivities(filterRedundantMediaReviewWhenCompletionExists([...deduped.values()]))))
+  const mergedActivities = collapseStackedActivityBurstActivities(collapseImportBatchActivities(mergeRelatedLibraryActivities(filterRedundantMediaReviewWhenCompletionExists([...deduped.values()].filter(activity => !isScreenListRemovalActivity(activity))))))
     .filter(activity => !isScreenListActivityDeletedForOwner(activity, activity.eventKey || activity.id || activity.activityId || ''))
     .sort((a, b) => new Date(b.timestamp || b.item?.dateAdded || 0) - new Date(a.timestamp || a.item?.dateAdded || 0));
   friendActivityCache = { key: cacheKey, timestamp: Date.now(), activities: mergedActivities };

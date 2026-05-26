@@ -1,11 +1,7 @@
-/* v746: bumped CACHE name on every meaningful deploy so the SW bytes
-   differ from the old one. That forces the browser/PWA to install the
-   NEW service worker, fire `activate`, and `controllerchange` ? which
-   the existing live-update handler in 00-live-update-pwa.js (line 195)
-   listens for and turns into a graceful splash + reload. Without this
-   bump, the SW bytes were byte-identical across deploys, no new install
-   happened, and PWAs sat on stale JS until the user manually deleted
-   and re-added the home-screen app. */
+/* v981: CACHE still changes on meaningful deploys so open clients can detect
+   the new service worker, but activation no longer navigates/reloads clients.
+   The page runtime shows a non-blocking "reopen app" notice instead so users
+   can keep writing and saving data. */
 const CACHE = 'shelfd-v10-791-safe-area-bar-color-181c20';
 const DISCOVER_POSTER_CACHE = 'screenlist-discover-posters-v1';
 const MYLIST_POSTER_CACHE = 'screenlist-mylist-posters-v1';
@@ -26,9 +22,9 @@ function isAlwaysFreshAsset(url) {
      changes. Treat as cache-first (falls through to cacheFirstStatic in
      the fetch handler below). Saves multiple seconds on warm reload/PWA
      navigation because we stop re-fetching JS/CSS that hasn't changed.
-     The deploy auto-refresh path in 00-live-update-pwa.js still polls
-     /index.html (unversioned, network-first) so version bumps are still
-     detected and the live-update splash still kicks in. */
+     The deploy notice path in 00-live-update-pwa.js still polls /index.html
+     (unversioned, network-first) so version bumps are detected without
+     auto-refreshing the open app. */
   if (url.search && url.search.indexOf('v=') !== -1) return false;
   return url.pathname === '/'
     || url.pathname.endsWith('.html')
@@ -81,28 +77,8 @@ self.addEventListener('activate', event => {
     const stale = keys.filter(key => key !== CACHE && /^shelfd-/i.test(key));
     await Promise.all(stale.map(key => caches.delete(key)));
     await self.clients.claim();
-    /* v746: belt-and-suspenders. If at least one stale cache existed, this
-       is an UPGRADE (not a first install) ? meaning open PWA windows are
-       running JS bytes from the previous deploy. The live-update JS in
-       00-live-update-pwa.js (line 195) listens for `controllerchange` and
-       reloads via splash, but ANCIENT PWAs that never picked up that
-       listener would otherwise stay stuck on stale JS forever.
-       Solution: tell every open client to navigate to itself. That's a
-       hard SW-driven reload that doesn't depend on the page's loaded JS
-       having any update logic at all. Wrapped in try/catch because some
-       browsers reject navigate() across origins or for non-top-level
-       clients. */
-    if (stale.length > 0) {
-      try {
-        const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-        await Promise.all(clientsList.map(client => {
-          try { return client.navigate(client.url); } catch (e) { return null; }
-        }));
-      } catch (e) {
-        /* ignore ? controllerchange path will still fire for clients with
-           the live-update listener */
-      }
-    }
+    /* Do not navigate clients here. Open pages must remain alive across
+       deploys so in-progress user edits can continue saving to Firestore. */
   })());
 });
 

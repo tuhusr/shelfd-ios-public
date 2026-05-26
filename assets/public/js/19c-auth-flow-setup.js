@@ -6,7 +6,7 @@
      Sign In       → #shelfd-signin-page
      Reset Pwd     → #shelfd-reset-page    (opens from Sign In)
      Create Acct   → #shelfd-signup-page
-     Setup         → #shelfd-setup-page    (3 steps: nickname → photo → welcome)
+     Setup         → #shelfd-setup-page    (4 steps: username → display name → photo → welcome)
 
    Replaces the landing-page email-auth UX. The old #login-email-page tabbed
    panel still ships in HTML for safety but is no longer wired to any
@@ -18,7 +18,7 @@
      name (= nickname), nameLower, customName
      photo (base64 data URI), customPhoto
      onboardingComplete : boolean
-     onboardingStep    : 1 | 2 | 3 (only while !onboardingComplete; deleted on finish)
+     onboardingStep    : 1 | 2 | 3 | 4 (only while !onboardingComplete; deleted on finish)
      createdAt, updatedAt (server timestamps)
 
    Username uniqueness uses the existing usernames/{usernameLower} doc-id
@@ -39,7 +39,7 @@
   'use strict';
 
   /* ───────── Constants ───────── */
-  const USERNAME_RE = /^[a-zA-Z0-9_]{6,20}$/;
+  const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
   const MIN_PASSWORD_LEN = 8;
   const NICKNAME_MAX = 40;
   const POST_SUCCESS_CLOSE_MS = 220;
@@ -48,7 +48,7 @@
   const busy = {
     signin: false, reset: false, signup: false,
     verifyContinue: false, verifyResend: false,
-    setupUsername: false, setupPhoto: false, setupFinish: false
+    setupUsername: false, setupDisplayName: false, setupPhoto: false, setupFinish: false
   };
   let setupChosenPhotoBase64 = '';
   const OPEN_PANEL_STACK = [];
@@ -72,7 +72,14 @@
     return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(value || '').trim());
   }
   function isValidUsername(value) {
-    return USERNAME_RE.test(String(value || '').trim());
+    const clean = String(value || '').trim();
+    return USERNAME_RE.test(clean);
+  }
+  function sanitizeUsernameInput(value) {
+    return String(value || '')
+      .replace(/^@+/, '')
+      .replace(/[^a-zA-Z0-9_]/g, '')
+      .slice(0, 20);
   }
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -265,7 +272,7 @@
   }
 
   /* ───────── Username live hint (v816: setup step 1 field) ─────────
-     Pure local format check — letters/numbers/underscores, 6–20 chars.
+     Pure local format check: letters/numbers/underscores, 3-20 chars.
      NO Firestore call on keystroke. Reservation happens once on submit. */
   function bindUsernameHint() {
     const field = $('shelfd-setup-username');
@@ -273,13 +280,15 @@
     if (!field || !hint || field.__shelfdHintBound) return;
     field.__shelfdHintBound = true;
     field.addEventListener('input', () => {
-      const v = field.value.trim();
+      const cleaned = sanitizeUsernameInput(field.value);
+      if (field.value !== cleaned) field.value = cleaned;
+      const v = cleaned.trim();
       if (!v) {
-        hint.textContent = 'Letters, numbers, and underscores only.';
+        hint.textContent = '3-20 characters. Letters, numbers, and underscores only.';
         hint.dataset.kind = '';
-      } else if (!isValidUsername(v)) {
-        hint.textContent = 'Username must be 6–20 chars: letters, numbers, underscore only.';
+    } else if (!isValidUsername(v)) {
         hint.dataset.kind = 'error';
+        hint.textContent = 'Username must be 3-20 characters and can only use letters, numbers, and underscores.';
       } else {
         hint.textContent = 'Looks good.';
         hint.dataset.kind = 'ok';
@@ -298,6 +307,7 @@
       which === 'verifyContinue' ? 'shelfd-verify-continue' :
       which === 'verifyResend'   ? 'shelfd-verify-resend' :
       which === 'setupUsername'  ? 'shelfd-setup-username-next' :
+      which === 'setupDisplayName' ? 'shelfd-setup-display-name-next' :
       which === 'setupPhoto'     ? 'shelfd-setup-photo-next' :
                                    null;
     const btn = submitId ? $(submitId) : null;
@@ -519,11 +529,10 @@
     }
   }
 
-  /* v816 — Continue URL Firebase redirects to after the user clicks the
-     verification link in their email. The domain (myscreenlist.com) must
-     be added to Firebase Console → Authentication → Settings →
-     Authorized domains for this to work. */
-  const SHELFD_VERIFY_CONTINUE_URL = 'https://myscreenlist.com/auth/verify';
+  /* v816/v10.792: Firebase redirects here after email verification.
+     /auth/verify is included in the iOS Universal Link association so the
+     installed app can resume onboarding instead of leaving users in Safari. */
+  const SHELFD_VERIFY_CONTINUE_URL = 'https://myshelfd.com/auth/verify?source=email';
 
   function getVerificationActionCodeSettings() {
     return {
@@ -574,10 +583,29 @@
          can then route the now-unverified user to the verify screen. */
       window.__shelfdSignupInProgress = true;
       signupFlagOwned = true;
+      try {
+        if (typeof window.resetShelfdActiveAccountState === 'function') {
+          window.resetShelfdActiveAccountState('pre-email-signup', '');
+        }
+      } catch (resetErr) {
+        console.warn('[shelfd-auth] pre-signup state reset failed:', resetErr);
+      }
 
       const cred = await firebase.auth().createUserWithEmailAndPassword(email, password);
       createdUser = cred && cred.user;
       if (!createdUser) throw new Error('No user returned from Firebase');
+      console.info('[shelfd-auth] createUserWithEmailAndPassword complete', {
+        createdUid: createdUser.uid,
+        authCurrentUid: firebase.auth().currentUser?.uid || '',
+        email: createdUser.email || email
+      });
+      window.__shelfdAuthUidDebug = {
+        stage: 'createUserWithEmailAndPassword',
+        createdUid: createdUser.uid,
+        authCurrentUid: firebase.auth().currentUser?.uid || '',
+        email: createdUser.email || email,
+        at: new Date().toISOString()
+      };
       /* v10.648: explicitly invite the browser/iOS to offer "Save Password"
          immediately after account creation so the user's chosen password is
          captured by iCloud Keychain before they leave for verify-email. */
@@ -751,7 +779,7 @@
   }
 
   /* ════════════════════════════════════════════════════════════════════════
-     SETUP FLOW (3 steps)
+     SETUP FLOW (4 steps)
      ════════════════════════════════════════════════════════════════════════ */
   function openShelfdSetupPage(step = 1, opts = {}) {
     const settings = opts || {};
@@ -771,25 +799,29 @@
 
     /* v816: step 1 is now USERNAME, not nickname. */
     setBanner($('shelfd-setup-username-error'), '');
+    setBanner($('shelfd-setup-display-name-error'), '');
     setBanner($('shelfd-setup-photo-error'), '');
     const usernameHint = $('shelfd-setup-username-hint');
-    if (usernameHint) { usernameHint.textContent = 'Letters, numbers, and underscores only.'; usernameHint.dataset.kind = ''; }
+    if (usernameHint) { usernameHint.textContent = '3-20 characters. Letters, numbers, and underscores only.'; usernameHint.dataset.kind = ''; }
     const usernameField = $('shelfd-setup-username');
     if (usernameField && settings.usernameDefault && !usernameField.value) {
       usernameField.value = settings.usernameDefault;
     }
+    const displayNameField = $('shelfd-setup-display-name');
+    if (displayNameField && settings.displayNameDefault && !displayNameField.value) {
+      displayNameField.value = settings.displayNameDefault;
+    }
 
     setSetupStep(step);
     openPanel('shelfd-setup-page');
-    if (step === 1) {
-      setTimeout(() => { try { $('shelfd-setup-username').focus(); } catch(_){} }, 80);
-    }
+    if (step === 1) setTimeout(() => { try { $('shelfd-setup-username').focus(); } catch(_){} }, 80);
+    if (step === 2) setTimeout(() => { try { $('shelfd-setup-display-name').focus(); } catch(_){} }, 80);
   }
 
   function setSetupStep(step) {
     const root = $('shelfd-setup-page');
     if (!root) return;
-    const n = step === 2 ? 2 : step === 3 ? 3 : 1;
+    const n = step === 2 ? 2 : step === 3 ? 3 : step === 4 ? 4 : 1;
     root.setAttribute('data-step', String(n));
     root.querySelectorAll('[data-setup-step]').forEach(el => {
       el.hidden = Number(el.dataset.setupStep) !== n;
@@ -844,12 +876,13 @@
       return;
     }
 
-    const username = String($('shelfd-setup-username').value || '').trim();
+    const usernameField = $('shelfd-setup-username');
+    const username = sanitizeUsernameInput(usernameField ? usernameField.value : '');
+    if (usernameField && usernameField.value !== username) usernameField.value = username;
     if (!isValidUsername(username)) {
-      setBanner($('shelfd-setup-username-error'), 'Username must be 6–20 chars: letters, numbers, underscore only. No spaces or special characters.', 'error');
+      setBanner($('shelfd-setup-username-error'), 'Username must be 3-20 characters and can only use letters, numbers, and underscores. No spaces or special characters.', 'error');
       return;
     }
-
     setBusy('setupUsername', true);
     setBanner($('shelfd-setup-username-error'), '');
     const usernameLower = username.toLowerCase();
@@ -948,12 +981,32 @@
       return;
     }
 
-    /* Best-effort: set displayName on the Auth user + in-memory profile. */
+    /* Best-effort fallback until the user sets a separate display name. */
     try { await user.updateProfile({ displayName: username }); } catch (_) {}
     try {
-      if (window.userProfile) {
-        window.userProfile.name = username;
-        window.userProfile.usernameHandle = username;
+      if (typeof currentUser !== 'undefined') currentUser = user;
+      if (typeof DOC_REF !== 'undefined') DOC_REF = db.collection("watchlist").doc(user.uid);
+      if (typeof userProfile !== 'undefined' && typeof normalizeUserProfile === 'function') {
+        userProfile = normalizeUserProfile({
+          uid: user.uid,
+          emailLower: emailLower,
+          accountEmailLower: emailLower,
+          name: username,
+          customName: username,
+          usernameHandle: username,
+          usernameHandleLower: usernameLower,
+          onboardingComplete: false,
+          onboardingStep: 2
+        });
+      }
+      if (typeof usersMap !== 'undefined') {
+        usersMap[user.uid] = {
+          ...(usersMap[user.uid] || {}),
+          uid: user.uid,
+          name: username,
+          usernameHandle: username,
+          usernameHandleLower: usernameLower
+        };
       }
       if (typeof window.applyProfile === 'function') window.applyProfile();
     } catch (_) {}
@@ -962,11 +1015,98 @@
     setSetupStep(2);
   }
 
-  /* ── Step 2 — Photo ──
-     Same pattern as handleProfileUpload in 15-profile-settings.js: read the
-     file with FileReader, decode into <img>, draw center-cropped square at
-     256×256 onto canvas, base64-encode as JPEG q=0.78. Store as a data URI
-     in the user doc (same as the rest of the app). */
+  /* Step 2: display name. This writes the same name/customName fields
+     edited later from the full-page profile settings screen. */
+  async function handleShelfdDisplayNameSetupNext() {
+    if (busy.setupDisplayName) return;
+    if (typeof firebase === 'undefined' || !firebase.auth || !firebase.firestore) {
+      setBanner($('shelfd-setup-display-name-error'), 'Service is loading. Try again in a moment.', 'error');
+      return;
+    }
+    const user = firebase.auth().currentUser;
+    if (!user) {
+      setBanner($('shelfd-setup-display-name-error'), 'You are signed out. Please sign in again.', 'error');
+      return;
+    }
+
+    const displayNameEl = $('shelfd-setup-display-name');
+    const displayName = String((displayNameEl && displayNameEl.value) || '').trim();
+    if (!displayName) {
+      setBanner($('shelfd-setup-display-name-error'), 'Enter a display name to continue.', 'error');
+      return;
+    }
+    if (displayName.length > NICKNAME_MAX) {
+      setBanner($('shelfd-setup-display-name-error'), 'Display name must be ' + NICKNAME_MAX + ' characters or fewer.', 'error');
+      return;
+    }
+
+    setBusy('setupDisplayName', true);
+    setBanner($('shelfd-setup-display-name-error'), '');
+    const cleanLower = displayName.toLowerCase();
+    try {
+      await firebase.firestore().collection('users').doc(user.uid).set({
+        name: displayName,
+        nameLower: cleanLower,
+        customName: displayName,
+        customNameLower: cleanLower,
+        displayName: displayName,
+        onboardingStep: 3,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      try { await user.updateProfile({ displayName: displayName }); } catch (_) {}
+      try {
+        if (typeof currentUser !== 'undefined') currentUser = user;
+        if (typeof DOC_REF !== 'undefined') DOC_REF = firebase.firestore().collection("watchlist").doc(user.uid);
+        if (window.userProfile) {
+          window.userProfile.name = displayName;
+          window.userProfile.nameLower = cleanLower;
+          window.userProfile.customName = displayName;
+          window.userProfile.customNameLower = cleanLower;
+          window.userProfile.displayName = displayName;
+        }
+        if (typeof userProfile !== 'undefined') {
+          const existingProfile = (userProfile && userProfile.uid === user.uid) ? userProfile : {};
+          userProfile = {
+            ...existingProfile,
+            uid: user.uid,
+            name: displayName,
+            nameLower: cleanLower,
+            customName: displayName,
+            customNameLower: cleanLower,
+            displayName: displayName
+          };
+        }
+        if (typeof usersMap !== 'undefined') {
+          usersMap[user.uid] = {
+            ...(usersMap[user.uid] || {}),
+            uid: user.uid,
+            name: displayName,
+            nameLower: cleanLower,
+            customName: displayName,
+            customNameLower: cleanLower,
+            displayName: displayName
+          };
+        }
+        if (typeof window.applyProfile === 'function') window.applyProfile();
+      } catch (_) {}
+      setSetupStep(3);
+    } catch (err) {
+      console.warn('[shelfd-auth] display name setup failed:', err);
+      if (isResourceExhausted(err)) {
+        setBanner($('shelfd-setup-display-name-error'), quotaUserMessage(), 'error');
+      } else if (isPermissionDenied(err)) {
+        logRuleHint('users/' + user.uid, 'WRITE (display name setup)');
+        setBanner($('shelfd-setup-display-name-error'), "Couldn't save your display name because database rules blocked the profile write.", 'error');
+      } else {
+        setBanner($('shelfd-setup-display-name-error'), 'Could not save your display name. Try again.', 'error');
+      }
+    } finally {
+      setBusy('setupDisplayName', false);
+    }
+  }
+
+  /* Step 3: profile photo. Same pattern as handleProfileUpload in
+     15-profile-settings.js: center-crop to a 256x256 JPEG data URI. */
   function bindSetupPhotoInput() {
     const input = $('shelfd-setup-photo-input');
     const preview = $('shelfd-setup-photo-preview');
@@ -1020,7 +1160,7 @@
 
   async function shelfdSetupSavePhoto() {
     if (busy.setupPhoto) return;
-    if (!setupChosenPhotoBase64) { setSetupStep(3); return; }
+    if (!setupChosenPhotoBase64) { setSetupStep(4); return; }
     if (typeof firebase === 'undefined' || !firebase.auth) return;
     const user = firebase.auth().currentUser;
     if (!user) {
@@ -1034,14 +1174,30 @@
       await db.collection('users').doc(user.uid).set({
         photo: setupChosenPhotoBase64,
         customPhoto: setupChosenPhotoBase64,
-        onboardingStep: 3,
+        onboardingStep: 4,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
       try {
-        if (window.userProfile) window.userProfile.photo = setupChosenPhotoBase64;
+        if (typeof userProfile !== 'undefined') {
+          const existingProfile = (userProfile && userProfile.uid === user.uid) ? userProfile : {};
+          userProfile = {
+            ...existingProfile,
+            uid: user.uid,
+            photo: setupChosenPhotoBase64,
+            customPhoto: setupChosenPhotoBase64
+          };
+        }
+        if (typeof usersMap !== 'undefined') {
+          usersMap[user.uid] = {
+            ...(usersMap[user.uid] || {}),
+            uid: user.uid,
+            photo: setupChosenPhotoBase64,
+            customPhoto: setupChosenPhotoBase64
+          };
+        }
         if (typeof window.applyProfile === 'function') window.applyProfile();
       } catch (_) {}
-      setSetupStep(3);
+      setSetupStep(4);
     } catch (err) {
       console.warn('[shelfd-auth] save photo failed:', err);
       setBanner($('shelfd-setup-photo-error'), 'Could not save. Try again.', 'error');
@@ -1052,25 +1208,25 @@
 
   async function shelfdSetupSkipPhoto() {
     if (busy.setupPhoto) return;
-    if (typeof firebase === 'undefined' || !firebase.auth) { setSetupStep(3); return; }
+    if (typeof firebase === 'undefined' || !firebase.auth) { setSetupStep(4); return; }
     const user = firebase.auth().currentUser;
-    if (!user) { setSetupStep(3); return; }
+    if (!user) { setSetupStep(4); return; }
     setBusy('setupPhoto', true);
     try {
       const db = firebase.firestore();
       await db.collection('users').doc(user.uid).set({
-        onboardingStep: 3,
+        onboardingStep: 4,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
     } catch (err) {
       console.warn('[shelfd-auth] skip photo step failed:', err);
     } finally {
       setBusy('setupPhoto', false);
-      setSetupStep(3);
+      setSetupStep(4);
     }
   }
 
-  /* ── Step 3 — Welcome / finish ── */
+  /* Step 4: welcome / finish. */
   async function shelfdSetupFinish() {
     if (busy.setupFinish) return;
     if (typeof firebase === 'undefined' || !firebase.auth) return;
@@ -1084,6 +1240,9 @@
         onboardingStep: firebase.firestore.FieldValue.delete(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
+      if (typeof saveUserProfile === 'function') {
+        await saveUserProfile(user);
+      }
     } catch (err) {
       console.warn('[shelfd-auth] finish setup failed:', err);
       /* Don't trap the user — proceed to the app even if the flag write
@@ -1165,8 +1324,11 @@
       }
 
       if (data.onboardingComplete === false) {
-        const step = (data.onboardingStep === 2 || data.onboardingStep === 3) ? data.onboardingStep : 1;
-        openShelfdSetupPage(step, {});
+        const step = (data.onboardingStep === 2 || data.onboardingStep === 3 || data.onboardingStep === 4) ? data.onboardingStep : 1;
+        openShelfdSetupPage(step, {
+          usernameDefault: data.usernameHandle || '',
+          displayNameDefault: data.name || data.customName || ''
+        });
         return true;
       }
       return false;
@@ -1295,7 +1457,9 @@
   window.handleShelfdVerifyBack = handleShelfdVerifyBack;
   window.handleShelfdVerifyContinue = handleShelfdVerifyContinue;
   window.handleShelfdResendVerification = handleShelfdResendVerification;
+  window.handleShelfdVerificationReturn = handleVerificationReturn;
   window.handleShelfdUsernameSetupNext = handleShelfdUsernameSetupNext;
+  window.handleShelfdDisplayNameSetupNext = handleShelfdDisplayNameSetupNext;
   /* Back-compat shim — old code/tests still calling the nickname handler
      get routed to the new username submit. */
   window.shelfdSetupNicknameNext = handleShelfdUsernameSetupNext;

@@ -4825,6 +4825,7 @@ function serveAppleAppSiteAssociation(env) {
             { "/": "/media/*",        comment: "Media share links" },
             { "/": "/album/*",        comment: "Album share links" },
             { "/": "/review/*",       comment: "Review share links" },
+            { "/": "/auth/verify",    comment: "Email verification return link" },
             { "/": "/profile/*",      comment: "Full profile share links" },
             { "/": "/profile-card/*", comment: "Profile card share links" }
           ]
@@ -4850,6 +4851,19 @@ function serveAppleAppSiteAssociation(env) {
   });
 }
 
+function isLegacyShelfdHost(hostname = "") {
+  const host = String(hostname || "").trim().toLowerCase();
+  return host === "myscreenlist.com" || host === "www.myscreenlist.com";
+}
+
+function redirectLegacyAuthVerifyToShelfd(url) {
+  const target = new URL(url.toString());
+  target.protocol = "https:";
+  target.hostname = "myshelfd.com";
+  target.port = "";
+  return Response.redirect(target.toString(), 302);
+}
+
 export default {
   async scheduled(controller, env, ctx) {
     ctx.waitUntil(runScheduledImdbRefresh(controller, env, ctx));
@@ -4865,6 +4879,20 @@ export default {
       url.pathname === "/.well-known/apple-app-site-association"
     ) {
       return serveAppleAppSiteAssociation(env);
+    }
+
+    /* v10.795: canonicalize old verification return URLs. Some older
+       Firebase email links were generated without an explicit continueUrl,
+       so the hosted Firebase action page can still land on the legacy
+       myscreenlist.com domain after the user taps Verify Email. Preserve
+       the path/query, but hand the browser/iOS Universal Link system the
+       Shelfd domain that the app now owns as its canonical auth return. */
+    if (
+      request.method === "GET" &&
+      url.pathname === "/auth/verify" &&
+      isLegacyShelfdHost(url.hostname)
+    ) {
+      return redirectLegacyAuthVerifyToShelfd(url);
     }
 
     if (url.pathname === "/profile-card-og.svg" && request.method === "GET") {

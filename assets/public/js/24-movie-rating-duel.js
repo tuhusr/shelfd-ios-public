@@ -97,14 +97,13 @@
   movieDuelVisibleTierMediaKey = duelMediaKey;
 
   const TIER_ROWS = [
-    { key: 'S', rating: 10, label: 'S Tier', meta: '&#9733; 10' },
-    { key: 'A', rating: 9, label: 'A Tier', meta: '&#9733; 9' },
-    { key: 'B', rating: 8, label: 'B Tier', meta: '&#9733; 8' },
-    { key: 'C', rating: 7, label: 'C Tier', meta: '&#9733; 7' },
-    { key: 'D', rating: 6, label: 'D Tier', meta: '&#9733; 6' },
-    { key: 'E', rating: 5, label: 'E Tier', meta: '&#9733; 5' },
-    { key: 'F', rating: 4, label: 'F Tier', meta: '&#9733; 4 and below' }
+    { key: 'S', rating: 10, displayRating: 5, label: 'S Tier', meta: '&#9733; 5' },
+    { key: 'A', rating: 9, displayRating: 4, label: 'A Tier', meta: '&#9733; 4' },
+    { key: 'B', rating: 8, displayRating: 3, label: 'B Tier', meta: '&#9733; 3' },
+    { key: 'C', rating: 7, displayRating: 2, label: 'C Tier', meta: '&#9733; 2' },
+    { key: 'D', rating: 6, displayRating: 1, label: 'D Tier', meta: '&#9733; 1' }
   ];
+  const LEGACY_TIER_RATINGS = { S: 10, A: 9, B: 8, C: 7, D: 6, E: 5, F: 4 };
 
   function html(value = '') {
     if (typeof escHtml === 'function') return escHtml(value);
@@ -129,12 +128,10 @@
   function getTierKeyForRating(value) {
     const rating = clampRating(value);
     if (rating >= 10) return 'S';
-    if (rating === 9) return 'A';
-    if (rating === 8) return 'B';
-    if (rating === 7) return 'C';
-    if (rating === 6) return 'D';
-    if (rating === 5) return 'E';
-    return 'F';
+    if (rating >= 9) return 'A';
+    if (rating >= 8) return 'B';
+    if (rating >= 7) return 'C';
+    return 'D';
   }
 
   function getTierRowByKey(tierKey = '') {
@@ -145,9 +142,13 @@
   function getTierDisplayRating(tierKey = '', fallbackRating = 0) {
     const row = getTierRowByKey(tierKey);
     if (!row) return clampRating(fallbackRating);
-    return row.key === 'F'
-      ? Math.max(1, Math.min(4, clampRating(fallbackRating) || 4))
-      : row.rating;
+    return row.rating;
+  }
+
+  function getTierStarRating(value = 0) {
+    if (!clampRating(value)) return 0;
+    const row = getTierRowByKey(getTierKeyForRating(value));
+    return row?.displayRating || 1;
   }
 
   function getMediaConfig(mediaKey = duelMediaKey) {
@@ -304,19 +305,33 @@
     const source = raw && typeof raw === 'object'
       ? (raw.tiers && typeof raw.tiers === 'object' ? raw.tiers : raw)
       : {};
-    TIER_ROWS.forEach(tier => {
-      const entries = Array.isArray(source[tier.key]) ? source[tier.key] : [];
-      next[tier.key] = entries
-        .map(entry => ({
-          id: cleanText(entry?.id || entry?.tmdbId || entry?.malId || entry?.rawgId || entry?.title || ''),
-          title: cleanText(entry?.title || 'Untitled'),
-          poster: cleanText(entry?.poster || entry?.cover || entry?.image || ''),
-          rating: clampRating(entry?.rating || tier.rating),
-          tier: tier.key,
-          mediaKey: cleanText(entry?.mediaKey || config.key),
-          updatedAt: cleanText(entry?.updatedAt || '')
-        }))
-        .filter(entry => entry.id || entry.title);
+    const sourceTierKeys = Array.from(new Set([
+      ...TIER_ROWS.map(tier => tier.key),
+      ...Object.keys(LEGACY_TIER_RATINGS),
+      ...Object.keys(source)
+    ]));
+    sourceTierKeys.forEach(sourceTierKey => {
+      const legacyKey = cleanText(sourceTierKey).toUpperCase();
+      const entries = Array.isArray(source[sourceTierKey]) ? source[sourceTierKey] : [];
+      entries
+        .map(entry => {
+          const rating = clampRating(entry?.rating || LEGACY_TIER_RATINGS[legacyKey] || 0);
+          const tierKey = getTierKeyForRating(rating);
+          return {
+            id: cleanText(entry?.id || entry?.tmdbId || entry?.malId || entry?.rawgId || entry?.title || ''),
+            title: cleanText(entry?.title || 'Untitled'),
+            poster: cleanText(entry?.poster || entry?.cover || entry?.image || ''),
+            rating: getTierDisplayRating(tierKey, rating),
+            tier: tierKey,
+            mediaKey: cleanText(entry?.mediaKey || config.key),
+            updatedAt: cleanText(entry?.updatedAt || '')
+          };
+        })
+        .filter(entry => entry.id || entry.title)
+        .forEach(entry => {
+          if (!Array.isArray(next[entry.tier])) next[entry.tier] = [];
+          next[entry.tier].push(entry);
+        });
     });
     return next;
   }
@@ -436,13 +451,16 @@
 
   function makeSessionOpponentFromTierEntry(entry = {}, fallbackItem = null, mediaKey = duelMediaKey) {
     const config = getMediaConfig(mediaKey);
+    const legacyTierKey = cleanText(entry.tier).toUpperCase();
+    const entryRating = clampRating(entry.rating || fallbackItem?.rating || LEGACY_TIER_RATINGS[legacyTierKey] || 0);
+    const entryTier = getTierKeyForRating(entryRating);
     const normalizedEntry = {
       ...entry,
       id: cleanText(entry.id || fallbackItem?.id || ''),
       title: cleanText(entry.title || getDuelTitle(fallbackItem || {}, mediaKey) || 'Untitled'),
       poster: cleanText(entry.poster || getDuelPoster(fallbackItem || {}, mediaKey) || ''),
-      rating: getTierDisplayRating(entry.tier || getTierKeyForRating(entry.rating), entry.rating || fallbackItem?.rating || 0),
-      tier: cleanText(entry.tier || getTierKeyForRating(entry.rating || fallbackItem?.rating || 0)).toUpperCase(),
+      rating: getTierDisplayRating(entryTier, entryRating),
+      tier: entryTier,
       mediaKey: config.key
     };
     const base = fallbackItem ? { ...fallbackItem } : {};
@@ -1399,24 +1417,24 @@
   document.addEventListener('contextmenu', onMovieDuelTierContextMenu, true);
 
   function getMovieDuelRecapCopy(listRating = 0, tierRating = 0) {
-    const listScore = Math.max(1, clampRating(listRating || 0));
-    const tierScore = Math.max(1, clampRating(tierRating || 0));
+    const listScore = getTierStarRating(listRating || 0);
+    const tierScore = getTierStarRating(tierRating || 0);
     if (listScore === tierScore) {
       return `
         <div class="movie-duel-recap-line movie-duel-recap-line-align">
           Wow your heart and mind were aligned,
         </div>
         <div class="movie-duel-recap-line movie-duel-recap-line-align">
-          you gave it a ${html(listScore)}/10 in your list and a ${html(tierScore)}/10 here!
+          you gave it a ${html(listScore)}/5 in your list and a ${html(tierScore)}/5 here!
         </div>
       `;
     }
     return `
       <div class="movie-duel-recap-line">
-        You rated this a ${html(listScore)}/10 in your lists..
+        You rated this a ${html(listScore)}/5 in your lists..
       </div>
       <div class="movie-duel-recap-line movie-duel-recap-line-heart">
-        But your heart gave it a ${html(tierScore)}/10 here <span aria-hidden="true">&#10084;</span>
+        But your heart gave it a ${html(tierScore)}/5 here <span aria-hidden="true">&#10084;</span>
       </div>
     `;
   }
@@ -1438,11 +1456,12 @@
     const poster = getDuelPoster(duelState.targetItem, mediaKey);
     const listRating = clampRating(duelState.savedRating || duelState.targetItem?.rating || 0);
     const tierRating = clampRating(resultBand || 0);
+    const resultStarRating = getTierStarRating(resultBand || 0);
     let summary = 'It cleared every matchup in this run.';
     if (resultMeta?.type === 'promotion-blocked') {
       summary = `It cleared the ${getTierKeyForRating(resultMeta.retainedBand)} tier but could not break into the ${getTierKeyForRating(resultMeta.blockedBand)} tier, so it now leads ${getTierKeyForRating(resultMeta.retainedBand)}.`;
     } else if (defeatedBand) {
-      summary = `It landed in the ${getTierKeyForRating(resultBand)} tier, directly behind the ${defeatedBand}/10 title that stopped it.`;
+      summary = `It landed in the ${getTierKeyForRating(resultBand)} tier, directly behind the ${getTierStarRating(defeatedBand)}/5 title that stopped it.`;
     }
 
     /* v10.80: When the suggested tier differs from the saved Tier List
@@ -1494,7 +1513,7 @@
           <div class="movie-duel-result-title">${html(title)}</div>
         </div>
         <div class="movie-duel-result-label">Your tier-list rating for this ${html(config.lower)} is a</div>
-        <div class="movie-duel-result-score">${html(resultBand)}</div>
+        <div class="movie-duel-result-score">${html(resultStarRating)}</div>
         <div class="movie-duel-result-recap">
           ${getMovieDuelRecapCopy(listRating, tierRating)}
         </div>

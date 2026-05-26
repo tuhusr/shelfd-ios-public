@@ -214,6 +214,7 @@ function updateDirectMessagesTopbar() {
   if (page) {
     page.classList.toggle('dm-thread-open', isThread);
     page.classList.toggle('dm-group-edit-open', isGroupEdit);
+    page.classList.toggle('dm-new-chat-modal-open', !!dmNewChatOpen);
   }
   if (topbar) topbar.classList.toggle('dm-thread-topbar', isThread);
   if (visibleThread) {
@@ -348,6 +349,27 @@ function resetDirectMessageKeyboardLift() {
   page.style.setProperty('--vv-offset-top', '0px');
 }
 
+function setDirectMessagesBottomChromeHidden(hidden = false) {
+  document.querySelectorAll('#mobile-bottom-nav, .mobile-bottom-nav').forEach(nav => {
+    if (!nav) return;
+    if (hidden) {
+      nav.dataset.dmHiddenChrome = '1';
+      nav.setAttribute('aria-hidden', 'true');
+      try { nav.inert = true; } catch (_) {}
+      nav.style.setProperty('display', 'none', 'important');
+      nav.style.setProperty('visibility', 'hidden', 'important');
+      nav.style.setProperty('pointer-events', 'none', 'important');
+    } else if (nav.dataset.dmHiddenChrome === '1') {
+      delete nav.dataset.dmHiddenChrome;
+      nav.removeAttribute('aria-hidden');
+      try { nav.inert = false; } catch (_) {}
+      nav.style.removeProperty('display');
+      nav.style.removeProperty('visibility');
+      nav.style.removeProperty('pointer-events');
+    }
+  });
+}
+
 function initDirectMessageKeyboardLift() {
   if (window.__screenListDmKeyboardLiftReady) return;
   window.__screenListDmKeyboardLiftReady = true;
@@ -415,6 +437,7 @@ function lockBodyForDirectMessagesPage() {
   body.dataset.dmRestoreScrollY = String(scrollY);
   body.style.setProperty('--dm-saved-scrollY', `-${scrollY}px`);
   body.classList.add('dm-fullscreen-open');
+  setDirectMessagesBottomChromeHidden(true);
 }
 function unlockBodyForDirectMessagesPage() {
   const body = document.body;
@@ -423,6 +446,7 @@ function unlockBodyForDirectMessagesPage() {
   body.classList.remove('dm-fullscreen-open');
   body.style.removeProperty('--dm-saved-scrollY');
   delete body.dataset.dmRestoreScrollY;
+  setDirectMessagesBottomChromeHidden(false);
   if (saved > 0) {
     try { window.scrollTo(0, saved); } catch (_) {}
   }
@@ -432,6 +456,9 @@ function unlockBodyForDirectMessagesPage() {
 /* v71: mobile DM swipe-right close */
 let directMessagesSwipeState = null;
 let directMessagesSwipeRaf = 0;
+const DIRECT_MESSAGES_THREAD_EDGE_SWIPE_PX = 34;
+const DIRECT_MESSAGES_PAGE_EDGE_SWIPE_PX = 24;
+const DIRECT_MESSAGES_THREAD_NAV_ANIMATION_MS = 600;
 
 function resetDirectMessagesSwipeVisual(page = document.getElementById('direct-messages-page')) {
   if (!page) return;
@@ -439,13 +466,16 @@ function resetDirectMessagesSwipeVisual(page = document.getElementById('direct-m
   page.style.setProperty('--dm-swipe-opacity', '1');
   page.style.setProperty('--dm-thread-swipe-x', '0px');
   page.style.setProperty('--dm-thread-swipe-radius', '0px');
-  page.classList.remove('dm-swiping', 'dm-swipe-cancel', 'dm-swipe-closing', 'dm-thread-swipe-revealing', 'dm-thread-swipe-cancel', 'dm-thread-swipe-closing');
+  page.classList.remove('dm-swiping', 'dm-swipe-cancel', 'dm-swipe-closing', 'dm-thread-swipe-revealing', 'dm-thread-swipe-cancel', 'dm-thread-swipe-closing', 'dm-nav-open-thread', 'dm-nav-close-thread', 'dm-nav-finalizing-inbox');
   page.querySelectorAll('.dm-thread-swipe-ghost').forEach(node => node.remove());
   page.querySelectorAll('.dm-thread-swipe-underlay').forEach(node => node.remove());
 }
 
-function shouldIgnoreDirectMessagesSwipe(target) {
-  return !!(target && target.closest && target.closest('input, textarea, select, button, a, [contenteditable="true"], .mobile-bottom-nav'));
+function shouldIgnoreDirectMessagesSwipe(target, allowInteractiveEdgeSwipe = false) {
+  if (!target || !target.closest) return false;
+  if (target.closest('input, textarea, select, [contenteditable="true"], .mobile-bottom-nav')) return true;
+  if (allowInteractiveEdgeSwipe) return false;
+  return !!target.closest('button, a');
 }
 
 function applyDirectMessagesSwipeVisual(page, x) {
@@ -478,11 +508,22 @@ function scheduleDirectMessagesSwipeVisual(page, x) {
 
 function prepareDirectMessageThreadSwipeReveal(page, state) {
   if (!page || !state || state.mode !== 'thread') return;
+  if (state.prepared) return;
+  state.prepared = true;
   renderDirectMessageSwipeInboxUnderlay(page);
   page.classList.add('dm-thread-swipe-revealing');
   page.style.setProperty('--dm-thread-swipe-x', '0px');
   page.style.setProperty('--dm-thread-swipe-radius', '0px');
   resetDirectMessageKeyboardLift();
+}
+
+function cleanupDirectMessageThreadSwipeReveal(page, state) {
+  if (!page || !state || state.mode !== 'thread' || !state.prepared) return;
+  state.prepared = false;
+  page.classList.remove('dm-thread-swipe-revealing', 'dm-thread-swipe-cancel', 'dm-thread-swipe-closing');
+  page.style.setProperty('--dm-thread-swipe-x', '0px');
+  page.style.setProperty('--dm-thread-swipe-radius', '0px');
+  page.querySelectorAll('.dm-thread-swipe-underlay').forEach(node => node.remove());
 }
 
 function finishDirectMessagesSwipeClose(page, state = directMessagesSwipeState) {
@@ -494,7 +535,7 @@ function finishDirectMessagesSwipeClose(page, state = directMessagesSwipeState) 
     page.style.setProperty('--dm-thread-swipe-x', (viewport + 48) + 'px');
     page.style.setProperty('--dm-thread-swipe-radius', '30px');
     window.setTimeout(() => {
-      closeDirectMessageThread();
+      closeDirectMessageThread({ animate: false });
       resetDirectMessagesSwipeVisual(page);
     }, 310);
     return;
@@ -538,11 +579,13 @@ function initDirectMessagesSwipeClose() {
   page.classList.add('dm-swipe-ready');
 
   page.addEventListener('touchstart', (event) => {
-    if (!isDirectMessagesPageOpen() || event.touches.length !== 1 || shouldIgnoreDirectMessagesSwipe(event.target)) return;
+    if (!isDirectMessagesPageOpen() || event.touches.length !== 1) return;
     const touch = event.touches[0];
     const isThreadMode = activeDmThreadId && !activeDmGroupEditThreadId;
-    if (isThreadMode && touch.clientX > 30) return;
-    if (!isThreadMode && touch.clientX > 24) return;
+    const edgeSwipe = isThreadMode
+      ? touch.clientX <= DIRECT_MESSAGES_THREAD_EDGE_SWIPE_PX
+      : touch.clientX <= DIRECT_MESSAGES_PAGE_EDGE_SWIPE_PX;
+    if (!edgeSwipe || shouldIgnoreDirectMessagesSwipe(event.target, isThreadMode)) return;
     const now = performance.now();
     directMessagesSwipeState = {
       startX: touch.clientX,
@@ -555,8 +598,10 @@ function initDirectMessagesSwipeClose() {
       ghost: null,
       pendingX: 0,
       swiping: false,
-      verticalLocked: false
+      verticalLocked: false,
+      prepared: false
     };
+    if (isThreadMode) prepareDirectMessageThreadSwipeReveal(page, directMessagesSwipeState);
   }, { passive: true });
 
   page.addEventListener('touchmove', (event) => {
@@ -572,6 +617,7 @@ function initDirectMessagesSwipeClose() {
     if (!directMessagesSwipeState.swiping) {
       if (dx < 0 || (Math.abs(dy) > 18 && Math.abs(dy) > Math.abs(dx) * 1.05)) {
         directMessagesSwipeState.verticalLocked = true;
+        cleanupDirectMessageThreadSwipeReveal(page, directMessagesSwipeState);
         return;
       }
       if (directMessagesSwipeState.verticalLocked) return;
@@ -595,8 +641,11 @@ function initDirectMessagesSwipeClose() {
       cancelAnimationFrame(directMessagesSwipeRaf);
       directMessagesSwipeRaf = 0;
     }
-    if (!state.swiping) return;
     const page = document.getElementById('direct-messages-page');
+    if (!state.swiping) {
+      cleanupDirectMessageThreadSwipeReveal(page, state);
+      return;
+    }
     const elapsed = Math.max(1, performance.now() - state.startT);
     const distance = Math.max(0, state.lastX - state.startX);
     const velocity = distance / elapsed;
@@ -634,10 +683,14 @@ function openDirectMessagesPage() {
   /* v10.782: body-lock prevents iOS WKWebView from drifting the panel
      above the dynamic island when an input is focused. */
   lockBodyForDirectMessagesPage();
+  setDirectMessagesBottomChromeHidden(true);
   updateDirectMessagesTopbar();
   pruneEncryptedDirectMessageThreadsForCurrentUser();
   renderDirectMessagesView();
-  requestAnimationFrame(() => page.classList.add('open'));
+  requestAnimationFrame(() => {
+    setDirectMessagesBottomChromeHidden(true);
+    page.classList.add('open');
+  });
 }
 
 function closeDirectMessagesPage(immediate = false) {
@@ -1177,6 +1230,12 @@ function openDirectMessageComposer(mode = 'direct') {
   dmSearchResults = [];
   clearTimeout(dmSearchTimer);
   renderDirectMessagesView();
+  requestAnimationFrame(() => {
+    const input = document.getElementById('dm-user-search');
+    if (!input) return;
+    try { input.focus({ preventScroll: true }); }
+    catch (_) { input.focus(); }
+  });
 }
 
 function closeDirectMessageComposer() {
@@ -1237,6 +1296,48 @@ function renderDirectMessageComposerPanel() {
 
 function triggerDirectMessageNewGroupPhotoInput() {
   document.getElementById('dm-new-group-photo-input')?.click();
+}
+
+/* v10.827: modern centered new-message modal. Kept as an override so the
+   legacy renderer above remains available for rollback history while this
+   function owns the active UI at runtime. */
+function renderDirectMessageComposerPanel() {
+  const selectedProfiles = dmNewChatSelectedUids.map(uid => getDirectMessageProfile(uid, usersMap[uid] || {}));
+  return `<div class="dm-new-chat-modal-backdrop" role="presentation" onclick="closeDirectMessageComposer()">
+  <section class="dm-new-chat-panel" role="dialog" aria-modal="true" aria-labelledby="dm-new-chat-title" onclick="event.stopPropagation()">
+    <div class="dm-new-chat-head">
+      <div>
+        <span class="dm-new-chat-kicker">${dmNewChatMode === 'group' ? 'Group chat' : 'Direct message'}</span>
+        <strong id="dm-new-chat-title">New Message</strong>
+      </div>
+      <button class="dm-new-chat-close" type="button" onclick="closeDirectMessageComposer()" aria-label="Close new message">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="dm-new-chat-tabs">
+      <button class="${dmNewChatMode === 'direct' ? 'active' : ''}" type="button" onclick="switchDirectMessageComposerMode('direct')">1:1</button>
+      <button class="${dmNewChatMode === 'group' ? 'active' : ''}" type="button" onclick="switchDirectMessageComposerMode('group')">Group</button>
+    </div>
+    ${dmNewChatMode === 'group' ? `<div class="dm-group-setup-row">
+      <button class="dm-group-photo-btn" type="button" onclick="triggerDirectMessageNewGroupPhotoInput()">
+        ${dmNewChatGroupPhotoData ? `<img src="${escAttr(dmNewChatGroupPhotoData)}" alt="" loading="lazy">` : '<span>+</span>'}
+      </button>
+      <input id="dm-new-group-photo-input" type="file" accept="image/*" style="display:none" onchange="handleDirectMessageNewGroupPhoto(this.files && this.files[0])">
+      <input id="dm-group-name-input" type="text" maxlength="48" placeholder="Group name" autocomplete="off" value="${escAttr(dmNewChatGroupName)}" oninput="dmNewChatGroupName=this.value">
+    </div>
+    <div class="dm-group-selected" id="dm-group-selected-count">${dmNewChatSelectedUids.length} selected</div>
+    ${selectedProfiles.length ? `<div class="dm-group-selected-list">${selectedProfiles.map(profile => `<button type="button" onclick="toggleDirectMessageGroupUser('${escAttr(profile.uid)}')"><img src="${escAttr(getDirectMessageAvatar(profile))}" alt=""><span>${renderDisplayNameHTML(profile, 'User')}</span><em aria-hidden="true">&times;</em></button>`).join('')}</div>` : ''}
+    <button class="dm-create-group-btn" type="button" onclick="createDirectMessageGroupChat()" ${dmNewChatSelectedUids.length ? '' : 'disabled'}>Create Group Chat</button>` : ''}
+    <div class="dm-search-strip dm-new-search-strip">
+      <label class="dm-new-search-label" for="dm-user-search">To</label>
+      <div class="dm-new-search-input-row">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="dm-user-search" type="text" placeholder="Search people" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="onDirectMessageSearchInput(this.value)">
+      </div>
+      <div id="dm-search-results" class="dm-new-search-results"></div>
+    </div>
+  </section>
+</div>`;
 }
 
 async function handleDirectMessageNewGroupPhoto(file) {
@@ -2223,6 +2324,111 @@ function isDmV2EmojiOnly(text = '') {
 }
 
 /* 3-dot overflow menu — open/close + outside-click dismiss. */
+/* v10.815: Override the older emoji detector with a grapheme-aware version
+   that handles iOS emoji sequences while rejecting normal text. */
+isDmV2EmojiOnly = function(text = '') {
+  const s = String(text || '').trim();
+  if (!s) return false;
+  if (s.length > 48) return false;
+  try {
+    const compact = s.replace(/\s+/gu, '');
+    const withoutKeycaps = compact.replace(/[0-9#*]\uFE0F?\u20E3/gu, '');
+    if (!compact || /[A-Za-z0-9]/.test(withoutKeycaps)) return false;
+    const segmenter = typeof Intl !== 'undefined' && Intl.Segmenter
+      ? new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+      : null;
+    const segments = segmenter
+      ? Array.from(segmenter.segment(compact), item => item.segment)
+      : Array.from(compact);
+    if (!segments.length || segments.length > 6) return false;
+    return segments.every(segment => (
+      /^[0-9#*]\uFE0F?\u20E3$/u.test(segment) ||
+      /[\p{Extended_Pictographic}\p{Emoji_Presentation}\p{Regional_Indicator}]/u.test(segment)
+    ));
+  } catch (_) {
+    const compact = s.replace(/\s+/g, '');
+    const withoutKeycaps = compact.replace(/[0-9#*]\uFE0F?\u20E3/g, '');
+    if (!compact || /[A-Za-z0-9]/.test(withoutKeycaps)) return false;
+    return /(?:[\u2600-\u27BF]|\uD83C[\uDDE6-\uDDFF\uDF00-\uDFFF]|\uD83D[\uDC00-\uDEFF]|\uD83E[\uDD00-\uDFFF])/.test(compact);
+  }
+};
+
+window.openDirectMessagePhotoViewer = function(sourceImage) {
+  const img = sourceImage && sourceImage.tagName === 'IMG'
+    ? sourceImage
+    : (sourceImage && sourceImage.querySelector ? sourceImage.querySelector('img') : null);
+  const src = img?.currentSrc || img?.src || '';
+  if (!src) return;
+  const rect = img.getBoundingClientRect();
+  const overlay = document.createElement('div');
+  overlay.className = 'dm-photo-viewer';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', 'Photo preview');
+  overlay.innerHTML = `
+    <div class="dm-photo-viewer-backdrop"></div>
+    <img class="dm-photo-viewer-image" src="${escAttr(src)}" alt="${escAttr(img.alt || 'Photo message')}" draggable="false">
+    <button class="dm-photo-viewer-close" type="button" aria-label="Close photo preview">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  `;
+  const viewerImage = overlay.querySelector('.dm-photo-viewer-image');
+  const closeBtn = overlay.querySelector('.dm-photo-viewer-close');
+  const start = {
+    x: Math.max(0, rect.left || 0),
+    y: Math.max(0, rect.top || 0),
+    scaleX: Math.max(0.01, (rect.width || 1) / Math.max(1, window.innerWidth || 1)),
+    scaleY: Math.max(0.01, (rect.height || 1) / Math.max(1, window.innerHeight || 1))
+  };
+  const startTransform = `translate3d(${start.x}px, ${start.y}px, 0) scale(${start.scaleX}, ${start.scaleY})`;
+  const finishTransform = 'translate3d(0, 0, 0) scale(1, 1)';
+  let closing = false;
+
+  const close = () => {
+    if (closing) return;
+    closing = true;
+    overlay.classList.add('is-closing');
+    document.removeEventListener('keydown', onKeyDown);
+    if (viewerImage && viewerImage.animate) {
+      viewerImage.animate([
+        { transform: finishTransform },
+        { transform: startTransform }
+      ], {
+        duration: 260,
+        easing: 'cubic-bezier(.32, 0, .67, 0)',
+        fill: 'forwards'
+      }).onfinish = () => overlay.remove();
+    } else {
+      overlay.remove();
+    }
+  };
+
+  const onKeyDown = event => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close();
+    }
+  };
+  overlay.addEventListener('click', close);
+  if (viewerImage) viewerImage.addEventListener('click', event => event.stopPropagation());
+  if (closeBtn) closeBtn.addEventListener('click', event => { event.stopPropagation(); close(); });
+  document.addEventListener('keydown', onKeyDown);
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => {
+    overlay.classList.add('is-open');
+    if (viewerImage && viewerImage.animate) {
+      viewerImage.animate([
+        { transform: startTransform },
+        { transform: finishTransform }
+      ], {
+        duration: 360,
+        easing: 'cubic-bezier(.16, 1, .3, 1)',
+        fill: 'both'
+      });
+    }
+  });
+};
+
 window.toggleDmV2OverflowMenu = function(threadId) {
   const id = String(threadId || '').trim();
   if (!id) return;
@@ -2375,11 +2581,15 @@ function openDirectMessageThread(threadId = '') {
   activeDmGroupEditThreadId = '';
   dmGroupEditPhotoData = '';
   const page = document.getElementById('direct-messages-page');
-  if (page) page.classList.add('dm-opening-thread');
+  if (page) {
+    page.classList.remove('dm-nav-close-thread', 'dm-thread-swipe-revealing', 'dm-thread-swipe-closing', 'dm-thread-swipe-cancel');
+    page.querySelectorAll('.dm-thread-swipe-underlay').forEach(node => node.remove());
+    page.classList.add('dm-opening-thread', 'dm-nav-open-thread');
+  }
   activeMessagesSubTab = 'chats';
   activeDmThreadId = threadId;
   renderDirectMessagesView();
-  if (page) window.setTimeout(() => page.classList.remove('dm-opening-thread'), 520);
+  if (page) window.setTimeout(() => page.classList.remove('dm-opening-thread', 'dm-nav-open-thread'), DIRECT_MESSAGES_THREAD_NAV_ANIMATION_MS + 80);
   markDirectMessageThreadRead(threadId);
   requestAnimationFrame(() => {
     const list = document.getElementById('dm-message-list');
@@ -2388,7 +2598,39 @@ function openDirectMessageThread(threadId = '') {
   persistUiState();
 }
 
-function closeDirectMessageThread() {
+function closeDirectMessageThread(options = {}) {
+  const animate = options !== false && options?.animate !== false;
+  const page = document.getElementById('direct-messages-page');
+  if (animate && page && activeDmThreadId) {
+    const viewport = Math.max(320, window.innerWidth || 390);
+    resetDirectMessageKeyboardLift();
+    renderDirectMessageSwipeInboxUnderlay(page);
+    page.classList.remove('dm-nav-open-thread', 'dm-thread-swipe-cancel');
+    page.classList.add('dm-thread-swipe-revealing', 'dm-nav-close-thread');
+    page.style.setProperty('--dm-thread-swipe-x', '0px');
+    page.style.setProperty('--dm-thread-swipe-radius', '0px');
+    void page.offsetWidth;
+    requestAnimationFrame(() => {
+      page.classList.add('dm-thread-swipe-closing');
+      page.style.setProperty('--dm-thread-swipe-x', (viewport + 48) + 'px');
+      page.style.setProperty('--dm-thread-swipe-radius', '0px');
+    });
+    window.setTimeout(() => {
+      activeDmGroupEditThreadId = '';
+      dmGroupEditPhotoData = '';
+      activeDmThreadId = '';
+      resetDirectMessageKeyboardLift();
+      page.classList.add('dm-nav-finalizing-inbox');
+      renderDirectMessagesView();
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          resetDirectMessagesSwipeVisual(page);
+        });
+      });
+      persistUiState();
+    }, DIRECT_MESSAGES_THREAD_NAV_ANIMATION_MS + 40);
+    return;
+  }
   activeDmGroupEditThreadId = '';
   dmGroupEditPhotoData = '';
   activeDmThreadId = '';
@@ -2490,7 +2732,7 @@ function renderDirectMessagesInboxShell() {
       </svg>
       <input type="text" placeholder="Search" autocomplete="off" oninput="filterDmV2InboxChats(this.value)">
     </div>
-    ${dmNewChatOpen ? `<div class="dm-v2-inbox-composer-panel">${renderDirectMessageComposerPanel()}</div>` : ''}
+    ${dmNewChatOpen ? renderDirectMessageComposerPanel() : ''}
     <div class="dm-v2-inbox-list">${body}</div>
     <button class="dm-v2-inbox-fab" type="button" onclick="openDirectMessageComposer('direct')" aria-label="New chat">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -2624,7 +2866,7 @@ function renderDirectMessagesView() {
         </svg>
         <input type="text" placeholder="Search" autocomplete="off" oninput="filterDmV2InboxChats(this.value)">
       </div>
-      ${dmNewChatOpen ? `<div class="dm-v2-inbox-composer-panel">${renderDirectMessageComposerPanel()}</div>` : ''}
+      ${dmNewChatOpen ? renderDirectMessageComposerPanel() : ''}
       <div class="dm-v2-inbox-list">${body}</div>
       <button class="dm-v2-inbox-fab" type="button" onclick="openDirectMessageComposer('direct')" aria-label="New chat">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

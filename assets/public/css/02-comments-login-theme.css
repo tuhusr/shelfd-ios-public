@@ -470,6 +470,10 @@
     display: flex; flex-direction: column; align-items: center; gap: 8px;
     padding: 0 20px 60px;
   }
+  #login-screen:not(.signin-mode) .login-hero,
+  #login-screen:not(.signin-mode) .login-cta {
+    transform: translateY(-30px);
+  }
   .login-cta-label {
     font-size: 13px; color: #9990b3; font-family: 'Sohne', sans-serif;
     letter-spacing: 0.5px;

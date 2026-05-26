@@ -2333,6 +2333,51 @@ body.rating-guide-open {
   }
   .shelfd-go-to-shelf-popup-action:hover { background: rgba(196,181,253,0.24); }
   .shelfd-go-to-shelf-popup-action:active { background: rgba(196,181,253,0.30); transform: scale(0.97); }
+
+  .shelfd-added-to-shelf-prompt {
+    position: fixed;
+    left: 50%;
+    bottom: max(env(safe-area-inset-bottom, 20px), 34px);
+    transform: translate3d(-50%, 18px, 0) scale(0.98);
+    z-index: 9600;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 10px 16px 10px 12px;
+    background: rgba(13, 18, 16, 0.94);
+    border: 1px solid rgba(34, 197, 94, 0.42);
+    border-radius: 999px;
+    box-shadow: 0 18px 48px rgba(0,0,0,0.48), 0 0 22px rgba(34,197,94,0.14);
+    color: rgba(236,253,245,0.96);
+    font: 700 14px/1.15 Aptos, 'Aptos Display', 'Segoe UI', sans-serif;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.24s cubic-bezier(0.22,1,0.36,1);
+  }
+  .shelfd-added-to-shelf-prompt.is-open {
+    opacity: 1;
+    transform: translate3d(-50%, 0, 0) scale(1);
+  }
+  .shelfd-added-to-shelf-prompt-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(34, 197, 94, 0.18);
+    color: #34d399;
+    flex: 0 0 auto;
+  }
+  .shelfd-added-to-shelf-prompt-icon svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+  }
+  .shelfd-added-to-shelf-prompt-text {
+    white-space: nowrap;
+  }
   /* Expanded view: anchored to the right edge of the container, scales
      in from a right origin so it visually GLIDES LEFTWARD as it opens.
      Pill background + hairline lavender border give it visual weight
@@ -8731,5 +8776,71 @@ body.light-mode #mylist-view .games-playing-toggle small {
 #cards-grid .card .rating-area .stars[data-prefix="overall"] .star-btn.lit {
   color: #E6C766 !important;
   opacity: 1 !important;
+}
+
+/* v10.837 / v10.838 / v10.839: TV Shows -> Watchlist title cards —
+   normalize the vertical rhythm so every visible row in card-info
+   reads as evenly spaced.
+   v10.839 rewrites the approach: rather than ad-hoc per-row margins
+   (which gave 4-5px visual variance between text-to-text gaps and
+   text-to-pill-outline gaps), the card-info column is converted to
+   `display: flex; gap: 12px` and every child's `margin-top` is
+   zeroed. Same treatment for the inner `.watchlist-card-metadata`
+   wrapper so its availability line sits a consistent 12px below the
+   row above. Text rows still carry their default line-box padding
+   (~1-2px above/below the glyphs), so the visible gap is ~14-16px
+   on every adjacent pair instead of ranging 12-17px like before.
+   Line-height tightened to 1.2 on the text rows so the line-box
+   padding stays small and consistent across font sizes. Scoped to
+   .tv-shows-watchlist-card. */
+#mylist-view .card.tv-shows-watchlist-card .card-info {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+#mylist-view .card.tv-shows-watchlist-card .card-info > * {
+  margin-top: 0 !important;
+}
+#mylist-view .card.tv-shows-watchlist-card .card-info > .watchlist-card-metadata {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+#mylist-view .card.tv-shows-watchlist-card .card-info > .watchlist-card-metadata > * {
+  margin-top: 0 !important;
+}
+/* Tighten line-height on the text rows so the line-box padding
+   above/below the glyphs is uniform and minimal — keeps the visible
+   gap close to the `gap` value across rows with different font
+   sizes (title 15px, year 12px, availability 12px, progress-meta
+   11px). 1.2 still leaves room for descenders without bloat. */
+#mylist-view .card.tv-shows-watchlist-card .card-info .card-title,
+#mylist-view .card.tv-shows-watchlist-card .card-info .card-year,
+#mylist-view .card.tv-shows-watchlist-card .card-info .card-availability-line,
+#mylist-view .card.tv-shows-watchlist-card .card-info .progress-meta {
+  line-height: 1.2 !important;
+}
+/* Zero the .progress-area's own 8px margin-top default since the
+   flex gap now owns the spacing. */
+#mylist-view .card.tv-shows-watchlist-card .card-info > .progress-area {
+  margin-top: 0 !important;
+}
+#mylist-view .card.tv-shows-watchlist-card .card-info > .progress-area > .progress-meta {
+  margin-bottom: 0 !important;
+}
+
+/* v10.841: 10px between title and status pill on EVERY TV Shows card.
+   - Planned cards (.tv-shows-watchlist-card) use the flex `gap: 10px`
+     declared above on .card-info, so the title -> status distance is
+     already 10px there.
+   - Watching / Watched / Paused cards use normal block flow with the
+     status pill hoisted under the title via the v10.841 JS change.
+     The global `.status-pills--under-title` rule (v10.737, line 4223)
+     sets margin-top: 3px — we override to 10px here, scoped to TV
+     Shows only via `data-library-section="shows"`. Specificity (1,5,0)
+     matches the global rule; because this rule comes later in the
+     file, it wins on tie-break. */
+#mylist-view .card[data-library-section="shows"] .status-pills.status-pills-selector-wrap.status-pills--under-title {
+  margin-top: 10px !important;
 }
 

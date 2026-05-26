@@ -4,13 +4,12 @@ function normalizeMainNavTab(tab) {
 }
 
 function normalizeDiscoveryHub(hub) {
-  /* v571: 'movies' hub merged into 'tv' (now labeled "Movies & TV"). Any
-     persisted 'movies' state from before is folded back to 'tv'. */
-  if (hub === 'movies' || hub === 'movie') return 'tv';
+  if (hub === 'movies' || hub === 'movie') return 'movies';
+  if (hub === 'tv' || hub === 'shows' || hub === 'show') return 'tv';
   if (hub === 'anime') return 'anime';
   if (hub === 'gaming' || hub === 'games') return 'gaming';
   if (hub === 'music') return 'music';
-  return 'tv';
+  return 'movies';
 }
 
 function isMediaDiscoveryHub(hub = activeDiscoveryHub) {
@@ -21,8 +20,12 @@ function isMediaDiscoveryHub(hub = activeDiscoveryHub) {
 function syncDiscoverMediaTabSections() {
   const mediaTab = normalizeDiscoveryHub(activeDiscoveryHub);
   document.querySelectorAll('.discover-media-tab-section').forEach(section => {
-    const visible = isMediaDiscoveryHub(mediaTab) && section.dataset.discoveryTab === mediaTab;
+    const visible = isMediaDiscoveryHub(mediaTab) && (!section.dataset.discoveryTab || section.dataset.discoveryTab === mediaTab);
     section.style.display = visible ? '' : 'none';
+    Array.from(section.children).forEach(child => {
+      if (!child.matches?.('.discover-section[data-discovery-tab]')) return;
+      child.style.display = child.dataset.discoveryTab === mediaTab ? '' : 'none';
+    });
   });
 }
 
@@ -35,7 +38,7 @@ function syncDiscoveryHubButtons() {
 
 let discoveryHubTransitionToken = 0;
 const DISCOVERY_HUB_JUMP_MS = 90;
-const DISCOVERY_HUB_ORDER = ['tv', 'movies', 'anime', 'gaming', 'music'];
+const DISCOVERY_HUB_ORDER = ['movies', 'tv', 'anime', 'gaming', 'music'];
 
 function getDiscoveryHubPanel(hub) {
   const normalizedHub = normalizeDiscoveryHub(hub);
@@ -357,7 +360,7 @@ function readUiState() {
 async function restoreUiState() {
   const state = readUiState();
   if (!state) return;
-  activeDiscoveryHub = normalizeDiscoveryHub(state.discoveryHub || (state.mainTab === 'games-discover' ? 'gaming' : 'tv'));
+  activeDiscoveryHub = normalizeDiscoveryHub(state.discoveryHub || (state.mainTab === 'games-discover' ? 'gaming' : 'movies'));
 
   if (state.activeSection && ['shows', 'movies', 'anime', 'games', 'manga', 'books'].includes(state.activeSection)) {
     activeSection = state.activeSection;

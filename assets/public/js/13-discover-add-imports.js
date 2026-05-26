@@ -224,9 +224,16 @@ function markDiscoverButtonAdded(btn, status = '') {
   if (!btn) return;
   const section = btn.dataset.discoverSection || '';
   const title = btn.dataset.discoverTitle || '';
+  btn.classList.add('added');
+  if (btn.classList.contains('discover-media-add-floating')) {
+    btn.disabled = false;
+    btn.innerHTML = `<svg class="discover-media-add-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4 4 10-10"/></svg>`;
+    btn.setAttribute('aria-label', 'Manage this title in your library');
+    btn.title = 'Manage this title in your library';
+    return;
+  }
   btn.disabled = true;
   btn.textContent = getDiscoverLibraryStatusLabel(status || getDiscoverLibraryMatch(title, section)?.status || '', section);
-  btn.classList.add('added');
 }
 
 async function addDiscoveryTitle(type, tmdbId, btn, status = 'planned', originalText = '', rating = 0, options = {}) {
@@ -292,9 +299,11 @@ async function addDiscoveryTitle(type, tmdbId, btn, status = 'planned', original
           btn.removeAttribute('onclick');
         }
         btn.disabled = false;
-        btn.title = 'Click to remove from your library';
+        btn.title = btn.classList.contains('discover-media-add-floating')
+          ? 'Manage this title in your library'
+          : 'Click to remove from your library';
       }
-      showToast("Added to your library");
+      if (options.successToast !== false) showToast(options.successToastMessage || "Added to your library");
       const result = { ok: true, item: { ...item }, section, status, rating: Number(rating || 0) || 0, source: 'discover-add' };
       if (status === 'watched' && options.promptPost !== false && typeof openScreenListActivityPostPrompt === 'function') {
         if (type === 'game' && typeof traceShelfdGameIdentity === 'function') traceShelfdGameIdentity('8 game object passed to Activity Feed prompt', item, { status, rating });
@@ -340,7 +349,9 @@ async function addDiscoveryTitle(type, tmdbId, btn, status = 'planned', original
         btn.removeAttribute('onclick');
       }
       btn.disabled = false;
-      btn.title = 'Click to remove from your library';
+      btn.title = btn.classList.contains('discover-media-add-floating')
+        ? 'Manage this title in your library'
+        : 'Click to remove from your library';
     }
     /* v850: force-flush the Firestore write IMMEDIATELY instead of
        relying on save()'s 500ms debounce. The bug the user reported:
@@ -360,7 +371,7 @@ async function addDiscoveryTitle(type, tmdbId, btn, status = 'planned', original
       console.error('[v850] Discover add Firestore force-flush failed:', flushErr);
     }
     if (cloudSyncOk) {
-      showToast("Added to your library");
+      if (options.successToast !== false) showToast(options.successToastMessage || "Added to your library");
     } else {
       showToast("Saved locally — cloud sync had trouble. Check your connection and try again.");
     }

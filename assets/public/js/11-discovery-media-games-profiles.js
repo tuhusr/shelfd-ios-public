@@ -2033,6 +2033,7 @@ function isDiscoverUniversalSearchFilterable(source = discoverUniversalSearchSou
 function getDefaultDiscoverUniversalSearchSource() {
   if (activeDiscoveryHub === 'anime') return 'anime';
   if (activeDiscoveryHub === 'gaming') return 'rawg';
+  if (activeDiscoveryHub === 'tv') return 'tv';
   return 'movie';
 }
 

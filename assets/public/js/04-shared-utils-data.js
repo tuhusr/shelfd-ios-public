@@ -1057,7 +1057,7 @@ function listDataItemCount(source) {
 function readOwnLocalBackup(excludeData = null) {
   const keys = [];
   if (currentUser) keys.push("screenlist-own-data-backup-" + currentUser.uid);
-  keys.push("watchlist-tracker-data");
+  if (!currentUser) keys.push("watchlist-tracker-data");
   for (const key of keys) {
     try {
       const raw = localStorage.getItem(key);
@@ -1197,9 +1197,10 @@ function formatOwnDataSaveError(error, safeData = null) {
 }
 
 async function loadWatchlistDataFromDocRef(docRef, fallbackData = null) {
+  const isActiveOwnRef = !!(currentUser?.uid && docRef?.id === currentUser.uid);
   const fallback = fallbackData
     ? cloneListData(fallbackData)
-    : (ownDataCache ? cloneListData(ownDataCache) : cloneListData(data));
+    : (isActiveOwnRef && ownDataCache ? cloneListData(ownDataCache) : getEmptyListData());
   if (!docRef) return fallback;
   try {
     /* v10.387: defer to the section-aware fan-out reader. The docRef.id is
@@ -1292,7 +1293,7 @@ async function writeOwnDataDirect(nextData, options = {}) {
   data = cloneListData(safeData);
   ownDataCache = cloneListData(safeData);
   if (currentUser) localStorage.setItem("screenlist-own-data-backup-" + currentUser.uid, JSON.stringify(safeData));
-  localStorage.setItem("watchlist-tracker-data", JSON.stringify(safeData));
+  else localStorage.setItem("watchlist-tracker-data", JSON.stringify(safeData));
   if (DOC_REF) {
     await persistOwnDataToFirestore(safeData, options);
     if (currentUser?.uid === CREATOR_PUBLIC_UID) {

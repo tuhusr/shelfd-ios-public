@@ -38,6 +38,7 @@
       "/media/*",
       "/album/*",
       "/review/*",
+      "/auth/*",
       "/.well-known/apple-app-site-association"
     ]
   },

@@ -761,6 +761,9 @@ body.dm-fullscreen-open .mobile-bottom-nav {
   pointer-events: none;
   overflow: hidden;
   transform: translate3d(0, 0, 0);
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
   contain: layout paint style;
 }
 .dm-thread-swipe-underlay .dm-v2-inbox {
@@ -770,7 +773,10 @@ body.dm-fullscreen-open .mobile-bottom-nav {
   transform: translate3d(var(--dm-thread-swipe-x), 0, 0) !important;
   border-radius: var(--dm-thread-swipe-radius) !important;
   overflow: hidden;
+  transition: none !important;
   will-change: transform, border-radius;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 .direct-messages-page.dm-thread-swipe-closing .dm-v2-panel {
   transform: translate3d(var(--dm-thread-swipe-x), 0, 0) !important;

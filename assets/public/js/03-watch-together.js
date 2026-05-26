@@ -436,6 +436,41 @@ function createWatchTogetherGroupId() {
   return `wt_${safeUid}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function notifyWatchTogetherRequestRecipients(group = {}) {
+  if (!currentUser || !group || typeof createActivityNotification !== 'function') return;
+  const groupId = String(group.id || '').trim();
+  const mode = group.mode === 'planned' ? 'planned' : 'watched';
+  const modeLabel = mode === 'planned' ? 'Plan Together' : 'Watched Together';
+  const recipients = [...new Set(Array.isArray(group.pendingUids) ? group.pendingUids : [])]
+    .map(uid => String(uid || '').trim())
+    .filter(uid => uid && uid !== currentUser.uid);
+  recipients.forEach(recipientUid => {
+    try {
+      Promise.resolve(createActivityNotification({
+        recipientUid,
+        actorUid: currentUser.uid,
+        type: 'shared_watch_request',
+        targetActivityId: groupId,
+        targetKind: 'shared_watch_request',
+        targetCollection: 'watchTogether',
+        media: {
+          mediaTitle: String(group.title || '').trim(),
+          mediaPoster: String(group.cover || '').trim()
+        },
+        textSnippet: modeLabel,
+        createdAtMs: Number(group.createdAtMs || Date.now()) || Date.now(),
+        watchTogetherGroupId: groupId,
+        watchTogetherMode: mode,
+        watchTogetherSection: String(group.section || group.librarySection || group.mediaCategory || '').trim()
+      })).catch(error => {
+        console.warn('Shared Watch notification failed:', error && error.message ? error.message : error);
+      });
+    } catch (error) {
+      console.warn('Shared Watch notification failed:', error && error.message ? error.message : error);
+    }
+  });
+}
+
 function openWatchTogetherTagModal(event, itemId = '', section = activeSection) {
   event?.stopPropagation?.();
   if (!currentUser || viewingUser || !canUseWatchTogetherSection(section)) return;
@@ -507,6 +542,7 @@ async function createWatchTogetherRequest() {
       setWatchTogetherRequestMirror(currentUser.uid, 'outgoing', groupId, mirrorPayload),
       ...pendingUids.map(uid => setWatchTogetherRequestMirror(uid, 'incoming', groupId, mirrorPayload))
     ]);
+    notifyWatchTogetherRequestRecipients(mirrorPayload);
     watchTogetherOutgoingRequestIds = [...new Set([...watchTogetherOutgoingRequestIds, groupId])];
     watchTogetherOutgoingRequestPayloadMap[groupId] = mirrorPayload;
     watchTogetherGroups = mergeWatchTogetherGroupsById(watchTogetherGroups, [mirrorPayload]);
@@ -558,7 +594,7 @@ function renderWatchTogetherRequestCards(groups = [], type = 'incoming') {
       <button class="friend-watch-request-person-pill" type="button" onclick="cancelWatchTogetherPendingUser('${escAttr(group.id)}','${escAttr(user.uid)}')" aria-label="Remove ${escAttr(user.name || 'user')} from this request">
         <img src="${escAttr(getWatchTogetherAvatar(user))}" alt="" loading="lazy"><strong>${renderDisplayNameHTML(user, 'User')}</strong><em>Remove</em>
       </button>`).join('')}</div>` : '';
-    return `<article class="friend-watch-request-card ${isIncoming ? 'needs-approval' : 'sent-request'}">
+    return `<article class="friend-watch-request-card ${isIncoming ? 'needs-approval' : 'sent-request'}" data-watch-together-request-id="${escAttr(group.id || '')}">
       <div class="friend-watch-request-poster">${group.cover ? `<img src="${escAttr(group.cover)}" alt="${escAttr(title)}" loading="lazy">` : `<span>${escHtml(getSectionIcon(section))}</span>`}</div>
       <div class="friend-watch-request-body">
         <div class="friend-watch-request-kicker"><span>${escHtml(modeLabel)}</span><em>${escHtml(sectionLabel)}</em></div>
@@ -955,6 +991,48 @@ async function loadWatchTogetherGroupsForOwner(uid = '') {
     console.error('Shared Watch owner groups failed:', error);
   }
 }
+
+async function routeWatchTogetherNotificationTarget(groupId = '') {
+  const cleanGroupId = String(groupId || '').trim();
+  const openRequests = async () => {
+    try { document.body.classList.remove('shelfd-friends-list-mode'); } catch (_) {}
+    activeFriendsTab = 'activity';
+    activeActivitySubTab = 'friendWatch';
+    activeRequestsSubTab = 'watchTogether';
+
+    const communityActive = !!(document.getElementById('nav-community')?.classList.contains('active')
+      || document.getElementById('mobile-nav-community')?.classList.contains('active'));
+    if (!communityActive && typeof switchMainNav === 'function') {
+      await switchMainNav('community');
+    }
+
+    try { document.body.classList.remove('shelfd-friends-list-mode'); } catch (_) {}
+    activeFriendsTab = 'activity';
+    activeActivitySubTab = 'friendWatch';
+    activeRequestsSubTab = 'watchTogether';
+    if (typeof switchFriendsTab === 'function') switchFriendsTab('activity');
+    if (typeof switchActivitySubTab === 'function') await switchActivitySubTab('friendWatch');
+    else if (typeof renderActiveWatchActivitySubTab === 'function') await renderActiveWatchActivitySubTab();
+    if (typeof hydrateWatchTogetherMirroredRequests === 'function') await hydrateWatchTogetherMirroredRequests();
+    if (typeof renderActiveWatchActivitySubTab === 'function') await renderActiveWatchActivitySubTab(true);
+    if (typeof updateRequestsBadges === 'function') updateRequestsBadges();
+
+    if (cleanGroupId) {
+      window.setTimeout(() => {
+        try {
+          const card = Array.from(document.querySelectorAll('[data-watch-together-request-id]'))
+            .find(el => String(el.getAttribute('data-watch-together-request-id') || '') === cleanGroupId);
+          if (card) card.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        } catch (_) {}
+      }, 120);
+    }
+  };
+
+  await openRequests();
+  window.setTimeout(() => { openRequests().catch(() => {}); }, 420);
+}
+
+window.routeWatchTogetherNotificationTarget = routeWatchTogetherNotificationTarget;
 
 function stopWatchTogetherListener() {
   if (watchTogetherUnsubscribe) {

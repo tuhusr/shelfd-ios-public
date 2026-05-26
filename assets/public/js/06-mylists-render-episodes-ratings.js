@@ -297,7 +297,7 @@ function renderGamePlayingSubfilter(items = []) {
     stage.insertBefore(wrap, stage.firstChild);
   }
 
-  const visible = isGamesPlayingMergedView();
+  const visible = isGamesPlayingMergedView() && !String(searchQuery || '').trim();
   wrap.style.display = visible ? '' : 'none';
   if (!visible) return;
 
@@ -322,6 +322,93 @@ function renderGamePlayingSubfilter(items = []) {
   `;
 }
 
+const MYLIST_GLOBAL_SEARCH_SECTIONS = ['movies', 'shows', 'anime', 'games', 'music'];
+const MYLIST_GLOBAL_SEARCH_STATUSES = {
+  movies: new Set(['planned', 'watched', 'paused']),
+  shows: new Set(['watching', 'planned', 'watched', 'paused']),
+  anime: new Set(['watching', 'planned', 'watched', 'paused']),
+  games: new Set(['watching', 'live', 'competitive', 'planned', 'watched', 'wishlist']),
+  music: new Set(['watching', 'planned', 'watched'])
+};
+
+function getMyListSearchContextSection(trigger = null) {
+  const node = trigger || (typeof window !== 'undefined' ? window.event?.target : null);
+  return String(node?.closest?.('[data-library-section]')?.dataset?.librarySection || '').trim();
+}
+
+function getMyListGlobalSearchText(item = {}, section = '') {
+  const fields = [
+    item.title,
+    item.name,
+    item.displayTitle,
+    item.originalTitle,
+    item.englishTitle,
+    item.romajiTitle,
+    item.nativeTitle,
+    item.artist,
+    item.album,
+    item.year,
+    section
+  ];
+  if (Array.isArray(item.artists)) fields.push(...item.artists);
+  if (Array.isArray(item.genreNames)) fields.push(...item.genreNames);
+  if (Array.isArray(item.genres)) fields.push(...item.genres.map(entry => typeof entry === 'string' ? entry : entry?.name));
+  if (Array.isArray(item.tracks)) fields.push(...item.tracks.map(track => track?.title || track?.name));
+  return fields.filter(Boolean).join(' ').toLowerCase();
+}
+
+function collectMyListGlobalSearchResults(source = null, query = '') {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) return [];
+  const listData = source || (typeof getVisibleListData === 'function' ? getVisibleListData() : data);
+  const results = [];
+  MYLIST_GLOBAL_SEARCH_SECTIONS.forEach(section => {
+    const allowedStatuses = MYLIST_GLOBAL_SEARCH_STATUSES[section];
+    const items = Array.isArray(listData?.[section]) ? listData[section] : [];
+    items.forEach((item, index) => {
+      if (!item || !allowedStatuses?.has(String(item.status || ''))) return;
+      if (!getMyListGlobalSearchText(item, section).includes(q)) return;
+      results.push({ item, section, status: String(item.status || ''), index });
+    });
+  });
+  return results;
+}
+
+function getMyListGlobalSearchRenderTab(entry = {}) {
+  const section = entry.section || '';
+  const status = entry.status || entry.item?.status || '';
+  if (section === 'games' && (status === 'live' || status === 'competitive')) return 'watching';
+  return status || 'planned';
+}
+
+function sortMyListGlobalSearchResults(entries = [], sortKey = '', stateKey = '') {
+  if (!Array.isArray(entries) || entries.length < 2) return entries;
+  const key = sortKey === 'custom' ? 'recently-added' : (sortKey || 'recently-added');
+  if (typeof applySortOrder !== 'function') return entries;
+  const sortable = entries.map((entry, index) => ({
+    ...(entry.item || {}),
+    __mylistGlobalSearchIndex: index
+  }));
+  return applySortOrder(sortable, key, stateKey || 'global-search')
+    .map(item => entries[item.__mylistGlobalSearchIndex])
+    .filter(Boolean);
+}
+
+function renderMyListCardForSearchResult(entry = {}) {
+  const item = entry.item;
+  if (!item) return '';
+  const previousSection = activeSection;
+  const previousTab = activeTab;
+  try {
+    activeSection = entry.section || previousSection;
+    activeTab = getMyListGlobalSearchRenderTab(entry);
+    return renderCard(item);
+  } finally {
+    activeSection = previousSection;
+    activeTab = previousTab;
+  }
+}
+
 function ensureGameWishlistStatusTab() {
   if (document.getElementById('count-wishlist')) return;
   const tabs = document.querySelector('#mylist-toolbar .tabs');
@@ -340,6 +427,15 @@ function ensureGameWishlistStatusTab() {
 // Load from Firestore
 async function load() {
   if (!DOC_REF) return;
+  if (currentUser?.uid && DOC_REF.id !== currentUser.uid) {
+    console.warn('[shelfd-auth] corrected stale library doc ref before load', {
+      docUid: DOC_REF.id,
+      authUid: currentUser.uid
+    });
+    DOC_REF = db.collection("watchlist").doc(currentUser.uid);
+    data = getEmptyListData();
+    ownDataCache = null;
+  }
   try {
     data = await loadWatchlistDataFromDocRef(DOC_REF);
     if (listDataItemCount(data) === 0) {
@@ -379,8 +475,8 @@ function save() {
   // Firestore is the source of truth — localStorage is only a fast-restore
   // cache — so a localStorage failure must NEVER block the Firestore write.
   try {
-    localStorage.setItem("watchlist-tracker-data", JSON.stringify(safeData));
     if (currentUser) localStorage.setItem("screenlist-own-data-backup-" + currentUser.uid, JSON.stringify(safeData));
+    else localStorage.setItem("watchlist-tracker-data", JSON.stringify(safeData));
   } catch (lsErr) {
     console.warn('[v843] localStorage backup write failed (probably QuotaExceededError):', lsErr && lsErr.name, lsErr && lsErr.message);
   }
@@ -421,24 +517,16 @@ function render() {
   activeTab = normalizeVisibleMyListStatusTab(activeTab, activeSection);
   const stateKey = getSortStateKey();
   const activeSortKey = getActiveSortKey();
-  /* v10.261: music search spans both status tabs (Listened + Planned) and
-     matches title OR artist. So typing "Drake" while on music returns every
-     Drake album regardless of which bucket it's in. Empty query keeps the
-     standard tab filter so the per-tab views stay clean. */
-  const isMusicSearch = activeSection === 'music' && !!searchQuery;
-  const baseFiltered = items
-    .filter(i => isMusicSearch ? true : itemMatchesActiveListStatus(i))
-    .filter(i => {
-      if (!searchQuery) return true;
-      const q = String(searchQuery).toLowerCase();
-      const title = String(i?.title || '').toLowerCase();
-      if (activeSection === 'music') {
-        const artist = String(i?.artist || '').toLowerCase();
-        return title.includes(q) || artist.includes(q);
-      }
-      return title.includes(q);
-    });
-  const filtered = applySortOrder(baseFiltered, activeSortKey, stateKey);
+  const trimmedSearchQuery = String(searchQuery || '').trim();
+  const isGlobalLibrarySearch = !!trimmedSearchQuery;
+  /* v10.981: non-empty search is global across the Shelfd library. Empty
+     search keeps the standard active section/status view clean. */
+  const baseFiltered = isGlobalLibrarySearch
+    ? collectMyListGlobalSearchResults(visibleData, trimmedSearchQuery)
+    : items.filter(i => itemMatchesActiveListStatus(i));
+  const filtered = isGlobalLibrarySearch
+    ? sortMyListGlobalSearchResults(baseFiltered, activeSortKey, stateKey)
+    : applySortOrder(baseFiltered, activeSortKey, stateKey);
 
   const isPreview = document.body.classList.contains('preview-mode');
   const previewCap = 2;
@@ -557,6 +645,7 @@ function render() {
   const grid = document.getElementById("cards-grid");
   const empty = document.getElementById("empty-state");
   const emptySub = empty.querySelector(".empty-sub");
+  grid?.classList.toggle('mylist-global-search-results', isGlobalLibrarySearch);
 
   // Inject / update sort button
   let sortBtn = document.getElementById('sort-dropdown-btn');
@@ -586,7 +675,7 @@ function render() {
     const statusLabel = activeTab === "planned" ? "planned" : activeTab;
     const sectionLabel = getSectionLabel(activeSection);
     const emptyText = isGamesPlayingMergedView()
-      ? (searchQuery
+      ? (isGlobalLibrarySearch
           ? 'No matching games yet'
           : activeGamePlayingFilter === 'competitive'
             ? 'No competitive games yet'
@@ -600,9 +689,11 @@ function render() {
           : activeSection === 'games' && activeTab === 'wishlist'
             ? 'No wishlist games yet'
             : `No ${statusLabel} ${sectionLabel} yet`;
-    document.getElementById("empty-text").textContent = emptyText;
+    document.getElementById("empty-text").textContent = isGlobalLibrarySearch
+      ? 'No matching shelf items yet'
+      : emptyText;
     if (emptySub) {
-      emptySub.textContent = searchQuery
+      emptySub.textContent = isGlobalLibrarySearch
         ? "No matches for your search. Try a shorter title or clear the search field."
         : viewingUser
           ? "This list is quiet in this section right now."
@@ -618,12 +709,14 @@ function render() {
   const visibleLimit = getMyListVisibleLimit(renderLimitKey, filtered.length);
   const visibleFiltered = filtered.slice(0, visibleLimit);
 
-  if (activeSortKey === 'custom') {
+  if (isGlobalLibrarySearch) {
+    grid.innerHTML = visibleFiltered.map(entry => renderMyListCardForSearchResult(entry)).join("");
+  } else if (activeSortKey === 'custom') {
     grid.innerHTML = visibleFiltered.map(item => renderCard(item, true)).join("");
   } else {
     grid.innerHTML = visibleFiltered.map(item => renderCard(item)).join("");
   }
-  if (typeof rememberRenderedSortOrder === 'function') rememberRenderedSortOrder(stateKey, filtered);
+  if (!isGlobalLibrarySearch && typeof rememberRenderedSortOrder === 'function') rememberRenderedSortOrder(stateKey, filtered);
   renderMyListLoadMoreControl(visibleFiltered.length, filtered.length, renderLimitKey);
 
   refreshVisibleCommentCounts();
@@ -1672,7 +1765,7 @@ async function persistOwnListDataImmediate(nextData = null) {
     saveTimeout = null;
   }
   if (currentUser) localStorage.setItem('screenlist-own-data-backup-' + currentUser.uid, JSON.stringify(safeData));
-  localStorage.setItem('watchlist-tracker-data', JSON.stringify(safeData));
+  else localStorage.setItem('watchlist-tracker-data', JSON.stringify(safeData));
   if (typeof writeOwnDataDirect === 'function') {
     await writeOwnDataDirect(safeData);
   } else if (DOC_REF) {
@@ -2184,8 +2277,8 @@ async function saveGameDetailsEdit(id = '', triggerEl = null, event = null) {
       clearTimeout(saveTimeout);
       saveTimeout = null;
     }
-    localStorage.setItem('watchlist-tracker-data', JSON.stringify(data));
     if (currentUser) localStorage.setItem('screenlist-own-data-backup-' + currentUser.uid, JSON.stringify(data));
+    else localStorage.setItem('watchlist-tracker-data', JSON.stringify(data));
 
     if (DOC_REF) {
       await persistOwnDataToFirestore(compactImportedAnimeForStorage(data));
@@ -2735,7 +2828,11 @@ function renderMyListWatchListMetadataInnerHtml(item = {}, section = activeSecti
   if (tab !== 'planned') return '';
   if (!isScreenListMovieTvAnimeSection(section)) return '';
   const lines = [];
-  if (!shouldHideMyListCardGenre(section, item) && item.genre) {
+  /* v10.836: TV Shows → Watchlist drops the genre line so the card reads
+     Title → Status → release/availability. Movies/Anime watchlist keep
+     their genre line untouched. */
+  const includeGenre = section !== 'shows';
+  if (includeGenre && !shouldHideMyListCardGenre(section, item) && item.genre) {
     lines.push(`<div class="card-genre">${escHtml(item.genre)}</div>`);
   }
   const availabilityHtml = renderMyListWatchListAvailabilityHtml(item, section);
@@ -3390,6 +3487,21 @@ function renderCard(item, isDraggable) {
      placed in one of two slots so the status pill's element id stays
      unique (rendering it in both slots would duplicate the id). */
   const isMoviesWatchlistCard = activeSection === 'movies' && activeTab === 'planned';
+  /* v10.835: TV Shows → Watchlist (planned) gets the same status-pill
+     hoist as Movies → Watchlist. Without this the status button rendered
+     under year + watchlist-meta, several lines below the title. Reuses
+     the existing `.status-pills--under-title` modifier so spacing and
+     coloring stay consistent with the movies-watchlist treatment. */
+  const isTvShowsWatchlistCard = activeSection === 'shows' && activeTab === 'planned';
+  /* v10.841: hoist the status pill directly under the title on EVERY
+     TV Shows card (watching / planned / watched / paused), not just
+     the watchlist + watched tabs. User spec: "let's make it all 10px
+     of space between the title and the status button on every title
+     card in the TV's category." That spacing is meaningful only when
+     the status pill is the row immediately below the title, so this
+     forces the hoist for every shows tab. Companion CSS rule sets
+     the 10px gap. */
+  const isAnyTvShowsCard = activeSection === 'shows';
   /* v10.734: hoist the status pill UP to sit directly beneath the media
      title (with 8px line spacing) on the completed-status tabs for every
      section that the user uses for "I finished this" tracking — Movies →
@@ -3405,11 +3517,11 @@ function renderCard(item, isDraggable) {
     || activeSection === 'games'
     || activeSection === 'music'
   );
-  const showStatusUnderTitle = isMoviesWatchlistCard || isCompletedTabHoist;
+  const showStatusUnderTitle = isMoviesWatchlistCard || isTvShowsWatchlistCard || isAnyTvShowsCard || isCompletedTabHoist;
   const statusPillsWrapClass = `status-pills status-pills-selector-wrap${showStatusUnderTitle ? ' status-pills--under-title' : ''}`;
   const statusPillsHtml = !viewingUser ? `<div class="${statusPillsWrapClass}" id="status-pills-${item.id}">${statusSelectorHtml}</div>` : '';
   return `
-    <div class="card ${type === "show" ? "show-card" : ""}${isGameCard ? " game-library-card" : ""}${isGamesWishlistCard ? " games-wishlist-card" : ""}${isCompetitiveGameCard ? " game-competitive-card" : ""}${isGamePlayingOrBacklogCard ? " game-playing-backlog-compact-card" : ""}${shouldShiftTvShowRatingLayout ? " tv-show-progress-rating-shift-card" : ""}${useRatingBubble ? " card-uses-rating-bubble" : ""}${isMoviesWatchlistCard ? " movies-watchlist-card" : ""} ${viewingUser ? "friend-view-card" : ""}${isDraggable ? ' card-draggable' : ''}" id="card-${item.id}" data-mylist-review-card data-library-item-id="${itemIdAttr}" data-library-section="${itemSectionAttr}" onclick="handleMyListCardReviewSurfaceClick(event,'${itemIdAttr}','${itemSectionAttr}')" ${dragAttrs}>
+    <div class="card ${type === "show" ? "show-card" : ""}${isGameCard ? " game-library-card" : ""}${isGamesWishlistCard ? " games-wishlist-card" : ""}${isCompetitiveGameCard ? " game-competitive-card" : ""}${isGamePlayingOrBacklogCard ? " game-playing-backlog-compact-card" : ""}${shouldShiftTvShowRatingLayout ? " tv-show-progress-rating-shift-card" : ""}${useRatingBubble ? " card-uses-rating-bubble" : ""}${isMoviesWatchlistCard ? " movies-watchlist-card" : ""}${isTvShowsWatchlistCard ? " tv-shows-watchlist-card" : ""} ${viewingUser ? "friend-view-card" : ""}${isDraggable ? ' card-draggable' : ''}" id="card-${item.id}" data-mylist-review-card data-library-item-id="${itemIdAttr}" data-library-section="${itemSectionAttr}" onclick="handleMyListCardReviewSurfaceClick(event,'${itemIdAttr}','${itemSectionAttr}')" ${dragAttrs}>
       <div class="card-header">
         <div class="${coverClass}${coverProfileClass}" style="${coverStyle}" ${coverPosterAttr} ${coverProfileAttrs}${activeSection === 'music' ? ` onclick="event.stopPropagation();openMyListMusicCoverClick('${itemIdAttr}')"` : ''}>
           ${!cardCoverSrc ? (isGameCard ? `<span>${SCREENLIST_GAME_COVER_PLACEHOLDER_TEXT}</span>` : emoji) : ''}
@@ -3422,7 +3534,13 @@ function renderCard(item, isDraggable) {
           ${showStatusUnderTitle ? statusPillsHtml : ''}
           ${gameStatsHtml}
           ${competitiveStatsHtml}
-          ${(((activeTab === 'planned' && isScreenListMovieTvAnimeSection(activeSection) && !isMoviesWatchlistCard)
+          ${(activeSection !== 'shows'
+              /* v10.840: TV Shows category drops the bare 4-digit year
+                 line on EVERY title card (planned, watching, watched,
+                 paused). User spec: "remove that from every title card
+                 in the TV shows category." Movies/Anime/Music still
+                 follow the year rules below. */
+              && (((activeTab === 'planned' && isScreenListMovieTvAnimeSection(activeSection) && !isMoviesWatchlistCard)
               /* v10.76: Movies → Watched also shows year between title and genre.
                  v10.77: extended to ALL watched movie/TV/anime cards so the
                  metadata order (title → year → genre → status → rating → comment)
@@ -3437,7 +3555,7 @@ function renderCard(item, isDraggable) {
                  user spec (excluded via `!isMoviesWatchlistCard`). */
               || (activeTab === 'watched' && isScreenListMovieTvAnimeSection(activeSection))
               || activeSection === 'music')
-              && item.year) ? `<div class="card-year mylist-watchlist-year">${escHtml(String(item.year).slice(0, 4))}</div>` : ''}
+              && item.year)) ? `<div class="card-year mylist-watchlist-year">${escHtml(String(item.year).slice(0, 4))}</div>` : ''}
           ${(activeSection === 'music' && item.artist) ? `<div class="card-artist">${escHtml(String(item.artist))}</div>` : ''}
           ${/* v10.434: genre suppressed for ALL game title cards per
                 spec ("only read the title, the status button, the
@@ -5379,6 +5497,111 @@ function rateMyListEpisodePageSeasonRating(itemId = '', seasonNum = '', score = 
   rate(itemId, `season:${seasonNum}`, Number(score || 0));
 }
 
+function getMyListEpisodePageSeasonRatingItem(itemId = '', sectionHint = '') {
+  const id = String(itemId || '');
+  const section = String(sectionHint || myListEpisodePageState?.section || activeSection || '');
+  try {
+    const ctx = getMyListEpisodeInteractionContext(id, section);
+    if (ctx?.item) return ctx.item;
+  } catch (_) {}
+  try {
+    return (data[section] || []).find(i => String(i?.id || '') === id) || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function updateMyListEpisodePageSeasonRatingPreview(control, score = 0) {
+  if (!control) return;
+  const value = Math.max(0, Math.min(10, Number(score || 0)));
+  control.querySelectorAll('.mylist-episode-page-season-rating-star-slot').forEach((slot, index) => {
+    const starIdx = index + 1;
+    const leftVal = starIdx * 2 - 1;
+    const rightVal = starIdx * 2;
+    let pct = 0;
+    if (value >= rightVal) pct = 100;
+    else if (value >= leftVal) pct = 50;
+    slot.style.setProperty('--season-star-fill', `${pct}%`);
+  });
+  const chipValue = control.querySelector('.mylist-episode-page-season-rating-chip-value');
+  if (chipValue) {
+    const display = value > 0 ? value / 2 : 0;
+    chipValue.textContent = display % 1 === 0 ? String(display) : display.toFixed(1);
+  }
+}
+
+function buildMyListEpisodePageSeasonRatingScrubCache(control) {
+  if (!control) return;
+  const hits = Array.from(control.querySelectorAll('.mylist-episode-page-season-rating-hit'));
+  control._seasonRatingScrubCache = {
+    hits,
+    hitMidpoints: hits.map(hit => {
+      const r = hit.getBoundingClientRect();
+      return r.left + r.width / 2;
+    }),
+    lastVal: -1
+  };
+}
+
+window.myListEpisodePageSeasonRatingTouchStart = function(event) {
+  const track = event.currentTarget;
+  const control = track?.closest?.('.mylist-episode-page-season-rating-control');
+  const touch = event.touches && event.touches[0];
+  if (!control || !touch) return;
+  control.dataset.touchStartX = String(touch.clientX);
+  control.dataset.touchStartY = String(touch.clientY);
+  control.dataset.scrubbing = 'false';
+  control.dataset.scrubVal = '0';
+  buildMyListEpisodePageSeasonRatingScrubCache(control);
+};
+
+window.myListEpisodePageSeasonRatingTouchMove = function(event) {
+  const track = event.currentTarget;
+  const control = track?.closest?.('.mylist-episode-page-season-rating-control');
+  const touch = event.touches && event.touches[0];
+  if (!control || !touch || !control.classList.contains('is-expanded')) return;
+  const dx = Math.abs(touch.clientX - parseFloat(control.dataset.touchStartX || 0));
+  const dy = Math.abs(touch.clientY - parseFloat(control.dataset.touchStartY || 0));
+  if (control.dataset.scrubbing !== 'true') {
+    if (dx < 6 || dy > dx) return;
+    buildMyListEpisodePageSeasonRatingScrubCache(control);
+  }
+  const cache = control._seasonRatingScrubCache;
+  if (!cache) return;
+  control.dataset.scrubbing = 'true';
+  event.preventDefault();
+  let val = 0;
+  for (let i = 0; i < cache.hitMidpoints.length; i++) {
+    if (touch.clientX >= cache.hitMidpoints[i]) val = i + 1;
+  }
+  if (val < 1 || val === cache.lastVal) return;
+  cache.lastVal = val;
+  control.dataset.scrubVal = String(val);
+  updateMyListEpisodePageSeasonRatingPreview(control, val);
+};
+
+window.myListEpisodePageSeasonRatingTouchEnd = function(event) {
+  const track = event.currentTarget;
+  const control = track?.closest?.('.mylist-episode-page-season-rating-control');
+  if (!control) return;
+  const wasScrubbing = control.dataset.scrubbing === 'true';
+  const val = parseInt(control.dataset.scrubVal || '0', 10);
+  delete control._seasonRatingScrubCache;
+  control.dataset.scrubbing = 'false';
+  control.dataset.scrubVal = '0';
+  if (!wasScrubbing || val < 1) return;
+  event.preventDefault();
+  const itemId = control.dataset.itemId || '';
+  const seasonNum = control.dataset.seasonNum || '';
+  const section = control.dataset.section || myListEpisodePageState?.section || activeSection;
+  const currentRating = Number(getMyListEpisodePageSeasonRatingItem(itemId, section)?.seasonRatings?.[seasonNum] || 0);
+  if (val === currentRating) {
+    collapseMyListEpisodePageSeasonRatings();
+    return;
+  }
+  rateMyListEpisodePageSeasonRating(itemId, seasonNum, val);
+};
+
 function handleMyListEpisodePageSeasonRatingOutsideClick(event) {
   if (!isMyListEpisodePageOpen() || !myListEpisodePageExpandedSeasonRating) return;
   if (event?.target?.closest?.('.mylist-episode-page-season-rating-control')) return;
@@ -5400,22 +5623,30 @@ function renderEpisodePageSeasonRatingControl(item = {}, seasonNum = '', rating 
   if (readonly) {
     return `<span class="mylist-episode-page-season-rating-chip is-readonly" aria-label="Season ${escAttr(sNum)} rating ${escAttr(label)}"><span aria-hidden="true">&#9733;</span><span>${escHtml(label)}</span></span>`;
   }
-  const stars = Array.from({ length: 10 }, (_, index) => {
-    const score = index + 1;
-    const lit = score <= value ? ' lit' : '';
-    /* v10.509: aria-label adjusted from "out of 10" to "out of 5" with
-       half-star value. score is still the underlying 1-10 unit (each
-       unit = half-star) because the stored rating model is unchanged. */
-    return `<button type="button" class="mylist-episode-page-season-rating-star${lit}" aria-label="Rate season ${escAttr(sNum)} ${(score / 2) % 1 === 0 ? (score / 2) : (score / 2).toFixed(1)} out of 5" onclick="rateMyListEpisodePageSeasonRating('${escAttr(itemId)}','${escAttr(sNum)}',${score},event)">&#9733;</button>`;
+  const stars = Array.from({ length: 5 }, (_, index) => {
+    const star = index + 1;
+    const leftScore = star * 2 - 1;
+    const rightScore = star * 2;
+    let fill = 0;
+    if (value >= rightScore) fill = 100;
+    else if (value >= leftScore) fill = 50;
+    const leftLabel = (leftScore / 2).toFixed(1).replace(/\.0$/, '');
+    const rightLabel = (rightScore / 2).toFixed(1).replace(/\.0$/, '');
+    return `<span class="mylist-episode-page-season-rating-star-slot" data-star-index="${star}" style="--season-star-fill:${fill}%">`
+      + `<span class="mylist-episode-page-season-rating-star-base" aria-hidden="true">&#9733;</span>`
+      + `<span class="mylist-episode-page-season-rating-star-fill" aria-hidden="true">&#9733;</span>`
+      + `<button type="button" class="mylist-episode-page-season-rating-hit mylist-episode-page-season-rating-hit-left" aria-label="Rate season ${escAttr(sNum)} ${escAttr(leftLabel)} out of 5" onclick="rateMyListEpisodePageSeasonRating('${escAttr(itemId)}','${escAttr(sNum)}',${leftScore},event)"></button>`
+      + `<button type="button" class="mylist-episode-page-season-rating-hit mylist-episode-page-season-rating-hit-right" aria-label="Rate season ${escAttr(sNum)} ${escAttr(rightLabel)} out of 5" onclick="rateMyListEpisodePageSeasonRating('${escAttr(itemId)}','${escAttr(sNum)}',${rightScore},event)"></button>`
+      + `</span>`;
   }).join('');
   return `
-    <div class="mylist-episode-page-season-rating-control${myListEpisodePageExpandedSeasonRating === key ? ' is-expanded' : ''}" data-rating-key="${escAttr(key)}">
-      <div class="mylist-episode-page-season-rating-stars" aria-hidden="${myListEpisodePageExpandedSeasonRating === key ? 'false' : 'true'}">
+    <div class="mylist-episode-page-season-rating-control${myListEpisodePageExpandedSeasonRating === key ? ' is-expanded' : ''}" data-rating-key="${escAttr(key)}" data-item-id="${escAttr(itemId)}" data-season-num="${escAttr(sNum)}" data-section="${escAttr(section)}">
+      <div class="mylist-episode-page-season-rating-stars" aria-hidden="${myListEpisodePageExpandedSeasonRating === key ? 'false' : 'true'}" ontouchstart="myListEpisodePageSeasonRatingTouchStart(event)" ontouchmove="myListEpisodePageSeasonRatingTouchMove(event)" ontouchend="myListEpisodePageSeasonRatingTouchEnd(event)" ontouchcancel="myListEpisodePageSeasonRatingTouchEnd(event)">
         ${stars}
       </div>
       <button type="button" class="mylist-episode-page-season-rating-chip" aria-label="Season ${escAttr(sNum)} rating ${escAttr(label)}" aria-expanded="${myListEpisodePageExpandedSeasonRating === key ? 'true' : 'false'}" onclick="toggleMyListEpisodePageSeasonRating('${escAttr(itemId)}','${escAttr(sNum)}',event)">
         <span aria-hidden="true">&#9733;</span>
-        <span>${escHtml(label)}</span>
+        <span class="mylist-episode-page-season-rating-chip-value">${escHtml(label)}</span>
       </button>
     </div>
   `;
@@ -7794,6 +8025,28 @@ function showToast(message, options = {}) {
   }, Number(options.durationMs || 1500));
 }
 
+function showShelfdAddedToShelfPrompt(options = {}) {
+  const existing = document.querySelector('.shelfd-added-to-shelf-prompt');
+  if (existing) existing.remove();
+  const prompt = document.createElement('div');
+  prompt.className = 'shelfd-added-to-shelf-prompt';
+  prompt.setAttribute('role', 'status');
+  prompt.setAttribute('aria-live', 'polite');
+  prompt.innerHTML = `
+    <span class="shelfd-added-to-shelf-prompt-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-10"/></svg>
+    </span>
+    <span class="shelfd-added-to-shelf-prompt-text">${escHtml(options.message || 'Added to shelf')}</span>
+  `;
+  document.body.appendChild(prompt);
+  requestAnimationFrame(() => prompt.classList.add('is-open'));
+  setTimeout(() => {
+    prompt.classList.remove('is-open');
+    setTimeout(() => { try { prompt.remove(); } catch (_) {} }, 240);
+  }, Number(options.durationMs || 1900));
+}
+window.showShelfdAddedToShelfPrompt = showShelfdAddedToShelfPrompt;
+
 /* v10.418: actionable post-add popup used after the user adds an item to
    their library FROM Universal Search. Instead of auto-navigating them
    to the My List page (which interrupts the "search → add a bunch" flow
@@ -7939,8 +8192,19 @@ function clearListSearch() {
   }
   _onSearchPendingValue = "";
   searchQuery = "";
-  const input = document.querySelector(".search-input");
+  const input = document.getElementById("mylist-search-input-inline") || document.querySelector(".search-input");
   if (input) input.value = "";
+  const row = document.getElementById("mylist-search-row");
+  if (row) {
+    row.hidden = true;
+    row.classList.remove('is-open', 'is-closing');
+  }
+  const btn = document.getElementById("mylist-search-toggle-btn");
+  if (btn) {
+    btn.classList.remove('mylist-search-toggle-active');
+    btn.setAttribute('aria-expanded', 'false');
+  }
+  _mylistSearchOpen = false;
 }
 
 function chooseInitialListView(listData) {
@@ -9041,7 +9305,7 @@ function applyMyListStatusChange(id, status, rating = null, sectionHint = '') {
 }
 
 function changeStatus(id, status) {
-  const record = findOwnLibraryItemRecord(id, activeSection);
+  const record = findOwnLibraryItemRecord(id, getMyListSearchContextSection() || activeSection);
   const item = record.item;
   if (!item || !record.section) return;
   const validStatuses = getMyListStatusButtonConfigs(record.section).map(entry => entry.status);
@@ -9204,7 +9468,7 @@ function deleteItem(eventOrId, maybeId) {
     return;
   }
 
-  const sectionAtDelete = activeSection;
+  const sectionAtDelete = getMyListSearchContextSection(btn) || activeSection;
   const deletedItem = (data[sectionAtDelete] || []).find(item => String(item.id) === id);
   data[sectionAtDelete] = (data[sectionAtDelete] || []).filter(item => String(item.id) !== id);
   save();
@@ -9491,7 +9755,7 @@ function rate(itemId, prefix, score) {
   if (_lastRate.key === key && now - _lastRate.time < 350) return;
   _lastRate = { key, time: now };
 
-  const record = getMyListEpisodeInteractionContext(itemId, activeSection);
+  const record = getMyListEpisodeInteractionContext(itemId, getMyListSearchContextSection() || activeSection);
   const item = record.item;
   if (!item) return;
   const section = record.section || activeSection;
@@ -10522,21 +10786,43 @@ function saveEpCount(id) {
    Clears the active search query and re-renders when closed.
    ============================================================================= */
 let _mylistSearchOpen = false;
+let _mylistSearchCloseTimer = null;
+function ensureMyListSearchComposerPlacement() {
+  const row = document.getElementById('mylist-search-row');
+  const btn = document.getElementById('mylist-search-toggle-btn');
+  const toolbarRight = document.querySelector('#mylist-toolbar .toolbar-right');
+  if (!row || !btn || !toolbarRight) return row;
+  if (row.parentElement !== toolbarRight || row.nextElementSibling !== btn) {
+    toolbarRight.insertBefore(row, btn);
+  }
+  return row;
+}
 function toggleMyListSearch() {
-  const row   = document.getElementById('mylist-search-row');
+  const row   = ensureMyListSearchComposerPlacement();
   const input = document.getElementById('mylist-search-input-inline');
   const btn   = document.getElementById('mylist-search-toggle-btn');
   if (!row) return;
   _mylistSearchOpen = !_mylistSearchOpen;
-  row.hidden = !_mylistSearchOpen;
   if (btn) btn.classList.toggle('mylist-search-toggle-active', _mylistSearchOpen);
+  if (btn) btn.setAttribute('aria-expanded', _mylistSearchOpen ? 'true' : 'false');
+  window.clearTimeout(_mylistSearchCloseTimer);
   if (_mylistSearchOpen) {
+    row.hidden = false;
+    row.classList.remove('is-closing');
+    requestAnimationFrame(() => row.classList.add('is-open'));
     /* Focus with rAF so iOS keyboard appears inside the gesture chain. */
     requestAnimationFrame(() => { try { input?.focus({ preventScroll: false }); } catch (_) { input?.focus(); } });
   } else {
+    row.classList.remove('is-open');
+    row.classList.add('is-closing');
     /* Clear search state when closing. */
     if (input) input.value = '';
     onSearch('');
+    _mylistSearchCloseTimer = window.setTimeout(() => {
+      if (_mylistSearchOpen) return;
+      row.hidden = true;
+      row.classList.remove('is-closing');
+    }, 230);
   }
 }
 window.toggleMyListSearch = toggleMyListSearch;
@@ -11271,6 +11557,7 @@ function closeShelfLogComposer(opts = {}) {
 async function saveShelfLogComposer() {
   const state = shelfLogComposerState;
   if (!state) return;
+  let savedFromNewMediaDraft = false;
   /* v10.788: DRAFT-MODE SAVE — if this composer was opened via
      openShelfLogComposerForNewMedia (FPMP Watched flow), the item is NOT
      yet in the library. Save is the moment we actually add it. Run
@@ -11284,7 +11571,7 @@ async function saveShelfLogComposer() {
     let addResult = null;
     try {
       if (typeof addDiscoveryTitle === 'function') {
-        addResult = await addDiscoveryTitle(draft.type, draft.tmdbId, draft.fpmpBtn, 'watched', '+', ratingForAdd, { promptPost: false });
+        addResult = await addDiscoveryTitle(draft.type, draft.tmdbId, draft.fpmpBtn, 'watched', '+', ratingForAdd, { promptPost: false, successToast: false });
       }
     } catch (e) {
       console.warn('[v10.788] draft-mode addDiscoveryTitle threw:', e);
@@ -11295,6 +11582,7 @@ async function saveShelfLogComposer() {
     }
     state.itemId = String(addResult.item.id);
     state.section = String(addResult.section || draft.section || state.section);
+    savedFromNewMediaDraft = true;
     shelfLogComposerDraft = null;
   }
   const item = (data[state.section] || []).find(i => i?.id === state.itemId);
@@ -11386,7 +11674,12 @@ async function saveShelfLogComposer() {
     }
   } catch (_) {}
 
-  if (typeof showToast === 'function') showToast('Review posted');
+  if (savedFromNewMediaDraft) {
+    if (typeof showShelfdAddedToShelfPrompt === 'function') showShelfdAddedToShelfPrompt({ message: 'Added to shelf' });
+    else if (typeof showToast === 'function') showToast('Added to shelf');
+  } else if (typeof showToast === 'function') {
+    showToast('Review posted');
+  }
 
   // After the slide-out finishes, hand off to the existing Full Page Review.
   setTimeout(() => {

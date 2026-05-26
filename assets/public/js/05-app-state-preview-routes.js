@@ -6,7 +6,7 @@
    applied to selectedTmdb. */
 var activeSection = "shows";
 var activeTab = "watching";
-let activeDiscoveryHub = "tv";
+let activeDiscoveryHub = "movies";
 let searchQuery = "";
 let openStates = {};
 let saveTimeout = null;
@@ -1196,7 +1196,7 @@ async function continueWithoutSignIn(options = {}) {
     if (login) login.style.display = 'none';
     if (app) app.style.display = 'block';
 
-    activeDiscoveryHub = normalizeDiscoveryHub(activeDiscoveryHub || 'tv');
+    activeDiscoveryHub = normalizeDiscoveryHub(activeDiscoveryHub || 'movies');
     syncMainNavButtons('discover');
     setBottomNavVisibility(true);
     setMainNavVisibility('discover');
@@ -1607,6 +1607,27 @@ function openPreviewCommunityProfile(uid) {
     try {
       const parsed = new URL(String(rawUrl));
 
+      /* /auth/verify - Firebase email verification continue URL.
+         This path is intentionally a Universal Link so iOS returns the user
+         to the installed app after Firebase confirms the email in Safari. */
+      if (parsed.pathname === '/auth/verify') {
+        try { window.history.replaceState({}, '', parsed.pathname + parsed.search + parsed.hash); } catch (_) {}
+        let verifyReturnAttempts = 0;
+        const finishVerifyReturn = () => {
+          if (typeof window.handleShelfdVerificationReturn === 'function') {
+            window.handleShelfdVerificationReturn();
+            return;
+          }
+          verifyReturnAttempts += 1;
+          if (verifyReturnAttempts <= 20) {
+            setTimeout(finishVerifyReturn, 100);
+          }
+        };
+        if (document.readyState === 'complete') finishVerifyReturn();
+        else window.addEventListener('load', finishVerifyReturn, { once: true });
+        return;
+      }
+
       /* /media/{kind}/{id} — movie / tv / anime / game profile */
       const mediaMatch = parsed.pathname.match(/^\/media\/(movie|tv|anime|game)\/([^/?#]+)/i);
       if (mediaMatch) {
@@ -1670,6 +1691,13 @@ function openPreviewCommunityProfile(uid) {
       const AppPlugin = Cap.Plugins && Cap.Plugins.App;
       if (AppPlugin && typeof AppPlugin.addListener === 'function') {
         AppPlugin.addListener('appUrlOpen', handleAppUrlOpen);
+        if (typeof AppPlugin.getLaunchUrl === 'function') {
+          try {
+            AppPlugin.getLaunchUrl().then(result => {
+              if (result && result.url) handleAppUrlOpen(result);
+            }).catch(() => {});
+          } catch (_) {}
+        }
         return;
       }
       /* Fallback: some builds expose window.Capacitor.addListener directly */

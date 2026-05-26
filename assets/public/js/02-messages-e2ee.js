@@ -30,7 +30,7 @@ function renderDirectMessagePayloadContent(payload = {}, encrypted = false) {
   const shareHtml = normalizedShare && typeof renderDirectMessageShareCard === 'function'
     ? renderDirectMessageShareCard({ shareMedia: normalizedShare })
     : '';
-  const imageHtml = payload.imageData ? `<img class="dm-photo-message" src="${escAttr(payload.imageData)}" alt="${escAttr(payload.imageName || 'Photo message')}" loading="lazy">` : '';
+  const imageHtml = payload.imageData ? `<button class="dm-photo-message-button" type="button" onclick="openDirectMessagePhotoViewer(this.querySelector('.dm-photo-message'))" aria-label="Open photo full screen"><img class="dm-photo-message" src="${escAttr(payload.imageData)}" alt="${escAttr(payload.imageName || 'Photo message')}" loading="lazy" draggable="false"></button>` : '';
   const textHtml = payload.text ? `<span class="dm-message-text">${escHtml(payload.text || '')}</span>` : '';
   return `${shareHtml}${imageHtml}${textHtml}`;
 }

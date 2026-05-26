@@ -1,6 +1,11 @@
 ﻿
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html {
+    --shelfd-page-bg: #0E0E0E;
+    --shelfd-safe-top: env(safe-area-inset-top, 0px);
+    --shelfd-safe-right: env(safe-area-inset-right, 0px);
+    --shelfd-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --shelfd-safe-left: env(safe-area-inset-left, 0px);
     scrollbar-width: none;
     /* v10.278: bounce/rubber-band scrolling. `overscroll-behavior-y: auto` is the
        default but we set it explicitly to defend against any inherited
@@ -25,16 +30,14 @@
        Cards and panels retain their own darker surfaces so they float on
        this grey base. Light mode overrides this via body.light-mode in
        16-light-mode-contrast.css.
-       v10.791: bumped to #181c20 so the iOS safe-area-top (Dynamic Island /
-       notch zone) and safe-area-bottom (home indicator zone) — which show
-       through whatever <html>/<body> paint underneath the overlay-mode
-       Capacitor WebView — match the search page surface color. */
-    background: #181c20;
+       v10.803: root bounce/reveal color now follows --shelfd-page-bg so
+       iOS rubber-band overscroll matches the active app surface. */
+    background: var(--shelfd-page-bg, #0E0E0E);
     font-family: 'Sohne', 'DM Sans', sans-serif;
     color: #e8e3f3;
     overflow-anchor: none;
   }
-  html { background: #181c20; } /* v10.791: matches body — safe-area bars */
+  html { background: var(--shelfd-page-bg, #0E0E0E); } /* v10.803: iOS bounce reveal */
   /* v10.210: stronger mobile portrait presentation lock.
      The manifest/native Screen Orientation API are hints on iOS, not a hard
      guarantee. The old fallback transformed <body>, which let fixed top-level

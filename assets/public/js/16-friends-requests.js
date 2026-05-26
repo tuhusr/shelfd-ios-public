@@ -50,6 +50,7 @@ function pushFriendActivityLiveEvents(events = []) {
   if (!Array.isArray(events) || !events.length) return;
   const existing = new Map(friendActivityLiveEvents.map(event => [event.eventKey || buildFriendActivityEventKey(event), event]));
   events.forEach(event => {
+    if (String(event?.eventType || event?.type || '').trim().toLowerCase() === 'removed') return;
     const normalized = {
       ...event,
       item: cloneFriendActivityItem(event.item),
@@ -58,6 +59,7 @@ function pushFriendActivityLiveEvents(events = []) {
     existing.set(normalized.eventKey, normalized);
   });
   friendActivityLiveEvents = [...existing.values()]
+    .filter(event => String(event?.eventType || event?.type || '').trim().toLowerCase() !== 'removed')
     .sort((a, b) => parseFriendActivityTime(b.timestamp || b.item?.dateAdded) - parseFriendActivityTime(a.timestamp || a.item?.dateAdded))
     .slice(0, FRIEND_ACTIVITY_LIVE_MAX);
 }
@@ -131,19 +133,9 @@ function buildFriendWatchlistDiffEvents(uid, previousState = null, nextState = {
       return;
     }
 
-    if (prevItem && !nextItem) {
-      events.push({
-        uid,
-        name: actor.name || 'Friend',
-        photo: actor.photo || '',
-        item: cloneFriendActivityItem(prevItem.item),
-        timestamp: now,
-        eventType: 'removed',
-        previousStatus: prevItem.status,
-        mediaKey: prevItem.mediaKey
-      });
-      return;
-    }
+    // Removing a title from a library is private and must never surface as
+    // an Activity Feed card or notification.
+    if (prevItem && !nextItem) return;
 
     if (!prevItem || !nextItem) return;
 
