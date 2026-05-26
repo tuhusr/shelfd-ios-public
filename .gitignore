@@ -16,5 +16,3 @@ shutdown prompts/
 virtual mac/
 testflight_feedback*.zip
 
-# Local-only version snapshot folder (v10.834+ pattern)
-1. new versions/
