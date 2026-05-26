@@ -20,7 +20,7 @@ window.__shelfdSplitChunkVersion = '364-force-fresh';
   const LIVE_UPDATE_SPLASH_KEY = 'screenlist-live-update-splash-v3';
   const LIVE_UPDATE_AFTER_LOAD_HOLD_MS = 700;
   const LIVE_UPDATE_APP_READY_TIMEOUT_MS = 10000;
-  const LIVE_UPDATE_NOTICE_VISIBLE_MS = 3300;
+  const LIVE_UPDATE_NOTICE_VISIBLE_MS = 6000;
   const LIVE_UPDATE_LOGO_SRC = '/live_update_splash_logo.png?v=362-pwa-edge-no-store';
   /* v746: bumped key forces standalone PWAs to run the one-shot
      full-cache wipe + SW unregister + reload one more time on next
@@ -257,7 +257,6 @@ window.__shelfdSplitChunkVersion = '364-force-fresh';
         letter-spacing: 0;
         text-align: center;
         pointer-events: none;
-        cursor: pointer;
         touch-action: pan-y;
         user-select: none;
         -webkit-user-select: none;
@@ -301,38 +300,6 @@ window.__shelfdSplitChunkVersion = '364-force-fresh';
     }, 280);
   }
 
-  /* v10.835: tap-to-refresh.
-     When the user taps the green live-update notice, we force the auto-update
-     so they don't have to close + reopen the app:
-       1. Mark the splash session-storage flag so finishReloadSplashIfNeeded()
-          plays the live-update splash immediately after the reload completes
-          (continuity — same animation as a SW-controlled refresh).
-       2. Tell any waiting service worker to skipWaiting so the new build
-          activates right now. sw.js already listens for SKIP_WAITING.
-       3. location.reload() — in the Capacitor WKWebView this re-fetches
-          https://myscreenlist.com/ from Cloudflare, which already has the
-          new assets live. Same effect as closing/reopening the native app
-          but in one tap, no quitting required. */
-  function triggerLiveUpdateNow() {
-    try { sessionStorage.setItem(LIVE_UPDATE_SPLASH_KEY, '1'); } catch (error) {}
-    try {
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistration().then((reg) => {
-          try {
-            if (reg && reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-          } catch (error) {}
-        }).catch(() => {});
-      }
-    } catch (error) {}
-    /* Tiny delay so SKIP_WAITING has a frame to fire before we navigate. */
-    setTimeout(() => {
-      try { window.location.reload(); }
-      catch (error) {
-        try { window.location.href = window.location.href; } catch (e2) {}
-      }
-    }, 60);
-  }
-
   function bindLiveUpdateNoticeDismiss(notice) {
     if (!notice || notice.dataset.dismissReady === 'true') return;
     notice.dataset.dismissReady = 'true';
@@ -348,15 +315,8 @@ window.__shelfdSplitChunkVersion = '364-force-fresh';
       notice.classList.remove('is-dragging');
       notice.releasePointerCapture?.(event?.pointerId);
       delete notice.dataset.dragY;
-      /* v10.835: drag UP past 34px → dismiss the pill. */
       if (currentY <= -34) {
         closeLiveUpdateNotice(notice);
-        return;
-      }
-      /* v10.835: barely moved → treat as a TAP and force the refresh. */
-      if (Math.abs(currentY) < 6) {
-        closeLiveUpdateNotice(notice);
-        triggerLiveUpdateNow();
         return;
       }
       notice.style.setProperty('--screenlist-live-update-notice-y', '0px');
@@ -393,7 +353,7 @@ window.__shelfdSplitChunkVersion = '364-force-fresh';
         document.body.appendChild(notice);
       }
       bindLiveUpdateNoticeDismiss(notice);
-      notice.textContent = 'A live update is ready — tap to refresh now.';
+      notice.textContent = 'A live update was deployed. Reopen the app to apply changes.';
       notice.dataset.nextVersion = String(nextVersion || '');
       notice.classList.remove('is-closing', 'is-dragging');
       notice.style.setProperty('--screenlist-live-update-notice-y', '0px');
