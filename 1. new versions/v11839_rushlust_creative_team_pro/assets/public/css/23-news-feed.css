@@ -1,0 +1,1225 @@
+/* ============================================================================
+   23-news-feed.css  (v11.592)
+   Editorial-dark styling for the News Activity sub-tab (#activity-news-feed).
+   Twitter cadence + an Instagram-clean card: true blacks, single lavender
+   accent, Söhne type, 0.03em tracking, hairline dividers, no chrome.
+   Dark-mode only (the app is dark-only going forward).
+   ========================================================================== */
+
+#activity-news-feed { font-family: 'Sohne', 'DM Sans', sans-serif; }
+
+/* v11.594: the "What are you watching?" composer belongs to the Activity Feed
+   only — hide it on the News sub-tab (Shared Watch hides it the same way in
+   css/08-watch-together.css). */
+#community-view.activity-subtab-news #feed-composer { display: none !important; }
+
+.news-feed {
+  position: relative;
+  color: #f8f4ff;
+  padding: 6px 0 0;
+  overflow: visible;
+}
+.news-feed-body {
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
+}
+
+/* ---- Pull-to-refresh indicator (top) ---- */
+.news-ptr {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
+  will-change: transform, opacity;
+}
+.news-ptr .news-spinner { width: 26px; height: 26px; }
+
+/* ---- Circular loading spinner (lavender, app-consistent) ---- */
+.news-spinner {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(196, 181, 253, 0.22);
+  border-top-color: #c4b5fd;
+  box-sizing: border-box;
+}
+.news-spinner.is-spinning { animation: newsSpin 0.7s linear infinite; }
+.news-ptr.is-ready .news-spinner { border-top-color: #ddd2ff; }
+@keyframes newsSpin { to { transform: rotate(360deg); } }
+
+/* ---- Category filter chips (horizontal scroll) ---- */
+.news-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 0 14px;
+  margin: 0 0 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  scrollbar-width: none;
+}
+.news-chips::-webkit-scrollbar { display: none; }
+.news-chip {
+  flex: 0 0 auto;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(216, 208, 233, 0.72);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font: 500 13px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+.news-chip:active { transform: scale(0.96); }
+.news-chip.active {
+  background: rgba(167, 139, 250, 0.16);
+  color: #ffffff;
+  border-color: rgba(167, 139, 250, 0.42);
+}
+
+/* ---- Card list ---- */
+.news-list { display: flex; flex-direction: column; }
+/* virtual-scroll top spacer: reserves the height of pruned off-screen cards so
+   the document height never changes during endless scroll (no scroll jump). */
+.news-prune-spacer { flex: 0 0 auto; width: 100%; }
+
+.news-card {
+  display: block;
+  padding: 22px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  animation: newsCardIn 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.news-card:active { background: rgba(255, 255, 255, 0.02); }
+
+.news-card-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.news-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 500 12.5px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.03em;
+  color: #9990b3;
+  min-width: 0;
+}
+/* v11.709: stacked identity — category type on line 1, avatar+name+time on line 2.
+   Takes the row's free width so the action buttons stay pinned right. */
+.news-card-id {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.news-card-idrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+/* v11.721: actions grouped so the identity column (flex:1) claims the free width
+   instead of the buttons' margin-left:auto stealing it (which collapsed the column
+   and truncated the outlet name to "Marv…"). */
+.news-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.news-card-actions > .news-card-follow,
+.news-card-actions > .news-card-heart,
+.news-card-actions > .news-card-share { margin-left: 0; margin-right: 0; }
+.news-card-cat {
+  color: #c4b5fd;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  opacity: 0.6;   /* v11.753: media tag dimmed to 60% */
+}
+.news-card-source {
+  color: #e2e2e2;
+  font-weight: 500;
+  /* v11.722: outlet name ALWAYS shows in full — never clipped to "…". It sits on
+     its own line now, so no truncation is needed; long names wrap instead. */
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+.news-card-dot { color: rgba(216, 208, 233, 0.38); }
+.news-card-time { color: rgba(255, 255, 255, 0.45); font-weight: 300; font-size: 12px; flex: 0 0 auto; }
+
+.news-card-title {
+  margin: 0;
+  font: 400 16px/1.38 'Sohne', 'DM Sans', sans-serif;   /* 16px = fallback if clamp() unsupported; v11.753: weight 500 → 400 */
+  /* v11.657: device-scaled title. 17.1px on the 430pt iPhone Max (the authoring
+     device) via 3.977vw (= 17.1 ÷ 430), so it scales with the device width:
+     ≈15.6px on a regular 393pt iPhone, ≈17.5px on the 440pt 16 Pro Max, floored
+     at 14.9px (375pt SE/mini) and capped at 17.6px (tablet/desktop). */
+  font-size: clamp(14.9px, 3.977vw, 17.6px);
+  letter-spacing: 0;
+  color: #ffffff;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.news-card-summary {
+  margin: 0;
+  font: 400 14.4px/1.5 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+  color: #f4f1fb;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---- Per-card share button (sits at the right edge of the meta row, so the
+   image stays the visually-last element of the card). The heart carries the
+   margin-left:auto so the heart + share pair sits flush at the top-right. ---- */
+.news-card-heart,
+.news-card-share {
+  flex: 0 0 auto;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 4px;
+  border-radius: 50%;
+  color: rgba(216, 208, 233, 0.55);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 150ms ease, background 150ms ease, transform 150ms ease;
+}
+.news-card-heart { margin-left: auto; }
+.news-card-share { margin-right: -4px; }
+.news-card-share svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.news-card-share:active { transform: scale(0.9); color: #c4b5fd; background: rgba(196, 181, 253, 0.12); }
+
+/* Heart / bookmark — outline by default, fills red when bookmarked, pops on tap. */
+.news-card-heart svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; transition: fill 160ms ease, stroke 160ms ease; }
+.news-card-heart:active { transform: scale(0.9); }
+.news-card-heart.is-bookmarked { color: #ff3040; }
+.news-card-heart.is-bookmarked svg { fill: #ff3040; stroke: #ff3040; }
+.news-card-heart.heart-pop svg { animation: newsHeartPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes newsHeartPop {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.4); }
+  55%  { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .news-card-heart.heart-pop svg { animation: none; }
+}
+
+/* ---- Card image — full width, UNDERNEATH the title + description (last in the
+   card). Natural aspect ratio of the source (≈16:9 typical); only very tall
+   portraits get capped + cover-cropped so one image can't dominate the feed. ---- */
+.news-card-media {
+  width: 100%;
+  margin-top: 14px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #15121f;
+  line-height: 0;
+}
+.news-card-media img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 520px;
+  object-fit: cover;
+}
+
+/* ---- Footer: infinite-scroll load spinner ---- */
+.news-foot {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 0;
+  padding: 0 0 36px;
+}
+.news-foot-load {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px 0 10px;
+}
+.news-foot-load .news-spinner { animation: newsSpin 0.7s linear infinite; }
+/* v11.649: end-of-feed note for the finite Following feed (no recycle). */
+.news-foot-done {
+  padding: 26px 0 14px;
+  text-align: center;
+  font: 500 12.5px/1.4 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.04em;
+  color: rgba(216, 208, 233, 0.5);
+}
+
+/* ---- Empty / error state ---- */
+.news-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: center;
+  padding: 56px 18px;
+}
+.news-empty strong {
+  color: #f8f4ff;
+  font: 600 17px/1.3 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.03em;
+}
+.news-empty span {
+  color: #9990b3;
+  font: 400 14px/1.5 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.03em;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+/* ---- Loading skeletons (vertical: text lines, then a 16:9 media block) ---- */
+.news-skel {
+  display: block;
+  padding: 18px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.news-skel-main { display: flex; flex-direction: column; gap: 9px; }
+.news-skel-media { width: 100%; aspect-ratio: 16 / 9; border-radius: 14px; margin-top: 14px; }
+.news-skel-line { height: 12px; border-radius: 6px; }
+.news-skel-line.short { width: 38%; height: 10px; }
+.news-skel-line.mid { width: 64%; }
+.news-skel-media,
+.news-skel-line {
+  background: linear-gradient(100deg, rgba(255,255,255,0.045) 30%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0.045) 70%);
+  background-size: 200% 100%;
+  animation: newsSkelShimmer 1.25s ease-in-out infinite;
+}
+
+@keyframes newsCardIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes newsSkelShimmer {
+  0%   { background-position: 180% 0; }
+  100% { background-position: -80% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .news-card { animation: none; }
+  .news-skel-media, .news-skel-line { animation: none; }
+}
+
+/* ---- Category swipe (anywhere-horizontal swipe between chips) ---- */
+/* Clip the off-screen incoming/outgoing pages so they never trigger a horizontal
+   scrollbar or bleed past the screen edges (mirrors body.discover-hub-swiping). */
+/* `clip` (Safari 16+) clips horizontally WITHOUT turning <body> into a scroll
+   container — so the window's vertical scroll model is untouched; `hidden` is the
+   fallback for older WebKit. */
+body.news-feed-swiping { overflow-x: hidden; overflow-x: clip; }
+body.news-feed-swiping [data-news-list],
+body.news-feed-swiping .news-swipe-incoming {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.news-swipe-incoming { -webkit-overflow-scrolling: touch; }
+.news-swipe-incoming-list { display: flex; flex-direction: column; }
+/* the incoming layer is appended to <body> (viewport-fixed), OUTSIDE .news-feed,
+   so the blanket ".news-feed *" tracking reset below doesn't reach it — re-apply. */
+.news-swipe-incoming,
+.news-swipe-incoming * { letter-spacing: 0; }
+.news-swipe-incoming .news-card { animation: none; }   /* no entrance pop on preview cards */
+
+/* v11.602: uniform 0 letter-spacing across ALL News-page content. Placed last
+   so it's the single source of truth for tracking (overrides the per-element
+   values above by source order — no !important needed). */
+.news-feed,
+.news-feed * { letter-spacing: 0; }
+
+/* ============================================================================
+   v11.646 — FOLLOWING: Tailor chip, per-card follow button, Following empty
+   states, and the Tailor (manage) bottom sheet. Editorial-dark, single lavender
+   accent. ========================================================================= */
+
+/* The source name is a button (opens the outlet profile). Reset button chrome,
+   keep the original meta look. */
+.news-card-source {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: 500 14px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.03em;
+  color: #e2e2e2;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;   /* v11.722: was 52% (old single-row cap) — name is on its own line now, no cap */
+}
+.news-card-source .news-card-source-name { overflow: visible; text-overflow: clip; white-space: normal; }
+.news-card-source:active { color: #c4b5fd; }
+
+/* v11.656: outlet logo avatars ("profile pictures"). Gradient + initials base
+   with the high-res logo layered over (white backing keeps transparent logos
+   legible); the <img> onerror-removes itself, revealing the initials. */
+.news-avatar {
+  position: relative;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  overflow: hidden;
+  background: linear-gradient(135deg, #7c5cff, #a78bfa);
+  color: #0c0a14;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.news-avatar-initials { font-family: 'Sohne', 'DM Sans', sans-serif; font-weight: 700; font-style: normal; line-height: 1; letter-spacing: 0.02em; }
+.news-avatar-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #ffffff; }
+.news-avatar-op { width: 40px; height: 40px; }
+.news-avatar-op .news-avatar-initials { font-size: 14px; }
+.news-avatar-sm { width: 28px; height: 28px; }
+.news-avatar-sm .news-avatar-initials { font-size: 11px; }
+.news-avatar-xs { width: 17px; height: 17px; }
+.news-avatar-xs .news-avatar-initials { font-size: 8px; }
+/* Tailor sheet outlet row: logo + name on the left, Follow pill on the right. */
+.news-outlet-id { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.news-outlet-id .news-outlet-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Per-card follow (the + / ✓ next to heart + share). Carries the right-push so
+   follow + heart + share sit flush at the meta row's right edge. */
+.news-card-follow {
+  flex: 0 0 auto;
+  margin-left: auto;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 4px;
+  border-radius: 50%;
+  color: rgba(216, 208, 233, 0.5);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 150ms ease, background 150ms ease, transform 150ms ease;
+}
+.news-card-follow svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.news-card-follow:active { transform: scale(0.9); }
+.news-card-follow.is-following { color: #a78bfa; }
+.news-card-meta .news-card-follow ~ .news-card-heart { margin-left: 4px; }
+
+/* Following empty / call-to-action. */
+.news-empty-cta {
+  margin-top: 8px;
+  align-self: center;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 22px;
+  background: #a78bfa;
+  color: #0c0a14;
+  font: 600 13.5px/1 'Sohne', 'DM Sans', sans-serif;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 150ms ease, background 150ms ease;
+}
+.news-empty-cta:active { transform: scale(0.97); background: #b9a6fb; }
+
+/* ---- Tailor (manage) sheet ---- */
+html.news-manage-lock,
+html.news-manage-lock body { overflow: hidden; }
+.news-manage-root {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  font-family: 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+  color: #ffffff;
+}
+.news-manage-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(3, 3, 5, 0.68);
+  opacity: 0;
+  transition: opacity 260ms ease;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.news-manage-root.is-open .news-manage-backdrop { opacity: 1; }
+.news-manage-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: min(92dvh, 860px);
+  display: flex;
+  flex-direction: column;
+  background: #0e0e0e;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.55);
+  transform: translate3d(0, 100%, 0);
+  transition: transform 340ms cubic-bezier(0.22, 1, 0.36, 1);
+  overflow: hidden;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.news-manage-root.is-open .news-manage-sheet { transform: translate3d(0, 0, 0); }
+.news-manage-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px 18px 14px;
+  background: rgba(14, 14, 14, 0.96);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.news-manage-headtext { min-width: 0; }
+.news-manage-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: rgba(255, 255, 255, 0.48);
+  font: 500 12px/1 'Sohne', 'DM Sans', sans-serif;
+}
+.news-manage-title {
+  margin: 0;
+  color: #ffffff;
+  font: 650 24px/1.05 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+}
+.news-manage-tag { display: none; }
+.news-manage-close {
+  flex: 0 0 auto;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.86);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 150ms ease, background 150ms ease;
+}
+.news-manage-close svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+.news-manage-close:active { transform: scale(0.92); background: rgba(255, 255, 255, 0.11); }
+.news-manage-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 14px 14px 30px;
+  scrollbar-width: none;
+}
+.news-manage-body::-webkit-scrollbar { display: none; }
+.news-manage-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.news-manage-summary span {
+  min-width: 0;
+  border-radius: 16px;
+  background: #171717;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 12px 10px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.news-manage-summary strong { color: #ffffff; font: 650 20px/1 'Sohne', 'DM Sans', sans-serif; }
+.news-manage-summary em { color: rgba(255, 255, 255, 0.48); font: 500 12px/1 'Sohne', 'DM Sans', sans-serif; font-style: normal; }
+.news-manage-section {
+  padding: 18px 0 0;
+  margin-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.news-manage-summary + .news-manage-section { margin-top: 0; border-top: 0; padding-top: 0; }
+.news-manage-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.news-manage-h3 { margin: 0; color: #ffffff; font: 650 17px/1.15 'Sohne', 'DM Sans', sans-serif; }
+.news-manage-sub { display: none; }
+.news-manage-subhead {
+  margin: 18px 0 10px;
+  color: rgba(255, 255, 255, 0.48);
+  font: 600 12px/1 'Sohne', 'DM Sans', sans-serif;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.news-manage-subhead-first { margin-top: 14px; }
+.news-manage-none {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  color: rgba(255, 255, 255, 0.46);
+  font: 500 13px/1.2 'Sohne', 'DM Sans', sans-serif;
+}
+.news-topic-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin: 0;
+}
+.news-topic-input {
+  min-width: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #171717;
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 0 16px;
+  font: 500 15px/1 'Sohne', 'DM Sans', sans-serif;
+}
+.news-topic-input::placeholder { color: rgba(255, 255, 255, 0.36); }
+.news-topic-input:focus { outline: none; border-color: rgba(196, 181, 253, 0.52); background: #1b1b1d; }
+.news-topic-addbtn {
+  flex: 0 0 auto;
+  appearance: none;
+  -webkit-appearance: none;
+  height: 44px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 18px;
+  background: #ffffff;
+  color: #0e0e0e;
+  font: 650 14px/1 'Sohne', 'DM Sans', sans-serif;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 150ms ease, background 150ms ease;
+}
+.news-topic-addbtn:active { transform: scale(0.96); background: #e9e6f2; }
+.news-manage-yours,
+.news-suggest-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.news-yourchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  min-height: 34px;
+  border: 1px solid rgba(196, 181, 253, 0.32);
+  background: rgba(196, 181, 253, 0.13);
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 0 7px 0 13px;
+  font: 550 13.5px/1 'Sohne', 'DM Sans', sans-serif;
+}
+.news-yourchip-x {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.news-yourchip-x svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+.news-suggest-group { margin-top: 4px; }
+.news-suggest-chip {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 36px;
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #171717;
+  color: rgba(255, 255, 255, 0.84);
+  border-radius: 999px;
+  padding: 0 9px 0 13px;
+  font: 550 13.5px/1 'Sohne', 'DM Sans', sans-serif;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
+}
+.news-suggest-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.news-suggest-chip:active { transform: scale(0.97); }
+.news-suggest-ind {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.08);
+}
+.news-suggest-ind svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.news-suggest-chip.is-following {
+  background: rgba(196, 181, 253, 0.14);
+  border-color: rgba(196, 181, 253, 0.36);
+  color: #ffffff;
+}
+.news-suggest-chip.is-following .news-suggest-ind { background: #c4b5fd; color: #0e0e0e; }
+.news-outlet-group { margin-top: 4px; }
+.news-outlet-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+.news-outlet-row {
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #171717;
+  border-radius: 16px;
+  padding: 8px 10px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+.news-outlet-row:active { transform: scale(0.99); }
+.news-outlet-name { color: #ffffff; font: 550 14.5px/1.15 'Sohne', 'DM Sans', sans-serif; }
+.news-outlet-pill {
+  flex: 0 0 auto;
+  min-width: 74px;
+  text-align: center;
+  border-radius: 999px;
+  padding: 8px 11px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.78);
+  font: 650 12.5px/1 'Sohne', 'DM Sans', sans-serif;
+}
+.news-outlet-row.is-following { background: rgba(196, 181, 253, 0.12); border-color: rgba(196, 181, 253, 0.32); }
+.news-outlet-row.is-following .news-outlet-pill { background: #c4b5fd; color: #0e0e0e; }
+@media (min-width: 720px) {
+  .news-manage-sheet {
+    left: 50%;
+    right: auto;
+    width: min(520px, calc(100vw - 32px));
+    transform: translate3d(-50%, 100%, 0);
+  }
+  .news-manage-root.is-open .news-manage-sheet { transform: translate3d(-50%, 0, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .news-manage-sheet,
+  .news-manage-backdrop { transition: none; }
+}
+/* ---- v11.647: Outlet profile (slide-in account page for a source) ---- */
+.news-op-root { position: fixed; inset: 0; z-index: 5200; }
+.news-op-backdrop { position: absolute; inset: 0; background: rgba(4, 3, 10, 0.5); opacity: 0; transition: opacity 280ms ease; }
+.news-op-root.is-open .news-op-backdrop { opacity: 1; }
+.news-op-sheet {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  background: #0a0810;
+  transform: translateX(100%);
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  font-family: 'Sohne', 'DM Sans', sans-serif; letter-spacing: 0;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.news-op-root.is-open .news-op-sheet { transform: translateX(0); }
+.news-op-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.07); flex: 0 0 auto; }
+.news-op-back { flex: 0 0 auto; appearance: none; -webkit-appearance: none; border: 0; background: rgba(255, 255, 255, 0.06); color: #e8e3f3; width: 36px; height: 36px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.news-op-back svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.news-op-back:active { transform: scale(0.92); }
+.news-op-id { display: flex; align-items: center; gap: 11px; flex: 1 1 auto; min-width: 0; }
+.news-op-avatar { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #7c5cff, #a78bfa); color: #0c0a14; font: 700 14px/1 'Sohne', 'DM Sans', sans-serif; display: inline-flex; align-items: center; justify-content: center; letter-spacing: 0.02em; }
+.news-op-idtext { min-width: 0; }
+.news-op-name { margin: 0; font: 600 17px/1.2 'Sohne', 'DM Sans', sans-serif; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.news-op-meta { margin: 2px 0 0; font: 400 12px/1.2 'Sohne', 'DM Sans', sans-serif; color: rgba(216, 208, 233, 0.55); }
+.news-op-follow {
+  flex: 0 0 auto; appearance: none; -webkit-appearance: none;
+  border: 1px solid #a78bfa; background: #a78bfa; color: #0c0a14;
+  border-radius: 999px; padding: 9px 18px; font: 600 13px/1 'Sohne', 'DM Sans', sans-serif;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background 150ms ease, color 150ms ease, transform 150ms ease;
+}
+.news-op-follow.is-following { background: transparent; color: #c4b5fd; }
+.news-op-follow:active { transform: scale(0.96); }
+.news-op-list { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 16px 40px; }
+.news-op-list .news-card { padding: 18px 0; }
+.news-op-list .news-empty { padding: 48px 8px; }
+@media (prefers-reduced-motion: reduce) { .news-op-sheet, .news-op-backdrop { transition: none; } }
+
+/* ---- v11.651: in-app YouTube trailer player (plays in-app, never redirects) ---- */
+.news-yt-root { position: fixed; inset: 0; z-index: 5400; display: flex; align-items: center; justify-content: center; padding: 18px; }
+.news-yt-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.82); opacity: 0; transition: opacity 240ms ease; -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+.news-yt-root.is-open .news-yt-backdrop { opacity: 1; }
+.news-yt-sheet {
+  position: relative; width: 100%; max-width: 880px;
+  transform: translateY(14px) scale(0.98); opacity: 0;
+  transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1), opacity 240ms ease;
+}
+.news-yt-root.is-open .news-yt-sheet { transform: none; opacity: 1; }
+.news-yt-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 14px; overflow: hidden; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6); }
+.news-yt-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+.news-yt-close {
+  position: absolute; top: -46px; right: 0; width: 38px; height: 38px; border-radius: 50%; border: 0;
+  background: rgba(255, 255, 255, 0.14); color: #ffffff; display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; -webkit-tap-highlight-color: transparent; transition: transform 150ms ease, background 150ms ease;
+}
+.news-yt-close svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.news-yt-close:active { transform: scale(0.92); }
+.news-yt-title { margin: 12px 2px 0; font: 500 14px/1.4 'Sohne', 'DM Sans', sans-serif; color: #f4f1fb; letter-spacing: 0; }
+@media (prefers-reduced-motion: reduce) { .news-yt-backdrop, .news-yt-sheet { transition: none; } }
+
+/* ---- v11.652: video (YouTube) cards — thumbnail + centered play badge ---- */
+/* v11.653: video previews are LOCKED to 16:9. YouTube's hqdefault.jpg is a 4:3
+   frame with black letterbox bars baked in — the 16:9 box + cover crop slices
+   exactly those bars off, leaving a clean widescreen preview. */
+.news-card-media-video {
+  position: relative;
+  aspect-ratio: var(--news-video-aspect, 16 / 9);
+}
+.news-card-media-video[data-news-video-orientation="portrait"] {
+  width: min(100%, 360px);
+  margin-left: auto;
+  margin-right: auto;
+}
+.news-card-media-video[data-news-video-orientation="square"] {
+  width: min(100%, 430px);
+  margin-left: auto;
+  margin-right: auto;
+}
+.news-card-media-video img {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
+}
+.news-card-play {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: rgba(8, 6, 14, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+.news-card-play svg { width: 22px; height: 22px; fill: #ffffff; margin-left: 3px; }
+
+/* ---- v11.654: inline playback — the card's media box becomes the player ---- */
+.news-card-media-video.is-playing {
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(167, 139, 250, 0.22);
+  cursor: default;
+}
+/* v11.707: poster cover that masks YouTube's brief init-chrome flash on autoplay.
+   Sits above the iframe (below the volume button at z-index 3), shows the same
+   thumbnail, and fades out only once the player reports it's actually playing. */
+.news-card-media-video .news-video-cover {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background-color: #000;
+  background-size: cover;
+  background-position: center;
+  opacity: 1;
+  transition: opacity 240ms ease;
+  pointer-events: none;
+}
+.news-card-media-video .news-video-cover.is-hidden { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .news-card-media-video .news-video-cover { transition: opacity 80ms linear; }
+}
+.news-card-media-video.is-playing iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+.news-video-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(8, 6, 14, 0.7);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 150ms ease, background 150ms ease;
+}
+.news-video-close svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+.news-video-close:active { transform: scale(0.9); }
+
+/* v11.679: scroll-autoplay — a MUTED preview gets a transparent full-box tap-catcher
+   (so a tap anywhere engages sound, since taps otherwise land on the YT iframe) plus
+   a visual "tap for sound" speaker badge (bottom-left). The close ✕ sits above both. */
+.news-card-media-video.is-autoplaying { cursor: pointer; }
+.news-video-tap {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.news-video-mute-badge {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 2;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(8, 6, 14, 0.7);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;          /* visual only — the tap-catcher below handles the tap */
+}
+.news-video-mute-badge svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.news-card-media-video.is-playing .news-video-close { z-index: 3; }   /* always above the tap-catcher */
+.news-video-volume {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 3;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(8, 6, 14, 0.7);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 150ms ease, background 150ms ease, color 150ms ease;
+}
+.news-video-volume svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.news-video-volume.is-unmuted { color: #ddd2ff; background: rgba(167, 139, 250, 0.28); }
+.news-video-volume:active { transform: scale(0.92); }
+@media (prefers-reduced-motion: reduce) {
+  /* scroll-autoplay is disabled in JS for reduced-motion; the play badge stays. */
+  .news-card-media-video.is-autoplaying { cursor: default; }
+}
+
+/* ============================================================================
+   v11.756: YouTube engagement row (under inline video) + comments sheet.
+   Editorial-dark, content-forward; no chrome. Stats fill in lazily.
+   ============================================================================ */
+.news-ytc-engage {
+  /* v11.774: heart + a single inline stat row (likes · comments · views), all
+     left-aligned as plain text. No pill button anymore. */
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  min-height: 24px;
+}
+.news-ytc-engage .news-card-heart { margin-left: 0; padding: 2px; }
+.news-ytc-engage .news-card-heart svg { width: 18px; height: 18px; }   /* v11.775 */
+.news-ytc-stats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  min-width: 0;
+}
+.news-ytc-stat {
+  color: rgba(255, 255, 255, 0.5);
+  font: 400 13px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.news-ytc-stat + .news-ytc-stat { position: relative; padding-left: 13px; }
+.news-ytc-stat + .news-ytc-stat::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px; height: 3px;
+  margin-top: -1.5px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.28);
+}
+/* v11.774: the comments control is now a plain stat (glyph + number) that matches
+   the likes/views text exactly, but still opens the comment sheet on tap. */
+.news-ytc-commentstat {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  /* color / font / letter-spacing inherited from .news-ytc-stat */
+}
+.news-ytc-stat + .news-ytc-commentstat { padding-left: 13px; }   /* keep the dot's room when preceded by a stat */
+.news-ytc-commentstat svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }   /* v11.775 */
+.news-ytc-commentstat:active { opacity: 0.6; }
+
+/* ---- comments sheet ---- */
+.news-ytc-root {
+  position: fixed;
+  inset: 0;
+  z-index: 5300;
+  font-family: 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+  color: #ffffff;
+}
+.news-ytc-backdrop {
+  position: absolute;
+  inset: 0;
+  /* v11.760: NO blur — the live news feed stays visible behind the sheet.
+     A light scrim keeps the sheet readable without obscuring the feed. */
+  background: rgba(3, 3, 5, 0.4);
+  opacity: 0;
+  transition: opacity 260ms ease;
+}
+.news-ytc-root.is-open .news-ytc-backdrop { opacity: 1; }
+.news-ytc-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 69dvh;   /* v11.760: sheet rises to ~69% of the screen, leaving the feed visible above */
+  display: flex;
+  flex-direction: column;
+  background: #0e0e0e;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.55);
+  transform: translate3d(0, 100%, 0);
+  transition: transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
+  overflow: hidden;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.news-ytc-root.is-open .news-ytc-sheet { transform: translate3d(0, 0, 0); }
+.news-ytc-head {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 18px 14px;
+  background: rgba(14, 14, 14, 0.96);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  touch-action: none;
+}
+.news-ytc-grab {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 38px; height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+}
+.news-ytc-title {
+  margin: 0;
+  color: #ffffff;
+  font: 500 18px/1.1 'Sohne', 'DM Sans', sans-serif;   /* v11.761: weight 600 → 500 */
+  letter-spacing: 0;
+}
+.news-ytc-close {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  appearance: none;
+  -webkit-appearance: none;
+  width: 36px; height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.86);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 150ms ease, background 150ms ease;
+}
+.news-ytc-close svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+.news-ytc-close:active { transform: translateY(-50%) scale(0.92); background: rgba(255, 255, 255, 0.11); }
+.news-ytc-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 6px 0 26px;
+  scrollbar-width: none;
+}
+.news-ytc-body::-webkit-scrollbar { display: none; }
+.news-ytc-list { display: flex; flex-direction: column; }
+.news-ytc-row {
+  display: flex;
+  gap: 11px;
+  padding: 13px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.news-ytc-avatar {
+  flex: 0 0 auto;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #1c1c1c;
+}
+.news-ytc-rowmain { min-width: 0; flex: 1 1 auto; }
+.news-ytc-rowhead { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; }
+.news-ytc-author {
+  color: #e2e2e2;
+  font: 500 13.5px/1.2 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 70%;
+}
+.news-ytc-time { color: rgba(255, 255, 255, 0.4); font: 400 12px/1.2 'Sohne', 'DM Sans', sans-serif; flex: 0 0 auto; }
+.news-ytc-text {
+  color: #d7d4dd;
+  font: 400 14.5px/1.5 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.01em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.news-ytc-rowmeta { margin-top: 7px; }
+.news-ytc-rowlikes {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: rgba(255, 255, 255, 0.46);
+  font: 400 12px/1 'Sohne', 'DM Sans', sans-serif;
+}
+.news-ytc-rowlikes svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.news-ytc-loading { display: flex; align-items: center; justify-content: center; padding: 54px 0; }
+.news-ytc-loading .news-spinner { animation: newsSpin 0.7s linear infinite; }
+.news-ytc-foot { display: flex; align-items: center; justify-content: center; padding: 18px 0 8px; }
+.news-ytc-foot .news-spinner { animation: newsSpin 0.7s linear infinite; }
+.news-ytc-loadmore {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #e2e2e2;
+  padding: 10px 22px;
+  font: 500 13.5px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 140ms ease, background 140ms ease;
+}
+.news-ytc-loadmore:active { transform: scale(0.96); background: rgba(255, 255, 255, 0.09); }
+.news-ytc-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 60px 34px;
+}
+.news-ytc-state strong { color: #ffffff; font: 600 17px/1.2 'Sohne', 'DM Sans', sans-serif; letter-spacing: 0; }
+.news-ytc-state span { color: rgba(255, 255, 255, 0.5); font: 400 14px/1.5 'Sohne', 'DM Sans', sans-serif; max-width: 280px; }
+.news-ytc-retry {
+  margin-top: 8px;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  border-radius: 999px;
+  background: #c4b5fd;
+  color: #15101f;
+  padding: 10px 24px;
+  font: 600 13.5px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 140ms ease;
+}
+.news-ytc-retry:active { transform: scale(0.95); }
+/* Tablet / desktop: center the sheet as a floating card (iOS phone is primary). */
+@media (min-width: 768px) {
+  .news-ytc-sheet {
+    left: 50%;
+    right: auto;
+    width: min(520px, 94vw);
+    transform: translate3d(-50%, 100%, 0);
+  }
+  .news-ytc-root.is-open .news-ytc-sheet { transform: translate3d(-50%, 0, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .news-ytc-sheet, .news-ytc-backdrop { transition: none; }
+}

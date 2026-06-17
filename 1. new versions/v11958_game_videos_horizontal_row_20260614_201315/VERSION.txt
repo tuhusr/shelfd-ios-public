@@ -1,0 +1,2 @@
+v11.958 — Game FPMP Videos section is now a HORIZONTAL swipe row (same pattern as More Like This: grid-auto-flow column, 264px cards, overflow-x auto, hidden scrollbar) instead of a vertical stack. Each card keeps the 16:9 inline tap-to-play player + title + likes/comments/views. CSS-only (css/06). Verified in preview: grid column flow, 6x264px cards, 16:9, scrollWidth>viewport.
+Deployed 2026-06-14

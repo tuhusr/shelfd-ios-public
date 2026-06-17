@@ -1,0 +1,8 @@
+Shelfd v11.890 - DM active-thread push/read fix
+
+Fixed Direct Message active-thread awareness.
+
+- When a recipient is actively viewing the exact DM thread, incoming messages are marked read immediately from the live Firestore snapshot before the inbox/badges render.
+- Added per-device active DM thread state for iOS push tokens. The Worker now skips APNs delivery only for the token currently viewing that same thread.
+- Active state clears on thread close, DM page close, subtab switch, delete, visibility hidden, app background, and sign-out. A short Worker TTL prevents stale suppression if a clear request cannot finish.
+- Preserved DM notification deep links, shared dmThreads hydration, read markers, unread counts for inactive threads, and multi-device delivery.

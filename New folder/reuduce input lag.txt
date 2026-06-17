@@ -1,0 +1,16 @@
+1, install windows updates
+
+2. delted temp files
+
+windows key +r
+
+- %temp%
+
+- empty reclying bin
+
+3. disable windows game mode
+
+4. set priotiry high in task manager
+
+5. 
+

@@ -16,3 +16,10 @@ shutdown prompts/
 virtual mac/
 testflight_feedback*.zip
 
+# Video files — too large for GitHub (exceed 100MB limit)
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.m4v
+

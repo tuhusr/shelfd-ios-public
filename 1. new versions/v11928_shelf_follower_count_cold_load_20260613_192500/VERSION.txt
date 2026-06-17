@@ -1,0 +1,3 @@
+v11.928 — Fix shelf header follower count showing 0 on cold load (refreshSocialFollowerDisplays gated on non-existent #mylist-profile-host; corrected to #mylist-profile-controls)
+Deployed 2026-06-13
+Version ID: e3148bdb-da26-4afc-9b8e-52dae0151c18

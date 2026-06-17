@@ -1,0 +1,654 @@
+/*
+   42-activity-card-overrides.css
+   Extracted from 31-surface-default-overrides.css to keep surface ownership explicit.
+*/
+
+/* =============================================================
+   v529: activity card type-scale tweaks + creator/creative-team
+   tag pill removal.
+   - Action/status line bumped one notch larger.
+   - Media title shrunk two notches and recoloured to the muted
+     premium purple #A78BFA so titles read as accent links rather
+     than the previous yellow headline.
+   - Creator-role and creative-team-role/profile-label tags lose
+     their pill chrome (no padding, border, background, radius,
+     shadow) ? only the colour is kept.
+   ============================================================= */
+/* v784: All UNSCOPED activity-card rules previously in this block were
+   leaking light-mode-contrast.css styles into dark mode. They've been
+   moved to 04-activity-feed.css (search for "v784: Consolidated") as
+   the dark/base source of truth. Only body.true-dark-mode-scoped
+   variants are kept here as explicit theme overrides. */
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-title,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-title {
+  color: rgba(255,255,255,.97) !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  text-shadow: none !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  line-height: 1.34 !important;
+  letter-spacing: -.012em !important;
+}
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-verb,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-action-verb {
+  color: #f2c94c !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  line-height: 1.34 !important;
+  letter-spacing: -.012em !important;
+}
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-name,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-name {
+  /* v10.662: username 16/600 → 15/500 per design pass. */
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  max-width: 100% !important;
+  color: #ffffff !important;
+  line-height: 1.1 !important;
+  letter-spacing: 0 !important;
+  text-shadow: none !important;
+  filter: none !important;
+}
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-name .creator-name-wrap,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-name .creator-name,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-name .creator-name-wrap,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-name .creator-name {
+  color: #ffffff !important;
+}
+
+/* v890: keep activity card type size, tracking, and weights consistent in late overrides */
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-name,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-name .creator-name-wrap,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-name .creator-name,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-dot,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-verb,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-detail,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-status,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-score,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-comment,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-show-more,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-btn,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-stack-action-count,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-user-note,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-plain-note,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-name,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-name .creator-name-wrap,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-name .creator-name,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-dot,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-action-verb,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-action-detail,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-status,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-score,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-comment,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-show-more,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-action-btn,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-stack-action-count,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-user-note,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-plain-note {
+  font-size: 16px !important;
+  letter-spacing: -.01em !important;
+}
+
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-time,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-time {
+  /* v10.662: timestamp 12px → 11px per design pass. */
+  font-size: 11px !important;
+  letter-spacing: -.01em !important;
+}
+
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-name,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-name .creator-name-wrap,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-name .creator-name,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-name,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-name .creator-name-wrap,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-name .creator-name {
+  /* v10.662: username 600 → 500 per design pass. */
+  font-weight: 500 !important;
+}
+
+/* v10.949: late override to ensure .sl-activity-name lands at 16.5px even
+   though the shared v890 block above (font-size: 16px applied to the
+   broader meta family) appears later in cascade. This rule comes AFTER
+   the v890 block AND targets .sl-activity-name specifically, so it wins. */
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-name,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-name .creator-name-wrap,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-name .creator-name,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-name,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-name .creator-name-wrap,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-name .creator-name {
+  font-size: 15px !important;
+  letter-spacing: 0 !important;
+  text-shadow: none !important;
+  filter: none !important;
+}
+
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-name,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-name .creator-name-wrap,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-name .creator-name,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-name,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-name .creator-name-wrap,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-name .creator-name {
+  font-weight: 500 !important;
+}
+
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-name .sl-activity-handle,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-name .sl-activity-handle {
+  color: rgba(255,255,255,0.6) !important;
+}
+
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-name,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-name {
+  max-width: 100% !important;
+}
+
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-time,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-dot,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-verb,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-title,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-detail,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-status,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-score,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-comment,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-show-more,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-btn,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-stack-action-count,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-user-note,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-plain-note,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-time,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-dot,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-action-verb,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-title,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-action-detail,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-status,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-score,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-comment,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-show-more,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-action-btn,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-stack-action-count,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-user-note,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-plain-note {
+  font-weight: 400 !important;
+}
+
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-title,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-title {
+  font-weight: 400 !important;
+}
+
+/* v10.950: parent activity-card media titles one weight heavier in true dark.
+   Scoped away from child stacked cards so compact carousel typography stays unchanged. */
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card:not(.sl-activity-stack-compact-card) .sl-activity-title,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card:not(.sl-activity-stack-compact-card) .sl-activity-split-title,
+body.true-dark-mode .activity-page .shelfd-social-card:not(.sl-activity-stack-compact-card) .sl-activity-title,
+body.true-dark-mode .activity-page .shelfd-social-card:not(.sl-activity-stack-compact-card) .sl-activity-split-title {
+  font-weight: 500 !important;
+}
+
+/* v542: My Lists card footer polish
+   1. Episodes button ? remove 1px border
+   2. Watch-together + button ? remove 1px border
+   3. Status pills ? 14px / 550 / white 100%
+   4. Card-genre / categories ? 14px / 700 / white 100%
+*/
+body.true-dark-mode #mylist-view .card-action-row .ep-toggle-bar.card-footer-btn {
+  border: none !important;
+}
+body.true-dark-mode #mylist-view .watch-together-add,
+body.true-dark-mode .watch-together-add {
+  border: none !important;
+}
+body.true-dark-mode #mylist-view .status-pill,
+body.true-dark-mode #mylist-view .show-card .status-pill,
+body.true-dark-mode #mylist-view .card .status-pill,
+body.true-dark-mode #mylist-view .status-pills .status-pill,
+body.true-dark-mode #mylist-view .game-status-options .status-pill,
+body.true-dark-mode .status-pill {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #ffffff !important;
+}
+body.true-dark-mode #mylist-view .card-genre {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+}
+
+/* v544: shift activity items 15px further left by reducing left padding */
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card,
+body.true-dark-mode .activity-page .shelfd-social-card {
+  padding-left: 0 !important;
+}
+
+/* v553: shift activity text content 3px to the left as a block, keeping
+   every line aligned (username, title, action verb, rating chip). */
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-copy-zone,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-copy-zone {
+  transform: translateX(-3px) !important;
+}
+
+/* =============================================================
+   v558: per-activity user note ("+" composer + rendered chip)
+   ============================================================= */
+
+/* + button ? sits left of comment/reply on user's own activity cards */
+body.true-dark-mode .sl-activity-add-note-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: rgba(255,255,255,0.78) !important;
+  cursor: pointer !important;
+}
+body.true-dark-mode .sl-activity-add-note-btn:hover {
+  color: #ffffff !important;
+}
+body.true-dark-mode .sl-activity-add-note-btn svg {
+  width: 20px !important;
+  height: 20px !important;
+}
+
+/* v560: per-item activity note also appears on the my-list title card as
+   the last text line. Same style language as the activity-card chip. */
+body.true-dark-mode #mylist-view .card-activity-note {
+  display: block !important;
+  width: 100% !important;
+  margin: 12px 0 4px !important;
+  padding: 9px 12px !important;
+  background: rgba(255,255,255,0.04) !important;
+  border-radius: 10px !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  color: #f7f3ea !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  line-height: 1.35 !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+}
+
+/* Rendered note chip ? sits below the rating on the activity card */
+body.true-dark-mode .sl-activity-user-note {
+  display: block !important;
+  width: auto !important;
+  max-width: min(100%, 420px) !important;
+  margin: 0 0 6px !important;
+  padding: 0 !important;
+  background: none !important;
+  border-radius: 0 !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  color: rgba(232,226,255,.78) !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  line-height: 1.34 !important;
+  letter-spacing: -.01em !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+}
+
+#community-view #activity-tab-view .shelfd-social-card .sl-activity-plain-note,
+.activity-page .shelfd-social-card .sl-activity-plain-note,
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-plain-note,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-plain-note {
+  display: block !important;
+  width: auto !important;
+  max-width: min(100%, 420px) !important;
+  margin: 0 0 6px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  color: rgba(232,226,255,.78) !important;
+  font: 400 16px/1.34 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: -.01em !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+}
+
+body.light-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-plain-note,
+body.light-mode .activity-page .shelfd-social-card .sl-activity-plain-note {
+  color: rgba(38,27,69,.72) !important;
+}
+
+/* Bottom-sheet composer overlay */
+.screenlist-activity-note-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483646 !important;
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: center !important;
+  pointer-events: none !important;
+}
+.screenlist-activity-note-overlay.is-open { pointer-events: auto !important; }
+.screenlist-activity-note-backdrop {
+  position: absolute !important;
+  inset: 0 !important;
+  background: rgba(0,0,0,0.58) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  opacity: 0 !important;
+  transition: opacity 220ms ease !important;
+}
+.screenlist-activity-note-overlay.is-open .screenlist-activity-note-backdrop { opacity: 1 !important; }
+.screenlist-activity-note-sheet {
+  position: relative !important;
+  width: 100% !important;
+  max-width: 560px !important;
+  background: #1a1a1a !important;
+  border-top-left-radius: 22px !important;
+  border-top-right-radius: 22px !important;
+  padding: 14px 18px max(20px, env(safe-area-inset-bottom, 16px)) !important;
+  transform: translateY(100%) !important;
+  transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+  box-shadow: 0 -10px 40px rgba(0,0,0,0.55) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+.screenlist-activity-note-overlay.is-open .screenlist-activity-note-sheet {
+  transform: translateY(0) !important;
+}
+.screenlist-activity-note-handle {
+  width: 38px !important;
+  height: 4px !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,0.20) !important;
+  margin: 0 auto !important;
+}
+.screenlist-activity-note-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+.screenlist-activity-note-title {
+  color: #ffffff !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+}
+.screenlist-activity-note-close {
+  background: transparent !important;
+  border: 0 !important;
+  color: rgba(255,255,255,0.72) !important;
+  font-size: 16px !important;
+  cursor: pointer !important;
+  padding: 4px 8px !important;
+}
+.screenlist-activity-note-input {
+  width: 100% !important;
+  min-height: 110px !important;
+  resize: vertical !important;
+  padding: 12px !important;
+  border-radius: 12px !important;
+  background: #0e0e0e !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  color: #ffffff !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 16px !important;
+  line-height: 1.4 !important;
+  outline: none !important;
+}
+.screenlist-activity-note-input:focus {
+  border-color: rgba(167,139,250,0.55) !important;
+}
+.screenlist-activity-note-footer {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+}
+.screenlist-activity-note-counter {
+  color: rgba(255,255,255,0.55) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+.screenlist-activity-note-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+.screenlist-activity-note-remove {
+  background: transparent !important;
+  border: 1px solid rgba(255,255,255,0.18) !important;
+  color: rgba(255,255,255,0.78) !important;
+  border-radius: 999px !important;
+  padding: 8px 14px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+}
+.screenlist-activity-note-save {
+  background: #A78BFA !important;
+  border: 0 !important;
+  color: #0e0e0e !important;
+  border-radius: 999px !important;
+  padding: 9px 18px !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+}
+.screenlist-activity-note-save:hover { filter: brightness(1.06) !important; }
+
+/* v554: compact "EP rated ? N" chip ? episode-rating display on merged
+   watch+rate cards. */
+body.true-dark-mode .sl-activity-rating-compact {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 0 !important;
+  margin: 4px 0 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+}
+body.true-dark-mode .sl-activity-rating-compact .sl-activity-rating-prefix {
+  color: rgba(255,255,255,0.78) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+}
+body.true-dark-mode .sl-activity-rating-compact .sl-activity-stars-single {
+  display: inline-flex !important;
+  align-items: center !important;
+}
+body.true-dark-mode .sl-activity-rating-compact .sl-activity-stars-single .sl-rating-star {
+  width: 16px !important;
+  height: 16px !important;
+}
+body.true-dark-mode .sl-activity-rating-compact .sl-activity-score {
+  color: #ffffff !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+}
+
+/* v604: Activity/Shared Watch tab pills ? 800?600 weight, 11px?13px */
+body.true-dark-mode .activity-shared-watch-pill,
+body.true-dark-mode #activity-tab-view .activity-shared-watch-pill,
+.activity-shared-watch-pill {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+/* v604: Activity action buttons (like/reply/delete) ? 300 weight */
+body.true-dark-mode #community-view #activity-tab-view .sl-activity-action-btn,
+body.true-dark-mode .activity-page .sl-activity-action-btn,
+#community-view #activity-tab-view .sl-activity-action-btn,
+.activity-page .sl-activity-action-btn {
+  font-size: 11px !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+  font-weight: 500 !important;
+}
+body.true-dark-mode #community-view #activity-tab-view .sl-activity-stack-action-count,
+body.true-dark-mode .activity-page .sl-activity-stack-action-count {
+  font-size: 13px !important;
+  line-height: 1 !important;
+}
+
+/* v541: more vertical space between action row and the divider line */
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-bottom-safe,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-bottom-safe {
+  padding-bottom: 20px !important;
+}
+
+/* v606: on Activity tab ? hide the top-left "Activity" tab button and its
+   highlight line, then pull the page content up flush to the pills. */
+
+/* Hide #ftab-activity button and its underline in all states */
+body.main-tab-community:not(.shelfd-friends-list-mode) #ftab-activity,
+body.true-dark-mode #community-view:not(.shelfd-friends-list-mode) #ftab-activity {
+  display: none !important;
+}
+/* Collapse the entire friends-tabs bar on Activity tab ? it only contains
+   #ftab-activity which is now hidden, so the bar is empty. */
+body.main-tab-community:not(.shelfd-friends-list-mode) #community-view .friends-tabs,
+body.true-dark-mode body.main-tab-community:not(.shelfd-friends-list-mode) .friends-tabs {
+  display: none !important;
+}
+/* Hide activity-feed-heading text node */
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-feed-heading,
+body.true-dark-mode #activity-tab-view .activity-feed-heading {
+  display: none !important;
+}
+/* Collapse the activity-feed-header top padding so pills sit at top of page */
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-feed-header,
+body.true-dark-mode body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-feed-header {
+  padding: 8px 0 10px !important;
+  margin: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  min-height: 0 !important;
+}
+/* Remove any top spacing from #activity-tab-view itself */
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+/* Creator + creative-team tag pill removal ? keep colour only. */
+.creator-role,
+body.light-mode .creator-role,
+body.true-dark-mode .creator-role {
+  display: inline !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+.creative-team-role,
+.creative-team-profile-label,
+body.light-mode .creative-team-role,
+body.light-mode .creative-team-profile-label,
+body.true-dark-mode .creative-team-role,
+body.true-dark-mode .creative-team-profile-label {
+  display: inline !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+
+/* =============================================================================
+   v11.937 — IMPORT activity card brought in line with the standard cards.
+   It shipped as a vertical DM-Sans-900 stack that read nothing like the Söhne
+   grid cards. Re-lay it onto the standard model: copy left, a tidy mini-poster
+   cluster in the standard poster slot (top-right), action row anchored bottom-
+   left, 262px tall, Söhne type. CSS-only (markup unchanged). Loads after css/04
+   + css/11 so it wins. The stacked GROUPED-activity cards are NOT touched here.
+   ============================================================================= */
+body.true-dark-mode #community-view #activity-tab-view .import-activity-card,
+body.true-dark-mode .activity-page .import-activity-card {
+  position: relative !important;
+  display: block !important;
+  height: 262px !important;
+  min-height: 262px !important;
+  padding: 9px 9px 0 0 !important;
+  gap: 0 !important;
+}
+body.true-dark-mode #community-view #activity-tab-view .import-activity-card .import-activity-top,
+body.true-dark-mode .activity-page .import-activity-card .import-activity-top {
+  padding: 0 124px 0 0 !important;
+  gap: clamp(8px, 2vw, 12px) !important;
+  margin: 0 !important;
+}
+body.true-dark-mode #community-view #activity-tab-view .import-activity-card .import-activity-title,
+body.true-dark-mode .activity-page .import-activity-card .import-activity-title {
+  margin-top: 4px !important;
+  color: #f2c94c !important;
+  font-family: 'Sohne','DM Sans',sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  line-height: 1.34 !important;
+  letter-spacing: -.012em !important;
+}
+body.true-dark-mode #community-view #activity-tab-view .import-activity-card .import-activity-status,
+body.true-dark-mode .activity-page .import-activity-card .import-activity-status {
+  margin-top: 2px !important;
+  color: rgba(255,255,255,0.5) !important;
+  font-family: 'Sohne','DM Sans',sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+}
+body.true-dark-mode #community-view #activity-tab-view .import-activity-card .import-activity-bottom,
+body.true-dark-mode .activity-page .import-activity-card .import-activity-bottom {
+  display: block !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+}
+body.true-dark-mode #community-view #activity-tab-view .import-activity-card .import-activity-actions,
+body.true-dark-mode .activity-page .import-activity-card .import-activity-actions {
+  position: absolute !important;
+  left: 58px !important;
+  bottom: 33px !important;
+  transform: none !important;
+}
+body.true-dark-mode #community-view #activity-tab-view .import-activity-card .import-activity-right-cluster,
+body.true-dark-mode .activity-page .import-activity-card .import-activity-right-cluster {
+  position: absolute !important;
+  top: 45px !important;
+  right: 9px !important;
+  width: 112px !important;
+  height: auto !important;
+  flex-direction: column-reverse !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+body.true-dark-mode #community-view #activity-tab-view .import-activity-card .import-activity-preview-stack,
+body.true-dark-mode .activity-page .import-activity-card .import-activity-preview-stack {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 4px !important;
+  width: 112px !important;
+}
+body.true-dark-mode #community-view #activity-tab-view .import-activity-card .import-activity-preview-tile-mini,
+body.true-dark-mode .activity-page .import-activity-card .import-activity-preview-tile-mini {
+  width: 100% !important;
+  height: 52px !important;
+  flex: none !important;
+  border-radius: 7px !important;
+}
+body.true-dark-mode #community-view #activity-tab-view .import-activity-card .import-activity-count-label,
+body.true-dark-mode .activity-page .import-activity-card .import-activity-count-label {
+  font: 400 12px/1 'Sohne','DM Sans',sans-serif !important;
+  color: rgba(255,255,255,0.5) !important;
+  letter-spacing: 0 !important;
+}

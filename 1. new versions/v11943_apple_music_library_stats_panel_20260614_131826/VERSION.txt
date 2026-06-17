@@ -1,0 +1,3 @@
+v11.943 — Apple Music library stats panel in the connect/manage sheet (js/13 + css/07). Honest, library-derived only: Albums, Songs, Library runtime, Favorites, Rated tiles + Top Artists/Genres (by albums in library) + a disclaimer that Apple does not share play counts/skips/minutes listened. Added genre to the cached albums so top-genres is computable. Verified in preview with mock data (tiles/chips/CSS all render). Native ShelfdAppleMusic plugin spec written to 0. WORKSPACE SETUP/APPLE_MUSIC_NATIVE_PLUGIN_SPEC.md.
+Deployed 2026-06-14
+Version ID: 93c12ead-67c1-47be-81ac-7f8474f46449

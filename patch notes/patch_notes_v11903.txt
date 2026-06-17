@@ -1,0 +1,4 @@
+v11.903 - DM sent preview weight
+
+- Set the DM inbox `Sent {time}` preview line to 300 font weight.
+- Left unread-count preview styling and timestamp weight unchanged.

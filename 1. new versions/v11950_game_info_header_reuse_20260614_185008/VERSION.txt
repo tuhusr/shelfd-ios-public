@@ -1,0 +1,3 @@
+v11.950 — Cleanup on the v11.949 game Info section: removed the custom .discover-media-section-info h3 rule (it collided with the existing .discover-media-section h3 rules, leaving mixed styling). The "Info" header now reuses the existing game-profile section-header styling, identical to the Screenshots header (verified headersMatch=true in preview). No behavior change to the Info data.
+Deployed 2026-06-14
+Version ID: 8f00b250-675a-4161-8f94-7ac6b3177d76

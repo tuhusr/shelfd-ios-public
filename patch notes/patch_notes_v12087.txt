@@ -1,0 +1,5 @@
+v12.087 - Activity cards auto height
+
+- Rebuilt standard activity cards so the action row sits in the card's bottom grid row instead of floating over the text.
+- Standard activity cards now expand and contract with their title and detail copy instead of compressing into the old fixed-height shell.
+- Unclamped the main title/detail text on standard activity cards so longer activity copy can wrap naturally without pushing into the interaction row.

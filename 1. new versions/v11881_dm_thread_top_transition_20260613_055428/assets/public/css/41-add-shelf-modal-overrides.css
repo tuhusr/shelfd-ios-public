@@ -1,0 +1,1493 @@
+/*
+   41-add-shelf-modal-overrides.css
+   Extracted from 31-surface-default-overrides.css to keep surface ownership explicit.
+*/
+
+/* =============================================================
+   v508: Add to Shelf ? full-page bottom sheet (dark charcoal)
+   When triggered from the + button, slides up from the bottom
+   instead of appearing as a centered popup.
+   ============================================================= */
+@keyframes addShelfSlideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+body.true-dark-mode #modal.modal-overlay {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  align-items: flex-end !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  overscroll-behavior: none !important;
+  touch-action: none !important;
+}
+
+body.true-dark-mode #modal .add-title-modal {
+  position: fixed !important;
+  /* v10.63: explicit top/right/bottom/left in addition to `inset: 0` so iOS
+     versions that don't parse the `inset` shorthand still anchor full-viewport. */
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  inset: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  /* v10.63: `100dvh` was added in iOS Safari 15.4. On older iOS (PWA on iOS
+     14.x or 15.0â€“15.3), those three declarations were rejected by the CSS
+     parser, leaving the modal with no defined height. The inner flex chain
+     (`.add-shelf-step-shell` â†’ `.add-shelf-step-scroll`, which uses
+     `flex: 1 1 auto; overflow-y: auto`) needs a constrained parent height
+     to scroll â€” without it the Confirm panel rendered below the viewport
+     with no way to reach it. The `100vh` lines below are the fallback that
+     older iOS keeps; the `100dvh` lines override on modern iOS. */
+  height: 100vh !important;
+  height: 100dvh !important;
+  max-height: 100vh !important;
+  max-height: 100dvh !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
+  border-radius: 0 !important;
+  background: #0E0E0E !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: max(var(--shelfd-safe-top, 0px), 20px) 20px 20px !important;
+  overflow-y: hidden !important;
+  touch-action: none !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: none !important;
+  animation: addShelfSlideUp 0.34s cubic-bezier(0.22, 1, 0.36, 1) both !important;
+}
+
+/* -- v508 redesign: full-page sheet interior -------------------- */
+
+/* Header row: title left, ? close right */
+body.true-dark-mode #modal .add-title-modal {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+}
+body.true-dark-mode #modal .add-title-modal h3 {
+  font-size: 26px !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.5px !important;
+  color: #f5f5f5 !important;
+  font-family: 'DM Sans', sans-serif !important;
+  margin: 0 0 20px 0 !important;
+  padding-right: 44px !important; /* room for future close btn */
+}
+
+/* API key row ? keep but shrink it to near-invisible unless needed */
+body.true-dark-mode #modal .api-key-row {
+  margin-bottom: 8px !important;
+}
+body.true-dark-mode #modal #inp-api-key {
+  background: #272727 !important;
+  border: 1px solid #3e3e3e !important;
+  color: #f5f5f5 !important;
+  border-radius: 14px !important;
+  padding: 12px 14px !important;
+  font-size: 13px !important;
+}
+body.true-dark-mode #modal #inp-api-key::placeholder { color: #5a5a5a !important; }
+
+/* Search area: flex column, search input first, pills below */
+body.true-dark-mode #modal #tmdb-search-area {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+}
+
+/* Search row ? reorder above pills */
+body.true-dark-mode #modal .cover-search-row {
+  order: -1 !important;
+  display: flex !important;
+  gap: 10px !important;
+  margin: 0 0 16px 0 !important;
+  align-items: center !important;
+}
+body.true-dark-mode #modal #inp-tmdb-search {
+  flex: 1 1 auto !important;
+  background: #272727 !important;
+  border: 1px solid #3e3e3e !important;
+  color: #f5f5f5 !important;
+  border-radius: 999px !important;
+  padding: 14px 20px !important;
+  /* v931: 16px minimum â€” iOS auto-zooms the page when focusing any input
+     with font-size < 16px. 15px was causing the unwanted zoom on tap. */
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  font-family: 'DM Sans', sans-serif !important;
+  outline: none !important;
+  caret-color: #A78BFA !important;
+  transition: border-color 0.18s ease !important;
+  min-width: 0 !important;
+}
+body.true-dark-mode #modal #inp-tmdb-search:focus {
+  border-color: #A78BFA !important;
+}
+body.true-dark-mode #modal #inp-tmdb-search::placeholder { color: #5a5a5a !important; }
+
+/* Lock search row height so it never compresses when results appear */
+body.true-dark-mode #modal .cover-search-row {
+  flex-shrink: 0 !important;
+}
+
+/* Search button */
+body.true-dark-mode #modal .cover-search-row .btn-primary {
+  flex-shrink: 0 !important;
+  background: #A78BFA !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 999px !important;
+  padding: 12px 20px !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  font-family: 'DM Sans', sans-serif !important;
+  min-height: 46px !important;
+  cursor: pointer !important;
+}
+body.true-dark-mode #modal .cover-search-row .btn-primary:active {
+  background: #8B6FDB !important;
+}
+
+/* Filter pills row */
+body.true-dark-mode #modal .shelf-filter-pills {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 8px !important;
+  overflow-x: auto !important;
+  scrollbar-width: none !important;
+  padding-bottom: 16px !important;
+  flex-wrap: nowrap !important;
+  -webkit-overflow-scrolling: touch !important;
+  /* v931: prevent the pills row from shrinking when the flex-column modal
+     makes room for the results grid. Without this, flex-shrink:1 (default)
+     lets the row compress into an unreadable squished strip. */
+  flex-shrink: 0 !important;
+  min-height: 0 !important;
+  touch-action: pan-x !important;
+}
+body.true-dark-mode #modal .shelf-filter-pills::-webkit-scrollbar { display: none !important; }
+body.true-dark-mode #modal .shelf-filter-pill {
+  flex-shrink: 0 !important;
+  background: transparent !important;
+  border: 1px solid #3e3e3e !important;
+  border-radius: 999px !important;
+  color: #909090 !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  padding: 8px 16px !important;
+  cursor: pointer !important;
+  -webkit-tap-highlight-color: transparent !important;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .shelf-filter-pill.active {
+  background: #A78BFA !important;
+  border-color: #A78BFA !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .shelf-filter-pill:not(.active):hover {
+  border-color: #5a5a5a !important;
+  color: #c0c0c0 !important;
+}
+
+/* Results area */
+body.true-dark-mode #modal #tmdb-results {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  min-height: 0 !important;
+  touch-action: pan-y !important;
+  overscroll-behavior: contain !important;
+}
+body.true-dark-mode #modal #tmdb-selected-area,
+body.true-dark-mode #modal #modal-status-picker {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-y !important;
+  overscroll-behavior: contain !important;
+}
+
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection {
+  justify-content: flex-start !important;
+  padding-top: max(var(--shelfd-safe-top, 0px), 20px) !important;
+  padding-bottom: max(env(safe-area-inset-bottom, 20px), 20px) !important;
+}
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection #api-key-section,
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection #tmdb-search-area {
+  display: none !important;
+}
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection h3,
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection #tmdb-selected-area,
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection #modal-status-picker,
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection .modal-actions {
+  flex: 0 0 auto !important;
+  width: min(100%, 420px) !important;
+  align-self: center !important;
+}
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection h3 {
+  text-align: center !important;
+  padding-right: 0 !important;
+  margin-bottom: 14px !important;
+}
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection #tmdb-selected-area {
+  margin: auto auto 12px !important;
+  min-height: 0 !important;
+}
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection #modal-status-picker {
+  margin: 0 auto !important;
+  min-height: 0 !important;
+}
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection .modal-actions {
+  margin: 18px auto auto !important;
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 6px) !important;
+}
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection .add-shelf-rating-prompt .modal-status-confirm-actions {
+  justify-content: center !important;
+  width: 100% !important;
+}
+
+body.true-dark-mode #modal .add-shelf-search-flash {
+  margin: 0 0 14px !important;
+  padding: 13px 15px !important;
+  border-radius: 18px !important;
+  border: 1px solid rgba(103,232,249,0.22) !important;
+  background: linear-gradient(180deg, rgba(34,211,238,0.14), rgba(34,211,238,0.08)) !important;
+  color: #d8fbff !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  line-height: 1.35 !important;
+  font-weight: 600 !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.18) !important;
+  transition: opacity 0.22s ease, transform 0.22s ease !important;
+}
+body.true-dark-mode #modal .add-shelf-search-flash.is-hiding {
+  opacity: 0 !important;
+  transform: translateY(-4px) !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-card {
+  display: grid !important;
+  grid-template-columns: 92px minmax(0, 1fr) !important;
+  gap: 16px !important;
+  padding: 18px !important;
+  border-radius: 24px !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  background:
+    radial-gradient(circle at top left, rgba(167,139,250,0.18), transparent 42%),
+    linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.025)) !important;
+  box-shadow: 0 18px 44px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-poster-wrap {
+  width: 92px !important;
+  aspect-ratio: 2 / 3 !important;
+  border-radius: 18px !important;
+  overflow: hidden !important;
+  background: rgba(255,255,255,0.04) !important;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.2) !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-poster-wrap.is-empty {
+  display: grid !important;
+  place-items: center !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  background: linear-gradient(180deg, rgba(167,139,250,0.18), rgba(255,255,255,0.03)) !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-poster-wrap img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-placeholder {
+  color: rgba(245,245,245,0.9) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 30px !important;
+  line-height: 1 !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.04em !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-info {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  min-width: 0 !important;
+  justify-content: center !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-kicker {
+  color: rgba(214,205,232,0.58) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+}
+body.true-dark-mode #modal .tmdb-selected-title {
+  color: #f5f5f7 !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: clamp(22px, 5vw, 28px) !important;
+  line-height: 1.02 !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.04em !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-chip-row {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-chip,
+body.true-dark-mode #modal .add-shelf-confirm-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 28px !important;
+  padding: 0 11px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  background: rgba(255,255,255,0.05) !important;
+  color: rgba(245,245,247,0.88) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 12px !important;
+  line-height: 1 !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+}
+body.true-dark-mode #modal .add-shelf-confirm-chip-rating {
+  color: #fbbf24 !important;
+  border-color: rgba(251,191,36,0.24) !important;
+  background: rgba(251,191,36,0.1) !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-details {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 5px !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-line,
+body.true-dark-mode #modal .add-shelf-confirm-readout {
+  color: rgba(214,205,232,0.78) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  line-height: 1.42 !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-clear {
+  align-self: flex-start !important;
+  margin-top: 4px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #c4b5fd !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 12px !important;
+  line-height: 1 !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.01em !important;
+}
+body.true-dark-mode #modal .modal-status-picker {
+  width: min(100%, 430px) !important;
+  gap: 12px !important;
+  margin: 0 auto !important;
+}
+body.true-dark-mode #modal .modal-status-picker .modal-status-label {
+  color: rgba(214,205,232,0.58) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+}
+body.true-dark-mode #modal .modal-status-picker .modal-status-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)) !important;
+  gap: 10px !important;
+}
+body.true-dark-mode #modal .modal-status-btn {
+  min-width: 0 !important;
+  max-width: none !important;
+  min-height: 54px !important;
+  padding: 12px 14px !important;
+  border-radius: 18px !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.028)) !important;
+  color: #f5f5f7 !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  line-height: 1.15 !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03) !important;
+}
+body.true-dark-mode #modal .modal-status-btn:hover,
+body.true-dark-mode #modal .modal-status-btn:active {
+  border-color: rgba(167,139,250,0.36) !important;
+  background: linear-gradient(180deg, rgba(167,139,250,0.18), rgba(255,255,255,0.03)) !important;
+  transform: translateY(-1px) !important;
+}
+body.true-dark-mode #modal .modal-status-confirm,
+body.true-dark-mode #modal .add-shelf-rating-prompt {
+  padding: 20px !important;
+  border-radius: 24px !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.028)) !important;
+  box-shadow: 0 16px 38px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+  gap: 14px !important;
+}
+body.true-dark-mode #modal .modal-status-confirm-title {
+  color: #f5f5f7 !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 22px !important;
+  line-height: 1.04 !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.04em !important;
+}
+body.true-dark-mode #modal .modal-status-confirm-copy,
+body.true-dark-mode #modal .discover-rating-prompt .discover-add-desc {
+  color: rgba(214,205,232,0.78) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+}
+body.true-dark-mode #modal .add-shelf-confirm-summary {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: center !important;
+  gap: 8px !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-prompt .discover-rating-stars {
+  margin: 20px auto 8px !important;
+  gap: 6px !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-prompt .star-btn {
+  font-size: 32px !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-prompt .star-label {
+  color: #fbbf24 !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+  font-weight: 650 !important;
+}
+body.true-dark-mode #modal .modal-status-confirm-actions .btn-secondary,
+body.true-dark-mode #modal .modal-status-confirm-actions .btn-primary {
+  min-height: 44px !important;
+  padding: 0 18px !important;
+  border-radius: 999px !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+  font-weight: 650 !important;
+}
+
+/* Bottom actions row ? cancel becomes minimal, back btn kept */
+body.true-dark-mode #modal .modal-actions {
+  display: flex !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  padding-top: 12px !important;
+  border-top: 1px solid #2a2a2a !important;
+  margin-top: auto !important;
+}
+body.true-dark-mode #modal .modal-actions .btn-secondary {
+  background: transparent !important;
+  border: 1px solid #3e3e3e !important;
+  border-radius: 999px !important;
+  color: #6a6a6a !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  padding: 10px 18px !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .modal-actions #modal-back-btn {
+  color: #c0c0c0 !important;
+  border-color: #4a4a4a !important;
+}
+
+/* -- v509 results grid ? 3 poster cards per row --------------- */
+body.true-dark-mode #modal .tmdb-results {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  padding-bottom: 20px !important;
+}
+
+/* Each card: vertical flex ? poster fills top, info at bottom */
+body.true-dark-mode #modal .tmdb-result {
+  display: flex !important;
+  flex-direction: column !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  background: #272727 !important;
+  border: none !important;
+  cursor: pointer !important;
+  -webkit-tap-highlight-color: transparent !important;
+  transition: opacity 0.15s ease !important;
+  padding: 0 !important;
+  gap: 0 !important;
+}
+body.true-dark-mode #modal .tmdb-result:active {
+  opacity: 0.75 !important;
+}
+
+/* Poster ? 2:3 aspect, full width, crisp cover crop */
+body.true-dark-mode #modal .tmdb-result img {
+  width: 100% !important;
+  aspect-ratio: 2 / 3 !important;
+  object-fit: cover !important;
+  display: block !important;
+  border-radius: 0 !important;
+  flex-shrink: 0 !important;
+  height: auto !important;
+}
+
+/* Info block below poster */
+body.true-dark-mode #modal .tmdb-result-info {
+  padding: 7px 8px 9px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+/* Title ? two-line clamp, no overflow */
+body.true-dark-mode #modal .tmdb-result-title {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: #f0f0f0 !important;
+  font-family: 'DM Sans', sans-serif !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  line-height: 1.3 !important;
+}
+
+/* Badge (media type) ? tiny chip, sits on its own line */
+body.true-dark-mode #modal .shelf-result-badge {
+  display: inline-block !important;
+  font-size: 9px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+  background: rgba(99,73,129,0.35) !important;
+  color: #c4a8e8 !important;
+  border: none !important;
+  margin-top: 2px !important;
+  align-self: flex-start !important;
+}
+
+/* Hide the verbose meta line ? poster card shows name + type only */
+body.true-dark-mode #modal .tmdb-result-meta {
+  display: none !important;
+}
+
+/* v10.52: Shelfd Add to Shelf full-screen mobile flow redesign. */
+body.true-dark-mode #modal.modal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 3900 !important;
+  background: #050506 !important;
+  align-items: stretch !important;
+  justify-content: stretch !important;
+  overflow: hidden !important;
+  touch-action: none !important;
+}
+body.true-dark-mode #modal .add-title-modal {
+  --shelf-surface: #101013;
+  --shelf-surface-2: #17171b;
+  --shelf-line: rgba(255,255,255,0.08);
+  --shelf-muted: rgba(235,232,244,0.56);
+  --shelf-text: #f6f4fb;
+  --shelf-accent: #b7a4ff;
+  position: fixed !important;
+  /* v10.63: explicit top/right/bottom/left so older iOS that doesn't parse
+     the `inset` shorthand still anchors the modal to the full viewport. */
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  max-width: none !important;
+  max-height: none !important;
+  /* v10.63: `100dvh` is iOS 15.4+. On older iOS the modal had no defined
+     height and the inner Confirm panel rendered below the viewport with no
+     scroll path (parent has overflow: hidden). The `100vh` lines below are
+     the fallback the older parser keeps; modern iOS uses the `100dvh` ones. */
+  height: 100vh !important;
+  height: 100dvh !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.035), transparent 145px),
+    #050506 !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+  touch-action: none !important;
+  animation: addShelfSlideUp 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both !important;
+}
+body.true-dark-mode #modal .add-shelf-close-btn {
+  position: absolute !important;
+  top: calc(var(--shelfd-safe-top, 0px) + 12px) !important;
+  right: 14px !important;
+  z-index: 3 !important;
+  min-width: 54px !important;
+  height: 34px !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,0.05) !important;
+  color: rgba(246,244,251,0.84) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
+  line-height: 1 !important;
+}
+body.true-dark-mode #modal .add-title-modal h3 {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  margin: calc(var(--shelfd-safe-top, 0px) + 16px) 72px 14px 16px !important;
+  padding: 0 !important;
+  color: var(--shelf-text) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 30px !important;
+  font-weight: 760 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.04 !important;
+  text-align: left !important;
+}
+body.true-dark-mode #modal #api-key-section {
+  flex: 0 0 auto !important;
+  padding: 0 16px !important;
+}
+body.true-dark-mode #modal .api-key-row {
+  margin: 0 0 10px !important;
+  gap: 8px !important;
+}
+body.true-dark-mode #modal #tmdb-search-area {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  padding: 0 16px 0 !important;
+  overflow: hidden !important;
+  touch-action: pan-y !important;
+}
+body.true-dark-mode #modal .cover-search-row {
+  order: 0 !important;
+  flex: 0 0 auto !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 8px !important;
+  align-items: center !important;
+  margin: 0 0 12px !important;
+}
+body.true-dark-mode #modal #inp-tmdb-search {
+  height: 52px !important;
+  min-height: 52px !important;
+  padding: 0 16px !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  border-radius: 16px !important;
+  background: #111114 !important;
+  color: var(--shelf-text) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 520 !important;
+  letter-spacing: 0 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03) !important;
+}
+body.true-dark-mode #modal #inp-tmdb-search:focus {
+  border-color: rgba(183,164,255,0.64) !important;
+  box-shadow: 0 0 0 3px rgba(183,164,255,0.12), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+}
+body.true-dark-mode #modal #inp-tmdb-search::placeholder {
+  color: rgba(235,232,244,0.38) !important;
+}
+body.true-dark-mode #modal .cover-search-row .btn-primary {
+  width: 52px !important;
+  min-width: 52px !important;
+  height: 52px !important;
+  min-height: 52px !important;
+  padding: 0 !important;
+  border: 1px solid rgba(183,164,255,0.34) !important;
+  border-radius: 16px !important;
+  background: rgba(183,164,255,0.16) !important;
+  color: #f7f2ff !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 0 !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .cover-search-row .btn-primary::before {
+  content: 'Go';
+  font-size: 13px !important;
+  font-weight: 720 !important;
+  line-height: 1 !important;
+}
+body.true-dark-mode #modal .shelf-filter-pills {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  gap: 7px !important;
+  margin: 0 -16px !important;
+  padding: 0 16px 12px !important;
+  overflow-x: auto !important;
+  scrollbar-width: none !important;
+  touch-action: pan-x !important;
+}
+body.true-dark-mode #modal .shelf-filter-pill {
+  min-height: 32px !important;
+  padding: 0 13px !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,0.035) !important;
+  color: rgba(235,232,244,0.62) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 620 !important;
+  letter-spacing: 0 !important;
+}
+body.true-dark-mode #modal .shelf-filter-pill.active {
+  border-color: rgba(183,164,255,0.42) !important;
+  background: rgba(183,164,255,0.16) !important;
+  color: #efeaff !important;
+}
+body.true-dark-mode #modal #tmdb-results {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  margin: 0 -16px !important;
+  padding: 4px 16px calc(env(safe-area-inset-bottom, 0px) + 24px) !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+  scroll-padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px) !important;
+  touch-action: pan-y !important;
+}
+body.true-dark-mode #modal .tmdb-results {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 9px !important;
+  padding: 0 !important;
+}
+body.true-dark-mode #modal .tmdb-result {
+  min-height: 86px !important;
+  display: grid !important;
+  grid-template-columns: 52px minmax(0, 1fr) !important;
+  gap: 12px !important;
+  align-items: center !important;
+  padding: 8px !important;
+  border: 1px solid rgba(255,255,255,0.07) !important;
+  border-radius: 16px !important;
+  background: rgba(255,255,255,0.035) !important;
+  overflow: hidden !important;
+  transition: transform 140ms ease, opacity 140ms ease, background 140ms ease !important;
+}
+body.true-dark-mode #modal .tmdb-result:active {
+  opacity: 0.86 !important;
+  transform: scale(0.985) !important;
+  background: rgba(183,164,255,0.08) !important;
+}
+body.true-dark-mode #modal .tmdb-result img {
+  width: 52px !important;
+  height: 76px !important;
+  aspect-ratio: auto !important;
+  object-fit: cover !important;
+  border-radius: 9px !important;
+  background: #19191d !important;
+}
+body.true-dark-mode #modal .tmdb-result-info {
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  padding: 0 !important;
+}
+body.true-dark-mode #modal .tmdb-result-title {
+  color: var(--shelf-text) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 15px !important;
+  font-weight: 650 !important;
+  line-height: 1.22 !important;
+  letter-spacing: 0 !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+body.true-dark-mode #modal .shelf-result-badge {
+  width: fit-content !important;
+  min-height: 21px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 0 8px !important;
+  border: 1px solid rgba(183,164,255,0.20) !important;
+  border-radius: 999px !important;
+  background: rgba(183,164,255,0.10) !important;
+  color: rgba(225,216,255,0.86) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 10px !important;
+  font-weight: 680 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+body.true-dark-mode #modal .tmdb-result-meta,
+body.true-dark-mode #modal .cover-search-msg {
+  color: var(--shelf-muted) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  line-height: 1.35 !important;
+}
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection h3,
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection #tmdb-selected-area,
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection #modal-status-picker,
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection .modal-actions {
+  width: 100% !important;
+  max-width: none !important;
+  align-self: stretch !important;
+}
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection h3 {
+  margin: calc(var(--shelfd-safe-top, 0px) + 16px) 72px 0 16px !important;
+  text-align: left !important;
+}
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection #tmdb-selected-area {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  align-self: stretch !important;
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+}
+body.true-dark-mode #modal .add-title-modal.add-shelf-has-selection #modal-status-picker {
+  flex: 1 1 auto !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  align-self: stretch !important;
+}
+body.true-dark-mode #modal #tmdb-selected-area,
+body.true-dark-mode #modal #modal-status-picker {
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  touch-action: pan-y !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-card,
+body.true-dark-mode #modal .modal-status-confirm,
+body.true-dark-mode #modal .add-shelf-rating-prompt,
+body.true-dark-mode #modal .add-shelf-success-panel {
+  border: 1px solid rgba(255,255,255,0.075) !important;
+  border-radius: 18px !important;
+  background: var(--shelf-surface) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.035), 0 18px 36px rgba(0,0,0,0.20) !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-card {
+  display: grid !important;
+  grid-template-columns: 82px minmax(0, 1fr) !important;
+  gap: 14px !important;
+  padding: 12px !important;
+  margin: 0 0 12px !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-poster-wrap {
+  width: 82px !important;
+  border-radius: 12px !important;
+  background: #19191d !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-info {
+  justify-content: center !important;
+  gap: 8px !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-kicker,
+body.true-dark-mode #modal .modal-status-label {
+  color: rgba(183,164,255,0.78) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 680 !important;
+  letter-spacing: 0 !important;
+  line-height: 1 !important;
+  text-transform: none !important;
+}
+body.true-dark-mode #modal .tmdb-selected-title {
+  color: var(--shelf-text) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 21px !important;
+  font-weight: 720 !important;
+  line-height: 1.12 !important;
+  letter-spacing: 0 !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-chip,
+body.true-dark-mode #modal .add-shelf-confirm-chip {
+  min-height: 25px !important;
+  padding: 0 9px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  background: rgba(255,255,255,0.045) !important;
+  color: rgba(246,244,251,0.82) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 620 !important;
+  letter-spacing: 0 !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-line,
+body.true-dark-mode #modal .add-shelf-confirm-readout,
+body.true-dark-mode #modal .modal-status-confirm-copy,
+body.true-dark-mode #modal .discover-rating-prompt .discover-add-desc,
+body.true-dark-mode #modal .modal-status-subtitle {
+  color: var(--shelf-muted) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 1.36 !important;
+  letter-spacing: 0 !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-clear {
+  width: fit-content !important;
+  margin-top: 0 !important;
+  color: var(--shelf-accent) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
+}
+body.true-dark-mode #modal .modal-status-picker {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  margin: 0 auto !important;
+}
+body.true-dark-mode #modal .modal-status-head {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 5px !important;
+}
+body.true-dark-mode #modal .modal-status-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 9px !important;
+}
+body.true-dark-mode #modal .modal-status-btn {
+  min-height: 52px !important;
+  padding: 0 12px !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 14px !important;
+  background: var(--shelf-surface-2) !important;
+  color: var(--shelf-text) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
+  box-shadow: none !important;
+  transition: transform 140ms ease, background 140ms ease, border-color 140ms ease !important;
+}
+body.true-dark-mode #modal .modal-status-btn:active {
+  transform: scale(0.985) !important;
+  border-color: rgba(183,164,255,0.36) !important;
+  background: rgba(183,164,255,0.11) !important;
+}
+body.true-dark-mode #modal .modal-status-confirm,
+body.true-dark-mode #modal .add-shelf-rating-prompt,
+body.true-dark-mode #modal .add-shelf-success-panel {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 13px !important;
+  padding: 18px !important;
+  text-align: left !important;
+}
+body.true-dark-mode #modal .modal-status-confirm-title {
+  color: var(--shelf-text) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 21px !important;
+  font-weight: 720 !important;
+  line-height: 1.12 !important;
+  letter-spacing: 0 !important;
+}
+body.true-dark-mode #modal .add-shelf-confirm-summary {
+  justify-content: flex-start !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-prompt .discover-rating-stars {
+  justify-content: center !important;
+  margin: 12px 0 8px !important;
+  gap: 5px !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-prompt .star-btn {
+  font-size: 30px !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-prompt .star-label {
+  color: #fbbf24 !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
+}
+body.true-dark-mode #modal .modal-status-confirm-actions {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 9px !important;
+}
+body.true-dark-mode #modal .add-shelf-step-panel--rating .modal-status-confirm-actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+body.true-dark-mode #modal .modal-status-confirm-actions .btn-secondary,
+body.true-dark-mode #modal .modal-status-confirm-actions .btn-primary,
+body.true-dark-mode #modal .modal-actions .btn-secondary {
+  min-height: 46px !important;
+  border-radius: 14px !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
+  line-height: 1 !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .modal-status-confirm-actions .btn-primary {
+  border: 1px solid rgba(183,164,255,0.38) !important;
+  background: rgba(183,164,255,0.18) !important;
+  color: #f7f2ff !important;
+}
+body.true-dark-mode #modal .modal-status-confirm-actions .btn-secondary,
+body.true-dark-mode #modal .modal-actions .btn-secondary {
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  background: rgba(255,255,255,0.04) !important;
+  color: rgba(246,244,251,0.74) !important;
+}
+body.true-dark-mode #modal .add-shelf-success-panel {
+  align-items: center !important;
+  text-align: center !important;
+  margin-top: 10px !important;
+  animation: addShelfStepIn 220ms ease both !important;
+}
+body.true-dark-mode #modal .add-shelf-success-mark {
+  width: 44px !important;
+  height: 44px !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 50% !important;
+  background: rgba(34,211,238,0.12) !important;
+  border: 1px solid rgba(34,211,238,0.24) !important;
+  color: #7deeff !important;
+  font-size: 23px !important;
+  line-height: 1 !important;
+}
+body.true-dark-mode #modal .add-shelf-search-flash {
+  margin: 0 0 10px !important;
+  padding: 11px 13px !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(34,211,238,0.20) !important;
+  background: rgba(34,211,238,0.08) !important;
+  color: #d9fbff !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 620 !important;
+  letter-spacing: 0 !important;
+}
+body.true-dark-mode #modal .modal-actions {
+  display: none !important;
+}
+body.true-dark-mode #modal #modal-status-picker {
+  display: none !important;
+}
+body.true-dark-mode #modal .add-title-modal:not([data-add-shelf-step="search"]) h3 {
+  display: none !important;
+}
+body.add-shelf-modal-open #mobile-bottom-nav,
+body.add-shelf-modal-open .mobile-bottom-nav {
+  display: none !important;
+}
+body.add-shelf-modal-open,
+body.add-shelf-modal-open #app-container,
+body.add-shelf-modal-open #mobile-bottom-nav,
+body.add-shelf-modal-open .mobile-bottom-nav {
+  background: #050506 !important;
+}
+body.add-shelf-modal-open #mobile-bottom-nav,
+body.add-shelf-modal-open .mobile-bottom-nav {
+  border-color: #050506 !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  justify-content: flex-start !important;
+  align-items: stretch !important;
+}
+body.true-dark-mode #modal .add-shelf-step-topbar {
+  display: grid !important;
+  grid-template-columns: 56px minmax(0, 1fr) 56px !important;
+  align-items: start !important;
+  gap: 10px !important;
+  padding: calc(var(--shelfd-safe-top, 0px) + 14px) 16px 10px !important;
+}
+body.true-dark-mode #modal .add-shelf-step-back,
+body.true-dark-mode #modal .add-shelf-step-back-spacer,
+body.true-dark-mode #modal .add-shelf-step-topbar-spacer {
+  width: 56px !important;
+  min-width: 56px !important;
+}
+body.true-dark-mode #modal .add-shelf-step-back {
+  min-height: 34px !important;
+  padding: 0 !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,0.04) !important;
+  color: rgba(246,244,251,0.78) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  line-height: 1 !important;
+}
+body.true-dark-mode #modal .add-shelf-step-heading {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 5px !important;
+  min-width: 0 !important;
+  text-align: center !important;
+}
+body.true-dark-mode #modal .add-shelf-step-kicker {
+  color: rgba(183,164,255,0.8) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.12em !important;
+  line-height: 1 !important;
+  text-transform: uppercase !important;
+}
+body.true-dark-mode #modal .add-shelf-step-title {
+  color: #f6f4fb !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 25px !important;
+  font-weight: 760 !important;
+  letter-spacing: -0.03em !important;
+  line-height: 1.04 !important;
+}
+body.true-dark-mode #modal .add-shelf-step-subtitle {
+  color: rgba(235,232,244,0.58) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 1.38 !important;
+}
+body.true-dark-mode #modal .add-shelf-step-scroll {
+  flex: 1 1 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  align-items: stretch !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  padding: 0 16px calc(env(safe-area-inset-bottom, 0px) + 20px) !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-hero {
+  display: grid !important;
+  grid-template-columns: 108px minmax(0, 1fr) !important;
+  gap: 14px !important;
+  padding: 16px !important;
+  border: 1px solid rgba(255,255,255,0.075) !important;
+  border-radius: 22px !important;
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.028)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.035), 0 18px 36px rgba(0,0,0,0.20) !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-hero .add-shelf-selected-poster-wrap {
+  width: 108px !important;
+  aspect-ratio: 2 / 3 !important;
+  border-radius: 16px !important;
+  background: #19191d !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .add-shelf-selected-hero .add-shelf-selected-info {
+  justify-content: center !important;
+  gap: 9px !important;
+}
+body.true-dark-mode #modal .add-shelf-step-panel {
+  margin-top: 14px !important;
+  padding: 18px !important;
+  border: 1px solid rgba(255,255,255,0.075) !important;
+  border-radius: 22px !important;
+  background: #101013 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.035), 0 18px 36px rgba(0,0,0,0.18) !important;
+}
+body.true-dark-mode #modal .add-shelf-choice-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+}
+body.true-dark-mode #modal .add-shelf-choice-btn {
+  min-height: 58px !important;
+  border-radius: 16px !important;
+  background: rgba(255,255,255,0.04) !important;
+}
+body.true-dark-mode #modal .add-shelf-step-panel--success {
+  padding: 20px !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .add-shelf-step-scroll {
+  gap: 12px !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .add-shelf-selected-hero {
+  gap: 12px !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .add-shelf-selected-hero .add-shelf-selected-poster-wrap {
+  width: 92px !important;
+  border-radius: 14px !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .add-shelf-selected-hero .add-shelf-selected-info {
+  gap: 7px !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .add-shelf-selected-kicker {
+  color: rgba(183,164,255,0.72) !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .tmdb-selected-title {
+  font-size: 19px !important;
+  line-height: 1.08 !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .add-shelf-selected-line {
+  font-size: 12px !important;
+  line-height: 1.3 !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .add-shelf-step-panel,
+body.true-dark-mode #modal .add-shelf-step-shell--rating .add-shelf-rating-prompt {
+  margin-top: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-flow {
+  gap: 14px !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-copy {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 5px !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-kicker {
+  color: rgba(183,164,255,0.8) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 680 !important;
+  letter-spacing: 0.08em !important;
+  line-height: 1 !important;
+  text-transform: uppercase !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-readout {
+  color: rgba(246,244,251,0.92) !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 650 !important;
+  line-height: 1.18 !important;
+  letter-spacing: 0 !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-desc {
+  color: rgba(235,232,244,0.5) !important;
+  font-size: 12px !important;
+}
+/* v10.68: Success step â€” strip the same chrome as the Review step so the
+   "Added to library" view reads clean. The check-mark circle is boosted in
+   size (44px -> 64px) and given a slightly stronger ring + glow, since
+   without the outer card frame it becomes the visual anchor of the page. */
+body.true-dark-mode #modal .add-shelf-step-shell--success .add-shelf-selected-hero {
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--success .add-shelf-step-panel,
+body.true-dark-mode #modal .add-shelf-step-shell--success .add-shelf-step-panel--success {
+  margin-top: 28px !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--success .add-shelf-selected-chip,
+body.true-dark-mode #modal .add-shelf-step-shell--success .add-shelf-confirm-chip {
+  border: none !important;
+  background: rgba(255,255,255,0.05) !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--success .add-shelf-success-panel {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+  gap: 14px !important;
+  padding: 0 !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--success .add-shelf-success-mark {
+  width: 64px !important;
+  height: 64px !important;
+  border-radius: 50% !important;
+  background: rgba(34,211,238,0.14) !important;
+  border: 1px solid rgba(34,211,238,0.34) !important;
+  box-shadow: 0 0 0 6px rgba(34,211,238,0.06), 0 10px 28px rgba(34,211,238,0.16) !important;
+  color: #7deeff !important;
+  font-size: 32px !important;
+  line-height: 1 !important;
+  display: grid !important;
+  place-items: center !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--success .add-shelf-success-panel .modal-status-confirm-title {
+  margin: 4px 0 0 !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--success .add-shelf-success-panel .modal-status-confirm-copy {
+  max-width: 320px !important;
+}
+
+/* v10.67: Review (final confirm) step â€” strip ALL card chrome (borders,
+   backgrounds, shadows) per user request. Keep ONLY the Back/Confirm
+   buttons styled. Hero, chips, and panel become flat content on the page. */
+body.true-dark-mode #modal .add-shelf-step-shell--confirm .add-shelf-selected-hero {
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--confirm .add-shelf-step-panel,
+body.true-dark-mode #modal .add-shelf-step-shell--confirm .modal-status-confirm,
+body.true-dark-mode #modal .add-shelf-step-shell--confirm .add-shelf-confirm-panel {
+  margin-top: 14px !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--confirm .add-shelf-selected-chip,
+body.true-dark-mode #modal .add-shelf-step-shell--confirm .add-shelf-confirm-chip {
+  border: none !important;
+  background: rgba(255,255,255,0.05) !important;
+}
+
+body.true-dark-mode #modal .add-shelf-step-shell--rating .discover-rating-stars {
+  display: grid !important;
+  grid-template-columns: repeat(10, minmax(0, 1fr)) !important;
+  align-items: center !important;
+  justify-items: center !important;
+  gap: 2px !important;
+  width: 100% !important;
+  margin: 2px 0 0 !important;
+  padding: 0 !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .stars.rating-scale-five {
+  gap: 2px !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .discover-rating-stars .star-btn {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 42px !important;
+  padding: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  font-size: clamp(24px, 7vw, 30px) !important;
+  line-height: 1 !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .stars.rating-scale-five .star-btn.half-step {
+  width: 100% !important;
+}
+body.true-dark-mode #modal .add-shelf-step-shell--rating .discover-rating-stars .star-label {
+  grid-column: 1 / -1 !important;
+  justify-self: center !important;
+  margin: 2px 0 0 !important;
+  min-width: 0 !important;
+  color: #f2bb53 !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  text-align: center !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-actions {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  margin-top: 2px !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-actions .btn-secondary,
+body.true-dark-mode #modal .add-shelf-rating-actions .btn-primary {
+  min-height: 40px !important;
+  padding: 0 16px !important;
+  border-radius: 12px !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  line-height: 1 !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-actions .btn-secondary {
+  min-width: 82px !important;
+  background: rgba(255,255,255,0.035) !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-actions .btn-primary {
+  min-width: 102px !important;
+  background: rgba(183,164,255,0.2) !important;
+}
+body.true-dark-mode #modal .add-shelf-rating-actions .btn-primary[disabled] {
+  opacity: 0.42 !important;
+}
+body.true-dark-mode #modal .add-title-modal[data-add-shelf-step="status"] #tmdb-selected-area,
+body.true-dark-mode #modal .add-title-modal[data-add-shelf-step="rating"] #tmdb-selected-area,
+body.true-dark-mode #modal .add-title-modal[data-add-shelf-step="confirm"] #tmdb-selected-area,
+body.true-dark-mode #modal .add-title-modal[data-add-shelf-step="success"] #tmdb-selected-area {
+  animation: addShelfStepIn 220ms ease both !important;
+}
+@keyframes addShelfStepIn {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@media (min-width: 720px) {
+  body.true-dark-mode #modal .add-title-modal {
+    padding-left: max(22px, calc((100vw - 560px) / 2)) !important;
+    padding-right: max(22px, calc((100vw - 560px) / 2)) !important;
+  }
+}
+@media (max-width: 430px) {
+  body.true-dark-mode #modal .add-title-modal h3 {
+    font-size: 28px !important;
+  }
+  body.true-dark-mode #modal .modal-status-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+

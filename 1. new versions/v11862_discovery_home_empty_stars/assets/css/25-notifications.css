@@ -1,0 +1,234 @@
+/* =============================================================================
+   Notifications tab (Friends page) — clean rebuild
+   File: assets/public/css/25-notifications.css   (loads LAST → single source of truth)
+
+   This file is the ONLY styling for the Notifications tab. It replaces the
+   scattered, six-times-patched `.activity-notification*` rules that had
+   accumulated in 16-light-mode-contrast.css (deleted in this build) — the bloat
+   that caused the cascade/override churn and the floating-footer bug.
+
+   Key structural change vs the old build:
+     • NO inner-scroll box. The old `.activity-notifications-shell` had
+       `max-height: calc(100dvh - 230px); overflow-y:auto`, so the list scrolled
+       inside a box that stopped ~230px above the screen bottom — which left the
+       version footer floating high with a dead black gap and clipped the last
+       row. Here the list is plain block flow: the PAGE scrolls (exactly like the
+       Friends list and every other tab), so the footer lands at the natural
+       bottom by construction.
+
+   Markup namespace: `shelfd-notif*` (built in js/10-activity-feed.js).
+   Functions, the #notifications-view / #activity-notifications-feed IDs, the
+   onclick routing and data-notification-id are all unchanged — this is purely
+   the visual layer.
+
+   Design language: Editorial Dark — true blacks, single lavender accent, Söhne
+   typography, hairline dividers (no cards/chrome), content-forward.
+   ========================================================================== */
+
+#activity-notifications-feed {
+  width: 100%;
+  min-width: 0;
+}
+
+/* ---- List: normal block flow, no height cap, no inner overflow ---------- */
+.shelfd-notif-list {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin: 0;
+  padding: 2px 0 10px;
+}
+
+/* ---- Row -------------------------------------------------------------- */
+.shelfd-notif {
+  display: flex;
+  align-items: flex-start;          /* top-align → multi-line text never clips */
+  gap: 14px;
+  width: 100%;
+  margin: 0;
+  padding: 16px 0;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  text-align: left;
+  color: #f4f1ff;
+  font: inherit;
+  font-family: 'Sohne', 'Söhne', 'DM Sans', sans-serif;
+  cursor: pointer;
+  position: relative;
+  appearance: none;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 140ms ease;
+}
+.shelfd-notif:last-child { border-bottom: 0; }
+.shelfd-notif:active { background: rgba(255, 255, 255, 0.035); }
+
+/* ---- Avatar ----------------------------------------------------------- */
+.shelfd-notif-avatar {
+  flex: 0 0 46px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(167, 139, 250, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(196, 181, 253, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.shelfd-notif-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.shelfd-notif-avatar span {              /* fallback initial */
+  color: #c4b5fd;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+/* ---- Copy ------------------------------------------------------------- */
+.shelfd-notif-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 1px;
+}
+.shelfd-notif-name {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.25;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: #ffffff;
+  overflow-wrap: anywhere;
+}
+.shelfd-notif-action {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.4;
+  font-weight: 450;
+  letter-spacing: 0.01em;
+  color: rgba(244, 241, 255, 0.82);
+  overflow-wrap: anywhere;
+}
+.shelfd-notif-snippet {
+  margin: 1px 0 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+  color: rgba(225, 219, 243, 0.58);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.shelfd-notif-time {
+  margin-top: 2px;
+  font-size: 11.5px;
+  line-height: 1;
+  font-weight: 530;
+  letter-spacing: 0.02em;
+  color: rgba(196, 181, 253, 0.6);
+}
+
+/* ---- Read rows dim (unread stay full-bright) -------------------------- */
+.shelfd-notif.read .shelfd-notif-name { color: rgba(255, 255, 255, 0.82); }
+.shelfd-notif.read .shelfd-notif-action { color: rgba(244, 241, 255, 0.55); }
+
+/* ---- Unread dot (lavender, single accent) ----------------------------- */
+.shelfd-notif-dot {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: #a78bfa;
+}
+
+.shelfd-notif-request-actions {
+  flex: 0 0 auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.shelfd-notif-request-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font: 500 12.5px/1 'Sohne', 'DM Sans', sans-serif;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 120ms ease, transform 120ms ease, background 140ms ease;
+}
+.shelfd-notif-request-btn:active { opacity: 0.86; transform: scale(0.96); }
+.shelfd-notif-request-btn.primary {
+  background: #4b6bff;
+  color: #ffffff;
+}
+.shelfd-notif-request-btn.secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+/* ---- Optional media poster thumb -------------------------------------- */
+.shelfd-notif-thumb {
+  flex: 0 0 46px;
+  align-self: flex-start;
+  width: 46px;
+  height: 60px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+.shelfd-notif-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ---- Empty / loading / signed-out states ------------------------------ */
+.shelfd-notif-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 64px 24px;
+  font-family: 'Sohne', 'Söhne', 'DM Sans', sans-serif;
+}
+.shelfd-notif-state strong {
+  color: #f7f3ff;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+.shelfd-notif-state span {
+  max-width: 280px;
+  color: rgba(225, 219, 243, 0.6);
+  font-size: 13px;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+}
+
+/* ---- Phone tightening ------------------------------------------------- */
+@media (max-width: 430px) {
+  .shelfd-notif { gap: 13px; padding: 15px 0; }
+  .shelfd-notif-avatar { flex-basis: 44px; width: 44px; height: 44px; }
+  .shelfd-notif-thumb { flex-basis: 44px; width: 44px; height: 57px; }
+}

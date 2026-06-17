@@ -1,0 +1,148 @@
+/* v11.867: Friend shelf header controls.
+   Moved from 17-auth-flow-setup.css so auth CSS no longer owns viewing-other
+   shelf back-button and header-action visibility. */
+
+.header-import-btn.header-import-btn--back-mode {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  color: #ffffff !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0 !important;
+  padding: 0 !important;
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 0 !important;
+  font-size: 0 !important;
+  letter-spacing: 0 !important;
+  white-space: nowrap !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  transform: none !important;
+}
+
+.header-import-btn.header-import-btn--back-mode:hover,
+.header-import-btn.header-import-btn--back-mode:active,
+.header-import-btn.header-import-btn--back-mode:focus {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+}
+
+.header-import-btn.header-import-btn--back-mode .header-back-icon {
+  width: 23px;
+  height: 23px;
+  flex: 0 0 23px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.header-import-btn.header-import-btn--back-mode .header-back-label {
+  display: none !important;
+}
+
+body.light-mode .header-import-btn.header-import-btn--back-mode {
+  background: rgba(0, 0, 0, 0.06) !important;
+  background-color: rgba(0, 0, 0, 0.06) !important;
+  border: 1px solid rgba(0, 0, 0, 0.14) !important;
+  color: #17171b !important;
+}
+
+body.light-mode .header-import-btn.header-import-btn--back-mode:hover,
+body.light-mode .header-import-btn.header-import-btn--back-mode:active {
+  background: rgba(0, 0, 0, 0.10) !important;
+  background-color: rgba(0, 0, 0, 0.10) !important;
+  border-color: rgba(0, 0, 0, 0.22) !important;
+}
+
+body.viewing-other-user .header-import-btn,
+body.viewing-other-user .header-import-btn:hover,
+body.viewing-other-user .header-import-btn:active,
+body.viewing-other-user .header-import-btn:focus {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  margin-left: -8px !important;
+}
+
+body.viewing-other-user .header-import-btn:hover,
+body.viewing-other-user .header-import-btn:active {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+}
+
+body.viewing-other-user .friend-list-viewing-banner .back-btn {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+}
+
+body.light-mode.viewing-other-user .header-import-btn {
+  background: rgba(0, 0, 0, 0.06) !important;
+  background-color: rgba(0, 0, 0, 0.06) !important;
+  background-image: none !important;
+  border: 1px solid rgba(0, 0, 0, 0.14) !important;
+  color: #17171b !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+.friend-shelf-header-back-btn {
+  display: none !important;
+}
+
+body.viewing-other-user .friend-shelf-header-back-btn {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+  margin: 0 0 0 -8px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+  -webkit-tap-highlight-color: transparent !important;
+  z-index: 20 !important;
+}
+
+body.viewing-other-user .friend-shelf-header-back-btn .header-back-icon {
+  width: 23px !important;
+  height: 23px !important;
+  flex: 0 0 23px !important;
+  display: block !important;
+}
+
+body.viewing-other-user .friend-shelf-header-back-btn:hover,
+body.viewing-other-user .friend-shelf-header-back-btn:active,
+body.viewing-other-user .friend-shelf-header-back-btn:focus {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #ffffff !important;
+}
+
+body.light-mode.viewing-other-user .friend-shelf-header-back-btn {
+  color: #17171b !important;
+}
+
+body.viewing-other-user .header-logo-block .header-import-btn,
+body.viewing-other-user .header-logo-block .activity-compose-btn,
+body.viewing-other-user .header-logo-block .mylist-header-cog,
+body.viewing-other-user .header-logo-block .mylist-rating-duel-header-btn {
+  display: none !important;
+}

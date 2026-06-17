@@ -1,0 +1,3 @@
+v11.939 — Wrote-a-review activity card: gap between the star rating row and the action row (heart/comment/Full Review) set to 12px (was 9px). Scoped to .shelfd-media-review-card only; generic rating margin untouched.
+Deployed 2026-06-14
+Version ID: b9f5245d-d409-4efb-a1a8-6247f103113e

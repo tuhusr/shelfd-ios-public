@@ -1,0 +1,5 @@
+v11.920 - Profile friend shelf underlay
+
+- Deep-fixed the friend shelf appearing too high under the full profile close animation.
+- Captures the correct friend shelf header offset before opening the full profile.
+- Pins the existing friend shelf as a fixed underlay at that captured top offset during both chevron close and swipe close, then clears the pin when the return completes.

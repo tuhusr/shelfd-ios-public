@@ -1,0 +1,62 @@
+/* =============================================================================
+   Discover hub horizontal swipe  (v11.303)
+   File: assets/public/css/20-discover-hub-swipe.css
+
+   Supports the finger-tracking page swipe between Discovery hubs (see
+   js/36-discover-hub-swipe.js). `touch-action: pan-y` tells the browser the
+   panels only scroll vertically natively — horizontal pans are delivered to
+   our JS so it can drive the book-style page slide, while vertical scrolling
+   stays buttery and native.
+   ========================================================================== */
+#discover-view,
+#anime-discover-view,
+#games-discover-view,
+#music-discover-view {
+  touch-action: pan-y;
+}
+
+/* While a swipe is in flight, the sliding panels are GPU-promoted and clipped
+   to the viewport so the incoming/outgoing pages never trigger a horizontal
+   scrollbar or bleed past the screen edges. */
+body.discover-hub-swiping {
+  overflow-x: hidden;
+}
+body.discover-hub-swiping #discover-view,
+body.discover-hub-swiping #anime-discover-view,
+body.discover-hub-swiping #games-discover-view,
+body.discover-hub-swiping #music-discover-view,
+body.discover-hub-swiping [data-discover-hub-swipe-clone] {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* v11.414: the pinned (static) clone of the category bar that stays put while
+   the pages slide. It lives on document.body — OUTSIDE #discover-view — so the
+   #discover-view-scoped bar styling (file 12) can't reach it; without these
+   rules it fell back to the base pill look (file 03) and read as the wrong
+   indicator. Replicate the REAL bar exactly: transparent buttons, with a
+   lavender UNDERLINE on the active one (the only thing that "moves"). */
+[data-discover-hub-static-toggle] {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+[data-discover-hub-static-toggle] .discover-hub-btn {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: #d8cff3 !important;
+  text-decoration: none;
+}
+[data-discover-hub-static-toggle] .discover-hub-btn.active {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #c4b5fd !important;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 7px;
+}

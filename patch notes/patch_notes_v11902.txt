@@ -1,0 +1,5 @@
+v11.902 - DM unread count preview styling
+
+- Styled the DM inbox `{count} new messages` text as white with 500 font weight.
+- Kept the DM inbox timestamp separate at 400 font weight.
+- Preserved existing normal preview and sent-line behavior.

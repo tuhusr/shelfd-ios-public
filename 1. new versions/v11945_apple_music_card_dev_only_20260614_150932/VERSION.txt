@@ -1,0 +1,3 @@
+v11.945 — Apple Music import card is now DEV-ONLY (King Kooom / CREATOR_PUBLIC_UID). CSS hides .apple-music-import-card by default; renderAppleMusicImportCardState adds .shelfd-am-allowed only when isCreatorAdmin(currentUser) is true (reveals display:flex). All other users + signed-out never see it. Verified in preview: isCreatorAdmin(creatorUid)=true / other=false; CSS none without class, flex with.
+Deployed 2026-06-14
+Version ID: f41a8d60-ff3e-4fe7-857f-2409ab749616

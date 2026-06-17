@@ -1,0 +1,863 @@
+/*
+   43-discovery-friends-nav-overrides.css
+   Extracted from 31-surface-default-overrides.css to keep surface ownership explicit.
+*/
+
+/* =============================================================
+   v547 BATCH
+   Discovery: remove section bg/border, hide trailer popup square,
+   hide add-to-library button, shrink card.
+   Activity: shift action row +20px right.
+   My Lists: status pill 12/450, hide ep%, center episodes btn,
+             top tabs 14/500, category buttons 16/600.
+   ============================================================= */
+
+/* Discovery section wrappers ? flat (no boxed border/bg) */
+body.true-dark-mode #discover-view .discover-section-card,
+body.true-dark-mode #discover-view .discover-rail,
+body.true-dark-mode #discover-view .discover-section,
+body.true-dark-mode #discover-view .discover-rail-item {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+/* v549: discovery title cards use the same dark surface as my-list cards */
+/* v11.311: include #anime-discover-view — it was missing this rule, so anime
+   discover cards fell back to ~#0a0a0a and blended into the page background
+   (the body strip under the poster looked the same colour as the page).
+   Now anime matches Movies/TV/Games with the #212121 card surface. */
+body.true-dark-mode #discover-view .discover-card,
+body.true-dark-mode #anime-discover-view .discover-card {
+  background: #212121 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 14px !important;
+  overflow: hidden !important;
+}
+body.true-dark-mode #discover-view .discover-card:not(.discover-card-expanded),
+body.true-dark-mode #anime-discover-view .discover-card:not(.discover-card-expanded) {
+  border-radius: 3px !important;
+}
+
+/* Hide trailer-popup square (top right of poster) */
+body.true-dark-mode #discover-view .discover-expand-icon,
+body.true-dark-mode .discover-expand-icon {
+  display: none !important;
+}
+
+/* Hide the inline Add-to-Library / Watched / Watching pill on discovery cards */
+body.true-dark-mode #discover-view .discover-add-btn {
+  display: none !important;
+}
+
+/* Discovery card body shrinks now that the button is gone */
+body.true-dark-mode #discover-view .discover-card .discover-card-body {
+  padding-bottom: 8px !important;
+}
+
+/* ========== Activity action row metadata alignment ========== */
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-bottom-safe,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-bottom-safe {
+  padding-left: calc(clamp(37px, 6.5vw, 46px) + clamp(8px, 1.3vw, 12px) - 3px) !important;
+}
+
+@media (max-width: 560px) {
+  body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-bottom-safe,
+  body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-bottom-safe {
+    padding-left: 50px !important;
+  }
+}
+
+/* ========== My Lists ========== */
+
+/* Status pill on title card ? 11px / 400 weight */
+body.true-dark-mode #mylist-view .show-card .status-pill,
+body.true-dark-mode #mylist-view .card .status-pill,
+body.true-dark-mode #mylist-view .status-pills .status-pill {
+  font-size: 11px !important;
+  font-weight: 400 !important;
+}
+/* v549: per-state text color matches outline color */
+body.true-dark-mode #mylist-view .status-pill.watching-active { color: #7c3aed !important; }
+body.true-dark-mode #mylist-view .status-pill.planned-active  { color: #d97706 !important; }
+body.true-dark-mode #mylist-view .status-pill.watched-active  { color: #0891b2 !important; }
+body.true-dark-mode #mylist-view .status-pill.paused-active   { color: #c2410c !important; }
+body.true-dark-mode #mylist-view .status-pill.dropped-active  { color: #dc2626 !important; }
+body.true-dark-mode #mylist-view .status-pill.competitive-active { color: #4f46e5 !important; }
+body.true-dark-mode #mylist-view .status-pill.wishlist-active { color: #be185d !important; }
+body.true-dark-mode #mylist-view .status-pill.live-active     { color: #16a34a !important; }
+/* Inactive pill: keep base muted color */
+body.true-dark-mode #mylist-view .status-pill:not(.watching-active):not(.planned-active):not(.watched-active):not(.paused-active):not(.dropped-active):not(.wishlist-active):not(.live-active):not(.competitive-active) {
+  color: rgba(255,255,255,0.55) !important;
+}
+
+/* Hide only the legacy episode % indicator inside the old progress meta row.
+   The new inline bar-row percent for TV/Anime Watching/Paused must stay visible. */
+body.true-dark-mode #mylist-view .progress-meta > [id^="progress-percent-"] {
+  display: none !important;
+}
+body.true-dark-mode #mylist-view .progress-bar-row > .progress-percent-inline {
+  display: block !important;
+}
+
+/* v549: revert v547 action-row centering (it broke Comments + WT+ layout).
+   Episodes button stays in its natural grid cell within .card-footer-actions. */
+
+/* Top status filter tabs ? 13px / 400 weight, -20% closer */
+body.true-dark-mode #mylist-view #mylist-toolbar .tab-btn,
+body.true-dark-mode #mylist-view .tabs .tab-btn {
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  padding: 6px 13px !important;
+}
+body.true-dark-mode #mylist-view #mylist-toolbar .tabs,
+body.true-dark-mode #mylist-view .tabs {
+  gap: 2px !important;
+  justify-content: center !important;
+}
+/* v598: hide count on inactive tabs, show only on active */
+body.true-dark-mode #mylist-view .tab-btn .tab-count,
+#mylist-view .tab-btn .tab-count {
+  display: none !important;
+}
+body.true-dark-mode #mylist-view .tab-btn.active .tab-count,
+#mylist-view .tab-btn.active .tab-count {
+  display: inline-flex !important;
+}
+
+/* Top category buttons ? 16px / 400 weight, -20% closer */
+body.true-dark-mode .section-btn,
+body.true-dark-mode .section-toggle .section-btn {
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  padding: 7px 11px !important;
+}
+body.true-dark-mode .section-toggle {
+  gap: 3px !important;
+}
+
+/* v592: title card text ? genre, release date, where-to-watch */
+body.true-dark-mode #mylist-view .card-genre,
+#mylist-view .card-genre {
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  opacity: 0.45 !important;
+}
+body.true-dark-mode #mylist-view .games-wishlist-card .games-wishlist-card-genre,
+#mylist-view .games-wishlist-card .games-wishlist-card-genre,
+body.true-dark-mode #mylist-view .games-wishlist-card .games-wishlist-card-platforms,
+#mylist-view .games-wishlist-card .games-wishlist-card-platforms {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  opacity: 0.58 !important;
+}
+/* v10.707: watchlist release-date and "In theaters" lines bumped from
+   11px/400 → 12px/500. Added the in-theaters selector to this rule so
+   both states share one typographic treatment (previously in-theaters
+   inherited 11px/400 from the card-availability-line cascade below).
+   The where-to-watch line (with provider logos) is intentionally LEFT
+   at 11px/400 — only release-date and in-theaters were in scope.
+   v10.708: bumped again to 14px / 500. The 12px change was visually
+   too subtle vs the prior 11px — at small sizes the Sohne 400→500
+   step is easy to miss. 14px is the same size as the card title
+   metadata so the watchlist availability state now reads as a proper
+   sub-line rather than tiny meta text. */
+body.true-dark-mode #mylist-view .card-release-date,
+#mylist-view .card-release-date,
+body.true-dark-mode #mylist-view .mylist-availability-release-date,
+#mylist-view .mylist-availability-release-date,
+body.true-dark-mode #mylist-view .mylist-availability-in-theaters,
+#mylist-view .mylist-availability-in-theaters {
+  font-size: 14px !important;
+  font-weight: 500 !important;
+}
+/* v10.709: ROOT-CAUSE FIX for "In theaters / release-date font size not
+   updating". The rule below matches .card-availability-line which is the
+   SHARED base class on ALL three availability-line variants
+   (release-date, in-theaters, where-to-watch). My v10.708 rule above
+   bumped release-date + in-theaters to 14px/500 with (1,2,0)
+   specificity and !important — but this rule has IDENTICAL (1,2,0)
+   specificity, same !important, and comes LATER in source order,
+   so cascade tiebreaker hands it the win and clobbers the 14px back
+   to 11px on the in-theaters and release-date variants. Fix: scope
+   this rule to ONLY .mylist-availability-where-to-watch (and its
+   where-text descendant) by adding :not() filters on the base class
+   selector. Now the rule no longer collides with the in-theaters /
+   release-date variants. */
+body.true-dark-mode #mylist-view .card-availability-line.mylist-availability-where-to-watch,
+#mylist-view .card-availability-line.mylist-availability-where-to-watch,
+body.true-dark-mode #mylist-view .mylist-availability-where-to-watch,
+#mylist-view .mylist-availability-where-to-watch,
+body.true-dark-mode #mylist-view .mylist-availability-where-text,
+#mylist-view .mylist-availability-where-text {
+  font-size: 11px !important;
+  font-weight: 400 !important;
+}
+/* Episode count ? 400 weight */
+body.true-dark-mode #mylist-view .progress-meta,
+body.true-dark-mode #mylist-view .progress-meta span,
+#mylist-view .progress-meta,
+#mylist-view .progress-meta span,
+body.true-dark-mode #mylist-view .progress-percent-inline,
+#mylist-view .progress-percent-inline {
+  font-size: 11px !important;
+  font-weight: 400 !important;
+}
+
+/* v587: mylist title card typography */
+/* Episode count "3/17 episodes" ? 11px 300 */
+body.true-dark-mode #mylist-view .progress-meta,
+body.true-dark-mode #mylist-view .progress-meta span,
+body.true-dark-mode #mylist-view .progress-meta span:last-child,
+body.true-dark-mode #mylist-view .progress-percent-inline {
+  font-size: 11px !important;
+  font-weight: 300 !important;
+  /* v11.266: episode count "13/20 episodes" → brighter off-white grey
+     (was muted #9990b3) for better visibility. */
+  color: #cfcad8 !important;
+}
+/* v11.748: TV-show + anime cards only — the "x/x episodes" COUNT text → #e2e2e2
+   (matches "Where to watch"). Scoped to the count span (#progress-count-*) so the
+   right-side percentage keeps its own color. Higher specificity + !important to
+   beat the #cfcad8 override above. */
+body.true-dark-mode #mylist-view .card[data-library-section="shows"] .progress-meta [id^="progress-count-"],
+body.true-dark-mode #mylist-view .card[data-library-section="anime"] .progress-meta [id^="progress-count-"] {
+  color: #e2e2e2 !important;
+}
+/* v11.749: TV-show cards — flatten ALL card text letter-spacing to 0em
+   (was the app default 0.03em + assorted per-element values). Section-scoped.
+   v11.750: extended to anime + movies cards (same treatment). */
+body.true-dark-mode #mylist-view .card[data-library-section="shows"],
+body.true-dark-mode #mylist-view .card[data-library-section="shows"] *,
+body.true-dark-mode #mylist-view .card[data-library-section="anime"],
+body.true-dark-mode #mylist-view .card[data-library-section="anime"] *,
+body.true-dark-mode #mylist-view .card[data-library-section="movies"],
+body.true-dark-mode #mylist-view .card[data-library-section="movies"] * {
+  letter-spacing: 0em !important;
+}
+/* v605: episode button + watch-together + sit in right-aligned cluster */
+body.true-dark-mode #mylist-view .card-action-row,
+#mylist-view .card-action-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+body.true-dark-mode #mylist-view .card-action-row.has-watch-priority,
+#mylist-view .card-action-row.has-watch-priority {
+  justify-content: space-between !important;
+  gap: 8px !important;
+}
+body.true-dark-mode #mylist-view .card-action-row.has-next-episode,
+#mylist-view .card-action-row.has-next-episode {
+  justify-content: space-between !important;
+  gap: 8px !important;
+  padding-left: 14px !important;
+  padding-right: 18px !important;
+}
+body.true-dark-mode #mylist-view .card-action-row.has-watch-priority .card-footer-actions,
+#mylist-view .card-action-row.has-watch-priority .card-footer-actions,
+body.true-dark-mode #mylist-view .card-action-row.has-next-episode .card-footer-actions,
+#mylist-view .card-action-row.has-next-episode .card-footer-actions {
+  justify-content: center !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+body.true-dark-mode #mylist-view .watchlist-priority-slot {
+  background: rgba(8,8,12,0.88) !important;
+  border-color: rgba(255,255,255,0.18) !important;
+  color: rgba(232,227,243,0.72) !important;
+}
+body.true-dark-mode #mylist-view .watchlist-priority-input {
+  color: #fbbf24 !important;
+}
+body.true-dark-mode #mylist-view .card-right-controls,
+#mylist-view .card-right-controls {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex: 0 0 auto !important;
+}
+/* watch-together-slot sits naturally inline inside card-right-controls */
+body.true-dark-mode #mylist-view .card-right-controls .watch-together-slot,
+#mylist-view .card-right-controls .watch-together-slot {
+  margin-left: 0 !important;
+}
+
+/* v605: import activity card ? 200 weight less */
+.import-activity-title {
+  font-weight: 700 !important;  /* was 900 */
+}
+.import-activity-status {
+  font-weight: 550 !important;  /* was 750 */
+}
+
+/* v601: 9px gap between episode count/progress and star rating */
+body.true-dark-mode #mylist-view .rating-area,
+#mylist-view .rating-area {
+  margin-top: 9px !important;
+}
+
+/* Rating label hidden ? stars are self-explanatory */
+body.true-dark-mode #mylist-view .rating-label,
+body.true-dark-mode #mylist-view .card .rating-label,
+#mylist-view .rating-label,
+#mylist-view .card .rating-label {
+  display: none !important;
+}
+/* Episodes button ? 11px 500 */
+/* v10.720: Episodes pill text shrunk to match the 27px button shrink in
+   01-mylists-cards-episodes.css. This rule has (1,4,0) specificity vs the
+   01-file's (1,3,0) so it's the actual cascade winner on production
+   (every user is on body.true-dark-mode). Was 11px/500, now 10px/500. */
+body.true-dark-mode #mylist-view .card-action-row .ep-toggle-bar.card-footer-btn,
+body.true-dark-mode #mylist-view .card-action-row .ep-toggle-bar.card-footer-btn span:first-child {
+  font-size: 10px !important;
+  font-weight: 500 !important;
+}
+
+/* v602: my-lists title cards 0.3 shades darker (#272727 ? #242424) */
+body.true-dark-mode #mylist-view .card,
+body.true-dark-mode #mylist-view .show-card,
+body.true-dark-mode #mylist-view .game-library-card {
+  background: #242424 !important;
+}
+
+/* =============================================================
+   v549: Friends list ? modern dark palette to match my-lists.
+   Cards #212121 on the #0E0E0E page background, hairline border,
+   no glow.
+   ============================================================= */
+body.true-dark-mode.shelfd-friends-list-mode #community-view {
+  background: #0E0E0E !important;
+}
+body.true-dark-mode .friend-list-card,
+body.true-dark-mode .friends-page .friend-list-card,
+body.true-dark-mode #community-view .friend-list-card {
+  background: #212121 !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  border-radius: 14px !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode .friend-list-card .user-card-avatar,
+body.true-dark-mode #community-view .friend-list-card .user-card-avatar {
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode .friend-list-card .friend-card-name,
+body.true-dark-mode .friend-list-card .user-card-name,
+body.true-dark-mode #community-view .friend-list-card .user-card-name {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+body.true-dark-mode .friend-list-card .friend-card-handle,
+body.true-dark-mode .friend-list-card .user-card-handle,
+body.true-dark-mode #community-view .friend-list-card .user-card-handle {
+  color: rgba(255,255,255,0.55) !important;
+}
+/* Friend request rows match the same surface */
+body.true-dark-mode .friend-request-card,
+body.true-dark-mode #community-view .friend-request-card {
+  background: #212121 !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  border-radius: 14px !important;
+  box-shadow: none !important;
+}
+
+/* v551: discover card ? shorter vertically, rating under poster top-right */
+
+/* Narrower aspect ratio = shorter poster */
+body.true-dark-mode #discover-view .discover-poster {
+  aspect-ratio: 3 / 4 !important;
+}
+
+/* Smaller card body */
+body.true-dark-mode #discover-view .discover-card-body,
+body.true-dark-mode #discover-view .discover-card.games-discover-card .discover-card-body {
+  min-height: 72px !important;
+  padding: 6px 8px 8px !important;
+  gap: 3px !important;
+}
+
+/* Rating ? sits at top-right of card body, below the poster */
+body.true-dark-mode .discover-card .discover-card-rating {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 3px !important;
+  width: 100% !important;
+  margin: 0 0 2px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  color: #ffffff !important;
+  pointer-events: none !important;
+}
+body.true-dark-mode .discover-card .discover-card-rating-star {
+  color: #f2c94c !important;
+  font-size: 11px !important;
+}
+body.true-dark-mode .discover-card .discover-card-rating-value {
+  color: rgba(255,255,255,0.85) !important;
+}
+
+/* v11.866: Discovery title-card row presentation moved to
+   css/27-discovery-title-cards.css. Keep this file focused on contrast/theme
+   corrections instead of owning default card typography. */
+
+/* =============================================================
+   v576: Discover page uses S?hne (Sohne) for every text element.
+   Applies to the main Movies & TV hub, Anime hub, and Games hub
+   AND the full-page category view. The browser auto-picks the
+   matching weight from the @font-face declarations in
+   sohne-fonts.css based on each element's font-weight.
+   ============================================================= */
+#discover-view,
+#discover-view *,
+#anime-discover-view,
+#anime-discover-view *,
+#games-discover-view,
+#games-discover-view *,
+#discover-category-full-page,
+#discover-category-full-page *,
+#mylist-view,
+#mylist-view *,
+#mylist-header,
+#mylist-header *,
+#community-view,
+#community-view *,
+.activity-page,
+.activity-page *,
+.friends-list-view,
+.friends-list-view *,
+#friends-list-view,
+#friends-list-view *,
+#requests-view,
+#requests-view *,
+#activity-tab-view,
+#activity-tab-view *,
+.screenlist-stacked-activity-page,
+.screenlist-stacked-activity-page * {
+  font-family: 'Sohne', 'S?hne', 'DM Sans', system-ui, sans-serif !important;
+}
+
+/* =============================================================
+   v625: Search bottom-nav button + full-page search overlay
+   ============================================================= */
+
+/* v626: Force bottom nav to single row of 5 (Discover / Activity / ?? / Friends / My Lists).
+   The parent used flex:1 with bigger padding/font, which on narrow screens pushed
+   "My Lists" to a second row. Switch to a true 5-column grid and tighten the type. */
+@media (max-width: 700px) {
+  .mobile-bottom-nav,
+  #mobile-bottom-nav {
+    display: grid !important;
+    grid-auto-flow: column !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    flex-wrap: nowrap !important;
+    width: min(calc(100vw - 16px), 580px) !important;
+    max-width: 580px !important;
+    gap: 0 !important;
+    padding: 6px 6px !important;
+    /* v653: glassy frosted blur ? stands out slightly from the page
+       behind it without overpowering the content. */
+    /* v950: was `blur(22px) saturate(1.4)` â€” capped to 10px and dropped saturate (2Ã— GPU op).
+       Bumped rgba alpha from 0.62 -> 0.72 so the bottom nav still reads opaque on iPhone. */
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.045) 46%, rgba(255,255,255,0.02)),
+      radial-gradient(circle at 50% 0%, rgba(196,181,253,0.16), transparent 58%),
+      rgba(18, 20, 24, 0.42) !important;
+    backdrop-filter: blur(24px) saturate(170%) brightness(1.08) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(170%) brightness(1.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.24),
+      inset 0 -1px 0 rgba(255,255,255,0.06),
+      0 18px 48px rgba(0, 0, 0, 0.42),
+      0 0 0 1px rgba(196,181,253,0.06) !important;
+  }
+  .mobile-bottom-nav .main-nav-btn,
+  #mobile-bottom-nav .main-nav-btn {
+    flex: initial !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    padding: 8px 2px !important;
+    font-size: 12.5px !important;  /* v653: +1px (was 11.5) */
+    font-weight: 600 !important;
+    letter-spacing: -0.01em !important;
+    line-height: 1.05 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    text-align: center !important;
+  }
+  .mobile-bottom-nav #mobile-nav-mylist,
+  #mobile-bottom-nav #mobile-nav-mylist {
+    font-size: 12.5px !important;
+    font-weight: 700 !important;
+  }
+}
+/* v653: light-mode glass tint ? keeps the same frosted look on a
+   warmer background. */
+body.light-mode .mobile-bottom-nav,
+body.light-mode #mobile-bottom-nav {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.72), rgba(255,255,255,0.32)),
+    radial-gradient(circle at 50% 0%, rgba(120,90,200,0.12), transparent 58%),
+    rgba(245, 243, 238, 0.56) !important;
+  border-color: rgba(255, 255, 255, 0.58) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.82),
+    inset 0 -1px 0 rgba(120,90,200,0.08),
+    0 14px 34px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Center search button ? sits in the middle of the 5-col grid */
+body .mobile-bottom-nav .nav-search-btn,
+body #mobile-bottom-nav .nav-search-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 6px 0 !important;
+  /* v12.000: search glyph matches the other nav icons (was green #8ff2b8) */
+  color: rgba(231, 226, 244, 0.72) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  font-weight: 400 !important;
+  grid-column: 3 !important;
+  order: 3 !important;
+}
+body .mobile-bottom-nav .nav-search-btn.active,
+body .mobile-bottom-nav .nav-search-btn[aria-pressed="true"] {
+  color: #ffffff !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+.mobile-bottom-nav .bottom-nav-icon-btn,
+#mobile-bottom-nav .bottom-nav-icon-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: rgba(231, 226, 244, 0.72) !important;
+  -webkit-tap-highlight-color: transparent;
+}
+.mobile-bottom-nav .bottom-nav-icon-btn.active,
+#mobile-bottom-nav .bottom-nav-icon-btn.active {
+  color: #ffffff !important;
+}
+.mobile-bottom-nav #mobile-nav-mylist,
+#mobile-bottom-nav #mobile-nav-mylist {
+  color: rgba(231, 226, 244, 0.72) !important;
+}
+.mobile-bottom-nav #mobile-nav-mylist.active,
+#mobile-bottom-nav #mobile-nav-mylist.active {
+  color: #ffffff !important;
+}
+.bottom-nav-icon {
+  display: block !important;
+  width: 23px !important;
+  height: 23px !important;
+  flex: 0 0 auto !important;
+  background: currentColor !important;
+  opacity: 0.96;
+  pointer-events: none !important;
+  transform: translateZ(0);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+.bottom-nav-icon-discover {
+  -webkit-mask-image: url('/bottom-nav-icons/discover.svg');
+  mask-image: url('/bottom-nav-icons/discover.svg');
+}
+.bottom-nav-icon-activity {
+  -webkit-mask-image: url('/bottom-nav-icons/activity.svg');
+  mask-image: url('/bottom-nav-icons/activity.svg');
+}
+.bottom-nav-icon-search {
+  width: 23px !important;
+  height: 23px !important;
+  -webkit-mask-image: url('/bottom-nav-icons/circle-search.svg?v=12000');
+  mask-image: url('/bottom-nav-icons/circle-search.svg?v=12000');
+}
+.bottom-nav-icon-friends {
+  -webkit-mask-image: url('/bottom-nav-icons/friends.svg');
+  mask-image: url('/bottom-nav-icons/friends.svg');
+}
+.bottom-nav-icon-mylist {
+  width: 24px !important;
+  height: 24px !important;
+  -webkit-mask-image: url('/bottom-nav-icons/my-lists.svg?v=11275_splash_star_nav');
+  mask-image: url('/bottom-nav-icons/my-lists.svg?v=11275_splash_star_nav');
+}
+body .mobile-bottom-nav .nav-search-btn,
+body #mobile-bottom-nav .nav-search-btn {
+  color: rgba(231, 226, 244, 0.72) !important;
+}
+body .mobile-bottom-nav .nav-search-btn.active,
+body .mobile-bottom-nav .nav-search-btn[aria-pressed="true"],
+body #mobile-bottom-nav .nav-search-btn.active,
+body #mobile-bottom-nav .nav-search-btn[aria-pressed="true"] {
+  color: #ffffff !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+body.light-mode .mobile-bottom-nav .nav-search-btn,
+body.light-mode #mobile-bottom-nav .nav-search-btn {
+  /* v12.001: search glyph matches the other light-mode nav icons (was green #047857) */
+  color: rgba(62, 50, 90, 0.70) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+body.light-mode .mobile-bottom-nav .nav-search-btn.active,
+body.light-mode .mobile-bottom-nav .nav-search-btn[aria-pressed="true"],
+body.light-mode #mobile-bottom-nav .nav-search-btn.active,
+body.light-mode #mobile-bottom-nav .nav-search-btn[aria-pressed="true"] {
+  color: #4c1d95 !important;
+}
+body.light-mode .mobile-bottom-nav .bottom-nav-icon-btn,
+body.light-mode #mobile-bottom-nav .bottom-nav-icon-btn {
+  color: rgba(62, 50, 90, 0.70) !important;
+}
+body.light-mode .mobile-bottom-nav .bottom-nav-icon-btn.active,
+body.light-mode #mobile-bottom-nav .bottom-nav-icon-btn.active {
+  color: #4c1d95 !important;
+}
+body.light-mode .mobile-bottom-nav #mobile-nav-mylist,
+body.light-mode #mobile-bottom-nav #mobile-nav-mylist {
+  color: rgba(62, 50, 90, 0.70) !important;
+}
+body.light-mode .mobile-bottom-nav #mobile-nav-mylist.active,
+body.light-mode #mobile-bottom-nav #mobile-nav-mylist.active {
+  color: #4c1d95 !important;
+}
+.nav-search-icon {
+  width: 22px !important;
+  height: 22px !important;
+  stroke-width: 1.6 !important;
+  flex-shrink: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Full-page search overlay ? GPU-composited 120Hz spring slide.
+   v628 fix: when fully open we remove the transform entirely so iOS Safari
+   will bring up the on-screen keyboard for the search input. (iOS suppresses
+   the keyboard when an input's ancestor has a non-identity transform.) */
+.shelfd-search-page {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2100 !important;
+  background: #181c20 !important;
+  transform: translateY(100%) !important;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1) !important;
+  will-change: transform !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  padding: max(var(--shelfd-safe-top, 0px), 0px) 0 max(env(safe-area-inset-bottom, 0px), 0px) !important;
+}
+.shelfd-search-page.shelfd-search-page--over-news-reader {
+  z-index: 7400 !important;
+}
+body.shelfd-search-profile-top-open .discover-media-profile-overlay,
+body.shelfd-search-profile-top-open .game-media-profile-overlay,
+body.shelfd-search-profile-top-open .music-album-profile-page,
+body.shelfd-search-profile-top-open .music-artist-profile-page {
+  z-index: 7600 !important;
+}
+
+/* v10.789: BODY LOCK while the universal search overlay is open.
+   iOS WKWebView leaks the underlying body's scroll position into the
+   overlay's `.shelfd-search-page-inner` (overflow-y: auto) when the
+   overlay opens. Result: scrollTop ≈ body.scrollY → the non-sticky
+   "+Add To Shelf" header at the top of the inner is pushed above the
+   visible area while the sticky topbar appears anchored, so it looks
+   like the header was never drawn. The fix is the same shape as the
+   DM page body lock (v10.782): position:fixed the body during the
+   overlay's life so iOS has no body scroll to bleed from. The negative
+   `top` keeps the underlying page visually anchored at its pre-open
+   scroll offset; JS saves and restores window.scrollY on open/close. */
+body.shelfd-search-page-open {
+  overflow: hidden;
+  overscroll-behavior: none;
+  position: fixed;
+  top: var(--search-page-saved-scrollY, 0px);
+  left: 0;
+  right: 0;
+  width: 100%;
+}
+.shelfd-search-page.is-open {
+  transform: none !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  /* drop the GPU layer once we're at rest so iOS PWA stops treating
+     descendants as living inside a transformed compositing layer */
+  will-change: auto !important;
+}
+.shelfd-search-page.is-closing {
+  visibility: visible !important;
+  pointer-events: none !important;
+  will-change: transform !important;
+}
+.shelfd-search-page-inner {
+  width: 100% !important;
+  height: 100% !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* =============================================================
+   v571: Movies & TV combined hub ? filter pill + client-side filter
+   ============================================================= */
+
+.discover-mixed-filter-row {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 30 !important;
+  display: flex !important;
+  gap: 6px !important;
+  padding: 8px 0 12px !important;
+  margin: 0 0 8px !important;
+  background: inherit !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+}
+.discover-mixed-filter-btn {
+  flex: 0 0 auto !important;
+  padding: 6px 14px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(255,255,255,0.16) !important;
+  background: rgba(255,255,255,0.04) !important;
+  color: rgba(255,255,255,0.78) !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  cursor: pointer !important;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease !important;
+}
+.discover-mixed-filter-btn:hover {
+  color: #ffffff !important;
+  background: rgba(255,255,255,0.08) !important;
+}
+.discover-mixed-filter-btn.active {
+  background: #A78BFA !important;
+  border-color: #A78BFA !important;
+  color: #0e0e0e !important;
+}
+
+/* Light-mode flavour */
+body.light-mode .discover-mixed-filter-btn {
+  background: rgba(0,0,0,0.04) !important;
+  border-color: rgba(0,0,0,0.12) !important;
+  color: #181818 !important;
+}
+body.light-mode .discover-mixed-filter-btn.active {
+  background: #181818 !important;
+  border-color: #181818 !important;
+  color: #f7f3ea !important;
+}
+
+/* Client-side filtering: hide cards whose data-media-type doesn't match */
+#discover-view.discover-filter-movie .discover-card[data-media-type="tv"] { display: none !important; }
+#discover-view.discover-filter-tv    .discover-card[data-media-type="movie"] { display: none !important; }
+/* When filter=tv, hide movie-only sections entirely */
+#discover-view.discover-filter-tv .discover-section-movies-only { display: none !important; }
+
+/* v607 final cascade: Activity/Shared Watch tab contrast + friend name weight */
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.activity-feed-pill,
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.shared-watch-tab-pill,
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.activity-feed-pill.active,
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.shared-watch-tab-pill.active {
+  font-size: 14px !important;
+}
+
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.activity-feed-pill.secondary,
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.shared-watch-tab-pill.secondary {
+  color: rgba(255,255,255,0.51) !important;
+}
+
+/* v10.136: keep the three Activity section tabs on one clean mobile row. */
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-feed-header {
+  width: 100% !important;
+  align-items: center !important;
+}
+
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-feed-actions {
+  width: min(100%, 680px) !important;
+  max-width: 100% !important;
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  align-items: end !important;
+  justify-content: stretch !important;
+  gap: clamp(4px, 1.4vw, 10px) !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  white-space: nowrap !important;
+  flex-wrap: nowrap !important;
+}
+
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill,
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.activity-feed-pill,
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.shared-watch-tab-pill,
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.activity-feed-pill.active,
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.shared-watch-tab-pill.active {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  min-height: 34px !important;
+  padding: 0 2px 7px !important;
+  border-radius: 0 !important;
+  border: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-size: clamp(11px, 3.05vw, 13px) !important;
+  font-weight: 650 !important;
+  line-height: 1 !important;
+  letter-spacing: -0.03em !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.active {
+  border-bottom-color: rgba(167,139,250,0.9) !important;
+}
+
+@media (max-width: 380px) {
+  body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-feed-actions {
+    gap: 3px !important;
+  }
+
+  body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill,
+  body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.activity-feed-pill,
+  body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .activity-shared-watch-pill.shared-watch-tab-pill {
+    font-size: 10.6px !important;
+    letter-spacing: -0.045em !important;
+  }
+}
+
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .shared-watch-dashboard-people strong,
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .discover-friend-card-name,
+body.main-tab-community:not(.shelfd-friends-list-mode) #activity-tab-view .discover-friends-modal-name {
+  color: #ffffff !important;
+  font-weight: 300 !important;
+}
+

@@ -1,0 +1,5 @@
+v11.907 - DM inbox username size
+
+- Changed Direct Message inbox chat card username font size from 16px to 16.2px.
+- Kept the default/read username weight at 300 and unread username weight at 600.
+- Bumped DM inbox CSS cache busters for deployment.

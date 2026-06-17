@@ -1,0 +1,3 @@
+v11.930 — Activity 'Wrote a review' cards: wrap review preview in double quotes instead of parentheses
+Deployed 2026-06-14
+Version ID: 44497025-a838-4994-9626-4e9760a642a8

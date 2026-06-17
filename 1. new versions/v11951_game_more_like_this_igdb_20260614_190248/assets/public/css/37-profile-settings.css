@@ -1,0 +1,609 @@
+/*
+   37-profile-settings.css
+   Extracted from 06-profile.css to keep surface ownership explicit.
+*/
+
+/* v10.543: Account / danger zone card in Profile Settings. Matches the
+   existing .profile-settings-card chrome but uses a muted red hairline
+   border to signal destructive territory without screaming at the user.
+   The delete button is full-width, red-tinted, with a clear label. */
+.profile-settings-danger-card {
+  border-color: rgba(239,68,68,0.22) !important;
+}
+.profile-settings-logout-btn,
+.profile-delete-account-btn {
+  width: 100%;
+  padding: 13px 18px;
+  border-radius: 12px;
+  font: 600 14px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  text-align: center;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.profile-settings-logout-btn {
+  margin-bottom: 10px;
+  background: rgba(167,139,250,0.10);
+  border: 1px solid rgba(167,139,250,0.26);
+  color: #ddd6fe;
+}
+.profile-delete-account-btn {
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.30);
+  color: #f87171;
+}
+.profile-settings-logout-btn:hover,
+.profile-settings-logout-btn:focus-visible {
+  outline: none;
+  background: rgba(167,139,250,0.16);
+  border-color: rgba(196,181,253,0.50);
+}
+.profile-settings-logout-btn:active {
+  background: rgba(167,139,250,0.22);
+}
+.profile-delete-account-btn:hover,
+.profile-delete-account-btn:focus-visible {
+  outline: none;
+  background: rgba(239,68,68,0.14);
+  border-color: rgba(239,68,68,0.55);
+}
+.profile-delete-account-btn:active {
+  background: rgba(239,68,68,0.20);
+}
+.profile-delete-account-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* v10.543: Danger-style confirm button used in the delete-account modal.
+   Sits alongside .btn-secondary (Cancel). Red fill, no outline â€” clearly
+   destructive, not ambiguous. */
+.btn-danger {
+  padding: 10px 22px;
+  background: #dc2626;
+  border: none;
+  border-radius: 999px;
+  color: #fff;
+  font: 700 14px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background 160ms ease, opacity 160ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-danger:hover,
+.btn-danger:focus-visible {
+  outline: none;
+  background: #b91c1c;
+}
+.btn-danger:active { background: #991b1b; }
+.btn-danger:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* v10.552: Three-dot "More" button on the profile topbar.
+   Hidden on own profile; shown only when .viewing-other-profile. */
+.profile-more-wrap {
+  position: relative;
+}
+.profile-more-btn {
+  display: none; /* hidden by default â€” own profile */
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  color: #bdb4d8;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 140ms ease, color 140ms ease;
+}
+.profile-more-btn:hover { background: rgba(255,255,255,0.07); color: #f8f4ff; }
+.profile-more-btn:active { background: rgba(255,255,255,0.12); }
+/* Only show on other users' profiles */
+.viewing-other-profile .profile-more-btn { display: flex; }
+/* Hide own-profile-only buttons when viewing someone else */
+.viewing-other-profile .profile-settings-btn { display: none; }
+
+/* v10.903: Profile Settings category launcher. This is the new landing
+   structure for the full-page cog-wheel settings; existing account controls
+   remain below until each category gets its dedicated subpage. */
+.profile-settings-category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 18px;
+}
+.profile-settings-category-row {
+  width: 100%;
+  min-height: 64px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  font-family: 'Sohne', 'DM Sans', sans-serif;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+.profile-settings-category-row:active {
+  transform: scale(0.99);
+}
+.profile-settings-category-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.profile-settings-category-copy strong {
+  color: rgba(255, 255, 255, 0.96);
+  font: 500 16px/1.1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+}
+.profile-settings-category-copy small {
+  color: rgba(255, 255, 255, 0.54);
+  font: 300 12px/1.25 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+}
+.profile-settings-category-chevron {
+  flex: 0 0 auto;
+  color: rgba(196, 181, 253, 0.72);
+  font: 300 28px/1 'Sohne', 'DM Sans', sans-serif;
+}
+.profile-settings-category-status {
+  flex: 0 0 auto;
+  border: 1px solid rgba(250, 204, 21, 0.28);
+  border-radius: 999px;
+  background: rgba(250, 204, 21, 0.10);
+  color: rgba(254, 240, 138, 0.95);
+  font: 500 12px/1 'Sohne', 'DM Sans', sans-serif;
+  padding: 7px 10px;
+}
+.profile-settings-category-row.is-paused {
+  opacity: 0.92;
+  cursor: default;
+}
+.profile-settings-category-row.is-paused:active {
+  transform: none;
+}
+body.light-mode .profile-settings-category-row,
+body.true-dark-mode .profile-settings-category-row {
+  background: rgba(255, 255, 255, 0.045);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+/* v10.904: Settings subpages. Category taps slide a full-page panel in
+   from the right while preserving the existing Profile Settings chrome. */
+.profile-settings-subpage {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  overflow-y: auto;
+  padding: max(22px, calc(var(--shelfd-safe-top, 0px) + 18px)) 0 42px;
+  background:
+    linear-gradient(180deg, rgba(5,4,16,0.985), rgba(5,4,16,0.99)),
+    radial-gradient(circle at 18% 12%, rgba(124,58,237,0.20), transparent 28%),
+    radial-gradient(circle at 82% 8%, rgba(245,158,11,0.10), transparent 24%);
+  transform: translateX(104%);
+  opacity: 0.98;
+  pointer-events: none;
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease;
+  -webkit-overflow-scrolling: touch;
+}
+.profile-settings-subpage.is-open {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.profile-settings-page.settings-subpage-open {
+  overflow: hidden;
+}
+.profile-settings-subpage-shell {
+  width: min(100% - 32px, 760px);
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.profile-settings-subpage .profile-settings-topbar {
+  position: relative;
+  justify-content: center;
+  min-height: 48px;
+  text-align: center;
+}
+.profile-settings-subpage .profile-settings-topbar .profile-back-btn {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(196,181,253,0.18);
+  background: rgba(255,255,255,0.09);
+  color: rgba(248,244,255,0.94);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.07), 0 10px 24px rgba(0,0,0,0.22);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.profile-settings-subpage .profile-settings-topbar .profile-back-btn span {
+  display: none;
+}
+.profile-settings-subpage .profile-settings-topbar .profile-back-btn:hover,
+.profile-settings-subpage .profile-settings-topbar .profile-back-btn:focus-visible {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(196,181,253,0.30);
+  outline: none;
+}
+.profile-settings-subpage .profile-settings-topbar .profile-back-btn:active {
+  transform: translateY(-50%) scale(0.97);
+}
+.profile-settings-subpage .profile-settings-topbar > div {
+  width: 100%;
+  max-width: 520px;
+  padding: 0 72px;
+}
+.profile-settings-subpage .profile-topbar-title,
+.profile-settings-subpage .profile-topbar-sub {
+  text-align: center;
+}
+.profile-settings-account-cards {
+  display: grid;
+  gap: 16px;
+}
+.profile-settings-category-row[hidden],
+.profile-settings-subpage[hidden] {
+  display: none !important;
+}
+.profile-premium-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+/* v10.911: borderless premium-subpage components per spec.
+   Plan cards rely on background tint + (for the active state) the gold
+   gradient to differentiate themselves from the surface. Cleaner read
+   on an iPhone screen than the previous 1px stroke. */
+.profile-premium-plan-card {
+  min-height: 104px;
+  border: 0;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.045);
+  color: #fff;
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  padding: 16px;
+  text-align: left;
+  font-family: 'Sohne', 'DM Sans', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+.profile-premium-plan-card.active {
+  background: linear-gradient(145deg, rgba(244,210,122,0.16), rgba(124,58,237,0.10));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 16px 36px rgba(0,0,0,0.20);
+}
+.profile-premium-plan-card span {
+  color: rgba(196,181,253,0.86);
+  font: 400 12px/1 'Sohne', 'DM Sans', sans-serif;
+}
+.profile-premium-plan-card strong {
+  color: #fff;
+  font: 700 28px/1 'Sohne', 'DM Sans', sans-serif;
+}
+.profile-premium-plan-card small {
+  color: rgba(255,255,255,0.54);
+  font: 300 12px/1.2 'Sohne', 'DM Sans', sans-serif;
+}
+.profile-premium-feature-list,
+.profile-notification-toggle-list {
+  display: grid;
+  gap: 10px;
+}
+.profile-premium-feature-list span {
+  display: block;
+  padding: 13px 14px;
+  border: 0;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.035);
+  color: rgba(255,255,255,0.82);
+  font: 300 13px/1.25 'Sohne', 'DM Sans', sans-serif;
+}
+/* v10.911: tab strip + active-tab pill are now borderless. The active
+   state still pops thanks to the lavender fill + inset highlight. */
+.profile-premium-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  padding: 5px;
+  border: 0;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.045);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.035);
+}
+.profile-premium-tabs button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: rgba(255,255,255,0.62);
+  font: 500 13px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.profile-premium-tabs button.active {
+  color: #fff;
+  background: rgba(124,58,237,0.30);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 18px rgba(0,0,0,0.18);
+}
+.profile-premium-panel {
+  display: grid;
+  gap: 12px;
+}
+.profile-premium-panel[hidden] {
+  display: none !important;
+}
+/* v10.911: feature cards are now borderless and lean on a quiet
+   background tint + inset top-edge highlight for separation. Easier
+   on the eye on a Pro Max where the visible 1px purple stroke read
+   as visual noise on a dense list. */
+.profile-premium-feature-card {
+  border: 0;
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(255,255,255,0.04);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.035);
+}
+.profile-premium-feature-card h3 {
+  margin: 0 0 10px;
+  color: rgba(244,210,122,0.94);
+  font: 500 15px/1.15 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+}
+.profile-premium-feature-card ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.profile-premium-feature-card li {
+  position: relative;
+  padding-left: 14px;
+  color: rgba(255,255,255,0.76);
+  font: 300 12.5px/1.35 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+}
+.profile-premium-feature-card li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(196,181,253,0.82);
+}
+
+/* v10.911: universal Pro features section. Sits between the plan grid
+   and the per-category tabs. Cards inside reuse `.profile-premium-feature-card`
+   so styling stays consistent. The heading uses Söhne Medium 500 at
+   white 64% opacity — quiet but readable, content-forward (Editorial
+   Dark). 14px top/bottom margins keep it visually grouped without
+   needing a divider line. */
+.profile-premium-universal {
+  display: grid;
+  gap: 12px;
+  margin: 6px 0 4px;
+}
+.profile-premium-universal-heading {
+  color: rgba(255,255,255,0.64);
+  font: 500 12px/1.1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 2px 0;
+}
+.profile-notification-toggle-row {
+  width: 100%;
+  min-height: 62px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.035);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  font-family: 'Sohne', 'DM Sans', sans-serif;
+  text-align: left;
+}
+.profile-notification-toggle-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+.profile-notification-toggle-copy strong {
+  color: rgba(255,255,255,0.94);
+  font: 500 15px/1.1 'Sohne', 'DM Sans', sans-serif;
+}
+.profile-notification-toggle-copy small {
+  color: rgba(255,255,255,0.52);
+  font: 300 12px/1.25 'Sohne', 'DM Sans', sans-serif;
+}
+.profile-notification-switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 48px;
+  height: 28px;
+}
+.profile-notification-switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.profile-notification-switch span {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.10);
+  transition: background 180ms ease, border-color 180ms ease;
+}
+.profile-notification-switch span::after {
+  content: "";
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  top: 2px;
+  left: 2px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.92);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.30);
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.profile-notification-switch input:checked + span {
+  background: rgba(124,58,237,0.72);
+  border-color: rgba(196,181,253,0.58);
+}
+.profile-notification-switch input:checked + span::after {
+  transform: translateX(20px);
+}
+.profile-settings-subpage .profile-settings-logout-btn {
+  width: 100%;
+}
+body.light-mode .profile-settings-subpage,
+body.true-dark-mode .profile-settings-subpage {
+  background:
+    linear-gradient(180deg, rgba(5,4,16,0.985), rgba(5,4,16,0.99)),
+    radial-gradient(circle at 18% 12%, rgba(124,58,237,0.20), transparent 28%),
+    radial-gradient(circle at 82% 8%, rgba(245,158,11,0.10), transparent 24%);
+}
+.viewing-other-profile .profile-save-btn { display: none; }
+
+.profile-more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 160px;
+  background: #1e1e2a;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+  z-index: 300;
+}
+.profile-more-menu button {
+  display: block;
+  width: 100%;
+  padding: 13px 16px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  color: #f8f4ff;
+  font: 500 14px/1.2 'Sohne', 'DM Sans', sans-serif;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.profile-more-menu button:last-child { border-bottom: none; }
+.profile-more-menu button:active { background: rgba(255,255,255,0.06); }
+.profile-more-menu button.is-destructive { color: #f87171; }
+.profile-more-menu .profile-admin-username-menu-btn {
+  color: #facc15;
+}
+
+.profile-admin-username-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
+  background: rgba(3, 2, 10, 0.62);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.profile-admin-username-sheet {
+  width: min(420px, 100%);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.025)),
+    rgba(18, 15, 30, 0.94);
+  box-shadow: 0 28px 80px rgba(0,0,0,0.48), inset 0 1px 0 rgba(255,255,255,0.055);
+  padding: 20px;
+  color: #fff;
+  font-family: 'Sohne', 'DM Sans', sans-serif;
+}
+.profile-admin-username-kicker {
+  color: #facc15;
+  font: 400 11px/1.2 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 7px;
+}
+.profile-admin-username-sheet h3 {
+  margin: 0;
+  color: rgba(255,255,255,0.98);
+  font: 500 22px/1.15 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+}
+.profile-admin-username-sub {
+  margin: 8px 0 18px;
+  color: rgba(255,255,255,0.62);
+  font: 300 13px/1.35 'Sohne', 'DM Sans', sans-serif;
+}
+.profile-admin-username-label {
+  display: block;
+  margin: 0 0 8px;
+  color: rgba(255,255,255,0.72);
+  font: 400 12px/1.2 'Sohne', 'DM Sans', sans-serif;
+}
+.profile-admin-username-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  border-radius: 15px;
+  border: 1px solid rgba(196,181,253,0.22);
+  background: rgba(0,0,0,0.24);
+  padding: 0 13px;
+  color: rgba(255,255,255,0.72);
+}
+.profile-admin-username-input-wrap input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #fff;
+  font: 400 16px/1 'Sohne', 'DM Sans', sans-serif;
+}
+.profile-admin-username-error {
+  margin-top: 10px;
+  color: #fecaca;
+  font: 400 12px/1.35 'Sohne', 'DM Sans', sans-serif;
+}
+.profile-admin-username-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+

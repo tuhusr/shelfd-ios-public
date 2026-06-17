@@ -1,0 +1,3 @@
+v11.936 — Review activity card min-height 262px to match standard cards. Stacked cards untouched per directive.
+Deployed 2026-06-14
+Version ID: 9e731bb5-0a69-4b8e-b012-2e258f351380

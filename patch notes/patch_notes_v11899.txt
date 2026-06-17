@@ -1,0 +1,5 @@
+v11.899 - DM inbox username and creator badge
+
+- Direct Message inbox chat cards now display the other user's username/handle instead of display name.
+- Removed the creator crown and `(Creator)` text from DM inbox chat card names.
+- Kept only the owner creator badge image next to the creator username, matching the activity feed badge.

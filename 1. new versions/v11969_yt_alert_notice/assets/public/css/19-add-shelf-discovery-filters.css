@@ -1,0 +1,277 @@
+/* =============================================================================
+   Add to Shelf (+) — Discovery preset hub & filters
+   File: assets/public/css/19-add-shelf-discovery-filters.css
+   v11.219  — Editorial Dark, Söhne. Reuses Discovery .add-to-shelf-search-preset-*
+   classes; only scopes spacing + the modal-specific extras.
+   ============================================================================= */
+
+/* Search row: input + Search button + filter glyph */
+#modal .cover-search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#modal .cover-search-row #inp-tmdb-search { flex: 1 1 auto; min-width: 0; }
+
+/* Filter glyph (right of the search bar) */
+.add-shelf-filter-btn {
+  position: relative;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.045);
+  color: #f5f5f7;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.add-shelf-filter-btn:active { transform: scale(0.94); }
+.add-shelf-filter-btn svg { width: 19px; height: 19px; display: block; }
+.add-shelf-filter-btn.has-active-filter {
+  border-color: rgba(167, 139, 250, 0.55);
+  background: rgba(124, 58, 237, 0.18);
+  color: #c4b5fd;
+}
+.add-shelf-filter-count {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: #7c3aed;
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1;
+}
+.add-shelf-filter-count:empty { display: none; }
+
+/* Preset hub inside the modal — reuses .add-to-shelf-search-preset-hub /
+   .add-to-shelf-search-preset-row styling; just tighten the spacing for the modal. */
+#modal #tmdb-results .add-shelf-preset-hub {
+  padding: 2px 0 8px;
+}
+#modal #tmdb-results .add-to-shelf-search-preset-row {
+  padding: 16px 4px;
+}
+/* v11.484: preset filter label — Söhne, 600 weight, 16px, -0.03em tracking and a
+   condensed line-height for a slightly tighter, more polished read (was 16.2px,
+   no tracking/line-height). */
+#modal #tmdb-results .add-to-shelf-search-preset-row .add-to-shelf-search-preset-label,
+#modal #tmdb-results .add-to-shelf-search-preset-label {
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.03em !important;
+  line-height: 1.1 !important;
+}
+
+/* Locked row (Featured / Official Lists) */
+#modal #tmdb-results .add-to-shelf-search-preset-row-locked {
+  opacity: 0.5;
+  cursor: default;
+  color: rgba(235, 232, 244, 0.7);
+}
+#modal #tmdb-results .add-to-shelf-search-preset-lock {
+  margin-right: 8px;
+  font-size: 13px;
+}
+
+/* "‹ Filters" back link shown above preset/filter results */
+.add-shelf-hub-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 2px 0 10px;
+  padding: 6px 12px 6px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(235, 232, 244, 0.85);
+  font-family: 'Sohne', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.add-shelf-hub-back span { font-size: 16px; line-height: 1; }
+.add-shelf-hub-back:active { transform: scale(0.97); }
+
+/* =============================================================================
+   v11.255 — My Lists category pills (Games / Anime / Music / Movies / TV)
+   Loads last so it wins the cascade over the conflicting .section-btn.active
+   rules in files 11/13/14. Each category is its own flat, glassy pill:
+     - INACTIVE: no fill (transparent), thin hairline border, WHITE text.
+     - ACTIVE:   filled lavender-tinted glass + brighter border. The FILL is the
+                 only signifier of the current category (no underline).
+   "Flat glassy" = subtle translucent fill + 1px top highlight + light blur,
+   no heavy shadow/gradient. Dark-mode is the only production theme.
+   ============================================================================= */
+body #mylist-view #mylist-header .section-toggle > .section-btn,
+body.true-dark-mode #mylist-view #mylist-header .section-toggle > .section-btn {
+  /* v11.553: editorial / minimal — inactive categories are now BORDERLESS quiet
+     text (the per-pill hairline borders were the boxy chrome that read as "not
+     clean"). Only the active category carries a filled pill (rule below). */
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+  /* v11.555: tracked caps read more editorial/premium than tight heavy caps. */
+  letter-spacing: 0.07em !important;
+  padding: 7px 15px !important;
+  transition: background 160ms ease, border-color 160ms ease, transform 140ms ease, color 160ms ease !important;
+}
+
+/* v11.929: center the category pill ROW (Games / Anime / Music / Movies / TV) as
+   one group. A generic `.section-toggle { margin-left:-10px }` (css/05, inside the
+   max-width:700px mobile @media) was shifting the whole row 10px left of center, so
+   it sat asymmetrically on the page. Zero that stray margin and center the row.
+   Loads last so it wins; width:100% + equal-flex pills (css/13) stay intact. */
+body #mylist-view #mylist-header .section-toggle,
+body.true-dark-mode #mylist-view #mylist-header .section-toggle {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  justify-content: center !important;
+}
+
+/* v11.555: composition pass — de-chrome the floating sort/search into clean
+   minimal icons (the chunky outlined circles read as an afterthought). */
+body.true-dark-mode #mylist-view #mylist-toolbar .toolbar-right .sort-btn,
+body.true-dark-mode #mylist-view #mylist-toolbar .toolbar-right #sort-dropdown-btn,
+body.true-dark-mode #mylist-view #mylist-toolbar .toolbar-right .mylist-search-toggle-btn {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: rgba(255, 255, 255, 0.55) !important;
+}
+body.true-dark-mode #mylist-view #mylist-toolbar .toolbar-right .mylist-search-toggle-btn.mylist-search-toggle-active {
+  color: #a78bfa !important;
+  background: transparent !important;
+}
+/* v11.256: KILL any underline/indicator pseudo-element on the category pills
+   (the tacky white bar under the active one). Flat design — no ::after line. */
+body #mylist-view #mylist-header .section-toggle > .section-btn::after,
+body #mylist-view #mylist-header .section-toggle > .section-btn::before,
+body.true-dark-mode #mylist-view #mylist-header .section-toggle > .section-btn::after,
+body.true-dark-mode #mylist-view #mylist-header .section-toggle > .section-btn::before {
+  display: none !important;
+  content: none !important;
+  background: none !important;
+  border: 0 !important;
+}
+body #mylist-view #mylist-header .section-toggle > .section-btn:active,
+body.true-dark-mode #mylist-view #mylist-header .section-toggle > .section-btn:active {
+  transform: scale(0.97);
+}
+/* v11.554: ACTIVE category — editorial. The muddy lilac pill is gone; the active
+   category is now bright-white text with a crisp lavender underline (matching the
+   status-tab idiom below), so the two tiers speak ONE selection language. */
+body #mylist-view #mylist-header .section-toggle > .section-btn.active,
+body.true-dark-mode #mylist-view #mylist-header .section-toggle > .section-btn.active {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+}
+body #mylist-view #mylist-header .section-toggle > .section-btn.active::after,
+body.true-dark-mode #mylist-view #mylist-header .section-toggle > .section-btn.active::after {
+  display: block !important;
+  content: '' !important;
+  position: absolute !important;
+  left: 50% !important;
+  bottom: 2px !important;
+  transform: translateX(-50%) !important;
+  width: 48% !important;
+  height: 2px !important;
+  border-radius: 2px !important;
+  background: #a78bfa !important;
+  border: 0 !important;
+}
+
+/* v11.257 — THE actual culprit: the white glowing underline was a JS-injected
+   `.section-sliding-pill` element (positioned under the active category), NOT a
+   pseudo-element — that's why the earlier ::after kill missed it. The category
+   FILL is now the signifier, so the section sliding pill is removed entirely.
+   The STATUS row's `.tab-sliding-pill` (under Watching/Watchlist/…) is left
+   intact. */
+#mylist-view .section-sliding-pill,
+body #mylist-view #mylist-header .section-sliding-pill,
+body.true-dark-mode #mylist-view #mylist-header .section-sliding-pill {
+  display: none !important;
+  opacity: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* =============================================================================
+   v11.265 — My Lists toolbar buttons (sort ⇅ + search 🔍) modernized
+   The legacy look was a flat muted glyph in a borderless circle. Rebuilt both
+   into matching sleek circular GLASS buttons: subtle translucent fill, hairline
+   border, inset top highlight, brighter glyph, crisp press-scale. Loads last so
+   it wins over the older rules in files 10/11/16. Dark-mode only.
+   ============================================================================= */
+#mylist-view #mylist-toolbar #sort-dropdown-btn,
+#mylist-view #mylist-toolbar .mylist-search-toggle-btn,
+body.true-dark-mode #mylist-view #mylist-toolbar #sort-dropdown-btn,
+body.true-dark-mode #mylist-view #mylist-toolbar .mylist-search-toggle-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 38px !important;
+  min-width: 38px !important;
+  height: 38px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  backdrop-filter: blur(12px) saturate(140%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+  color: rgba(255, 255, 255, 0.92) !important;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, transform 140ms ease !important;
+  -webkit-tap-highlight-color: transparent;
+}
+#mylist-view #mylist-toolbar #sort-dropdown-btn:active,
+#mylist-view #mylist-toolbar .mylist-search-toggle-btn:active,
+body.true-dark-mode #mylist-view #mylist-toolbar #sort-dropdown-btn:active,
+body.true-dark-mode #mylist-view #mylist-toolbar .mylist-search-toggle-btn:active {
+  transform: scale(0.93);
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+/* Glyph sizing/color inside the buttons. */
+#mylist-view #mylist-toolbar #sort-dropdown-btn .sort-btn-icon,
+body.true-dark-mode #mylist-view #mylist-toolbar #sort-dropdown-btn .sort-btn-icon {
+  font-size: 16px !important;
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+#mylist-view #mylist-toolbar .mylist-search-toggle-btn svg,
+body.true-dark-mode #mylist-view #mylist-toolbar .mylist-search-toggle-btn svg {
+  width: 17px !important;
+  height: 17px !important;
+}
+/* ACTIVE states tint to French Lilac (matches the category highlight). */
+#mylist-view #mylist-toolbar .mylist-search-toggle-btn.mylist-search-toggle-active,
+body.true-dark-mode #mylist-view #mylist-toolbar .mylist-search-toggle-btn.mylist-search-toggle-active {
+  border-color: rgba(225, 183, 229, 0.50) !important;
+  background: rgba(225, 183, 229, 0.20) !important;
+  color: #e1b7e5 !important;
+}
+#mylist-view #mylist-toolbar #sort-dropdown-btn .sort-btn-icon.sort-active,
+body.true-dark-mode #mylist-view #mylist-toolbar #sort-dropdown-btn .sort-btn-icon.sort-active {
+  color: #e1b7e5 !important;
+}

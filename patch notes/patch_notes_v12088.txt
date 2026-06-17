@@ -1,0 +1,4 @@
+v12.088 - Stacked activity parent card auto height
+
+- Fixed grouped parent activity cards so their interaction row sits in the bottom grid row instead of floating over the text.
+- Added cards like "Added 8 games" can now expand vertically with their title and detail copy without the icons colliding with the last text line.

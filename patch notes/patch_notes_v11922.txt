@@ -1,0 +1,5 @@
+v11.922 - DM group details swipe back
+
+- Added left-edge swipe back on the Edit group chat page.
+- The gesture returns users to the previous group chat thread, matching the top-left back chevron.
+- Swipe back is disabled while child group settings surfaces are open, such as Add people, Change name/image, mute sheet, or options popover.

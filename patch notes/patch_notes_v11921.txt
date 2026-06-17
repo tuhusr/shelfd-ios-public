@@ -1,0 +1,4 @@
+v11.921 - DM group name opens edit group chat
+
+- Updated group chat header/name taps in the chat thread to open the current Edit group chat page.
+- Matched the group name/avatar tap behavior to the existing three-dot menu Edit group chat action.

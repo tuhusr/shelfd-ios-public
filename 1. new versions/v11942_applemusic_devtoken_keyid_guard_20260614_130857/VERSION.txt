@@ -1,0 +1,3 @@
+v11.942 — SECURITY: Apple Music developer-token endpoint was leaking the MusicKit EC private key in the JWT kid header (APPLE_MUSIC_KEY_ID secret was set to the .p8 private key instead of the 10-char Key ID). Added isPlausibleAppleMusicKeyId guard in getAppleMusicDeveloperToken: refuses to sign unless kid is a 10-char [A-Z0-9] Key ID, so the key can never reach the public header. Endpoint now returns a clear error until the secret is fixed. USER MUST: rotate the exposed MusicKit key + set the real APPLE_MUSIC_KEY_ID.
+Deployed 2026-06-14
+Version ID: 9e8baeb9-862c-4a79-b82b-89420ba1689e

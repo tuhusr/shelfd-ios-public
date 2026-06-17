@@ -1,0 +1,319 @@
+/*
+   40-surface-activity-overrides.css
+   Extracted from 31-surface-default-overrides.css to keep surface ownership explicit.
+*/
+/* =============================================================
+   v520/v522/v524/v525: Activity feed ? flat feed style.
+   Cards blend with the page background (#0E0E0E). Posts are
+   separated by a hairline in #2f2f2f (one shade lighter than the
+   previous #272727 divider for slightly better visibility).
+   Selectors must match #community-view #activity-tab-view
+   specificity to beat the originals in 04-activity-feed.css.
+   ============================================================= */
+
+/* Main shelfd-social-card ? flat, transparent, hairline divider */
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card,
+body.true-dark-mode .activity-page .shelfd-social-card {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+/* v12.083: STANDARD activity cards (started watching / rated / played / added)
+   now size to their CONTENT instead of a fixed 207px frame. The old fixed height
+   left a large dead vertical gap below the short text of simple cards before the
+   bottom interactions row — the card read as "too large". Now:
+     - height auto, rows = content (auto auto), so the hairline dividers bound the
+       card tightly around the actual content (top divider → bottom divider).
+     - the poster shrinks to a 94px-wide 2:3 thumbnail (uncropped) anchored to the
+       top, so it no longer forces excess card height.
+   Scoped to standard cards ONLY — review (.shelfd-media-review-card), highlight,
+   and stacked/compact cards keep their own dedicated templates and grids. */
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card:not(.shelfd-media-review-card):not(.shelfd-highlight-card):not(.sl-activity-stack-compact-card),
+body.true-dark-mode .activity-page .shelfd-social-card:not(.shelfd-media-review-card):not(.shelfd-highlight-card):not(.sl-activity-stack-compact-card) {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  grid-template-rows: auto auto !important;
+  grid-template-columns: minmax(0, 1fr) 94px !important;
+  padding-top: 13px !important;
+  padding-bottom: 13px !important;
+  align-items: start !important;
+}
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card:not(.shelfd-media-review-card):not(.shelfd-highlight-card):not(.sl-activity-stack-compact-card) .sl-activity-poster,
+body.true-dark-mode .activity-page .shelfd-social-card:not(.shelfd-media-review-card):not(.shelfd-highlight-card):not(.sl-activity-stack-compact-card) .sl-activity-poster {
+  grid-row: 1 / 3 !important;
+  align-self: start !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin-top: 2px !important;
+  width: 94px !important;
+  aspect-ratio: 2 / 3 !important;
+}
+
+/* Older activity-card style */
+body.true-dark-mode #community-view #activity-tab-view .activity-card,
+body.true-dark-mode .activity-page .activity-card,
+body.true-dark-mode .activity-card {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+/* Import batch card */
+body.true-dark-mode #community-view #activity-tab-view .import-activity-card,
+body.true-dark-mode .activity-page .import-activity-card {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card::after,
+body.true-dark-mode .activity-page .shelfd-social-card::after,
+body.true-dark-mode #community-view #activity-tab-view .feed-post-card::after,
+body.true-dark-mode .activity-page .feed-post-card::after,
+body.true-dark-mode #community-view #activity-tab-view .activity-card::after,
+body.true-dark-mode .activity-page .activity-card::after,
+body.true-dark-mode .activity-card::after,
+body.true-dark-mode #community-view #activity-tab-view .sl-activity-stack-wrap::after,
+body.true-dark-mode .activity-page .sl-activity-stack-wrap::after,
+body.true-dark-mode #community-view #activity-tab-view .sl-activity-stack-front::after,
+body.true-dark-mode .activity-page .sl-activity-stack-front::after,
+body.true-dark-mode #community-view #activity-tab-view .import-activity-card::after,
+body.true-dark-mode .activity-page .import-activity-card::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100vw;
+  bottom: 9px;
+  height: var(--sl-activity-divider-thickness, 0.6px);
+  background: var(--sl-activity-divider-color, rgba(255,255,255,0.12));
+  pointer-events: none;
+}
+
+/* Stacked activity back-plate layers ? hide them, no card chrome on stacks */
+body.true-dark-mode #community-view #activity-tab-view .sl-activity-stack-layer,
+body.true-dark-mode .activity-page .sl-activity-stack-layer {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  display: none !important;
+}
+
+/* Compact cards inside expanded stack */
+body.true-dark-mode #community-view #activity-tab-view .sl-activity-stack-compact-card,
+body.true-dark-mode .activity-page .sl-activity-stack-compact-card {
+  background: transparent !important;
+  border: none !important;
+  /* v10.676: removed the 1px border-bottom hairline that previously sat
+     between each compact child card's interactions row and the carousel
+     controls / Show all button. Was:
+       border-bottom: 1px solid rgba(255,255,255,0.15) !important;
+     The `border: none !important;` above now applies uniformly to all
+     four sides — no bottom edge on compact child cards. */
+  border-bottom: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Stack front card */
+body.true-dark-mode #community-view #activity-tab-view .sl-activity-stack-front,
+body.true-dark-mode .activity-page .sl-activity-stack-front {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Expanded import grid panel ? keep tonal contrast since this is a panel
+   that opens INSIDE a card (not a feed post itself) */
+body.true-dark-mode #community-view #activity-tab-view .import-activity-grid-panel,
+body.true-dark-mode .activity-page .import-activity-grid-panel,
+body.true-dark-mode #community-view #activity-tab-view .import-activity-list,
+body.true-dark-mode .activity-page .import-activity-list {
+  background: #272727 !important;
+  border: none !important;
+}
+
+/* Import grid cells inside expanded panel */
+body.true-dark-mode #community-view #activity-tab-view .import-activity-row,
+body.true-dark-mode .activity-page .import-activity-row {
+  background: rgba(255,255,255,0.035) !important;
+}
+
+/* Right-cluster pill on import card ? light surface against the flat bg */
+body.true-dark-mode #community-view #activity-tab-view .import-activity-right-cluster,
+body.true-dark-mode .activity-page .import-activity-right-cluster {
+  background: #272727 !important;
+  border-color: #2c2c2c !important;
+}
+
+/* Preview tiles inside right-cluster */
+body.true-dark-mode #community-view #activity-tab-view .import-activity-preview-tile-mini,
+body.true-dark-mode .activity-page .import-activity-preview-tile-mini {
+  background: rgba(255,255,255,0.10) !important;
+}
+
+/* Feed post cards */
+body.true-dark-mode #community-view #activity-tab-view .feed-post-card,
+body.true-dark-mode .activity-page .feed-post-card {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  position: relative !important;
+  overflow: visible !important;
+}
+
+/* Older feed-post variant of activity-card */
+body.true-dark-mode #community-view #activity-tab-view .activity-card.feed-post,
+body.true-dark-mode .activity-page .activity-card.feed-post {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  position: relative !important;
+  overflow: visible !important;
+}
+
+/* Activity poster column on the older card style ? kill its dark fill */
+body.true-dark-mode #community-view #activity-tab-view .activity-poster-col,
+body.true-dark-mode .activity-page .activity-poster-col {
+  background: transparent !important;
+}
+
+/* Stack wrap ? give it the same hairline divider so stacked posts
+   don't visually run into the next post */
+body.true-dark-mode #community-view #activity-tab-view .sl-activity-stack-wrap,
+body.true-dark-mode .activity-page .sl-activity-stack-wrap {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  position: relative !important;
+  overflow: visible !important;
+}
+
+/* Stack front card divider now uses the same canonical divider spec. */
+body.true-dark-mode #community-view #activity-tab-view .sl-activity-stack-front,
+body.true-dark-mode .activity-page .sl-activity-stack-front {
+  border-bottom: none !important;
+  position: relative !important;
+  overflow: visible !important;
+}
+/* But avoid double-divider when stack-front sits inside stack-wrap */
+body.true-dark-mode #community-view #activity-tab-view .sl-activity-stack-wrap .sl-activity-stack-front,
+body.true-dark-mode .activity-page .sl-activity-stack-wrap .sl-activity-stack-front {
+  border-bottom: none !important;
+}
+body.true-dark-mode #community-view #activity-tab-view .sl-activity-stack-wrap .sl-activity-stack-front::after,
+body.true-dark-mode .activity-page .sl-activity-stack-wrap .sl-activity-stack-front::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* =============================================================
+   v526: Hide feed composer ("What are you watching?" post field)
+   ============================================================= */
+#feed-composer,
+body.true-dark-mode #feed-composer {
+  display: none !important;
+}
+
+/* =============================================================
+   v526: Friends top tabs (Activity / Friends / Requests) ?
+   strip the pill capsule wrapper and force the button text white.
+   ============================================================= */
+body.true-dark-mode #community-view .friends-tabs {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #community-view .friends-tabs .friends-tab-btn {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  text-decoration: none !important;
+  /* v11.617: Friends tab labels at weight 500, letter-spacing 0 (per request). */
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+}
+body.true-dark-mode #community-view .friends-tabs .friends-tab-btn.active {
+  background: transparent !important;
+  color: #ffffff !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+  border-bottom: 2px solid #A78BFA !important;
+  text-decoration: none !important;
+}
+body.true-dark-mode #community-view .friends-tabs .friends-tab-btn:hover {
+  color: #ffffff !important;
+}
+
+/* =============================================================
+   v528: 4th bottom-nav tab "Friends" ? split inner tabs
+   - Activity bottom nav (default community)  ? only Activity inner tab
+   - Friends bottom nav (.shelfd-friends-list-mode) ? Friends + Requests
+   ============================================================= */
+/* Default community view = Activity bottom nav: hide Friends + Requests inner tabs */
+body.main-tab-community:not(.shelfd-friends-list-mode) #ftab-friends,
+body.main-tab-community:not(.shelfd-friends-list-mode) #ftab-requests {
+  display: none !important;
+}
+/* Friends bottom nav: hide Activity inner tab + Activity feed tab content */
+body.shelfd-friends-list-mode #ftab-activity {
+  display: none !important;
+}
+/* Activity feed pills (Watch Together / Activity / Shared Watch) ? hide
+   on Friends bottom-nav since they only relate to the activity tab */
+body.shelfd-friends-list-mode #activity-tab-view .activity-feed-actions,
+body.shelfd-friends-list-mode #activity-tab-view #feed-composer {
+  display: none !important;
+}
+
+/* 4-column bottom nav grid (was 3) */
+body.true-dark-mode .mobile-bottom-nav {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 4px !important;
+}
+body.true-dark-mode .mobile-bottom-nav .main-nav-btn {
+  padding: 8px 4px !important;
+  font-size: 11px !important;
+  min-width: 0 !important;
+}
+
+/* =============================================================
+   v523: Activity card line spacing ? name / title / action
+   Roughly doubled bottom-margin on each so the three lines have
+   clear breathing room between them.
+   ============================================================= */
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-meta-row,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-meta-row {
+  margin: 0 0 6px !important;
+}
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-action-line,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-action-line {
+  margin: 0 0 6px !important;
+}
+body.true-dark-mode #community-view #activity-tab-view .shelfd-social-card .sl-activity-status,
+body.true-dark-mode .activity-page .shelfd-social-card .sl-activity-status {
+  margin: 0 0 6px !important;
+}
+

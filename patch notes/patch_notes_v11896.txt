@@ -1,0 +1,5 @@
+v11.896 - DM inbox unread username weight
+
+- Increased unread Direct Message inbox usernames from 500 to 600 font weight.
+- Kept read inbox usernames at 400 font weight.
+- Preserved the right-side unread notification dot and white unread username color.

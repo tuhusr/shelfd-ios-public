@@ -1,0 +1,5 @@
+v11.901 - DM inbox sent and unread preview lines
+
+- DM inbox rows now show `Sent {time}` with no preview text when the current user sent the latest message.
+- Threads with more than one unread message now show `{count} new messages • {time}`.
+- Single-unread and normal rows keep the existing preview plus timestamp behavior.

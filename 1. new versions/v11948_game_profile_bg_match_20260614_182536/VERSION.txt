@@ -1,0 +1,3 @@
+v11.948 — Fixed the jarring background seam on the video-game full-page media profile. In body.true-dark-mode, css/06:1688 set ".game-media-profile-overlay .discover-media-page { background: #0E0E0E }" (a SHORTHAND that flattened the page to solid charcoal), while the hero gradient ends in #05040d -> visible seam. Removed the game selector from that #0E0E0E rule so the game page falls back to the base #05040d gradient (css/06 ~2201), now byte-identical to the movie/TV/anime profile page (verified in preview: colorMatch+imageMatch true). Trailer/hero untouched. Built on top of v11.947.
+Deployed 2026-06-14
+Version ID: 2cb5c876-6952-4bdf-ae8c-7f00ab6f90e2

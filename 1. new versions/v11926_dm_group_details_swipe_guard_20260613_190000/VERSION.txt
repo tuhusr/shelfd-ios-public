@@ -1,0 +1,3 @@
+v11.926 — Exclude DM group details overlay from global edge-swipe engine (js/31) so its own swipe reveals the chat thread, not the inbox
+Deployed 2026-06-13
+Version ID: 96ec26c8-bf4f-4653-b332-c6b21d991477

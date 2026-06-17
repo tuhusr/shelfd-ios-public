@@ -1,0 +1,3 @@
+v11.931 — Activity stacked child dropdown cards: removed inter-card gap (->0) and shrunk card height 152->135px at 430px (clamp 122/142, still fluid)
+Deployed 2026-06-14
+Version ID: 63610474-9d75-4afa-baa0-0f978e952ebb

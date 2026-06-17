@@ -1,0 +1,5 @@
+v11.894 - DM chat composer text opacity
+
+- Set the Direct Message chat page bottom composer input text to 51% white opacity.
+- Matched the composer placeholder to the same 51% opacity.
+- Preserved the existing composer font size, font weight, layout, and button styling.

@@ -1,0 +1,4 @@
+v12.089 - Rated activity card spacing
+
+- Increased the spacing below the rating row on non-compact activity cards so rated cards keep a clear gap between the stars and the interaction row.
+- This specifically addresses short grouped/title cards like "rated" / "2 movies" that were still reading compressed in the feed.

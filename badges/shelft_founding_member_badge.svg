@@ -1,0 +1,64 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Shelft founding member badge">
+  <!-- Transparent background -->
+
+  <!-- Founding Member badge: flat warm bronze, no outer border -->
+  <path
+    d="M512 118
+       L732 206
+       L732 468
+       C732 632 622 762 512 842
+       C402 762 292 632 292 468
+       L292 206
+       Z"
+    fill="#B87333"
+  />
+
+  <!-- Soft inner depth line, same color family, not grey -->
+  <path
+    d="M512 158
+       L696 232
+       L696 462
+       C696 604 604 716 512 782
+       C420 716 328 604 328 462
+       L328 232
+       Z"
+    fill="none"
+    stroke="#E0A15A"
+    stroke-width="10"
+    stroke-linejoin="round"
+    opacity="0.75"
+  />
+
+  <!-- Minimal first-member spark -->
+  <path
+    d="M512 284
+       L526 326
+       L570 326
+       L534 352
+       L548 394
+       L512 368
+       L476 394
+       L490 352
+       L454 326
+       L498 326
+       Z"
+    fill="#FFFFFF"
+    opacity="0.95"
+  />
+
+  <!-- Letter F -->
+  <path
+    d="M414 660
+       L414 404
+       L612 404
+       L612 468
+       L494 468
+       L494 514
+       L594 514
+       L594 576
+       L494 576
+       L494 660
+       Z"
+    fill="#FFFFFF"
+  />
+</svg>

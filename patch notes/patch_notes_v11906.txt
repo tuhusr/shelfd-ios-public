@@ -1,0 +1,5 @@
+v11.906 - DM inbox default username weight
+
+- Changed Direct Message inbox default/read chat card usernames from 400 to 300 font weight.
+- Kept unread chat card usernames at 600 font weight with white text.
+- Bumped DM inbox CSS cache busters for deployment.

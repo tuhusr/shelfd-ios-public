@@ -1,0 +1,2834 @@
+/*
+   45-default-theme-tail-overrides.css
+   Extracted from 31-surface-default-overrides.css to keep surface ownership explicit.
+*/
+
+/* ===================================================================
+   WARM PAPER SYSTEM ? comprehensive surface overrides
+   Converts every hardcoded purple-tinted background that was missed by
+   bulk replacements above. Loaded last so nothing overrides these.
+   =================================================================== */
+
+/* -- Page-level backgrounds --------------------------------------- */
+body.light-mode,
+body.light-mode #app-container,
+body.light-mode #mylist-view,
+body.light-mode #community-view,
+body.light-mode #discover-view,
+body.light-mode #anime-discover-view,
+body.light-mode #games-discover-view,
+body.light-mode .main-content { background: #F8F5EF !important; }
+
+/* -- Navigation --------------------------------------------------- */
+body.light-mode .mobile-bottom-nav,
+body.light-mode .bottom-nav,
+body.light-mode .nav-bar {
+  background: var(--lm-surface-3) !important;
+  border-top: 1px solid var(--lm-line) !important;
+}
+body.light-mode .mobile-bottom-nav .main-nav-btn,
+body.light-mode .nav-btn,
+body.light-mode .bottom-nav-btn { color: var(--lm-text-3) !important; }
+body.light-mode .mobile-bottom-nav .main-nav-btn.active,
+body.light-mode .nav-btn.active { color: #7c3aed !important; }
+
+body.light-mode .mylist-header,
+body.light-mode .mylist-section-header,
+body.light-mode .list-header {
+  background: #F8F5EF !important;
+  border-bottom: 1px solid var(--lm-line) !important;
+  color: var(--lm-text) !important;
+}
+body.light-mode .user-area,
+body.light-mode .user-avatar-wrap { color: var(--lm-text) !important; }
+
+/* -- Cards & panels ----------------------------------------------- */
+body.light-mode .card,
+body.light-mode .card.show-card,
+body.light-mode .mylist-card,
+body.light-mode .game-library-card,
+body.light-mode .activity-card,
+body.light-mode .shelfd-social-card,
+body.light-mode .friend-card,
+body.light-mode .user-card,
+body.light-mode .list-card,
+body.light-mode .discover-card,
+body.light-mode .media-card,
+body.light-mode .import-activity-card {
+  background: var(--lm-surface-2) !important;
+  border-color: var(--lm-line) !important;
+  box-shadow: 0 1px 4px rgba(20,20,20,0.06), 0 4px 12px rgba(20,20,20,0.04) !important;
+}
+body.light-mode .activity-card,
+body.light-mode .shelfd-social-card {
+  background: var(--lm-surface-2) !important;
+  border-color: var(--lm-line) !important;
+}
+
+/* -- Stacked activity layers -------------------------------------- */
+body.light-mode .sl-activity-stack-layer {
+  background: var(--lm-surface-3) !important;
+  border-color: var(--lm-line) !important;
+  box-shadow: 0 2px 8px rgba(20,20,20,0.05) !important;
+}
+
+/* -- Modals / sheets / drawers ------------------------------------ */
+body.light-mode .modal,
+body.light-mode .modal-card,
+body.light-mode .sheet-card,
+body.light-mode .plm-sheet,
+body.light-mode .bottom-sheet,
+body.light-mode .add-shelf-modal,
+body.light-mode .sas-sheet,
+body.light-mode .drawer,
+body.light-mode .popover,
+body.light-mode .dropdown-menu,
+body.light-mode .context-menu {
+  background: var(--lm-surface) !important;
+  border-color: var(--lm-line) !important;
+  box-shadow: 0 8px 32px rgba(20,20,20,0.12) !important;
+}
+body.light-mode .plm-overlay,
+body.light-mode .modal-overlay,
+body.light-mode .sheet-backdrop {
+  background: rgba(20,20,20,0.28) !important;
+}
+
+/* -- Toasts ------------------------------------------------------- */
+body.light-mode .toast,
+body.light-mode .snackbar,
+body.light-mode .toast-msg {
+  background: var(--lm-surface-3) !important;
+  color: var(--lm-text) !important;
+  border: 1px solid var(--lm-line) !important;
+  box-shadow: 0 4px 16px rgba(20,20,20,0.12) !important;
+}
+
+/* -- Inputs / form fields / search bars --------------------------- */
+body.light-mode input,
+body.light-mode textarea,
+body.light-mode select,
+body.light-mode .search-input,
+body.light-mode .text-input,
+body.light-mode .form-input {
+  background: var(--lm-surface-2) !important;
+  color: var(--lm-text) !important;
+  border-color: var(--lm-line) !important;
+}
+body.light-mode input::placeholder,
+body.light-mode textarea::placeholder,
+body.light-mode .search-input::placeholder { color: var(--lm-text-4) !important; }
+body.light-mode input:focus,
+body.light-mode textarea:focus,
+body.light-mode .search-input:focus { border-color: #7c3aed !important; }
+
+/* -- Tabs / segmented controls ------------------------------------ */
+body.light-mode .mylist-tabs,
+body.light-mode .friends-tabs,
+body.light-mode .tabs,
+body.light-mode .tab-bar {
+  background: var(--lm-surface-3) !important;
+  border-bottom: 1px solid var(--lm-line) !important;
+}
+body.light-mode .mylist-tab,
+body.light-mode .tab-btn,
+body.light-mode .friends-tab-btn { color: var(--lm-text-3) !important; }
+body.light-mode .mylist-tab.active,
+body.light-mode .tab-btn.active,
+body.light-mode .friends-tab-btn.active { color: #7c3aed !important; background: transparent !important; border-bottom: 2px solid #7c3aed !important; }
+
+/* -- Buttons (keep purple on primary, warm on ghost/secondary) ----- */
+body.light-mode .btn-secondary,
+body.light-mode .button-ghost,
+body.light-mode .outline-btn {
+  background: var(--lm-surface-2) !important;
+  color: var(--lm-text-2) !important;
+  border-color: var(--lm-line) !important;
+}
+body.light-mode .btn-secondary:hover,
+body.light-mode .button-ghost:hover { background: var(--lm-surface-3) !important; }
+
+/* -- Badges / chips ----------------------------------------------- */
+body.light-mode .chip,
+body.light-mode .badge,
+body.light-mode .tag:not(.badge-count):not(.tag-purple) {
+  background: var(--lm-chip) !important;
+  color: var(--lm-text-2) !important;
+  border-color: var(--lm-line) !important;
+}
+
+/* -- Empty states ------------------------------------------------- */
+body.light-mode .empty-state,
+body.light-mode .friends-empty,
+body.light-mode .list-empty,
+body.light-mode [class*="-empty"] {
+  color: var(--lm-text-3) !important;
+}
+body.light-mode .empty-state strong,
+body.light-mode .friends-empty strong,
+body.light-mode [class*="-empty"] strong { color: var(--lm-text) !important; }
+
+/* -- Discover hub ------------------------------------------------- */
+body.light-mode .discover-hub-toggle,
+body.light-mode .discover-subtab-bar,
+body.light-mode .discover-category-btn {
+  background: var(--lm-surface-3) !important;
+  color: var(--lm-text-2) !important;
+  border-color: var(--lm-line) !important;
+}
+body.light-mode .discover-hub-toggle.active,
+body.light-mode .discover-subtab-bar .active,
+body.light-mode .discover-category-btn.active { color: #7c3aed !important; background: rgba(124,58,237,0.08) !important; }
+body.light-mode .discover-section-head,
+body.light-mode .discover-section-title { color: var(--lm-text) !important; }
+body.light-mode .discover-see-all,
+body.light-mode .discover-view-all { color: #7c3aed !important; }
+
+/* -- Media profile overlay ---------------------------------------- */
+body.light-mode .discover-media-profile-overlay,
+body.light-mode .media-profile-page,
+body.light-mode .media-profile-body {
+  background: var(--lm-surface) !important;
+  color: var(--lm-text) !important;
+}
+body.light-mode .media-profile-title,
+body.light-mode .media-profile-name { color: var(--lm-text) !important; }
+body.light-mode .media-profile-meta,
+body.light-mode .media-profile-overview,
+body.light-mode .media-profile-description { color: var(--lm-text-2) !important; }
+body.light-mode .media-profile-year,
+body.light-mode .media-profile-genre,
+body.light-mode .media-profile-runtime { color: var(--lm-text-3) !important; }
+
+/* -- Comments / activity full-screen pages ------------------------ */
+body.light-mode .comments-page,
+body.light-mode .activity-page,
+body.light-mode .comments-shell {
+  background: #F8F5EF !important;
+  color: var(--lm-text) !important;
+}
+body.light-mode .comments-page-header,
+body.light-mode .comments-topbar {
+  background: var(--lm-surface-3) !important;
+  border-bottom: 1px solid var(--lm-line) !important;
+}
+body.light-mode .comment-input-area,
+body.light-mode .comment-compose {
+  background: var(--lm-surface-2) !important;
+  border-color: var(--lm-line) !important;
+}
+body.light-mode .comment-input,
+body.light-mode .comment-textarea {
+  background: var(--lm-surface-2) !important;
+  color: var(--lm-text) !important;
+  border-color: var(--lm-line) !important;
+}
+
+/* -- Profile page ------------------------------------------------- */
+body.light-mode .profile-page { background: #F8F5EF !important; }
+body.light-mode .profile-hero-card,
+body.light-mode .profile-section-card,
+body.light-mode .profile-media-group,
+body.light-mode .profile-fav-poster-card,
+body.light-mode .profile-stat-card,
+body.light-mode .profile-favorite-group,
+body.light-mode .profile-link-row {
+  background: var(--lm-surface-2) !important;
+  border-color: var(--lm-line) !important;
+  box-shadow: 0 2px 8px rgba(20,20,20,0.05) !important;
+}
+body.light-mode .profile-settings-page {
+  background: #F8F5EF !important;
+}
+body.light-mode .profile-settings-card {
+  background: var(--lm-surface-2) !important;
+  border-color: var(--lm-line) !important;
+}
+body.light-mode .profile-social-user-row {
+  background: var(--lm-surface-2) !important;
+  border-color: var(--lm-line) !important;
+}
+
+/* -- My Lists ----------------------------------------------------- */
+body.light-mode .ep-list { background: var(--lm-surface-2) !important; }
+body.light-mode .ep-row { background: transparent !important; border-bottom: 1px solid var(--lm-line-soft) !important; }
+body.light-mode .season-block { background: var(--lm-surface-2) !important; border-color: var(--lm-line) !important; }
+body.light-mode #mylist-view .my-list-search-input {
+  background: var(--lm-surface-2) !important;
+  border-color: var(--lm-line) !important;
+  color: var(--lm-text) !important;
+}
+body.light-mode .mylist-sort-menu {
+  background: var(--lm-surface) !important;
+  border-color: var(--lm-line) !important;
+  box-shadow: 0 8px 24px rgba(20,20,20,0.12) !important;
+}
+
+/* -- Add to shelf / search modals --------------------------------- */
+body.light-mode .add-shelf-panel,
+body.light-mode .tmdb-results,
+body.light-mode .tmdb-result,
+body.light-mode .shelf-search-wrap,
+body.light-mode .cover-search-results {
+  background: var(--lm-surface) !important;
+  color: var(--lm-text) !important;
+  border-color: var(--lm-line) !important;
+}
+body.light-mode .tmdb-result { border-bottom: 1px solid var(--lm-line-soft) !important; }
+body.light-mode .tmdb-result-name,
+body.light-mode .search-result-name { color: var(--lm-text) !important; }
+body.light-mode .tmdb-result-year,
+body.light-mode .search-result-year { color: var(--lm-text-3) !important; }
+
+/* -- Friends / community ------------------------------------------ */
+body.light-mode .friends-page,
+body.light-mode .community-view { background: #F8F5EF !important; }
+body.light-mode .friend-action-btn:not(.friend-accept-btn):not(.friend-primary-btn) {
+  background: var(--lm-surface-2) !important;
+  color: var(--lm-text-2) !important;
+  border-color: var(--lm-line) !important;
+}
+body.light-mode .friend-pending-btn {
+  background: var(--lm-surface-2) !important;
+  color: var(--lm-text-3) !important;
+  border-color: var(--lm-line) !important;
+}
+
+/* -- Discover: universal search overlay --------------------------- */
+body.light-mode .shelfd-search-overlay,
+body.light-mode .universal-search-page,
+body.light-mode .search-overlay {
+  background: #F8F5EF !important;
+}
+body.light-mode .shelfd-search-input,
+body.light-mode .universal-search-input {
+  background: var(--lm-surface-2) !important;
+  color: var(--lm-text) !important;
+  border-color: var(--lm-line) !important;
+}
+body.light-mode .shelfd-search-input::placeholder,
+body.light-mode .universal-search-input::placeholder { color: var(--lm-text-4) !important; }
+body.light-mode .search-result-card,
+body.light-mode .shelfd-search-result {
+  background: var(--lm-surface-2) !important;
+  border-color: var(--lm-line) !important;
+}
+
+/* -- Animate-in pages (profile, media profile) -------------------- */
+body.light-mode #profile-page { background: #F8F5EF !important; }
+
+/* -- Inline purple-tinted gradients remaining on surfaces ---------
+   Any leftover radial/linear gradients that still reference lavender
+   tones get flattened to the warm card surface. */
+body.light-mode .profile-hero-card {
+  background: var(--lm-surface-2) !important;
+}
+
+/* -- Remaining header / topbar colours ---------------------------- */
+body.light-mode .direct-messages-topbar,
+body.light-mode .comments-page-header {
+  background: var(--lm-surface-3) !important;
+  border-bottom: 1px solid var(--lm-line) !important;
+}
+body.light-mode .direct-messages-title-wrap strong { color: var(--lm-text) !important; }
+
+/* -- Link modal / PLM sheet --------------------------------------- */
+body.light-mode .plm-overlay { background: rgba(20,20,20,0.30) !important; backdrop-filter: blur(4px) !important; }
+body.light-mode .plm-title  { color: var(--lm-text)   !important; }
+body.light-mode .plm-close  { color: var(--lm-text-3) !important; }
+
+/* -- Seasonal anime / game discover cards ------------------------- */
+body.light-mode .asc-card,
+body.light-mode .game-discover-card,
+body.light-mode .game-card {
+  background: var(--lm-surface-2) !important;
+  border-color: var(--lm-line) !important;
+}
+body.light-mode .asc-title,
+body.light-mode .game-card-title,
+body.light-mode .game-discover-title { color: var(--lm-text) !important; }
+body.light-mode .asc-meta,
+body.light-mode .game-card-meta { color: var(--lm-text-3) !important; }
+
+/* -- Patch / changelog -------------------------------------------- */
+body.light-mode .patch-notes-page,
+body.light-mode .patch-notes-overlay {
+  background: #F8F5EF !important;
+  color: var(--lm-text) !important;
+}
+
+/* -- Import / sync pages ------------------------------------------ */
+body.light-mode #import-view,
+body.light-mode #steam-sync-view,
+body.light-mode .import-shell {
+  background: #F8F5EF !important;
+}
+body.light-mode .import-source-card,
+body.light-mode .import-option {
+  background: var(--lm-surface-2) !important;
+  border-color: var(--lm-line) !important;
+}
+
+/* -- Scrollbar (webkit) ------------------------------------------- */
+body.light-mode ::-webkit-scrollbar-thumb { background: rgba(20,20,20,0.18) !important; }
+body.light-mode ::-webkit-scrollbar-track { background: transparent !important; }
+
+/* v855: Discover + Activity page background was previously 0.3 shades
+   lighter than the global body #0E0E0E (rgb 14,14,14 ? rgb 22,22,22 =
+   #161616). v10.518 REVERTED that design choice per repeated user
+   feedback that the shelf, friends, activity, and discovery pages
+   should all share the exact same canonical Editorial-Dark surface.
+   All three page surfaces now lock to `#0E0E0E` to match the shelf
+   (`body.true-dark-mode #mylist-view` at 06-profile.css:1566). */
+#discover-view,
+#anime-discover-view,
+#games-discover-view {
+  background-color: #0E0E0E !important;
+  min-height: 100%;
+}
+.activity-page,
+#community-view {
+  background-color: #0E0E0E !important;
+}
+
+/* v856: Header background matches the page surface on Discover and
+   Activity/Community tabs so the full page blends seamlessly.
+   v10.518: was `#161616` to match the v855 lighter page surface.
+   Now locked to `#0E0E0E` to match the new unified surface. */
+body.main-tab-discover:not(.viewing-other-user) .header,
+body.main-tab-community:not(.viewing-other-user) .header {
+  background: #0E0E0E !important;
+}
+
+body.viewing-other-user .header {
+  background: #0E0E0E !important;
+}
+
+/* v980: iOS Safari/PWA zoom guard. Keep interactive search fields at the
+   16px minimum so focusing them does not auto-zoom the page. */
+#modal #inp-tmdb-search,
+body.light-mode #modal #inp-tmdb-search,
+body.true-dark-mode #modal #inp-tmdb-search,
+#mylist-view .mylist-search-row .search-input,
+body.light-mode #mylist-view .mylist-search-row .search-input {
+  font-size: 16px !important;
+}
+
+/* v981: My Lists global shelf search. The composer now lives inside the
+   toolbar, between Sort and the search button, and expands left from the
+   magnifying glass instead of sliding down under the status tabs. */
+#mylist-view #mylist-toolbar .toolbar-right,
+body.main-tab-mylist #mylist-view #mylist-toolbar .toolbar-right,
+body.main-tab-mylist #mylist-view #mylist-toolbar .toolbar-right:has(#sort-dropdown-btn):has(#mylist-search-toggle-btn) {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  gap: 7px !important;
+}
+
+#mylist-view #mylist-toolbar #sort-dropdown-btn,
+#mylist-view #mylist-toolbar #mylist-search-toggle-btn {
+  flex: 0 0 36px !important;
+}
+
+#mylist-view #mylist-toolbar .toolbar-right #mylist-search-row {
+  display: flex !important;
+  align-items: center !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  width: auto !important;
+  gap: 6px !important;
+  padding: 0 !important;
+  margin: 0 -7px 0 0 !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  transform: scaleX(0.08) translateX(8px) !important;
+  transform-origin: right center !important;
+  pointer-events: none !important;
+  animation: none !important;
+  will-change: max-width, opacity, transform !important;
+  transition:
+    max-width 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 150ms ease,
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    margin 220ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+#mylist-view #mylist-toolbar .toolbar-right #mylist-search-row[hidden] {
+  display: none !important;
+}
+
+#mylist-view #mylist-toolbar .toolbar-right #mylist-search-row.is-open {
+  max-width: min(340px, calc(100vw - 106px)) !important;
+  margin-right: 0 !important;
+  opacity: 1 !important;
+  transform: scaleX(1) translateX(0) !important;
+  pointer-events: auto !important;
+}
+
+#mylist-view #mylist-toolbar .toolbar-right #mylist-search-row .search-input {
+  display: block !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 36px !important;
+  padding: 0 13px !important;
+}
+
+#mylist-view #mylist-toolbar .toolbar-right #mylist-search-row .mylist-search-clear-btn {
+  flex: 0 0 30px !important;
+}
+
+@media (max-width: 700px) {
+  #mylist-view #mylist-toolbar .toolbar-right,
+  body.main-tab-mylist #mylist-view #mylist-toolbar .toolbar-right,
+  body.main-tab-mylist #mylist-view #mylist-toolbar .toolbar-right:has(#sort-dropdown-btn):has(#mylist-search-toggle-btn) {
+    display: flex !important;
+    grid-template-columns: none !important;
+    gap: 6px !important;
+  }
+
+  #mylist-view #mylist-toolbar .toolbar-right #mylist-search-row.is-open {
+    max-width: min(100%, calc(100vw - 104px)) !important;
+  }
+}
+
+.discover-friends-scroll-btn {
+  display: none;
+}
+
+@media (min-width: 701px) and (hover: hover) and (pointer: fine) and (not (display-mode: standalone)) {
+  #mobile-bottom-nav,
+  .mobile-bottom-nav {
+    position: fixed !important;
+    left: 50% !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: 14px !important;
+    transform: translateX(-50%) !important;
+    display: grid !important;
+    grid-auto-flow: column !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    align-items: stretch !important;
+    width: min(calc(100vw - 40px), 640px) !important;
+    max-width: 640px !important;
+    margin: 0 !important;
+    padding: 6px !important;
+    gap: 0 !important;
+    border-radius: 999px !important;
+    border: 1px solid rgba(255,255,255,0.18) !important;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.045) 46%, rgba(255,255,255,0.02)),
+      radial-gradient(circle at 50% 0%, rgba(196,181,253,0.16), transparent 58%),
+      rgba(18, 20, 24, 0.42) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.24),
+      inset 0 -1px 0 rgba(255,255,255,0.06),
+      0 18px 48px rgba(0,0,0,0.42),
+      0 0 0 1px rgba(196,181,253,0.06) !important;
+    backdrop-filter: blur(24px) saturate(170%) brightness(1.08) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(170%) brightness(1.08) !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    z-index: 5200 !important;
+  }
+
+  #mobile-bottom-nav .main-nav-btn,
+  .mobile-bottom-nav .main-nav-btn {
+    min-width: 0 !important;
+    width: 100% !important;
+    min-height: 48px !important;
+    padding: 10px 4px !important;
+    border-radius: 999px !important;
+    border-bottom: 0 !important;
+    background: transparent !important;
+    color: rgba(255,255,255,0.9) !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.01em !important;
+    line-height: 1.05 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    text-align: center !important;
+    box-shadow: none !important;
+  }
+
+  #mobile-bottom-nav .main-nav-btn.active,
+  .mobile-bottom-nav .main-nav-btn.active {
+    color: #ffffff !important;
+    background: rgba(139,92,246,0.16) !important;
+    box-shadow: inset 0 0 0 1px rgba(196,181,253,0.16) !important;
+  }
+
+  #mobile-bottom-nav #mobile-nav-mylist,
+  .mobile-bottom-nav #mobile-nav-mylist {
+    color: rgba(231, 226, 244, 0.72) !important;
+  }
+
+  #mobile-bottom-nav #mobile-nav-mylist.active,
+  .mobile-bottom-nav #mobile-nav-mylist.active {
+    color: #ffffff !important;
+  }
+
+  #mobile-bottom-nav .nav-search-btn,
+  .mobile-bottom-nav .nav-search-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    grid-column: 3 !important;
+    order: 3 !important;
+    padding: 8px 0 !important;
+    color: #8ff2b8 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: 0 !important;
+  }
+
+  #mobile-bottom-nav .bottom-nav-icon-btn,
+  .mobile-bottom-nav .bottom-nav-icon-btn {
+    color: rgba(231, 226, 244, 0.72) !important;
+  }
+
+  #mobile-bottom-nav .bottom-nav-icon-btn.active,
+  .mobile-bottom-nav .bottom-nav-icon-btn.active {
+    color: #ffffff !important;
+  }
+
+  #mobile-bottom-nav #mobile-nav-mylist,
+  .mobile-bottom-nav #mobile-nav-mylist {
+    color: rgba(231, 226, 244, 0.72) !important;
+  }
+
+  #mobile-bottom-nav #mobile-nav-mylist.active,
+  .mobile-bottom-nav #mobile-nav-mylist.active {
+    color: #ffffff !important;
+  }
+
+  #mobile-bottom-nav .nav-search-btn,
+  .mobile-bottom-nav .nav-search-btn {
+    color: #8ff2b8 !important;
+  }
+
+  body .header,
+  body.main-tab-mylist .header,
+  body.main-tab-community .header,
+  body.main-tab-discover .header {
+    padding-top: 24px !important;
+  }
+
+  body .header .main-nav,
+  body .main-nav,
+  body.main-tab-mylist #mylist-view #mylist-profile-controls .mylist-desktop-quick-nav.mobile-bottom-nav {
+    display: none !important;
+  }
+
+  #shelfd-search-page {
+    z-index: 5100 !important;
+  }
+
+  #shelfd-search-page .shelfd-search-page-inner {
+    padding-top: 0 !important;
+  }
+
+  .discover-universal-search-panel {
+    margin-top: 48px !important;
+  }
+
+  #discover-view .discover-friends-row-shell {
+    position: relative;
+    padding-right: 26px;
+  }
+  #discover-view .discover-friends-row {
+    padding-right: 84px;
+  }
+  #discover-view .discover-friends-scroll-btn {
+    position: absolute;
+    top: 50%;
+    right: -18px;
+    z-index: 5;
+    width: 42px;
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(196,181,253,0.18);
+    border-radius: 999px;
+    background: rgba(9, 8, 20, 0.92);
+    color: #f8f4ff;
+    box-shadow: 0 16px 30px rgba(0,0,0,0.3);
+    transform: translateY(-50%);
+    cursor: pointer;
+    transition: transform 160ms ease, background 160ms ease, border-color 160ms ease, opacity 160ms ease;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  #discover-view .discover-friends-scroll-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+  #discover-view .discover-friends-scroll-btn:hover {
+    background: rgba(124,58,237,0.22);
+    border-color: rgba(196,181,253,0.4);
+    transform: translateY(-50%) scale(1.04);
+  }
+  #discover-view .discover-friends-scroll-btn:active {
+    transform: translateY(-50%) scale(0.96);
+  }
+  #discover-view .discover-friends-scroll-btn[hidden] {
+    display: none !important;
+  }
+
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-body.discover-media-body-cinema {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    padding-top: 24px;
+    padding-bottom: 42px;
+    color: #f5f1ff;
+    font-family: 'Sohne', 'SÃ¶hne', 'DM Sans', system-ui, sans-serif;
+  }
+
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-detail-grid {
+    display: grid;
+    gap: 22px;
+    padding: 0 2px 4px;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-detail-grid.has-trailer {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-detail-stack {
+    display: grid;
+    gap: 18px;
+    align-content: start;
+  }
+
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-watch-inline-head strong {
+    color: #ffffff;
+    font-weight: 500;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-watch-inline-row,
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-watch-inline-row span:first-child,
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-watch-inline-row .discover-media-watch-inline-provider-list,
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-watch-inline-row .discover-media-watch-inline-provider,
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-watch-inline-row .discover-provider-name-text {
+    font-weight: 400;
+  }
+
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-seasons-entry-copy h3,
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-seasons-entry-meta {
+    font-weight: 400;
+  }
+
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-facts,
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-credits,
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-trailer-panel,
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-section-cast,
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-ai-more-section {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-facts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-facts div {
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-facts strong {
+    display: block;
+    color: #ffffff;
+    font-size: 21px;
+    line-height: 1.05;
+    font-weight: 400;
+    letter-spacing: -0.04em;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-facts div.primary strong {
+    color: #ffffff;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-facts .discover-media-fact-release-date strong {
+    color: #67e8f9 !important;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-facts .discover-media-fact-runtime strong {
+    color: #ffffff !important;
+    opacity: 1 !important;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-facts span {
+    display: block;
+    margin-top: 7px;
+    color: rgba(214, 205, 232, 0.6);
+    font-size: 11px;
+    line-height: 1.25;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-credits {
+    display: grid;
+    gap: 14px;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-credits div {
+    padding: 14px 0 0;
+    border: 0;
+    border-top: 1px solid rgba(167, 139, 250, 0.12);
+    border-radius: 0;
+    background: transparent;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-credits div:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-credits span {
+    display: block;
+    color: rgba(214, 205, 232, 0.56);
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-credits strong {
+    display: block;
+    margin-top: 5px;
+    color: #ffffff;
+    font-size: 18px;
+    line-height: 1.34;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+  }
+
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-trailer-panel {
+    display: flex;
+    align-items: stretch;
+    order: -1;
+    width: 100%;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-trailer-panel iframe {
+    width: 100%;
+    min-height: 100%;
+    aspect-ratio: 21 / 9;
+    border: 0;
+    border-radius: 22px;
+    box-shadow: 0 16px 34px rgba(0,0,0,0.24);
+  }
+
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-section-cast,
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-ai-more-section {
+    padding-top: 18px;
+    border-top: 1px solid rgba(167, 139, 250, 0.1);
+  }
+
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-section-cast h3 {
+    margin: 0 0 14px;
+    color: #c9b2ff;
+    font-family: 'Sohne', 'SÃ¶hne', 'DM Sans', system-ui, sans-serif;
+    font-size: 13px;
+    line-height: 1;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-cast {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 136px;
+    gap: 16px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 10px;
+    scrollbar-width: none;
+    will-change: auto;
+    transform: none;
+  }
+
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-cast::-webkit-scrollbar {
+    display: none;
+  }
+
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-ai-more-list {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+    overflow: visible;
+    padding-bottom: 0;
+    scrollbar-width: auto;
+    will-change: auto;
+    transform: none;
+  }
+
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-cast-card,
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-similar-card {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    font-family: 'Sohne', 'SÃ¶hne', 'DM Sans', system-ui, sans-serif;
+  }
+
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-cast-card {
+    width: 136px;
+    min-width: 136px;
+  }
+
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-cast-photo,
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-similar-card img {
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    display: block;
+    object-fit: cover;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.04);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.18);
+  }
+
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-cast-photo {
+    position: relative;
+    overflow: hidden;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-cast-card strong,
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-similar-card span {
+    display: block;
+    margin-top: 10px;
+    color: #ffffff;
+    font-size: 14px;
+    line-height: 1.28;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-cast-card span,
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-similar-card small {
+    display: block;
+    margin-top: 5px;
+    color: rgba(214, 205, 232, 0.72);
+    font-size: 12px;
+    line-height: 1.38;
+    font-weight: 450;
+    letter-spacing: 0;
+  }
+
+  .discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-ai-more-list .discover-ai-more-loading {
+    grid-column: 1 / -1;
+    color: rgba(214, 205, 232, 0.72);
+  }
+
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-body.discover-media-body-cinema {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    padding-top: 24px;
+    padding-bottom: 42px;
+    color: #f5f1ff;
+    font-family: 'Sohne', 'SÃƒÂ¶hne', 'DM Sans', system-ui, sans-serif;
+  }
+
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-detail-grid {
+    display: grid;
+    gap: 22px;
+    padding: 0 2px 4px;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-detail-grid.has-trailer {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-detail-stack {
+    display: grid;
+    gap: 18px;
+    align-content: start;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-facts,
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-credits,
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-trailer-panel,
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-section-cast,
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-ai-more-section {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-facts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-facts div {
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-facts strong {
+    display: block;
+    color: #ffffff;
+    font-size: 21px;
+    line-height: 1.05;
+    font-weight: 650;
+    letter-spacing: -0.04em;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-facts div.primary strong {
+    color: #cfbcff;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-facts .discover-media-fact-release-date strong {
+    color: #67e8f9 !important;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-facts span {
+    display: block;
+    margin-top: 7px;
+    color: rgba(214, 205, 232, 0.6);
+    font-size: 11px;
+    line-height: 1.25;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-credits {
+    display: grid;
+    gap: 14px;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-credits div {
+    padding: 14px 0 0;
+    border: 0;
+    border-top: 1px solid rgba(167, 139, 250, 0.12);
+    border-radius: 0;
+    background: transparent;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-credits div:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-credits span {
+    display: block;
+    color: rgba(214, 205, 232, 0.56);
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-credits strong {
+    display: block;
+    margin-top: 5px;
+    color: #ffffff;
+    font-size: 18px;
+    line-height: 1.34;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-trailer-panel {
+    display: flex;
+    align-items: stretch;
+    order: -1;
+    width: 100%;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-trailer-panel video {
+    width: 100%;
+    min-height: 100%;
+    aspect-ratio: 21 / 9;
+    border: 0;
+    border-radius: 22px;
+    box-shadow: 0 16px 34px rgba(0,0,0,0.24);
+    object-fit: cover;
+    background: #06060b;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-section-cast,
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-ai-more-section {
+    padding-top: 18px;
+    border-top: 1px solid rgba(167, 139, 250, 0.1);
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-section h3 {
+    margin: 0 0 14px;
+    color: #c9b2ff;
+    font-family: 'Sohne', 'SÃƒÂ¶hne', 'DM Sans', system-ui, sans-serif;
+    font-size: 13px;
+    line-height: 1;
+    font-weight: 650;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-ai-more-list {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+    overflow: visible;
+    padding-bottom: 0;
+    scrollbar-width: auto;
+    will-change: auto;
+    transform: none;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-similar-card {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    font-family: 'Sohne', 'SÃƒÂ¶hne', 'DM Sans', system-ui, sans-serif;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-ai-more-list .discover-media-similar-card img {
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    display: block;
+    object-fit: cover;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.04);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.18);
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-similar-card span {
+    display: block;
+    margin-top: 10px;
+    color: #ffffff;
+    font-size: 14px;
+    line-height: 1.28;
+    font-weight: 550;
+    letter-spacing: -0.01em;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-media-similar-card small {
+    display: block;
+    margin-top: 5px;
+    color: rgba(214, 205, 232, 0.72);
+    font-size: 12px;
+    line-height: 1.38;
+    font-weight: 450;
+    letter-spacing: 0;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .game-media-screenshots {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(260px, 1fr);
+    gap: 18px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 8px;
+    scrollbar-width: none;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .game-media-screenshots::-webkit-scrollbar {
+    display: none;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .game-media-screenshots .discover-media-similar-card {
+    min-width: 260px;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .game-media-screenshots .discover-media-similar-card img {
+    aspect-ratio: 16 / 9;
+  }
+  .game-media-profile-overlay .discover-media-page.discover-desktop-title-page .discover-ai-more-list .discover-ai-more-loading {
+    grid-column: 1 / -1;
+    color: rgba(214, 205, 232, 0.72);
+  }
+
+  .discover-media-profile-overlay .discover-media-page.discover-person-page-desktop-cinema .discover-media-body.discover-person-body-desktop-cinema {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding-top: 18px;
+    padding-bottom: 34px;
+  }
+
+  .discover-media-profile-overlay .discover-media-page.discover-person-page-desktop-cinema .discover-person-overview-panel,
+  .discover-media-profile-overlay .discover-media-page.discover-person-page-desktop-cinema .discover-person-section-card {
+    margin: 0;
+    padding: 18px;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 24px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.018)),
+      rgba(7, 6, 16, 0.92);
+    box-shadow: 0 18px 44px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.045);
+  }
+
+  .discover-media-profile-overlay .discover-media-page.discover-person-page-desktop-cinema .discover-person-overview-panel {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-person-page-desktop-cinema .discover-person-overview-panel div {
+    min-height: 76px;
+    padding: 12px 13px;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.028);
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-person-page-desktop-cinema .discover-person-overview-panel strong {
+    font-size: 18px;
+    line-height: 1.2;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-person-page-desktop-cinema .discover-person-overview-panel span {
+    margin-top: 7px;
+    font-size: 10px;
+    letter-spacing: 1px;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-person-page-desktop-cinema .discover-person-section-card .discover-media-similar {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    overflow: visible;
+    padding-bottom: 0;
+    scrollbar-width: auto;
+    will-change: auto;
+    transform: none;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-person-page-desktop-cinema .discover-person-credit-card {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: left;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-person-page-desktop-cinema .discover-person-credit-card img {
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    display: block;
+    object-fit: cover;
+    border-radius: 16px;
+    background: rgba(255,255,255,0.05);
+    box-shadow: 0 18px 36px rgba(0,0,0,0.26);
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-person-page-desktop-cinema .discover-person-credit-title {
+    display: block;
+    margin-top: 10px;
+    color: #fff;
+    font-size: 14px;
+    line-height: 1.24;
+    font-weight: 850;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-person-page-desktop-cinema .discover-person-credit-role {
+    display: block;
+    margin-top: 5px;
+    color: #b8afd1;
+    font-size: 12px;
+    line-height: 1.36;
+    font-weight: 600;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-person-page-desktop-cinema .discover-person-credit-rating {
+    margin-top: 6px;
+    font-size: 12px;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-person-page-desktop-cinema .discover-person-filmography-header {
+    width: 100%;
+    padding: 0;
+    margin: 0 0 14px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+  }
+  .discover-media-profile-overlay .discover-media-page.discover-person-page-desktop-cinema .discover-person-filmography-header svg {
+    width: 18px;
+    height: 18px;
+    color: #c4b5fd;
+  }
+}
+
+/* =============================================================================
+   v10.73: Discover title ellipsis â€” UNIFIED rule.
+
+   PROBLEM: title overflow was inconsistent across Discover card variants.
+   "Regular Show: The Lost Tapes" rendered as "Regular Show: The L" (clipped
+   to card edge, no ellipsis); "Zhan Zhao Adventures" rendered as
+   "Zhan Zhao Adventur". Different Discover card renderers (Newest Releases,
+   Trending, Popular, Most Anticipated, In Theaters, Anime, Games, View All,
+   universal search) inherited slightly different parent flex contexts â€”
+   notably .discover-new-release-card overrides .discover-card-info-row to
+   `flex-direction: column !important; flex: 1 1 auto !important` which
+   re-applied flex constraints WITHOUT re-declaring `min-width: 0`, letting
+   the title button grow to its content width and overrun the card edge.
+   .discover-title-profile-btn already had ellipsis rules with !important at
+   line 4056, but in certain flex contexts those were undermined by the
+   parent chain expanding to content.
+
+   FIX: lock `min-width: 0` on every link in the flex chain (card / body /
+   info-row / info-stack) AND restate the full single-line ellipsis stack
+   on both `.discover-card-title` and `.discover-title-profile-btn` with
+   high specificity (#view-id .discover-card .name) + !important so this
+   block always wins over any per-variant override. Also explicitly unsets
+   any stray `-webkit-line-clamp` / `-webkit-box-orient` from older 2-line-
+   clamp rules (06-profile.css:3593) which used to compete with nowrap.
+   ============================================================================= */
+#discover-view .discover-card,
+#anime-discover-view .discover-card,
+#games-discover-view .discover-card,
+.discover-category-full-page .discover-card,
+.discover-friends-row .discover-card,
+.discover-friends-full-grid .discover-card,
+#discover-view .discover-card .discover-card-body,
+#anime-discover-view .discover-card .discover-card-body,
+#games-discover-view .discover-card .discover-card-body,
+.discover-category-full-page .discover-card .discover-card-body,
+#discover-view .discover-card .discover-card-info-row,
+#anime-discover-view .discover-card .discover-card-info-row,
+#games-discover-view .discover-card .discover-card-info-row,
+.discover-category-full-page .discover-card .discover-card-info-row,
+.discover-new-release-card .discover-card-info-row,
+#discover-view .discover-card .discover-card-info-stack,
+#anime-discover-view .discover-card .discover-card-info-stack,
+#games-discover-view .discover-card .discover-card-info-stack,
+.discover-category-full-page .discover-card .discover-card-info-stack,
+.discover-new-release-card .discover-card-info-stack {
+  min-width: 0 !important;
+}
+
+#discover-view .discover-card .discover-card-title,
+#anime-discover-view .discover-card .discover-card-title,
+#games-discover-view .discover-card .discover-card-title,
+.discover-category-full-page .discover-card .discover-card-title,
+.discover-new-release-card .discover-card-title,
+#discover-view .discover-card .discover-title-profile-btn,
+#anime-discover-view .discover-card .discover-title-profile-btn,
+#games-discover-view .discover-card .discover-title-profile-btn,
+.discover-category-full-page .discover-card .discover-title-profile-btn,
+.discover-new-release-card .discover-title-profile-btn {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  /* Disable the legacy 2-line clamp (06-profile.css:3593) so it can't compete
+     with nowrap+ellipsis. If a future design wants multi-line, re-enable
+     locally on the variant â€” don't put it on the base. */
+  -webkit-line-clamp: unset !important;
+  -webkit-box-orient: initial !important;
+}
+
+/* =============================================================================
+   v10.74: Discover title ellipsis â€” covers the variants v10.73 missed.
+
+   WHY v10.73 DIDN'T FIX IT: v10.73 only targeted titles with class
+   `.discover-card-title` and `.discover-title-profile-btn` (the Movies/TV/
+   universal-search renderers). But the Discover Games hub uses a DIFFERENT
+   title class â€” `.games-dc-title` (`11-discovery-...js:7344`) â€” and the
+   Anime Seasonal renderer uses ANOTHER one â€” `.anime-seasonal-card-title-btn`
+   (`11-discovery-...js:8336`). Both of those classes had `display: -webkit-box;
+   -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;` â€”
+   a 2-line clamp. When the parent flex chain didn't carry `min-width: 0`
+   down to the title, the title's webkit-box grew to one wide line, the
+   2-line clamp never triggered (only 1 line existed), and the line overran
+   the card edge without ellipsis. That's the exact symptom in the screenshot
+   ("Bug Behind Schedule", "The Right Way is the Wrong Way", "Regular Show:
+   The Lost Tapes", "Zhan Zhao Adventures").
+
+   FIX: select EVERY known Discover title-class by name with `body`-level
+   scope (no `#discover-view` / `.discover-card` ancestor required â€” this
+   rule wins even if the user is in a layout context where the previous
+   selectors don't match). Force the full single-line ellipsis stack with
+   `!important` on each, and explicitly `unset` the `-webkit-line-clamp`/
+   `-webkit-box-orient` so the old clamp definition can't compete. Lock
+   `min-width: 0` on every parent flex container in the chain.
+   ============================================================================= */
+body .discover-card-title,
+body .discover-title-profile-btn,
+body .games-dc-title,
+body .anime-seasonal-card-title-btn,
+body .discover-friend-watch-title,
+body .discover-country-title {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  -webkit-line-clamp: unset !important;
+  -webkit-box-orient: initial !important;
+  /* Buttons have a small intrinsic minimum-content width on some engines;
+     force the flex/grid path to honor `min-width: 0` instead of intrinsic. */
+  min-inline-size: 0 !important;
+}
+
+/* v10.928 / v10.929: Discovery Music Show All pages.
+   Scope is intentionally music-only: the preview rows keep their existing
+   Discover card language, while Show All uses a flat album-art grid.
+   v10.929: the top bar owns the iOS safe-area and sticks to the true top. */
+#music-discover-view,
+#music-discover-view *,
+.music-discover-show-all-page,
+.music-discover-show-all-page * {
+  font-family: 'Sohne', 'Söhne', 'DM Sans', system-ui, sans-serif !important;
+}
+
+#music-discover-view .discover-section-top {
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+}
+
+#music-discover-view .music-discover-show-all-btn {
+  appearance: none !important;
+  border: 1px solid rgba(196, 181, 253, 0.16) !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.055) !important;
+  color: rgba(216, 204, 255, 0.92) !important;
+  min-height: 32px !important;
+  padding: 0 13px !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+}
+
+#music-discover-view .music-discover-show-all-btn:active {
+  transform: scale(0.97) !important;
+}
+
+body.music-discover-show-all-open {
+  overflow: hidden !important;
+}
+
+.music-discover-show-all-page {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 7350 !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+  background: #0E0E0E !important;
+  color: #f8f6ff !important;
+  transform: translateX(100%) !important;
+  transition: transform 600ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+  will-change: transform !important;
+  /* v11.066: hide the vertical scrollbar on the Music "Show All" full page
+     (Popular This Week / New This Week) while keeping scroll functional.
+     scrollbar-width covers standards; the ::-webkit-scrollbar rule below
+     covers the iOS WKWebView (the primary target). */
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+.music-discover-show-all-page::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
+.music-discover-show-all-page.is-open {
+  transform: translateX(0) !important;
+}
+
+.music-discover-show-all-shell {
+  width: 100% !important;
+  min-height: 100% !important;
+  padding: 0 18px calc(120px + var(--shelfd-safe-bottom, 0px)) !important;
+  background: #0E0E0E !important;
+}
+
+.music-discover-show-all-topbar {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 4 !important;
+  display: grid !important;
+  grid-template-columns: 44px minmax(0, 1fr) 44px !important;
+  align-items: center !important;
+  gap: 10px !important;
+  margin: 0 -18px 22px !important;
+  padding: max(10px, calc(var(--shelfd-safe-top, 0px) + 10px)) 18px 14px !important;
+  background: rgba(18, 18, 20, 0.92) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+}
+
+.music-discover-show-all-back {
+  appearance: none !important;
+  width: 44px !important;
+  height: 44px !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: rgba(248, 246, 255, 0.94) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+}
+
+.music-discover-show-all-back svg {
+  width: 28px !important;
+  height: 28px !important;
+}
+
+.music-discover-show-all-topbar h2 {
+  margin: 0 !important;
+  color: #f4f1fb !important;
+  font-size: 19px !important;
+  line-height: 1.15 !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  text-align: center !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.music-discover-show-all-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  column-gap: 18px !important;
+  row-gap: 32px !important;
+  align-items: start !important;
+}
+
+.music-discover-show-all-item {
+  appearance: none !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  color: inherit !important;
+  text-align: center !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+}
+
+.music-discover-show-all-cover {
+  width: 100% !important;
+  aspect-ratio: 1 / 1 !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 12px !important;
+  background-color: #181820 !important;
+  background-size: cover !important;
+  background-position: center !important;
+  color: rgba(196, 181, 253, 0.60) !important;
+  font-size: 30px !important;
+  overflow: hidden !important;
+  box-shadow: none !important;
+}
+
+.music-discover-show-all-cover.no-img {
+  background: linear-gradient(135deg, rgba(28, 24, 48, 0.98), rgba(15, 15, 20, 0.98)) !important;
+}
+
+.music-discover-show-all-name,
+.music-discover-show-all-artist {
+  display: block !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  letter-spacing: 0 !important;
+}
+
+.music-discover-show-all-name {
+  margin-top: 11px !important;
+  color: rgba(248, 246, 255, 0.94) !important;
+  font-size: 15px !important;
+  line-height: 1.18 !important;
+  font-weight: 600 !important;
+}
+
+.music-discover-show-all-artist {
+  margin-top: 5px !important;
+  color: rgba(232, 227, 243, 0.58) !important;
+  font-size: 13px !important;
+  line-height: 1.18 !important;
+  font-weight: 300 !important;
+}
+
+.music-discover-show-all-loader {
+  display: flex !important;
+  justify-content: center !important;
+  padding: 28px 0 10px !important;
+}
+
+.music-discover-show-all-loader[hidden] {
+  display: none !important;
+}
+
+.music-discover-show-all-loader span {
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 999px !important;
+  border: 2px solid rgba(196, 181, 253, 0.22) !important;
+  border-top-color: rgba(196, 181, 253, 0.92) !important;
+  animation: musicDiscoverShowAllSpin 760ms linear infinite !important;
+}
+
+.music-discover-show-all-empty {
+  grid-column: 1 / -1 !important;
+}
+
+@keyframes musicDiscoverShowAllSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Parent flex chain â€” every container that wraps a Discover title gets
+   `min-width: 0` so the title can shrink under its parent's width.
+   `body` scope keeps these rules winning the cascade regardless of any
+   per-variant override that re-sets flex on these classes. */
+body .discover-card,
+body .discover-card-body,
+body .discover-card-info-row,
+body .discover-card-info-stack,
+body .games-dc-body,
+body .games-discover-card,
+body .anime-seasonal-card,
+body .anime-seasonal-card-info,
+body .discover-new-release-card,
+body .discover-friend-watch-card,
+body .discover-card-title-row {
+  min-width: 0 !important;
+}
+
+/* v10.148: DM icon locked to a uniform size across all tabs.
+   v10.150: bumped selector specificity to 0,3,0 so this rule beats
+   the per-tab overrides (Discover 26px, Community 25/28px, My Lists
+   24/25px, mobile-portrait 18px clamp).
+   v10.151: size 15px â†’ 18px (15px read too small).
+   v10.814: heavier 1.5px stroke for the top-right DM glyph.
+   v10.816: match cog scale with 24px glyph and 3px stroke.
+   v10.817: tune stroke down to 2px. */
+body .header-dm-icon,
+body .header-dm-icon svg,
+body.main-tab-discover .header-dm-icon,
+body.main-tab-discover .header-dm-icon svg,
+body.main-tab-community .header-dm-icon,
+body.main-tab-community .header-dm-icon svg,
+body.main-tab-mylist .header-dm-icon,
+body.main-tab-mylist .header-dm-icon svg {
+  width: 24px !important;
+  height: 24px !important;
+}
+body .header-dm-icon svg,
+body .header-dm-icon svg path,
+body.main-tab-discover .header-dm-icon svg,
+body.main-tab-discover .header-dm-icon svg path,
+body.main-tab-community .header-dm-icon svg,
+body.main-tab-community .header-dm-icon svg path,
+body.main-tab-mylist .header-dm-icon svg,
+body.main-tab-mylist .header-dm-icon svg path {
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2px !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+
+/* v10.757: Soft 1px divider between header and page body on
+   Discover / Activity / Friends pages. Uses 3-class specificity to beat
+   the `body.true-dark-mode .header { border-bottom: 0 !important }` rule
+   in 12-pwa-header-continuity.css (which is only 2-class specificity). */
+body.true-dark-mode.main-tab-discover .header,
+body.true-dark-mode.main-tab-community .header {
+  border-bottom: 1px solid rgba(255,255,255,0.6) !important;
+}
+
+/* v10.756 / v10.763: Hide Shelfd logo + wordmark on Discover / Activity /
+   Friends pages — replaced by the plain page title text from
+   updateMainHeaderPageTitle(). Also hides on viewing-other-user (a friend's
+   mylist view), where the header carries the friend's display name.
+   Loaded after 14-live-update-discover-controls.css + 15-universal-discovery-search.css
+   so same-specificity !important rules here win the cascade. Both desktop and
+   mobile versions needed (14/15 have both unscoped and @media rules). */
+body.main-tab-discover .header-logo-block > img.site-logo-img,
+body.main-tab-discover .header-logo-block > img.site-wordmark-img,
+body.main-tab-community .header-logo-block > img.site-logo-img,
+body.main-tab-community .header-logo-block > img.site-wordmark-img,
+body.viewing-other-user .header-logo-block > img.site-logo-img,
+body.viewing-other-user .header-logo-block > img.site-wordmark-img {
+  display: none !important;
+}
+@media (max-width: 700px) {
+  body.main-tab-discover .header-logo-block > img.site-logo-img,
+  body.main-tab-discover .header-logo-block > img.site-wordmark-img,
+  body.main-tab-community .header-logo-block > img.site-logo-img,
+  body.main-tab-community .header-logo-block > img.site-wordmark-img,
+  body.viewing-other-user .header-logo-block > img.site-logo-img,
+  body.viewing-other-user .header-logo-block > img.site-wordmark-img {
+    display: none !important;
+  }
+}
+
+/* v10.763: @username display under the friend's avatar on their mylist view.
+   The display NAME now lives in the top-of-screen header (replacing the
+   Shelfd logo via updateMainHeaderPageTitle), so what sits below the
+   avatar is the @handle — same hierarchy as Instagram/X/etc. */
+.viewing-user-handle {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(235,232,244,0.65);
+  letter-spacing: 0.005em;
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif;
+  line-height: 1.2;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   v10.765 — Profile Settings borderless redesign.
+   ════════════════════════════════════════════════════════════════════════
+   Old: each .profile-settings-card had a 1px lavender border + 24px
+        radius + rgba background. Looked like discrete bordered boxes.
+   New: cards float — no border, no background, no shadow. Sections
+        are separated by FULL-WIDTH 1px dividers that span edge-to-edge
+        regardless of iPhone screen width (achieved via 100vw +
+        translateX(-50%) trick which breaks out of the container padding).
+   Also overrides body.true-dark-mode rules in 06-profile.css which set
+   their own border/background. The :where(...) wrapper keeps specificity
+   matched-or-higher than those existing rules.
+   ════════════════════════════════════════════════════════════════════════ */
+
+.profile-settings-card.profile-settings-card-floating,
+body.true-dark-mode .profile-settings-card.profile-settings-card-floating {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 20px 0 !important;
+  margin: 0 !important;
+  position: relative;
+}
+
+/* Full-width divider above every card except the first. Uses 100vw +
+   translateX trick to span edge-to-edge regardless of container padding
+   or iPhone screen size (works on Base / Plus / Pro Max alike). */
+.profile-settings-card-floating + .profile-settings-card-floating::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100vw;
+  height: 1px;
+  background: rgba(255,255,255,0.08);
+  pointer-events: none;
+}
+
+/* Tighten the container gap since dividers now handle the visual separation. */
+.profile-settings-shell {
+  gap: 0 !important;
+}
+
+/* ── Username + Display Name display rows ── */
+.profile-settings-handle-row,
+.profile-settings-displayname-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+.profile-settings-handle-display,
+.profile-settings-displayname-display {
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #f5f5f7;
+  letter-spacing: -0.005em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.profile-settings-edit-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255,255,255,0.06);
+  border: 0;
+  border-radius: 999px;
+  color: #f5f5f7;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 7px 16px;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: background 140ms ease, color 140ms ease, opacity 140ms ease;
+}
+.profile-settings-edit-btn:hover { background: rgba(255,255,255,0.1); }
+.profile-settings-edit-btn:active { transform: scale(0.96); }
+.profile-settings-edit-btn.is-locked,
+.profile-settings-edit-btn[disabled] {
+  background: rgba(255,255,255,0.04);
+  color: rgba(235,232,244,0.45);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* ── Inline edit forms ── */
+.profile-settings-handle-edit,
+.profile-settings-displayname-edit {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* v10.772: respect the HTML `hidden` attribute. The display:flex above
+   would otherwise OVERRIDE the browser-default `[hidden] { display: none }`,
+   keeping the edit form visible even when JS set .hidden = true.
+   That's why both the display row AND the edit form were showing at once
+   on first paint. Same fix applies to the display row so clicking Edit
+   actually hides it during inline editing. */
+.profile-settings-handle-row[hidden],
+.profile-settings-handle-edit[hidden],
+.profile-settings-displayname-row[hidden],
+.profile-settings-displayname-edit[hidden] {
+  display: none !important;
+}
+.profile-settings-handle-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 0 12px;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+.profile-settings-handle-input-wrap:focus-within {
+  border-color: rgba(167,139,250,0.55);
+  background: rgba(255,255,255,0.07);
+}
+.profile-settings-handle-prefix {
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(235,232,244,0.55);
+  margin-right: 2px;
+  user-select: none;
+}
+#profile-settings-handle-input,
+#profile-settings-displayname-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  color: #f5f5f7;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  padding: 12px 0;
+  width: 100%;
+  outline: none;
+}
+#profile-settings-displayname-input {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 12px 14px;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+#profile-settings-displayname-input:focus {
+  border-color: rgba(167,139,250,0.55);
+  background: rgba(255,255,255,0.07);
+}
+
+.profile-settings-handle-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.profile-settings-cancel-btn,
+.profile-settings-save-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 8px 18px;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, transform 100ms ease;
+}
+.profile-settings-cancel-btn {
+  background: rgba(255,255,255,0.05);
+  color: #f5f5f7;
+}
+.profile-settings-cancel-btn:hover { background: rgba(255,255,255,0.09); }
+.profile-settings-cancel-btn:active { transform: scale(0.96); }
+.profile-settings-save-btn {
+  background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(124,58,237,0.25);
+}
+.profile-settings-save-btn:hover { filter: brightness(1.06); }
+.profile-settings-save-btn:active { transform: scale(0.96); }
+.profile-settings-save-btn[disabled] {
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.5);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+/* v10.766: brief green "Saved ✓" state to confirm the write landed. */
+.profile-settings-save-btn.is-saved {
+  background: linear-gradient(135deg, #34d399, #10b981) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 14px rgba(16,185,129,0.32) !important;
+  transform: scale(1.02);
+}
+
+.profile-settings-edit-hint {
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 12px;
+  color: rgba(235,232,244,0.5);
+  line-height: 1.4;
+}
+.profile-settings-edit-error {
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #fb7185;
+  line-height: 1.4;
+}
+
+/* v10.784: removed the FPMP dock star CSS (lines that handled
+   .discover-media-library-stars / .star-btn / .lit / .rating-confirm /
+   .skip / .confirm). The dock no longer has a rating row — Watched
+   goes straight to the full-page write-a-review composer
+   (openShelfLogComposer) which has its own canonical star UI. */
+
+/* Triple-button choice row stays — three equal-width buttons
+   (Watchlist / Watching / Watched) on the FPMP add dock. */
+.discover-media-library-actions.discover-media-library-actions-triple {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 8px !important;
+}
+.discover-media-library-actions-triple .discover-media-library-choice {
+  width: 100%;
+  min-width: 0;
+}
+.discover-media-library-actions-triple .discover-media-library-choice.watching {
+  border-color: rgba(125, 211, 252, 0.55);
+  background: linear-gradient(140deg, rgba(125,211,252,0.16), rgba(34,211,238,0.10));
+}
+.discover-media-library-actions-triple .discover-media-library-choice.watching:hover {
+  border-color: rgba(125, 211, 252, 0.85);
+}
+
+/* v10.775: cooldown message shown under the username when user taps
+   Edit during the 14-day lock. Replaces the previous "Locked Xd" button
+   label — button now always says "Edit" and clicking it during cooldown
+   surfaces this inline red message instead. */
+.profile-settings-handle-locked-msg {
+  margin-top: 6px;
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 11px;
+  font-weight: 300;
+  color: #fb7185;
+  line-height: 1.4;
+  letter-spacing: 0.005em;
+}
+.profile-settings-handle-locked-msg[hidden] {
+  display: none !important;
+}
+
+/* v10.893: Friends Requests page - modern request pills + sent Watch Together cards. */
+#requests-view .request-subtabs {
+  display: flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  width: 100% !important;
+  margin: 0 0 18px !important;
+  padding: 4px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(167, 139, 250, 0.14) !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045) !important;
+  backdrop-filter: blur(18px) saturate(1.12) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.12) !important;
+}
+
+#requests-view .request-subtab {
+  flex: 1 1 0 !important;
+  min-height: 38px !important;
+  padding: 0 12px !important;
+  border: 1px solid transparent !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: rgba(232, 227, 243, 0.66) !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  box-shadow: none !important;
+}
+
+#requests-view .request-subtab.active {
+  background: rgba(167, 139, 250, 0.16) !important;
+  border-color: rgba(196, 181, 253, 0.20) !important;
+  color: #ffffff !important;
+  font-weight: 500 !important;
+  box-shadow: 0 8px 20px rgba(7, 4, 18, 0.18) !important;
+}
+
+#requests-view .request-subtab-count {
+  min-width: 19px !important;
+  height: 19px !important;
+  padding: 0 6px !important;
+  margin-left: 6px !important;
+  border-radius: 999px !important;
+  background: rgba(216, 180, 254, 0.22) !important;
+  color: #f5f0ff !important;
+  font-size: 10px !important;
+  font-weight: 500 !important;
+}
+
+#requests-view .friend-watch-request-card.sent-request {
+  grid-template-columns: 58px minmax(0, 1fr) !important;
+  gap: 12px !important;
+  padding: 12px !important;
+  border-radius: 18px !important;
+  border: 1px solid rgba(167, 139, 250, 0.14) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.024)),
+    rgba(9, 8, 18, 0.74) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18) !important;
+}
+
+#requests-view .friend-watch-request-card.sent-request .friend-watch-request-poster {
+  width: 58px !important;
+  height: 82px !important;
+  border-radius: 12px !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+}
+
+#requests-view .friend-watch-request-card.sent-request .friend-watch-request-kicker {
+  gap: 5px !important;
+  margin-bottom: 5px !important;
+}
+
+#requests-view .friend-watch-request-card.sent-request .friend-watch-request-kicker span,
+#requests-view .friend-watch-request-card.sent-request .friend-watch-request-kicker em {
+  min-height: 19px !important;
+  padding: 0 7px !important;
+  font-size: 9px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.12px !important;
+  color: rgba(232, 227, 243, 0.82) !important;
+}
+
+#requests-view .friend-watch-request-card.sent-request .friend-watch-request-kicker span {
+  background: rgba(167, 139, 250, 0.16) !important;
+  border-color: rgba(196, 181, 253, 0.16) !important;
+}
+
+#requests-view .friend-watch-request-card.sent-request .friend-watch-request-kicker em {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.07) !important;
+  color: rgba(216, 208, 233, 0.70) !important;
+}
+
+#requests-view .friend-watch-request-card.sent-request .friend-watch-request-body h4 {
+  color: #f7f3ff !important;
+  font-size: 16px !important;
+  line-height: 1.16 !important;
+  font-weight: 600 !important;
+  margin-bottom: 5px !important;
+}
+
+#requests-view .friend-watch-request-card.sent-request .friend-watch-request-body p {
+  color: rgba(216, 208, 233, 0.66) !important;
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+  font-weight: 300 !important;
+}
+
+#requests-view .friend-watch-request-card.sent-request .friend-watch-request-meta-row strong,
+#requests-view .friend-watch-request-card.sent-request .friend-watch-request-approved span {
+  color: rgba(196, 181, 253, 0.82) !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+}
+
+#requests-view .friend-watch-request-card.sent-request .friend-watch-request-sent-to {
+  gap: 6px !important;
+  margin-top: 10px !important;
+}
+
+#requests-view .friend-watch-request-card.sent-request .friend-watch-request-sent-to > span {
+  color: rgba(196, 181, 253, 0.68) !important;
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.28px !important;
+}
+
+#requests-view .friend-watch-request-card.sent-request .friend-watch-request-person-pill {
+  min-height: 32px !important;
+  gap: 7px !important;
+  padding: 3px 9px 3px 3px !important;
+  border: 1px solid rgba(196, 181, 253, 0.14) !important;
+  background: rgba(167, 139, 250, 0.09) !important;
+  color: rgba(247, 243, 255, 0.88) !important;
+}
+
+#requests-view .friend-watch-request-card.sent-request .friend-watch-request-person-pill img {
+  width: 25px !important;
+  height: 25px !important;
+}
+
+#requests-view .friend-watch-request-card.sent-request .friend-watch-request-person-pill strong {
+  font-size: 11.5px !important;
+  font-weight: 400 !important;
+  color: rgba(247, 243, 255, 0.88) !important;
+}
+
+#requests-view .friend-watch-request-card.sent-request .friend-watch-request-person-pill em {
+  color: rgba(248, 113, 113, 0.88) !important;
+  font-size: 10px !important;
+  font-weight: 400 !important;
+}
+
+#requests-view .friend-watch-request-card.sent-request .friend-watch-request-actions {
+  grid-column: 1 / -1 !important;
+  margin-top: 1px !important;
+}
+
+#requests-view .friend-watch-request-card.sent-request .friend-watch-action.decline {
+  min-height: 36px !important;
+  border: 1px solid rgba(248, 113, 113, 0.18) !important;
+  border-radius: 999px !important;
+  background: rgba(239, 68, 68, 0.08) !important;
+  color: rgba(254, 202, 202, 0.92) !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+}
+
+body.light-mode #requests-view .request-subtabs {
+  background: rgba(124, 58, 237, 0.05) !important;
+  border-color: rgba(20, 20, 20, 0.10) !important;
+}
+
+body.light-mode #requests-view .request-subtab {
+  color: #5c526f !important;
+}
+
+body.light-mode #requests-view .request-subtab.active {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #7c3aed, #9333ea) !important;
+  border-color: transparent !important;
+}
+
+body.light-mode #requests-view .friend-watch-request-card.sent-request {
+  background: linear-gradient(145deg, #ffffff, #f8f4ff) !important;
+  border-color: rgba(124, 58, 237, 0.14) !important;
+  box-shadow: 0 12px 26px rgba(76, 29, 149, 0.08) !important;
+}
+
+body.light-mode #requests-view .friend-watch-request-card.sent-request .friend-watch-request-body h4 {
+  color: #171717 !important;
+}
+
+body.light-mode #requests-view .friend-watch-request-card.sent-request .friend-watch-request-body p,
+body.light-mode #requests-view .friend-watch-request-card.sent-request .friend-watch-request-meta-row strong {
+  color: rgba(23, 23, 23, 0.68) !important;
+}
+
+body.light-mode #requests-view .friend-watch-request-card.sent-request .friend-watch-request-sent-to > span,
+body.light-mode #requests-view .friend-watch-request-card.sent-request .friend-watch-request-kicker span,
+body.light-mode #requests-view .friend-watch-request-card.sent-request .friend-watch-request-kicker em {
+  color: #6d28d9 !important;
+}
+
+/* v10.927: Main Discovery hub categories stay in one glass pill. */
+#discover-view .discover-hub-toggle,
+#anime-discover-view .discover-hub-toggle,
+#games-discover-view .discover-hub-toggle,
+#music-discover-view .discover-hub-toggle,
+body:not(.light-mode):not(.true-dark-mode) #discover-view .discover-hub-toggle,
+body:not(.light-mode):not(.true-dark-mode) #anime-discover-view .discover-hub-toggle,
+body:not(.light-mode):not(.true-dark-mode) #games-discover-view .discover-hub-toggle,
+body:not(.light-mode):not(.true-dark-mode) #music-discover-view .discover-hub-toggle {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 2px !important;
+  width: min(100%, 430px) !important;
+  max-width: 100% !important;
+  margin: 0 auto 18px !important;
+  /* v11.058: remove the wrapping capsule entirely — no border, background,
+     shadow or blur. The tab row is bare; the active underline is the only
+     indicator. */
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-width: none !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+#discover-view .discover-hub-toggle::-webkit-scrollbar,
+#anime-discover-view .discover-hub-toggle::-webkit-scrollbar,
+#games-discover-view .discover-hub-toggle::-webkit-scrollbar,
+#music-discover-view .discover-hub-toggle::-webkit-scrollbar {
+  display: none !important;
+}
+
+#discover-view .discover-hub-btn,
+#anime-discover-view .discover-hub-btn,
+#games-discover-view .discover-hub-btn,
+#music-discover-view .discover-hub-btn,
+body:not(.light-mode):not(.true-dark-mode) #discover-view .discover-hub-btn,
+body:not(.light-mode):not(.true-dark-mode) #anime-discover-view .discover-hub-btn,
+body:not(.light-mode):not(.true-dark-mode) #games-discover-view .discover-hub-btn,
+body:not(.light-mode):not(.true-dark-mode) #music-discover-view .discover-hub-btn,
+#discover-view .discover-hub-btn.active,
+#anime-discover-view .discover-hub-btn.active,
+#games-discover-view .discover-hub-btn.active,
+#music-discover-view .discover-hub-btn.active,
+body:not(.light-mode):not(.true-dark-mode) #discover-view .discover-hub-btn.active,
+body:not(.light-mode):not(.true-dark-mode) #anime-discover-view .discover-hub-btn.active,
+body:not(.light-mode):not(.true-dark-mode) #games-discover-view .discover-hub-btn.active,
+body:not(.light-mode):not(.true-dark-mode) #music-discover-view .discover-hub-btn.active {
+  flex: 1 0 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+  min-height: 34px !important;
+  padding: 7px 8px !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: rgba(248, 245, 239, 0.72) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+#discover-view .discover-hub-btn.active,
+#anime-discover-view .discover-hub-btn.active,
+#games-discover-view .discover-hub-btn.active,
+#music-discover-view .discover-hub-btn.active,
+body:not(.light-mode):not(.true-dark-mode) #discover-view .discover-hub-btn.active,
+body:not(.light-mode):not(.true-dark-mode) #anime-discover-view .discover-hub-btn.active,
+body:not(.light-mode):not(.true-dark-mode) #games-discover-view .discover-hub-btn.active,
+body:not(.light-mode):not(.true-dark-mode) #music-discover-view .discover-hub-btn.active {
+  /* v11.051: active tab = underline only. No pill background, no outline ring. */
+  background: transparent !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+  text-decoration: underline !important;
+  text-decoration-color: #c4b5fd !important;
+  text-decoration-thickness: 2px !important;
+  text-underline-offset: 7px !important;
+}
+
+body.light-mode #discover-view .discover-hub-toggle,
+body.light-mode #anime-discover-view .discover-hub-toggle,
+body.light-mode #games-discover-view .discover-hub-toggle,
+body.light-mode #music-discover-view .discover-hub-toggle {
+  background: rgba(255, 255, 255, 0.72) !important;
+  border-color: rgba(18, 8, 46, 0.10) !important;
+  box-shadow: 0 18px 34px rgba(76, 29, 149, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.68) !important;
+}
+
+body.light-mode #discover-view .discover-hub-btn,
+body.light-mode #anime-discover-view .discover-hub-btn,
+body.light-mode #games-discover-view .discover-hub-btn,
+body.light-mode #music-discover-view .discover-hub-btn {
+  color: rgba(36, 26, 58, 0.68) !important;
+}
+
+body.light-mode #discover-view .discover-hub-btn.active,
+body.light-mode #anime-discover-view .discover-hub-btn.active,
+body.light-mode #games-discover-view .discover-hub-btn.active,
+body.light-mode #music-discover-view .discover-hub-btn.active {
+  background: rgba(124, 58, 237, 0.14) !important;
+  color: #6d28d9 !important;
+  box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.18) !important;
+}
+
+/* v11.140: Full-page media profile title typography. Keep this late in
+   the loaded CSS order so it wins over older movie/TV/anime/game/music
+   profile title rules that live in earlier stylesheets. */
+.discover-media-profile-overlay .discover-media-hero h2,
+.game-media-profile-overlay .discover-media-hero h2,
+.music-album-profile-page .music-album-profile-album-title,
+.music-artist-profile-page .music-artist-profile-name {
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif !important;
+  font-size: 30px !important;
+  font-weight: 700 !important;
+  line-height: 1.05 !important;
+  letter-spacing: 0 !important;
+}
+
+.discover-media-profile-overlay .discover-media-tagline,
+.game-media-profile-overlay .discover-media-tagline {
+  font-weight: 500 !important;
+}
+
+/* v11.181: universal full-page media profile typography pass.
+   Keep this late so it beats the older per-surface rules for movie/TV/anime,
+   games, and the section-button styles that live in earlier stylesheets. */
+.discover-media-profile-overlay .discover-media-hero p,
+.game-media-profile-overlay .discover-media-hero p,
+.music-artist-profile-page .music-artist-profile-disambig,
+.music-album-profile-page .music-album-profile-artist {
+  font-weight: 400 !important;
+}
+
+.discover-media-profile-overlay .discover-media-hero p,
+.game-media-profile-overlay .discover-media-hero p {
+  text-align: left !important;
+}
+
+.discover-media-profile-overlay .discover-media-watch-inline-head strong,
+.game-media-profile-overlay .discover-media-watch-inline-head strong {
+  color: #ffffff !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+}
+
+.discover-media-profile-overlay .discover-media-watch-inline,
+.game-media-profile-overlay .discover-media-watch-inline {
+  align-self: stretch !important;
+  justify-self: stretch !important;
+  width: 100% !important;
+  max-width: none !important;
+  align-items: flex-start !important;
+  text-align: left !important;
+  margin: 8px 0 4px !important;
+  padding-top: 12px !important;
+  border-top: 1px solid rgba(255,255,255,0.18) !important;
+}
+
+.discover-media-profile-overlay .discover-media-watch-inline-head,
+.game-media-profile-overlay .discover-media-watch-inline-head,
+.discover-media-profile-overlay .discover-media-watch-inline-rows,
+.game-media-profile-overlay .discover-media-watch-inline-rows {
+  width: 100% !important;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  text-align: left !important;
+}
+
+.discover-media-profile-overlay .discover-media-watch-inline-head,
+.game-media-profile-overlay .discover-media-watch-inline-head {
+  width: 100% !important;
+  gap: 2px !important;
+}
+
+.discover-media-profile-overlay .discover-media-watch-inline-rows,
+.game-media-profile-overlay .discover-media-watch-inline-rows {
+  justify-items: start !important;
+  align-content: start !important;
+  grid-auto-columns: minmax(0, max-content) !important;
+  gap: 7px 18px !important;
+}
+
+.discover-media-profile-overlay .discover-media-watch-inline-head span,
+.game-media-profile-overlay .discover-media-watch-inline-head span,
+.discover-media-profile-overlay .discover-media-watch-inline-row,
+.game-media-profile-overlay .discover-media-watch-inline-row,
+.discover-media-profile-overlay .discover-media-watch-inline-row .discover-media-watch-inline-row-label,
+.game-media-profile-overlay .discover-media-watch-inline-row .discover-media-watch-inline-row-label,
+.discover-media-profile-overlay .discover-media-watch-inline-row .discover-media-watch-inline-provider-list,
+.game-media-profile-overlay .discover-media-watch-inline-row .discover-media-watch-inline-provider-list,
+.discover-media-profile-overlay .discover-media-watch-inline-row .discover-media-watch-inline-provider,
+.game-media-profile-overlay .discover-media-watch-inline-row .discover-media-watch-inline-provider,
+.discover-media-profile-overlay .discover-media-watch-inline-row .discover-provider-name-text,
+.game-media-profile-overlay .discover-media-watch-inline-row .discover-provider-name-text {
+  font-weight: 400 !important;
+}
+
+.discover-media-profile-overlay .discover-media-watch-inline-row .discover-media-watch-inline-row-label,
+.game-media-profile-overlay .discover-media-watch-inline-row .discover-media-watch-inline-row-label,
+.discover-media-profile-overlay .discover-media-watch-inline-row .discover-media-watch-inline-provider-list,
+.game-media-profile-overlay .discover-media-watch-inline-row .discover-media-watch-inline-provider-list,
+.discover-media-profile-overlay .discover-media-watch-inline-row .discover-media-watch-inline-provider,
+.game-media-profile-overlay .discover-media-watch-inline-row .discover-media-watch-inline-provider,
+.discover-media-profile-overlay .discover-media-watch-inline-row .discover-provider-name-text,
+.game-media-profile-overlay .discover-media-watch-inline-row .discover-provider-name-text {
+  font-size: 15px !important;
+  line-height: 1.05 !important;
+}
+
+.discover-media-profile-overlay .discover-media-watch-inline-row .discover-media-watch-inline-row-label,
+.game-media-profile-overlay .discover-media-watch-inline-row .discover-media-watch-inline-row-label {
+  display: none !important;
+}
+
+.discover-media-profile-overlay .discover-media-facts strong,
+.game-media-profile-overlay .discover-media-facts strong,
+.discover-media-profile-overlay .discover-media-credits strong,
+.game-media-profile-overlay .discover-media-credits strong {
+  color: #ffffff !important;
+  font-weight: 400 !important;
+}
+
+.discover-media-profile-overlay .discover-media-facts span,
+.game-media-profile-overlay .discover-media-facts span,
+.discover-media-profile-overlay .discover-media-credits span,
+.game-media-profile-overlay .discover-media-credits span {
+  font-weight: 400 !important;
+}
+
+.discover-media-profile-overlay .discover-media-score .discover-media-score-value,
+.game-media-profile-overlay .discover-media-score .discover-media-score-value {
+  font-weight: 600 !important;
+}
+
+.discover-media-profile-overlay .discover-media-score .discover-media-score-denominator,
+.game-media-profile-overlay .discover-media-score .discover-media-score-denominator {
+  font-weight: 400 !important;
+}
+
+.discover-media-profile-overlay .discover-media-chips span,
+.game-media-profile-overlay .discover-media-chips span {
+  color: #ffffff !important;
+  font-weight: 400 !important;
+}
+
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-credits div,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-section-cast,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-ai-more-section,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-seasons-entry {
+  border-color: rgba(255,255,255,0.18) !important;
+}
+
+/* v11.454: this forced-500 !important is the rule that was blocking the anime
+   FPMP header weight. Scoped OFF anime (.discover-media-page-anime) so the anime
+   profile's own clean header rules (css/10, weight 600) apply with no !important
+   fight. Movies/TV (this overlay) + games (.game-media-profile-overlay) keep 500. */
+.discover-media-profile-overlay .discover-media-page:not(.discover-media-page-anime) .discover-ai-more-section h3,
+.game-media-profile-overlay .discover-ai-more-section h3,
+.discover-media-profile-overlay .discover-media-page:not(.discover-media-page-anime) .discover-media-section-cast h3,
+.game-media-profile-overlay .discover-media-section-cast h3,
+.discover-media-page:not(.discover-media-page-anime) .discover-media-section-user-reviews .media-profile-user-reviews-button span {
+  font-weight: 500 !important;
+}
+
+.discover-media-profile-overlay .discover-ai-more-section .discover-media-similar-card span,
+.game-media-profile-overlay .discover-ai-more-section .discover-media-similar-card span {
+  font-weight: 500 !important;
+}
+
+.discover-media-profile-overlay .discover-ai-more-section .discover-media-similar-card small,
+.game-media-profile-overlay .discover-ai-more-section .discover-media-similar-card small {
+  color: #ffffff !important;
+  font-weight: 400 !important;
+}
+
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-seasons-entry {
+  padding: 16px 2px !important;
+  margin-top: 2px !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-top: 1px solid rgba(255,255,255,0.18) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.18) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-seasons-entry:hover,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-seasons-entry:active {
+  background: transparent !important;
+}
+
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-seasons-entry-copy h3,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-seasons-entry-meta {
+  font-weight: 600 !important;
+}
+
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-facts strong {
+  color: #ffffff !important;
+  font-weight: 400 !important;
+}
+
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-facts span {
+  font-weight: 400 !important;
+}
+
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-facts {
+  margin-top: 15px !important;
+}
+
+/* v11.186: FPMP add-to-shelf dock + add-shelf modal typography ladder.
+   Normalize the full flow to 400 body / 500 subheading / 600 header / 700 title. */
+.discover-media-library-eyebrow {
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.08em !important;
+}
+
+.discover-media-library-title,
+.discover-media-library-success-title {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  line-height: 1.08 !important;
+}
+
+.discover-media-library-added-note,
+.discover-media-library-choice small,
+.discover-media-library-success-sub {
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  line-height: 1.35 !important;
+}
+
+.discover-media-library-choice span {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  line-height: 1.12 !important;
+}
+
+.discover-media-library-close {
+  font-size: 17px !important;
+  font-weight: 600 !important;
+}
+
+body.true-dark-mode #modal .add-shelf-step-kicker,
+body.true-dark-mode #modal .add-shelf-selected-kicker,
+body.true-dark-mode #modal .modal-status-label,
+body.true-dark-mode #modal .add-shelf-rating-kicker {
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.05em !important;
+}
+
+body.true-dark-mode #modal .add-shelf-step-title {
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  line-height: 1.05 !important;
+  letter-spacing: -0.02em !important;
+}
+
+body.true-dark-mode #modal .tmdb-selected-title,
+body.true-dark-mode #modal .add-shelf-confirm-readout,
+body.true-dark-mode #modal .modal-status-confirm-title,
+body.true-dark-mode #modal .add-shelf-rating-readout {
+  font-size: 19px !important;
+  font-weight: 700 !important;
+  line-height: 1.12 !important;
+  letter-spacing: 0 !important;
+  color: #f6f4fb !important;
+}
+
+body.true-dark-mode #modal .add-shelf-step-subtitle,
+body.true-dark-mode #modal .add-shelf-selected-line,
+body.true-dark-mode #modal .modal-status-confirm-copy,
+body.true-dark-mode #modal .discover-rating-prompt .discover-add-desc,
+body.true-dark-mode #modal .modal-status-subtitle,
+body.true-dark-mode #modal .add-shelf-rating-desc,
+body.true-dark-mode #modal .add-shelf-step-shell--success .add-shelf-success-panel .modal-status-confirm-copy {
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  line-height: 1.38 !important;
+}
+
+body.true-dark-mode #modal .add-shelf-selected-chip,
+body.true-dark-mode #modal .add-shelf-confirm-chip,
+body.true-dark-mode #modal .add-shelf-rating-prompt .star-label {
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+}
+
+body.true-dark-mode #modal .add-shelf-step-back,
+body.true-dark-mode #modal .add-shelf-choice-btn,
+body.true-dark-mode #modal .modal-status-btn,
+body.true-dark-mode #modal .modal-status-confirm-actions .btn-secondary,
+body.true-dark-mode #modal .modal-status-confirm-actions .btn-primary,
+body.true-dark-mode #modal .modal-actions .btn-secondary,
+body.true-dark-mode #modal .add-shelf-rating-actions .btn-secondary,
+body.true-dark-mode #modal .add-shelf-rating-actions .btn-primary,
+body.true-dark-mode #modal .add-shelf-selected-clear {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 1.08 !important;
+  letter-spacing: 0 !important;
+}
+
+body.true-dark-mode #modal .add-shelf-search-flash {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 1.35 !important;
+}
+
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-facts .discover-media-fact-seasons strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-facts .discover-media-fact-episodes strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-facts .discover-media-fact-members strong {
+  color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-credits span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-credits strong {
+  font-weight: 400 !important;
+}
+
+.discover-media-profile-overlay .discover-media-cast-card strong,
+.game-media-profile-overlay .discover-media-cast-card strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-cast-card strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page .discover-media-cast-card span,
+.discover-media-profile-overlay .discover-media-cast-card span,
+.game-media-profile-overlay .discover-media-cast-card span {
+  font-weight: 400 !important;
+}
+
+.discover-media-profile-overlay .discover-media-page.discover-person-page .discover-person-overview-panel div {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.discover-media-profile-overlay .discover-media-page.discover-person-page .discover-person-overview-panel span {
+  order: -1 !important;
+  margin: 0 0 6px !important;
+  font-weight: 300 !important;
+}
+
+.discover-media-profile-overlay .discover-media-page.discover-person-page .discover-person-overview-panel strong {
+  font-size: 14px !important;
+  line-height: 1.25 !important;
+  font-weight: 400 !important;
+}
+
+.discover-media-profile-overlay .discover-media-page.discover-person-page .discover-media-hero p {
+  font-weight: 400 !important;
+}
+
+.discover-media-profile-overlay .discover-media-page.discover-person-page .discover-person-most-known h3,
+.discover-media-profile-overlay .discover-media-page.discover-person-page .discover-person-filmography-header h3 {
+  font-weight: 600 !important;
+}
+
+.discover-media-profile-overlay .discover-media-page.discover-person-page .discover-person-credit-title {
+  font-weight: 500 !important;
+}
+
+.discover-media-profile-overlay .discover-media-page.discover-person-page .discover-person-credit-role {
+  color: #ffffff !important;
+  font-weight: 400 !important;
+}
+
+/* v11.177: actor/person profile chrome + content stack move up 15px from the
+   older +39px patch. Keep this late so it beats the earlier coordinated
+   page/back/heart offsets in 11-patch-notes-friends-refinements.css and
+   05-messages-early-polish.css. */
+.discover-media-profile-overlay .discover-person-page {
+  padding-top: 24px !important;
+}
+
+.discover-media-profile-overlay .discover-person-page > .discover-media-back.discover-media-back--icon,
+.cast-fav-btn.cast-fav-btn--profile {
+  top: max(38px, calc(var(--shelfd-safe-top, 0px) + 24px)) !important;
+}
+
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-seasons,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-episodes,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-members,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-first-aired,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-country,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-status,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-type,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-trailer-views,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-seasons,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-episodes,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-members,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-first-aired,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-country,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-status,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-type,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-trailer-views,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-runtime,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-release-date,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-country,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-status,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-budget,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-box-office,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-members,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-trailer-views {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 5px !important;
+}
+
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-seasons strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-episodes strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-members strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-first-aired strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-country strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-status strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-type strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-trailer-views strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-seasons strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-episodes strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-members strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-first-aired strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-country strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-status strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-type strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-trailer-views strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-runtime strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-release-date strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-country strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-status strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-budget strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-box-office strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-members strong,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-trailer-views strong {
+  order: 2 !important;
+  margin-top: 0 !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  line-height: 0.9 !important;
+}
+
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-seasons span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-episodes span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-members span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-first-aired span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-country span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-status span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-type span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-tv .discover-media-facts .discover-media-fact-trailer-views span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-seasons span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-episodes span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-members span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-first-aired span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-country span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-status span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-type span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-anime .discover-media-facts .discover-media-fact-trailer-views span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-runtime span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-release-date span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-country span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-status span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-budget span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-box-office span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-members span,
+.discover-media-profile-overlay .discover-media-page.discover-standard-title-page-movie .discover-media-facts .discover-media-fact-trailer-views span {
+  order: 1 !important;
+  margin-top: 0 !important;
+  line-height: 0.9 !important;
+}
+
+/* v11.236: creator/dev account now shows the GLASS status button too.
+   The old v11.190 block forced a flat French-Lilac pill on this account, which
+   overrode the v11.233/234 glass design — so the creator never saw the glass.
+   Rewritten: the visible current pill (`.game-status-current-pill`) renders the
+   frosted-glass button (white base + per-status tint), matching the design
+   shipped to everyone else. The pop-out OPTION pills stay simple/flat so the
+   selector tray reads clean. 3-ID specificity preserved so it still wins. */
+body.shelfd-dev-mylist-status-preview #mylist-view #cards-grid .card[data-library-section] .game-status-current-pill,
+body.shelfd-dev-mylist-status-preview #mylist-view .card[data-library-section] .game-status-current-pill,
+body.shelfd-dev-mylist-status-preview #mylist-view .status-pills.status-pills-selector-wrap.status-pills--under-title .game-status-current-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 20px !important;
+  padding: 3.5px 10px !important;
+  border: 1px solid rgba(225, 183, 229, 0.45) !important;
+  border-radius: 7px !important;
+  background: rgba(225, 183, 229, 0.10) !important;
+  background-image: none !important;
+  -webkit-backdrop-filter: blur(10px) saturate(125%) !important;
+  backdrop-filter: blur(10px) saturate(125%) !important;
+  box-shadow: none !important;
+  filter: none !important;
+  color: #e1b7e5 !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  line-height: 1 !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+  opacity: 1 !important;
+  transition: transform 140ms ease, background 180ms ease, border-color 180ms ease !important;
+  -webkit-tap-highlight-color: transparent;
+}
+body.shelfd-dev-mylist-status-preview #mylist-view #cards-grid .card[data-library-section] .game-status-current-pill:active,
+body.shelfd-dev-mylist-status-preview #mylist-view .card[data-library-section] .game-status-current-pill:active {
+  transform: scale(0.97);
+  background: rgba(225, 183, 229, 0.16) !important;
+}
+/* v11.238: ALL statuses use the same French Lilac whisper-glass chip on the
+   creator account — no per-status color. One rule covers every active state. */
+body.shelfd-dev-mylist-status-preview #mylist-view #cards-grid .card[data-library-section] .game-status-current-pill.watching-active,
+body.shelfd-dev-mylist-status-preview #mylist-view .card[data-library-section] .game-status-current-pill.watching-active,
+body.shelfd-dev-mylist-status-preview #mylist-view #cards-grid .card[data-library-section] .game-status-current-pill.competitive-active,
+body.shelfd-dev-mylist-status-preview #mylist-view .card[data-library-section] .game-status-current-pill.competitive-active,
+body.shelfd-dev-mylist-status-preview #mylist-view #cards-grid .card[data-library-section] .game-status-current-pill.planned-active,
+body.shelfd-dev-mylist-status-preview #mylist-view #cards-grid .card[data-library-section] .game-status-current-pill.wishlist-active,
+body.shelfd-dev-mylist-status-preview #mylist-view .card[data-library-section] .game-status-current-pill.planned-active,
+body.shelfd-dev-mylist-status-preview #mylist-view .card[data-library-section] .game-status-current-pill.wishlist-active,
+body.shelfd-dev-mylist-status-preview #mylist-view #cards-grid .card[data-library-section] .game-status-current-pill.watched-active,
+body.shelfd-dev-mylist-status-preview #mylist-view .card[data-library-section] .game-status-current-pill.watched-active,
+body.shelfd-dev-mylist-status-preview #mylist-view #cards-grid .card[data-library-section] .game-status-current-pill.paused-active,
+body.shelfd-dev-mylist-status-preview #mylist-view .card[data-library-section] .game-status-current-pill.paused-active,
+body.shelfd-dev-mylist-status-preview #mylist-view #cards-grid .card[data-library-section] .game-status-current-pill.dropped-active,
+body.shelfd-dev-mylist-status-preview #mylist-view .card[data-library-section] .game-status-current-pill.dropped-active,
+body.shelfd-dev-mylist-status-preview #mylist-view #cards-grid .card[data-library-section] .game-status-current-pill.live-active,
+body.shelfd-dev-mylist-status-preview #mylist-view .card[data-library-section] .game-status-current-pill.live-active {
+  border-color: rgba(225, 183, 229, 0.45) !important;
+  background: rgba(225, 183, 229, 0.10) !important;
+  background-image: none !important;
+  color: #e1b7e5 !important;
+}
+/* Pop-out OPTION pills stay simple flat lilac on the creator account. */
+body.shelfd-dev-mylist-status-preview #mylist-view .game-status-options .status-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 20px !important;
+  padding: 3px 9px !important;
+  border: 1px solid rgba(225, 183, 229, 0.55) !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  color: #e1b7e5 !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  opacity: 0.9 !important;
+}
+
+/* v11.642: final end-of-file guard — the full-page user profile defaults to
+   Sohne everywhere. Earlier profile blocks already normalize this, but later
+   `font:` shorthands elsewhere in the cascade can reset family implicitly.
+   Keeping the guard at EOF ensures every profile descendant, including pseudo
+   elements and form controls, resolves back to Sohne. Weight/size are left to
+   the more specific profile rules above; this only locks the family. */
+#profile-page,
+#profile-page *:not(svg):not(path),
+#profile-page *::before,
+#profile-page *::after {
+  font-family: 'Sohne', 'Söhne', 'DM Sans', system-ui, -apple-system, sans-serif !important;
+}

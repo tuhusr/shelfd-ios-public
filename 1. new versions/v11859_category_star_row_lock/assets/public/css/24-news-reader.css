@@ -1,0 +1,378 @@
+/* ============================================================================
+   24-news-reader.css  (v11.710)
+   In-app news reader overlay (#news-reader). Editorial-dark, full-screen, slides
+   in from the right and edge-swipe-backs out (js/31). Mirrors the Full Page
+   Media Review geometry (fixed inset:0, translate3d(100%) → 0, 320ms) so the
+   transition + swipe-back feel identical across the app. Dark-mode only.
+   ========================================================================== */
+
+body.news-reader-open { overflow: hidden; }
+
+.news-reader-page {
+  position: fixed;
+  inset: 0;
+  z-index: 7300;
+  background: #0c0b10;
+  color: #f4f1fb;
+  transform: translate3d(100%, 0, 0);
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+  overflow: hidden;
+  font-family: 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0;
+}
+.news-reader-page.is-open { transform: translate3d(0, 0, 0); }
+.news-reader-page,
+.news-reader-page * { letter-spacing: 0; }
+
+.news-reader-shell {
+  position: relative;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- Top bar ---- */
+.news-reader-topbar {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: max(12px, var(--shelfd-safe-top, 0px)) 14px 12px;
+  background: rgba(12, 11, 16, 0.86);
+  -webkit-backdrop-filter: saturate(150%) blur(18px);
+  backdrop-filter: saturate(150%) blur(18px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.news-reader-back {
+  flex: 0 0 auto;
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255, 255, 255, 0.06);
+  border: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 150ms ease, transform 150ms ease;
+}
+.news-reader-back:active { transform: scale(0.92); background: rgba(255, 255, 255, 0.1); }
+.news-reader-back svg { width: 21px; height: 21px; fill: none; stroke: #f4f1fb; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }
+.news-reader-topbar-title {
+  flex: 1;
+  min-width: 0;
+  font: 500 14px/1.2 'Sohne', 'DM Sans', sans-serif;
+  color: rgba(244, 241, 251, 0.86);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.news-reader-share,
+.news-reader-search {
+  flex: 0 0 auto;
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255, 255, 255, 0.06);
+  border: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #f4f1fb;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 150ms ease, transform 150ms ease;
+}
+.news-reader-share:active { transform: scale(0.92); background: rgba(196, 181, 253, 0.16); color: #ddd2ff; }
+.news-reader-search:active { transform: scale(0.92); background: rgba(196, 181, 253, 0.18); color: #ddd2ff; }
+.news-reader-share svg,
+.news-reader-search svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+
+/* v11.677: reader Heart — same circular button as the share icon, with the news
+   CARD heart behaviour: outline by default, fills red (#ff3040) when hearted,
+   pops on heart. Reuses the global `newsHeartPop` keyframe from css/23. Identical
+   look/behaviour to the feed-card heart, just sized for the reader topbar. */
+.news-reader-heart {
+  flex: 0 0 auto;
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255, 255, 255, 0.06);
+  border: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #f4f1fb;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 150ms ease, transform 150ms ease, color 160ms ease;
+}
+.news-reader-heart:active { transform: scale(0.92); }
+.news-reader-heart svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; transition: fill 160ms ease, stroke 160ms ease; }
+.news-reader-heart.is-bookmarked { color: #ff3040; }
+.news-reader-heart.is-bookmarked svg { fill: #ff3040; stroke: #ff3040; }
+.news-reader-heart.heart-pop svg { animation: newsHeartPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* ---- Scroll container ---- */
+.news-reader-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* ---- Hero image ---- */
+.news-reader-hero {
+  width: 100%;
+  aspect-ratio: var(--news-video-aspect, 16 / 9);
+  background: #15121f;
+  overflow: hidden;
+}
+.news-reader-hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* ---- Article column ---- */
+.news-reader-article {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 22px 20px max(44px, calc(env(safe-area-inset-bottom, 0px) + 30px));
+}
+
+.news-reader-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  font: 500 12.5px/1 'Sohne', 'DM Sans', sans-serif;
+  color: #9990b3;
+  margin: 2px 0 12px;
+}
+.news-reader-cat {
+  color: #c4b5fd;
+  text-transform: uppercase;
+  letter-spacing: 0.06em !important;
+  font-size: 11px;
+  font-weight: 600;
+}
+.news-reader-source { color: #b8afd1; font-weight: 500; }
+.news-reader-dot { color: rgba(216, 208, 233, 0.4); }
+.news-reader-time { color: rgba(255, 255, 255, 0.45); font-weight: 300; font-size: 12px; }
+
+.news-reader-title {
+  margin: 0 0 18px;
+  font: 600 25px/1.24 'Sohne', 'DM Sans', sans-serif;
+  color: #ffffff;
+}
+.news-reader-article-video .news-reader-title {
+  margin-bottom: 14px;
+}
+.news-reader-video-primary {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #000;
+  margin: 0 0 14px;
+}
+.news-reader-video-primary.news-card-media-video[data-news-video-orientation="portrait"],
+.news-reader-video-primary.news-card-media-video[data-news-video-orientation="square"] {
+  margin-left: auto;
+  margin-right: auto;
+}
+.news-reader-article-video .news-reader-meta {
+  margin-top: 4px;
+  margin-bottom: 0;
+}
+.news-reader-article-video .news-reader-body:empty,
+.news-reader-article-video .news-reader-foot:empty {
+  display: none;
+}
+
+.news-reader-body { color: #e2e2e2; }
+.news-reader-body p {
+  margin: 0 0 18px;
+  font: 400 16.5px/1.72 'Sohne', 'DM Sans', sans-serif;
+  color: #e2e2e2;   /* v11.754: reader body text #e9e4f5 → #e2e2e2 */
+}
+.news-reader-body p:last-child { margin-bottom: 0; }
+.news-reader-body a {
+  color: #c4b5fd;
+  text-decoration: underline;
+  text-decoration-color: rgba(196, 181, 253, 0.48);
+  text-underline-offset: 0.18em;
+}
+.news-reader-body a:active { color: #ddd6fe; }
+
+/* v11.631: structured blocks pulled from the source article — section headers,
+   inline photos (+captions), and pull-quotes, in document order. */
+.news-reader-body > :first-child { margin-top: 0 !important; }
+.news-reader-h {
+  color: #ffffff;
+  font-family: 'Sohne', 'DM Sans', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.news-reader-h2 { margin: 30px 0 12px; font-size: 21px; line-height: 1.3; }
+.news-reader-h3 { margin: 26px 0 10px; font-size: 18px; line-height: 1.34; }
+.news-reader-h4 { margin: 22px 0 8px; font-size: 16px; line-height: 1.38; color: #e9e4f5; }
+
+.news-reader-fig {
+  margin: 6px 0 22px;
+}
+.news-reader-fig img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  background: #15121f;
+}
+.news-reader-fig figcaption {
+  margin-top: 8px;
+  font: 400 12.5px/1.5 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.02em;
+  color: #9990b3;
+}
+
+.news-reader-quote {
+  margin: 20px 0;
+  padding: 2px 0 2px 16px;
+  border-left: 3px solid #a78bfa;
+  font: 400 17px/1.6 'Sohne', 'DM Sans', sans-serif;
+  color: #d8d0e9;
+}
+
+/* v11.633: "this list continues on {source}" hand-off when a publisher lazy-loads
+   the back half of a listicle (no static page to pull the rest from). */
+.news-reader-continue {
+  margin: 28px 0 6px;
+  padding: 18px;
+  border: 1px solid rgba(167, 139, 250, 0.28);
+  border-radius: 14px;
+  background: rgba(124, 92, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.news-reader-continue-head strong {
+  display: block;
+  margin-bottom: 5px;
+  font: 600 16px/1.35 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.01em;
+  color: #ffffff;
+}
+.news-reader-continue-head span {
+  display: block;
+  font: 400 13px/1.5 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.02em;
+  color: #9990b3;
+}
+.news-reader-continue-btn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 16px;
+  border-radius: 11px;
+  background: #a78bfa;
+  color: #15101f;
+  font: 600 14px/1 'Sohne', 'DM Sans', sans-serif;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+}
+.news-reader-continue-btn:active { transform: scale(0.985); }
+.news-reader-continue-btn svg {
+  width: 15px; height: 15px;
+  fill: none; stroke: #15101f; stroke-width: 2.2;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+
+/* ---- Footer: attribution + view-original ---- */
+.news-reader-foot {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+.news-reader-attrib {
+  margin: 0 0 14px;
+  font: 400 13px/1.5 'Sohne', 'DM Sans', sans-serif;
+  color: #9990b3;
+}
+.news-reader-origin {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  background: rgba(167, 139, 250, 0.12);
+  border: 1px solid rgba(167, 139, 250, 0.4);
+  color: #d7ccff;
+  border-radius: 999px;
+  padding: 11px 18px;
+  font: 500 14px/1 'Sohne', 'DM Sans', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 150ms ease, transform 150ms ease;
+}
+.news-reader-origin:active { transform: scale(0.97); background: rgba(167, 139, 250, 0.2); }
+.news-reader-origin svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---- Fallback (extraction failed) ---- */
+.news-reader-fallback { display: flex; flex-direction: column; gap: 14px; }
+.news-reader-fallback-summary {
+  margin: 0;
+  font: 400 16.5px/1.66 'Sohne', 'DM Sans', sans-serif;
+  color: #e9e4f5;
+}
+.news-reader-fallback-note {
+  margin: 0;
+  font: 400 14px/1.55 'Sohne', 'DM Sans', sans-serif;
+  color: #9990b3;
+}
+
+/* ---- Loading skeleton ---- */
+.news-reader-skeleton { display: flex; flex-direction: column; gap: 22px; }
+.news-reader-skel-para { display: flex; flex-direction: column; gap: 11px; }
+.news-reader-skel-line {
+  height: 13px;
+  border-radius: 6px;
+  background: linear-gradient(100deg, rgba(255,255,255,0.045) 30%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0.045) 70%);
+  background-size: 200% 100%;
+  animation: newsReaderShimmer 1.25s ease-in-out infinite;
+}
+.news-reader-skel-line.short { width: 52%; }
+
+@keyframes newsReaderShimmer {
+  0%   { background-position: 180% 0; }
+  100% { background-position: -80% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .news-reader-page { transition: none; }
+  .news-reader-skel-line { animation: none; }
+}
+
+/* v11.655: a YouTube "article" is a trailer — the reader plays it in a 16:9
+   player instead of running it through (useless) article extraction. */
+.news-reader-video {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 2px 0 10px;
+}
+.news-reader-video iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}

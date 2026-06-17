@@ -1,0 +1,7 @@
+Shelfd v11.893 - DM inbox username weight
+
+Updated Direct Message inbox usernames.
+
+- Read inbox rows now use 400 font weight.
+- Username letter spacing is now 0.
+- Unread rows keep the username 100% white and only increase the font weight to 500.

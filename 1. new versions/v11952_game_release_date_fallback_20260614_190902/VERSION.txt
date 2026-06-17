@@ -1,0 +1,3 @@
+v11.952 — Release Date was missing in the game Info section for UNRELEASED games (e.g. Empulse): IGDB had no first_release_date and RAWG is monthly-capped, so the row was omitted. FIX: worker now falls back to IGDB release_dates[] when first_release_date is null (earliest exact date, else the human label like "Q4 2025"/"TBD"); added release_dates.human + release_dates.date to the /api/igdb/game-info query. Client getGameMediaInfoRows shows the raw label as-is when it is not a parseable date. Verified: Empulse now resolves 2026-06-24 -> "Jun 24, 2026"; Witcher 3 unchanged; "Q4 2025"/"TBD" pass through.
+Deployed 2026-06-14
+Version ID: 3284b2fe-3b1d-429b-b57c-b4c7a60187c9

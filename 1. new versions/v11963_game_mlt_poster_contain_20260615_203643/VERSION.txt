@@ -1,0 +1,2 @@
+v11.963 — Game More Like This posters were slightly zoomed/cropped: the card img used object-fit:cover with a forced aspect-ratio 2/3, but IGDB game covers are ~0.706 ratio (not exactly 0.667), so cover cropped the edges. Added a game-scoped override (5 classes + !important beats the shared rule) setting object-fit:contain so the full poster fits. Movie/TV posters (true 2:3) keep cover, unchanged. Quality/resolution untouched. Verified in preview: game=contain, movie=cover.
+Deployed 2026-06-15

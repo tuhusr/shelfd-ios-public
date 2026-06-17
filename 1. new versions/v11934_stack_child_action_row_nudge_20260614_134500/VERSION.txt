@@ -1,0 +1,3 @@
+v11.934 — Child dropdown action row nudged up 9px + left 6px (translate -36,-30 -> -42,-39)
+Deployed 2026-06-14
+Version ID: 37c62590-a4de-4cdd-866e-8dee52cb2c8b

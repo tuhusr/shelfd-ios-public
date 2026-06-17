@@ -1,0 +1,5 @@
+v11.905 - DM inbox plain usernames
+
+- Removed inherited creator-name visual effects from Direct Message inbox usernames.
+- Reset DM inbox username text and wrappers to plain text: no shadow, background, filter, or box-shadow.
+- Kept existing username color, weights, unread dot, and second-line styling intact.

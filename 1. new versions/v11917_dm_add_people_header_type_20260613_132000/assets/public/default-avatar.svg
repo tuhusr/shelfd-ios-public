@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Default profile photo">
+  <defs>
+    <linearGradient id="slDefAvBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3b3c47"/>
+      <stop offset="1" stop-color="#2f3039"/>
+    </linearGradient>
+    <clipPath id="slDefAvClip"><circle cx="100" cy="100" r="100"/></clipPath>
+  </defs>
+  <g clip-path="url(#slDefAvClip)">
+    <rect width="200" height="200" fill="url(#slDefAvBg)"/>
+    <circle cx="100" cy="79" r="33" fill="#9598a8"/>
+    <ellipse cx="100" cy="166" rx="62" ry="52" fill="#9598a8"/>
+  </g>
+</svg>

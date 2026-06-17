@@ -1,0 +1,1 @@
+﻿v12.090 - 2026-06-17 - increased stacked parent card padding-bottom 10px to 24px to prevent fanned posters clipping at card boundary

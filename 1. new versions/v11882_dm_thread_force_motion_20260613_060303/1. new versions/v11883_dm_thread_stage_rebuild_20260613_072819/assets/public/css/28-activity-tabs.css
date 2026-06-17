@@ -1,0 +1,60 @@
+/* v11.867: Activity tab strip ownership.
+   Moved from 17-auth-flow-setup.css so auth CSS no longer owns the community
+   Activity/Friends/News tab layout. */
+
+#community-view #activity-tab-view .activity-feed-actions {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  flex-wrap: nowrap !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  gap: clamp(4px, 1.4vw, 10px) !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  white-space: nowrap !important;
+}
+
+#community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+#community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill,
+#community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill.secondary,
+#community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill.activity-feed-pill,
+#community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill.shared-watch-tab-pill,
+#community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill.news-tab-pill {
+  color: rgba(244, 244, 246, 0.55) !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  transition: color 200ms ease, border-color 200ms ease;
+}
+
+#community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill.active,
+#community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill.activity-feed-pill.active,
+#community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill.shared-watch-tab-pill.active,
+#community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill.news-tab-pill.active {
+  color: #ffffff !important;
+  background: transparent !important;
+  border-bottom: 2px solid rgba(167, 139, 250, 0.95) !important;
+  font-weight: 700 !important;
+}
+
+body.light-mode #community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill {
+  color: rgba(23, 23, 27, 0.5) !important;
+}
+
+body.light-mode #community-view #activity-tab-view .activity-feed-actions .activity-shared-watch-pill.active {
+  color: #17171b !important;
+  border-bottom-color: rgba(124, 58, 237, 0.95) !important;
+}

@@ -1,0 +1,7 @@
+Shelfd v11.891 - DM inbox unread dot and inline timestamp
+
+Updated the Direct Message inbox row layout.
+
+- Unread notification dots now sit all the way on the right edge of the row, vertically centered.
+- The timestamp now appears inline after the message preview as `preview • time`.
+- Long previews truncate before the inline timestamp, so rows keep the intended single-line rhythm.

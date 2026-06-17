@@ -1,0 +1,1 @@
+﻿v12.085 - 2026-06-17 - fix shareBtn undefined in video engagement row (declared after use)

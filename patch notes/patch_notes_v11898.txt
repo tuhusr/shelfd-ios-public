@@ -1,0 +1,5 @@
+v11.898 - iOS landing logo
+
+- Reused the mobile-browser landing logo lockup on the native iOS app landing screen.
+- Replaced the older native landing star/logo text with `/logo_landing_mobile.png`.
+- Left the mobile-browser App Store CTA behavior unchanged.

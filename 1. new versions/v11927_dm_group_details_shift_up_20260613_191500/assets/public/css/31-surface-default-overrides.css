@@ -1,0 +1,514 @@
+/* =============================================================
+   31-surface-default-overrides.css
+   Legacy default/dark surface override layer extracted from
+   16-light-mode-contrast.css so the light-mode file can return
+   to owning only dormant light/cream theme rules.
+
+   This file intentionally preserves the previous cascade position:
+   it is loaded immediately after 16-light-mode-contrast.css and
+   before the later app surface stylesheets.
+   ============================================================= */
+
+/* =============================================================
+   v487: DEFAULT THEME FLAT-MODE ? My Lists page
+   Remove every shadow, glow, blur, translucent surface, and
+   animation filter. Everything is a solid hex colour.
+   Progress bar is explicitly excluded from this reset.
+   ============================================================= */
+
+/* -- 1. Nuclear shadow/filter/blur wipe on the whole My Lists view -- */
+body.true-dark-mode #mylist-view *:not(.progress-fill):not(.progress-bar) {
+  box-shadow: none !important;
+  text-shadow: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* -- 2. Star rating animations ? kill glow keyframes by preventing
+        the animation classes from running. The star still changes
+        colour on click; it just doesn't pop or glow. -- */
+body.true-dark-mode .star-btn.star-pop,
+body.true-dark-mode .star-label.label-pop,
+body.true-dark-mode .ep-rating-btn {
+  animation: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+/* -- 3. Episode watch-sweep glow -- */
+body.true-dark-mode .ep-row.episode-watch-glow,
+body.true-dark-mode .ep-check.ep-check-pop {
+  animation: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+/* -- 4. Profile avatar ? solid border, no shadow -- */
+/* v590: username 600 weight */
+#mylist-view .mylist-own-profile-name,
+body.true-dark-mode #mylist-view .mylist-own-profile-name {
+  font-weight: 600 !important;
+}
+
+body.true-dark-mode #mylist-view .mylist-own-profile-shortcut {
+  box-shadow: none !important;
+  border: 1px solid #3a3a3a !important;
+  background: #1a1a1a !important;
+  /* v589: 10% smaller (50px ? 45px) */
+  width: 45px !important;
+  height: 45px !important;
+}
+
+/* v589: inline bio field ? floating text, no background */
+.mylist-own-profile-bio {
+  display: block !important;
+  width: 100% !important;
+  max-width: min(70vw, 280px) !important;
+  margin-top: 4px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  color: rgba(255,255,255,0.55) !important;
+  font-size: 11px !important;
+  font-weight: 300 !important;
+  line-height: 1.4 !important;
+  text-align: center !important;
+  font-family: 'Sohne', 'S?hne', 'DM Sans', sans-serif !important;
+  cursor: text !important;
+  overflow-wrap: break-word !important;
+  word-break: break-word !important;
+  white-space: pre-wrap !important;
+  min-height: 1.4em !important;
+}
+.mylist-own-profile-bio:focus {
+  outline: none !important;
+  color: rgba(255,255,255,0.85) !important;
+}
+/* Placeholder shown when empty and not focused */
+.mylist-own-profile-bio.is-empty:not(:focus)::before {
+  content: attr(data-placeholder) !important;
+  color: rgba(255,255,255,0.28) !important;
+  pointer-events: none !important;
+}
+.mylist-own-profile-bio.is-empty:not(:focus) {
+  color: transparent !important;
+}
+
+/* Activity-tab feed scroll behaviour. (Notifications moved to their own
+   Friends-page tab in v11.590 — its styling now lives entirely in css/25.) */
+#activity-tab-view #friend-activity-feed,
+#activity-tab-view #shared-watch-feed {
+  touch-action: pan-y pinch-zoom !important;
+}
+
+#activity-tab-view .activity-feed-actions .activity-shared-watch-pill {
+  pointer-events: auto !important;
+}
+
+#community-view.activity-subtab-notifications #feed-composer {
+  display: none !important;
+}
+
+@media (max-width: 430px) {
+  #activity-tab-view .activity-feed-actions {
+    gap: 6px !important;
+  }
+
+  #activity-tab-view .activity-shared-watch-pill {
+    padding-left: 5px !important;
+    padding-right: 5px !important;
+    font-size: 12px !important;
+  }
+}
+
+body.main-tab-mylist .mylist-rating-duel-header-btn {
+  display: none !important;
+}
+
+.mylist-profile-action-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+  margin-top: 8px !important;
+  flex-wrap: wrap !important;
+}
+
+.mylist-profile-action-btn {
+  /* v11.054: shrink pills ? smaller min-width/height, tighter padding & font */
+  min-width: 0 !important;
+  min-height: 26px !important;
+  padding: 0 11px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  background: rgba(255,255,255,0.045) !important;
+  color: rgba(248,246,252,0.92) !important;
+  box-shadow: none !important;
+  font-family: 'Sohne', 'SÃ¶hne', 'DM Sans', sans-serif !important;
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+  cursor: pointer !important;
+  -webkit-tap-highlight-color: transparent !important;
+  touch-action: manipulation !important;
+}
+
+.mylist-profile-action-btn:active {
+  transform: translate3d(0, 1px, 0) !important;
+}
+
+.mylist-profile-action-btn--game {
+  border-color: rgba(74, 222, 128, 0.26) !important;
+  background: linear-gradient(135deg, rgba(28, 127, 67, 0.88) 0%, rgba(18, 97, 51, 0.92) 100%) !important;
+  color: #ffffff !important;
+}
+
+.mylist-profile-action-btn--tier {
+  border-color: rgba(183,164,255,0.28) !important;
+  background: rgba(183,164,255,0.14) !important;
+  color: #efe9ff !important;
+}
+
+/* -- 5. Cards ? no border, let the tone shift carry it -- */
+body.true-dark-mode #mylist-view .card {
+  box-shadow: none !important;
+  border: none !important;
+  background: #272727 !important;
+}
+
+/* -- 6. Section header card ? no border -- */
+body.true-dark-mode #mylist-view .mylist-section-card {
+  box-shadow: none !important;
+  border: none !important;
+  background: #272727 !important;
+}
+
+/* -- 7. Section toggle buttons (Games / Anime / Movies / TV Shows) -- */
+body.true-dark-mode #mylist-view .section-btn {
+  box-shadow: none !important;
+  filter: none !important;
+  background: transparent !important;
+}
+body.true-dark-mode #mylist-view .section-btn.active {
+  box-shadow: none !important;
+  background: #6d28d9 !important;
+  border: none !important;
+}
+
+/* -- 8. Status/filter tabs (Watching / Watchlist / Watched / Paused) -- */
+body.true-dark-mode #mylist-view .tab-btn {
+  box-shadow: none !important;
+  filter: none !important;
+  background: transparent !important;
+}
+body.true-dark-mode #mylist-view .tab-btn.active {
+  box-shadow: none !important;
+  background: #2c2c2c !important;
+}
+body.true-dark-mode #mylist-view .tab-count {
+  background: #2c2c2c !important;
+  border: 1px solid #3e3e3e !important;
+  box-shadow: none !important;
+}
+
+/* -- 9. Status pill selector inside cards -- */
+/* v11.234: the glassy status button (v11.233) relies on inset highlight +
+   drop shadow for its depth. This true-dark flattening rule was killing that
+   box-shadow, so the glass look never appeared. Excluded
+   `.game-status-current-pill` from the box-shadow reset (it keeps filter:none).
+   The pop-out OPTION pills (`.status-pill` that are NOT the current pill) still
+   get flattened as before. */
+body.true-dark-mode #mylist-view .game-status-current-pill {
+  filter: none !important;
+}
+body.true-dark-mode #mylist-view .status-pill:not(.game-status-current-pill) {
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+/* -- 10. Episode list + season blocks -- */
+body.true-dark-mode #mylist-view .ep-list {
+  box-shadow: none !important;
+  background: #272727 !important;
+  border: 1px solid #3e3e3e !important;
+}
+body.true-dark-mode #mylist-view .season-block {
+  box-shadow: none !important;
+  background: #272727 !important;
+  border: 1px solid #3e3e3e !important;
+}
+body.true-dark-mode #mylist-view .ep-check {
+  box-shadow: none !important;
+  border: 1px solid #3a3a3a !important;
+}
+body.true-dark-mode #mylist-view .ep-check.checked {
+  box-shadow: none !important;
+  background: #6d28d9 !important;
+  border-color: #6d28d9 !important;
+}
+
+/* -- 11. Action row buttons ? transparent, just text + thin outline -- */
+body.true-dark-mode #mylist-view .ep-toggle-bar,
+body.true-dark-mode #mylist-view .comments-btn,
+body.true-dark-mode #mylist-view .card-footer-btn {
+  box-shadow: none !important;
+  filter: none !important;
+  background: transparent !important;
+  border: 1px solid #4a4a4a !important;
+  color: #a0a0a0 !important;
+}
+
+/* -- 12. Add to shelf button ? flat purple, no shadow -- */
+body.true-dark-mode #mylist-view .add-button,
+body.true-dark-mode #mylist-view [class*="add-shelf"],
+body.true-dark-mode #mylist-view [class*="add-to-shelf"] {
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+/* -- 13. Header ? no shadow, flat grey -- */
+body.true-dark-mode .header {
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+/* -- 14. Bottom nav pill ? solid dark for contrast against #242424 -- */
+body.true-dark-mode .mobile-bottom-nav {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  background: #141414 !important;
+  border: 1px solid #2c2c2c !important;
+}
+
+/* -- 15. Sort button / search bar -- */
+body.true-dark-mode #mylist-view .my-list-search,
+body.true-dark-mode #mylist-view input[type="text"] {
+  box-shadow: none !important;
+}
+
+/* -- 16. Inset glows on hover states -- */
+body.true-dark-mode #mylist-view .card:hover,
+body.true-dark-mode #mylist-view .section-btn:hover,
+body.true-dark-mode #mylist-view .tab-btn:hover {
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+/* =============================================================
+   v490: MINIMAL POLISH ? status pills, Add to Shelf, ep-list
+   ============================================================= */
+
+/* -- Status pills: outline-only, no filled background -- */
+body.true-dark-mode #mylist-view .status-pill.watching-active {
+  background: transparent !important;
+  border-color: #A78BFA !important;
+  color: #A78BFA !important;
+}
+/* Watching tab text also uses the underline purple */
+body.true-dark-mode #mylist-view .tab-btn.active[data-tab="watching"] {
+  color: #A78BFA !important;
+}
+body.true-dark-mode #mylist-view .status-pill.planned-active {
+  background: transparent !important;
+  border-color: #d97706 !important;
+  color: #fbbf24 !important;
+}
+body.true-dark-mode #mylist-view .status-pill.watched-active {
+  background: transparent !important;
+  border-color: #0891b2 !important;
+  color: #67e8f9 !important;
+}
+body.true-dark-mode #mylist-view .status-pill.paused-active {
+  background: transparent !important;
+  border-color: #c2410c !important;
+  color: #f97316 !important;
+}
+body.true-dark-mode #mylist-view .status-pill.dropped-active {
+  background: transparent !important;
+  border-color: #dc2626 !important;
+  color: #ef4444 !important;
+}
+body.true-dark-mode #mylist-view .status-pill.competitive-active {
+  background: transparent !important;
+  border-color: #4f46e5 !important;
+  color: #818cf8 !important;
+}
+body.true-dark-mode #mylist-view .status-pill.live-active {
+  background: transparent !important;
+  border-color: #16a34a !important;
+  color: #22c55e !important;
+}
+body.true-dark-mode #mylist-view .status-pill.wishlist-active {
+  background: transparent !important;
+  border-color: #be185d !important;
+  color: #f472b6 !important;
+}
+/* Inactive options in the status pop-out */
+body.true-dark-mode #mylist-view .game-status-options .status-pill {
+  background: transparent !important;
+  border-color: #3e3e3e !important;
+  color: #a0a0a0 !important;
+}
+
+/* -- "+ Add to Shelf" ? flat, no gradient, no shadow -- */
+body.true-dark-mode #add-btn,
+body.true-dark-mode #mylist-view .btn-primary {
+  background: #A78BFA !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+body.true-dark-mode #add-btn:hover,
+body.true-dark-mode #mylist-view .btn-primary:hover {
+  background: #8B6FDB !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+/* -- Episode list ? no border, just tone shift -- */
+body.true-dark-mode #mylist-view .ep-list {
+  background: #272727 !important;
+  border: none !important;
+}
+body.true-dark-mode #mylist-view .season-block {
+  background: #272727 !important;
+  border-color: #3a3a3a !important;
+}
+
+/* -- ep-check unchecked ? subtle outline -- */
+body.true-dark-mode #mylist-view .ep-check {
+  border: 1px solid #4a4a4a !important;
+}
+
+/* =============================================================
+   v513/v514: Episode dropdown ? clean borderless season cards,
+   no inter-row dividers, taller episode rows, clean watched state
+   ============================================================= */
+
+/* Remove cyan highlight + glow on watched rows */
+body.true-dark-mode #mylist-view .ep-row.watched-ep {
+  border-left-color: transparent !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #mylist-view .ep-row.watched-ep::before {
+  opacity: 0 !important;
+}
+
+/* Checkbox checked = #A78BFA purple */
+body.true-dark-mode #mylist-view .ep-check.checked {
+  background: #A78BFA !important;
+  border-color: #A78BFA !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+/* v515: Remove IMDb / MAL badge from title cards entirely */
+body.true-dark-mode #mylist-view .mylist-card-bottom-export,
+body.true-dark-mode #mylist-view .imdb-export-badge,
+body.true-dark-mode #mylist-view .mal-export-badge {
+  display: none !important;
+}
+
+/* v515/v517: Center the Episodes toggle button across the action row.
+   The row itself is the flex container with `justify-content: flex-start`
+   and 146px left padding (poster clearance); switching it to center
+   makes its single child (.card-footer-actions) sit in the middle of
+   the remaining width. */
+body.true-dark-mode #mylist-view .card-action-row {
+  justify-content: center !important;
+  padding-left: 18px !important;
+  padding-right: 18px !important;
+}
+body.true-dark-mode #mylist-view .card-footer-actions {
+  justify-content: center !important;
+  flex: 1 !important;
+}
+
+/* v515: Remove "Edit episode count" link from episode dropdown */
+body.true-dark-mode #mylist-view .edit-ep-row {
+  display: none !important;
+}
+
+/* Remove thin border on each season card header */
+body.true-dark-mode #mylist-view .season-header {
+  border: none !important;
+  background: #272727 !important;
+}
+
+/* Remove the border that wraps the whole open season block */
+body.true-dark-mode #mylist-view .season-block {
+  border: none !important;
+}
+
+/* Remove soft border/separator between individual episode rows */
+body.true-dark-mode #mylist-view .ep-row {
+  background: transparent !important;
+  border-left: none !important;
+  border-bottom: none !important;
+  margin-bottom: 0 !important;
+  /* Increase vertical size */
+  padding: 14px 12px !important;
+}
+
+/* =============================================================
+   v505/v507: Import button ? flat cyan, all effects removed,
+   and translateY overridden here (file 16 = last loaded) so it
+   beats the "transform: none !important" in 12-pwa-header-continuity.css
+   ============================================================= */
+body.true-dark-mode .header-import-btn,
+body.main-tab-mylist .header-import-btn {
+  background: #06b6d4 !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  text-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  display: inline-flex !important;
+}
+body.true-dark-mode .header-import-btn:hover,
+body.main-tab-mylist .header-import-btn:hover {
+  background: #0891b2 !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+/* v511: import button sits just below the cogwheel. Cogwheel has
+   translateY(52px); import natural top is ~17px in the 64px row,
+   so translateY(55px) puts its top at ~72px ? just below cogwheel bottom. */
+@media (max-width: 700px) {
+  body.main-tab-mylist .header-import-btn {
+    transform: translateY(55px) !important;
+  }
+}
+
+/* v511: Remove comment button from My Lists title cards */
+body.true-dark-mode #mylist-view .comments-btn { display: none !important; }
+
+/* v511: IMDb / MAL badge floated to top-left of the card */
+body.true-dark-mode #mylist-view .card { position: relative !important; }
+body.true-dark-mode #mylist-view .mylist-card-bottom-export {
+  position: absolute !important;
+  top: 8px !important;
+  left: 8px !important;
+  z-index: 3 !important;
+  /* keep it out of normal flow so card-action-row doesn't shift */
+  pointer-events: auto !important;
+}
+body.true-dark-mode #mylist-view .card-action-row.has-bottom-export {
+  /* row no longer needs extra space reserved for the badge */
+  padding-top: 0 !important;
+}
+/* Slightly tighten the badge pill so it reads as a subtle top tag */
+body.true-dark-mode #mylist-view .imdb-export-badge,
+body.true-dark-mode #mylist-view .mal-export-badge {
+  font-size: 9px !important;
+  padding: 3px 7px !important;
+  border-radius: 5px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.04em !important;
+}

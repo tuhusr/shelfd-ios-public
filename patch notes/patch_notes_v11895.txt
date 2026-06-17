@@ -1,0 +1,5 @@
+v11.895 - DM thread username typography
+
+- Set the Direct Message chat thread username font weight to 400.
+- Set the chat thread username font size to 16.2px.
+- Kept the change scoped to the open chat message page header.

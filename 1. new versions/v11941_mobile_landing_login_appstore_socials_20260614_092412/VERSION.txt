@@ -1,0 +1,3 @@
+v11.941 — Mobile-web landing: restored the full login options (Sign In / Create Account / Google / Apple) alongside the existing App Store download CTA (removed the mobile-web hide rules), and added Instagram + TikTok icon links at the bottom of the landing. Verified in preview at 390x844 with shelfd-mobile-web applied.
+Deployed 2026-06-14
+Version ID: 223668cf-595d-4bbd-a173-6787c1d86f50

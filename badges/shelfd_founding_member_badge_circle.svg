@@ -1,0 +1,55 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Shelfd founding member circular badge">
+  <!-- Transparent background -->
+
+  <!-- Founding Member badge: flat warm bronze circle -->
+  <circle
+    cx="512"
+    cy="512"
+    r="392"
+    fill="#B87333"
+  />
+
+  <!-- Soft inner depth ring, same color family, not grey -->
+  <circle
+    cx="512"
+    cy="512"
+    r="326"
+    fill="none"
+    stroke="#E0A15A"
+    stroke-width="12"
+    opacity="0.78"
+  />
+
+  <!-- Minimal first-member spark -->
+  <path
+    d="M512 274
+       L526 316
+       L570 316
+       L534 342
+       L548 384
+       L512 358
+       L476 384
+       L490 342
+       L454 316
+       L498 316
+       Z"
+    fill="#FFFFFF"
+    opacity="0.95"
+  />
+
+  <!-- Letter F -->
+  <path
+    d="M414 666
+       L414 410
+       L612 410
+       L612 474
+       L494 474
+       L494 520
+       L594 520
+       L594 582
+       L494 582
+       L494 666
+       Z"
+    fill="#FFFFFF"
+  />
+</svg>

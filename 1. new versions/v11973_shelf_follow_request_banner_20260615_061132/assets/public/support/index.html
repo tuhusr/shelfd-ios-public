@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Shelfd Support</title>
+  <meta name="description" content="Help, FAQ, and contact for Shelfd — the all-in-one tracker for movies, TV, anime, games, and music.">
+  <meta name="theme-color" content="#0E0E0E">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/sohne-fonts.css?v=576_sohne_font_setup">
+
+  <style>
+    /* Editorial Dark — flat #0E0E0E, single lavender accent, no chrome */
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #0E0E0E;
+      color: #ffffff;
+      font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      min-height: 100vh;
+    }
+    a { color: #a78bfa; text-decoration: none; transition: opacity 160ms ease; }
+    a:hover { opacity: 0.78; }
+    a:active { opacity: 0.6; }
+
+    .wrap {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: max(40px, env(safe-area-inset-top, 0px) + 36px) 24px max(60px, env(safe-area-inset-bottom, 0px) + 60px);
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 56px;
+    }
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: block;
+    }
+    .brand-name {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #ffffff;
+    }
+
+    .eyebrow {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.5);
+      margin: 0 0 12px;
+    }
+
+    h1 {
+      font-size: clamp(34px, 7vw, 46px);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.05;
+      margin: 0 0 18px;
+      color: #ffffff;
+    }
+    h2 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin: 56px 0 18px;
+      color: #ffffff;
+    }
+    h3 {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0;
+      margin: 22px 0 6px;
+      color: #ffffff;
+    }
+    p, li {
+      font-size: 15.5px;
+      line-height: 1.6;
+      color: rgba(255, 255, 255, 0.78);
+      margin: 0 0 12px;
+    }
+    .lede {
+      font-size: 17px;
+      line-height: 1.55;
+      color: rgba(255, 255, 255, 0.78);
+      max-width: 580px;
+      margin: 0 0 14px;
+    }
+
+    .contact-card {
+      margin: 30px 0 0;
+      padding: 28px 26px;
+      border-radius: 18px;
+      background: rgba(167, 139, 250, 0.06);
+      border: 1px solid rgba(167, 139, 250, 0.2);
+    }
+    .contact-card .eyebrow { margin-bottom: 10px; }
+    .contact-card .email-row {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 0 0 8px;
+    }
+    .contact-card .email-label {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.5);
+    }
+    .contact-card .email-link {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+    .contact-card .response {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.5);
+      margin: 0;
+    }
+
+    hr.rule {
+      border: 0;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.07);
+      margin: 48px 0 0;
+    }
+
+    .faq details {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+      padding: 18px 0;
+    }
+    .faq details summary {
+      list-style: none;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .faq details summary::-webkit-details-marker { display: none; }
+    .faq details summary::after {
+      content: '+';
+      flex-shrink: 0;
+      font-size: 22px;
+      font-weight: 400;
+      color: #a78bfa;
+      transition: transform 200ms ease;
+      line-height: 1;
+    }
+    .faq details[open] summary::after {
+      transform: rotate(45deg);
+    }
+    .faq details p {
+      margin: 14px 0 4px;
+      color: rgba(255, 255, 255, 0.78);
+    }
+    .faq details p:last-child {
+      margin-bottom: 4px;
+    }
+
+    .legal-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 18px;
+      margin-top: 22px;
+    }
+    .legal-row a {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    footer {
+      margin-top: 64px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.07);
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.5);
+    }
+    footer p { font-size: 13px; color: rgba(255, 255, 255, 0.5); margin: 6px 0; }
+
+    @media (max-width: 480px) {
+      .wrap { padding-left: 20px; padding-right: 20px; }
+      .contact-card { padding: 22px 20px; }
+      .contact-card .email-link { font-size: 19px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <div class="brand-row">
+      <img class="brand-logo" src="/shelfd_section_header_logo.png" alt="Shelfd logo">
+      <span class="brand-name">Shelfd</span>
+    </div>
+
+    <p class="eyebrow">Support</p>
+    <h1>How can we help?</h1>
+    <p class="lede">Shelfd is the all-in-one home for everything you watch, play, and listen to. If something isn't working — or you just want to talk to a human — we're here.</p>
+
+    <div class="contact-card">
+      <p class="eyebrow">Contact</p>
+      <div class="email-row">
+        <a class="email-link" href="mailto:shelfd@proton.me?subject=Shelfd%20Support">shelfd@proton.me</a>
+      </div>
+      <p class="response">We read every message. Most replies land within 24–48 hours.</p>
+    </div>
+
+    <hr class="rule">
+
+    <h2>Frequently asked</h2>
+
+    <div class="faq">
+
+      <details>
+        <summary>What is Shelfd?</summary>
+        <p>Shelfd is a personal tracker for movies, TV shows, anime, video games, and music — combined with a friend-first social layer. You build a shelf of everything you've watched, played, or listened to; rate it, tier-list it, and see what your circle is into.</p>
+      </details>
+
+      <details>
+        <summary>How do I add something to my shelf?</summary>
+        <p>Tap the <strong>+</strong> button in the bottom navigation, search for what you want, choose the media type, pick a status (Watching, Watched, Watchlist, Paused, Playing, Backlog, etc.), and tap save.</p>
+      </details>
+
+      <details>
+        <summary>How do tier lists work?</summary>
+        <p>Open any category (movies, TV, anime, games, or music), tap <strong>Tier List</strong>, and drag titles into S-, A-, B-, C-, D-, E-, or F-tier. Tier lists are saved separately from your personal star ratings, so you can experiment without changing your shelf.</p>
+      </details>
+
+      <details>
+        <summary>What is the Rating Game?</summary>
+        <p>The Rating Game shows you two titles from your library side-by-side and asks which you prefer. After enough rounds, your true favorites surface based on actual head-to-head comparisons — not just your raw star ratings.</p>
+      </details>
+
+      <details>
+        <summary>How do competitive games work?</summary>
+        <p>When you add a game and set its status to <strong>Competitive</strong>, you unlock a deeper profile with peak rank, current rank, lifetime K/D, season K/D, hours played per platform, and a slot for your stats tracker link and highlight reels.</p>
+      </details>
+
+      <details>
+        <summary>How do I delete my account or my data?</summary>
+        <p>Email <a href="mailto:shelfd@proton.me?subject=Account%20deletion%20request">shelfd@proton.me</a> with the subject "Account deletion request" from the email address tied to your account. We'll confirm and permanently remove your account and library data within 7 days.</p>
+      </details>
+
+      <details>
+        <summary>How do I report a bug or request a feature?</summary>
+        <p>Email <a href="mailto:shelfd@proton.me?subject=Bug%20report">shelfd@proton.me</a>. Screenshots and the version number (Settings → About) make bugs much faster to fix.</p>
+      </details>
+
+      <details>
+        <summary>What devices does Shelfd support?</summary>
+        <p>Shelfd runs on iPhone (iOS) via the App Store, and on any modern browser at <a href="https://myshelfd.com">myshelfd.com</a>. Android and iPad versions are on the roadmap.</p>
+      </details>
+
+      <details>
+        <summary>Is Shelfd free?</summary>
+        <p>Yes — the core experience is free. A future Pro tier will unlock advanced analytics, deeper stats, and exclusive features. Existing features stay free.</p>
+      </details>
+
+    </div>
+
+    <div class="legal-row">
+      <a href="/ScreenList_Privacy_Policy.md">Privacy Policy</a>
+      <a href="/ScreenList_Terms_and_Conditions.md">Terms &amp; Conditions</a>
+      <a href="https://myshelfd.com">Back to Shelfd</a>
+    </div>
+
+    <footer>
+      <p>© Shelfd. All rights reserved.</p>
+      <p>Built by King Kooom · <a href="mailto:shelfd@proton.me">shelfd@proton.me</a></p>
+    </footer>
+
+  </div>
+</body>
+</html>

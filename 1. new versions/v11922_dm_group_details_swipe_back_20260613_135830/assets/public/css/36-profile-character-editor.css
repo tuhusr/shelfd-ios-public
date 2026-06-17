@@ -1,0 +1,490 @@
+/*
+   36-profile-character-editor.css
+   Extracted from 06-profile.css to keep surface ownership explicit.
+*/
+
+/* ============================================================================
+   v465: Top 3 Fictional Characters editor â€” mobile/PWA-first centered modal
+   ============================================================================ */
+.profile-character-editor-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2400;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: max(var(--shelfd-safe-top, 0px), 16px) 14px max(env(safe-area-inset-bottom, 0px), 16px);
+  background: rgba(0, 0, 0, 0.74);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.profile-character-editor-overlay.open {
+  display: flex;
+  opacity: 1;
+}
+.profile-character-editor-modal {
+  position: relative;
+  width: min(94vw, 460px);
+  max-height: min(92dvh, 92vh);
+  display: flex;
+  flex-direction: column;
+  border-radius: 26px;
+  border: 1px solid rgba(196, 181, 253, 0.18);
+  background:
+    radial-gradient(circle at 14% 0%, rgba(245, 158, 11, 0.10), transparent 32%),
+    radial-gradient(circle at 90% 6%, rgba(139, 92, 246, 0.16), transparent 36%),
+    linear-gradient(180deg, rgba(21, 16, 37, 0.985), rgba(7, 5, 17, 0.985));
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+  transform: translateY(8px) scale(0.985);
+  opacity: 0;
+  animation: profileCharacterEditorIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes profileCharacterEditorIn {
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+.profile-character-editor-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 18px 6px 20px;
+  flex: 0 0 auto;
+}
+.profile-character-editor-kicker {
+  color: #c4b5fd;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.profile-character-editor-title {
+  color: #f7f3ff;
+  font-family: 'Sora', 'DM Sans', sans-serif;
+  font-size: 22px;
+  font-weight: 950;
+  letter-spacing: -0.4px;
+  margin-top: 2px;
+}
+.profile-character-editor-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(196, 181, 253, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+  color: #f7f3ff;
+  cursor: pointer;
+  font-size: 19px;
+  font-weight: 900;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+.profile-character-editor-close:active { transform: scale(0.94); }
+.profile-character-editor-body {
+  padding: 4px 18px 12px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+.profile-character-editor-body::-webkit-scrollbar { width: 6px; }
+.profile-character-editor-body::-webkit-scrollbar-thumb {
+  background: rgba(196, 181, 253, 0.22);
+  border-radius: 999px;
+}
+.profile-character-preview-row {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 14px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(196, 181, 253, 0.14);
+  background: rgba(255, 255, 255, 0.035);
+}
+.profile-character-preview-poster {
+  width: 96px;
+  aspect-ratio: 2 / 3;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #2a1f5e, #151025);
+  background-size: cover;
+  background-position: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8f7fd0;
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.35);
+}
+.profile-character-preview-empty .profile-character-preview-rank {
+  font-family: 'Sora', sans-serif;
+  font-size: 28px;
+  font-weight: 950;
+  color: rgba(196, 181, 253, 0.45);
+}
+.profile-character-preview-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.profile-character-field-label {
+  color: #c4b5fd;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.profile-character-field-input {
+  width: 100%;
+  min-width: 0;
+  border-radius: 14px;
+  border: 1px solid #3d3466;
+  background: #0a081a;
+  color: #e8e3f3;
+  outline: none;
+  font-family: 'DM Sans', sans-serif;
+  /* v617: 16px minimum â€” iOS Safari won't raise the keyboard for inputs
+     smaller than 16px inside a fixed-position sheet. */
+  font-size: 16px;
+  font-weight: 700;
+  padding: 12px 14px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.profile-character-field-input:focus {
+  border-color: #8b5cf6;
+  background: #100b22;
+}
+.profile-character-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(196, 181, 253, 0.13);
+  background: rgba(255, 255, 255, 0.025);
+}
+.profile-character-section-head { display: flex; flex-direction: column; gap: 2px; }
+.profile-character-section-title {
+  color: #f7f3ff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: -0.1px;
+}
+.profile-character-section-sub {
+  color: #9990b3;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.profile-character-search-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+.profile-character-search-btn {
+  border-radius: 14px;
+  border: 1px solid rgba(167, 139, 250, 0.32);
+  padding: 0 18px;
+  min-height: 44px;
+  background: linear-gradient(135deg, #7c3aed, #9333ea);
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.profile-character-search-btn:active { transform: scale(0.96); }
+.profile-character-search-results {
+  min-height: 80px;
+}
+.profile-character-search-empty {
+  border: 1px dashed rgba(167, 139, 250, 0.22);
+  border-radius: 14px;
+  padding: 16px;
+  color: #9990b3;
+  text-align: center;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.025);
+}
+.profile-character-search-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.profile-character-search-tile {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 12px;
+  border: 1px solid rgba(196, 181, 253, 0.16);
+  background: #100b22;
+  overflow: hidden;
+  cursor: pointer;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.16s ease, box-shadow 0.16s ease;
+}
+.profile-character-search-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.profile-character-search-tile:hover { border-color: rgba(244, 210, 122, 0.55); transform: translateY(-1px); }
+.profile-character-search-tile:active { transform: scale(0.96); }
+.profile-character-search-tile-broken { display: none; }
+.profile-character-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  border: 1px solid rgba(167, 139, 250, 0.28);
+  background: rgba(124, 58, 237, 0.14);
+  color: #f7f3ff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  min-height: 46px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.profile-character-upload-btn:active { transform: scale(0.97); }
+.profile-character-crop-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  max-height: 60dvh;
+  margin: 0 auto;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #050410;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.profile-character-crop-stage:active { cursor: grabbing; }
+.profile-character-crop-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  display: block;
+  max-width: none;
+  max-height: none;
+}
+.profile-character-crop-mask {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(244, 210, 122, 0.6);
+  border-radius: 16px;
+}
+.profile-character-crop-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.profile-character-crop-zoom {
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: rgba(196, 181, 253, 0.18);
+  border-radius: 999px;
+  outline: none;
+}
+.profile-character-crop-zoom::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #c4b5fd, #8b5cf6);
+  border: 0;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.5);
+}
+.profile-character-crop-zoom::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #c4b5fd, #8b5cf6);
+  border: 0;
+}
+.profile-character-crop-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.profile-character-editor-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 10px 18px max(env(safe-area-inset-bottom, 0px), 16px);
+  border-top: 1px solid rgba(196, 181, 253, 0.10);
+  background: rgba(7, 5, 17, 0.6);
+  flex: 0 0 auto;
+}
+.profile-character-editor-clear {
+  border-radius: 14px;
+  border: 1px solid rgba(196, 181, 253, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: #c4b5fd;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 11px 16px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.profile-character-editor-clear:active { transform: scale(0.96); }
+.profile-character-editor-save {
+  border-radius: 14px;
+  border: 1px solid rgba(167, 139, 250, 0.32);
+  background: linear-gradient(135deg, #7c3aed, #9333ea);
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 950;
+  padding: 11px 18px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.profile-character-editor-save:active { transform: scale(0.96); }
+body.light-mode .profile-character-editor-modal {
+  background: #fff;
+  border-color: #d8cfee;
+}
+body.light-mode .profile-character-editor-title { color: #12082e; }
+body.light-mode .profile-character-section-title { color: #12082e; }
+body.light-mode .profile-character-field-input,
+body.light-mode .profile-character-section,
+body.light-mode .profile-character-preview-row {
+  background: #f8f6ff;
+  border-color: #d8cfee;
+  color: #12082e;
+}
+body.light-mode .profile-character-search-empty { background: #f8f6ff; color: #5a4780; }
+@media (min-width: 760px) {
+  .profile-character-editor-modal {
+    width: min(520px, 92vw);
+  }
+}
+
+/* v611: profile poster editor bottom sheet + borderless sections */
+body.profile-character-editor-open {
+  overflow: hidden !important;
+}
+body.profile-character-editor-open #profile-page {
+  overflow: hidden !important;
+}
+.profile-character-editor-overlay {
+  align-items: flex-end !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  background: rgba(0, 0, 0, 0.62) !important;
+}
+.profile-character-editor-modal {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 80dvh !important;
+  max-height: 80dvh !important;
+  border: 0 !important;
+  border-radius: 24px 24px 0 0 !important;
+  /* v615: keyframes own the transform timeline. The previous
+     `transform: translateY(100%) !important` static rule sat above the
+     animation in the cascade and pinned the sheet below the viewport,
+     so the open call just blurred the screen. */
+  opacity: 1 !important;
+  animation: profilePosterSheetIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
+}
+@keyframes profilePosterSheetIn {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.profile-character-preview-row,
+.profile-character-section {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.profile-character-field-input,
+.profile-character-search-btn,
+.profile-character-upload-btn,
+.profile-character-search-empty {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+body.light-mode .profile-character-field-input,
+body.light-mode .profile-character-section,
+body.light-mode .profile-character-preview-row {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+@media (min-width: 760px) {
+  .profile-character-editor-modal {
+    width: min(560px, 100vw) !important;
+    max-width: 560px !important;
+  }
+}
+
+/* v980: iOS Safari zoom guard for editable profile header fields. The bio
+   textarea was still dropping below 16px on mobile, which causes page zoom
+   on focus. Keep the editable field at 16px across themes. */
+.profile-page .profile-bio-input,
+body.light-mode .profile-page .profile-bio-input,
+body.true-dark-mode .profile-page .profile-bio-input {
+  font-size: 16px !important;
+  line-height: 1.5 !important;
+}
+
+/* v10.134: Frameless ("flat") variant of the FPUP stat card. Used by
+   the new "All Media" stats block which intentionally drops the
+   rounded-rectangle chrome, gradient overlays, and box-shadow so the
+   value + label sit as a clean naked statistic. Defined at the very
+   end of the file so it wins source-order against every late mobile/
+   PWA override that re-applies the padded card via !important. */
+.profile-page .profile-stat-card.profile-stat-card-flat,
+.profile-page .profile-hero-card > .profile-stats-grid > .profile-stat-card.profile-stat-card-flat {
+  padding: 6px 4px !important;
+  min-height: 0 !important;
+  border: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
+}
+.profile-page .profile-stat-card.profile-stat-card-flat::before,
+.profile-page .profile-stat-card.profile-stat-card-flat::after,
+.profile-page .profile-hero-card > .profile-stats-grid > .profile-stat-card.profile-stat-card-flat::before,
+.profile-page .profile-hero-card > .profile-stats-grid > .profile-stat-card.profile-stat-card-flat::after {
+  content: none !important;
+  display: none !important;
+}
+/* Genre-tone cards show a TEXT value (a genre name, not a number) so
+   step the font-size down so long names like "Action & Adventure" or
+   "Sci-Fi & Fantasy" don't wrap awkwardly inside the narrow column. */
+.profile-page .profile-stat-card.profile-stat-card-flat.profile-stat-genre .profile-stat-value,
+.profile-page .profile-hero-card > .profile-stats-grid > .profile-stat-card.profile-stat-card-flat.profile-stat-genre .profile-stat-value {
+  font-size: 15px !important;
+  letter-spacing: 0 !important;
+  line-height: 1.18 !important;
+}
+

@@ -1,0 +1,5 @@
+v11.910 - My List follower count hydration
+
+- Fixed the My List shelf header follower count showing 0 on cold app open until switching categories.
+- Refreshes the signed-in user's shelf social counts as soon as friends/follower data commits.
+- Bumped the friends/request script cache buster for deployment.

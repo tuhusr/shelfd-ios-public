@@ -1,0 +1,4 @@
+v11.904 - DM unread line font size
+
+- Set the DM inbox `{count} new messages` text to 13.5px.
+- Set the DM inbox timestamp and bullet to 13.5px.

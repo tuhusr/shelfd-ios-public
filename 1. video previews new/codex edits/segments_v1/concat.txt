@@ -1,0 +1,6 @@
+file 'C:\Users\kingk\Desktop\websites\chat gpt edits\7\1. video previews new\codex edits\segments_v1\seg_01.mp4'
+file 'C:\Users\kingk\Desktop\websites\chat gpt edits\7\1. video previews new\codex edits\segments_v1\seg_02.mp4'
+file 'C:\Users\kingk\Desktop\websites\chat gpt edits\7\1. video previews new\codex edits\segments_v1\seg_03.mp4'
+file 'C:\Users\kingk\Desktop\websites\chat gpt edits\7\1. video previews new\codex edits\segments_v1\seg_04.mp4'
+file 'C:\Users\kingk\Desktop\websites\chat gpt edits\7\1. video previews new\codex edits\segments_v1\seg_05.mp4'
+file 'C:\Users\kingk\Desktop\websites\chat gpt edits\7\1. video previews new\codex edits\segments_v1\seg_06.mp4'

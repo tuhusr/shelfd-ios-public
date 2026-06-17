@@ -1,0 +1,3 @@
+v11.944 — Apple Music import card is now visible on the Import page. It was force-hidden by ".apple-music-import-card { display: none !important }" in css/07 (hidden while the feature was unfinished). Removed that line so it renders like the Steam card (it is the first card in .import-source-grid). Verified in preview: display flips none->flex, matches the Steam sibling.
+Deployed 2026-06-14
+Version ID: 088be797-92c4-4aa3-87bd-d92328351f31

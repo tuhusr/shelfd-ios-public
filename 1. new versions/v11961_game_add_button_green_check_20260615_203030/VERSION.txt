@@ -1,0 +1,2 @@
+v11.961 — After adding a game to the library from the FPMP, the top-right (+) button now turns into the green check IMMEDIATELY. The game add flow goes through pickGameDiscoverStatus -> submitModal (not the dock addDiscoveryTitle which passes the btn), so nothing updated the button; it only flipped after closing+reopening the profile. Added: on submitModal success, find the open profile (+) button (.discover-media-add-floating[data-discover-type=game]) and call the existing markShelfLogMediaProfileButtonAdded() helper. Verified in preview.
+Deployed 2026-06-15

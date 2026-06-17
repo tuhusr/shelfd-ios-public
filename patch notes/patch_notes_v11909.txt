@@ -1,0 +1,5 @@
+v11.909 - DM thread title plain white
+
+- Removed inherited creator-name visual effects from Direct Message chat thread header names.
+- Forced the thread header name text to 100% white with no background, shadow, filter, or box-shadow.
+- Kept the thread header name at 500 font weight and 0 letter spacing.

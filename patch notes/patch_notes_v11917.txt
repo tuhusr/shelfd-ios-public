@@ -1,0 +1,4 @@
+v11.917 - Add people header type
+
+- Set the Add people page title to 16.2px and 500 font weight.
+- Kept the top-left chevron as the back control to return to the previous group details page.

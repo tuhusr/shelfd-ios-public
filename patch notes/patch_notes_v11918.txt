@@ -1,0 +1,5 @@
+v11.918 - Profile back shelf position
+
+- Fixed the friend shelf appearing vertically too high while swiping back from a full user profile.
+- Kept the app header's layout space reserved during the profile swipe reveal while hiding the header visually.
+- Offset the tap-back return shelf slide below the live header so it matches the final settled shelf position.

@@ -1,0 +1,377 @@
+/* =============================================================================
+   v11.515 — Shelf / My List LIGHT MODE pilot (DEV-ONLY, route-gated)
+
+   Driver: the body class `.shelf-light-mode`, added by JS ONLY when:
+     creator/dev account (isCreatorAdmin)  +  light pref  +  the My List main
+     tab is active (body.main-tab-mylist).
+   Leaving the tab removes it (see syncMainNavButtons), so Discover / Friends /
+   Activity / Search never go light. Dark mode is the default for everyone — every
+   rule here is gated behind `.shelf-light-mode`, so without it nothing changes.
+
+   v11.515 fixes the v11.514 first pass, which scoped only to #mylist-view and so
+   left the shared page shell (global .header, profile block, bottom nav) dark and
+   lost most overrides to higher-specificity `body.true-dark-mode` / `#fff
+   !important` rules. Now the BODY background goes paper (covering the profile /
+   tabs / card-gaps in one move) and the competitive rules are matched in
+   specificity (prefix `body.shelf-light-mode` + the same ids/attrs).
+
+   Production is body.true-dark-mode; this file loads LAST so ties resolve here.
+   Paper-white base (#F7F3EA), near-black text, warm undertone.
+   ============================================================================= */
+
+/* ---------------------------------------------------------------------------
+   1. TOKENS — on body so the whole Shelf subtree (header, #mylist-view, modal,
+      bottom nav) inherits, and var() consumers flip.
+   --------------------------------------------------------------------------- */
+body.shelf-light-mode {
+  --ml-bg:            #F7F3EA;
+  --ml-surface:       #FFFFFF;
+  --ml-surface-2:     #FBF7EF;
+  --ml-card:          #FFFFFF;
+  --ml-text:          #171421;
+  --ml-text-2:        #463F5C;
+  --ml-muted:         #6B6384;
+  --ml-border:        rgba(40, 30, 70, 0.14);
+  --ml-border-strong: rgba(40, 30, 70, 0.22);
+  --ml-icon:          #2A2440;
+  --ml-pill-bg:       rgba(20, 16, 40, 0.05);
+  --ml-pill-text:     #2A2440;
+  --ml-accent:        #6D28D9;
+  --ml-accent-soft:   rgba(124, 58, 237, 0.12);
+  --ml-gold:          #B9831A;
+
+  /* re-map the existing dark :root tokens under the scope */
+  --bg:        var(--ml-bg);
+  --bg-soft:   var(--ml-surface-2);
+  --surface:   var(--ml-surface);
+  --surface-2: var(--ml-surface-2);
+  --surface-3: rgba(20, 16, 40, 0.04);
+  --line:      var(--ml-border);
+  --line-soft: rgba(40, 30, 70, 0.09);
+  --text:      var(--ml-text);
+  --muted:     var(--ml-text-2);
+  --muted-2:   var(--ml-muted);
+  --shadow-soft:  0 10px 30px rgba(60, 40, 90, 0.10);
+  --shadow-hover: 0 16px 40px rgba(60, 40, 90, 0.14);
+  --shelfd-page-bg: var(--ml-bg);
+}
+
+/* 1b. THE PAGE CANVAS (v11.516 fix). The real page background is
+   `html, body { background-color: var(--screenlist-mobile-topbar) }` (css/11)
+   layered over `html/body { background: var(--shelfd-page-bg) }` (css/00) — BOTH
+   variables are rooted on <html>. <html> is the parent of <body>, so the
+   v11.515 body-scoped overrides never reached the html canvas and it stayed
+   #0E0E0E (the black behind everything). JS now also tags <html>; swap both
+   page-bg vars + paint html paper so html AND the inherited body bg go cream. */
+html.shelf-light-mode {
+  --shelfd-page-bg: #F7F3EA !important;
+  --screenlist-mobile-topbar: #F7F3EA !important;
+  --ml-bg: #F7F3EA;
+  background: #F7F3EA !important;
+  background-color: #F7F3EA !important;
+}
+html.shelf-light-mode body { background-color: #F7F3EA !important; }
+
+/* ---------------------------------------------------------------------------
+   2. PAGE / BODY background -> paper. This is the key v11.515 fix: it paints the
+      whole viewport (profile, tabs, card gaps) so nothing reads as black.
+   --------------------------------------------------------------------------- */
+body.shelf-light-mode,
+body.true-dark-mode.shelf-light-mode {
+  background: var(--ml-bg) !important;
+  color: var(--ml-text) !important;
+}
+body.shelf-light-mode #mylist-view,
+body.shelf-light-mode #mylist-view .container.main-content,
+body.shelf-light-mode #mylist-view .mylist-stage,
+body.shelf-light-mode #mylist-stage { background: transparent !important; color: var(--ml-text) !important; }
+
+/* ---------------------------------------------------------------------------
+   3. GLOBAL HEADER (shared chrome; safe because .shelf-light-mode is only on the
+      My List tab). Transparent over paper, dark icons. Brand logo (white PNG)
+      gets a targeted darken so it stays visible — a one-off filter, not the
+      theming mechanism.
+   --------------------------------------------------------------------------- */
+body.shelf-light-mode .header { background: transparent !important; }
+body.shelf-light-mode .header,
+body.shelf-light-mode .main-header-page-title { color: var(--ml-text) !important; }
+body.shelf-light-mode .mylist-header-cog,
+body.shelf-light-mode .header-discover-dm-btn,
+body.shelf-light-mode .header-dm-btn,
+body.shelf-light-mode .header-add-quick-btn,
+body.shelf-light-mode #activity-compose-btn { color: var(--ml-icon) !important; }
+body.shelf-light-mode .header-dm-btn svg,
+body.shelf-light-mode .header-discover-dm-btn svg,
+body.shelf-light-mode .header-add-quick-btn svg,
+body.shelf-light-mode .mylist-header-cog svg { color: var(--ml-icon) !important; stroke: currentColor !important; }
+body.shelf-light-mode .site-logo-img,
+body.shelf-light-mode .site-wordmark-img { filter: brightness(0) saturate(100%) invert(12%) sepia(20%) saturate(1200%) hue-rotate(230deg); }
+body.shelf-light-mode .header-import-btn,
+body.shelf-light-mode .mylist-rating-duel-header-btn,
+body.shelf-light-mode .edit-profile-btn,
+body.shelf-light-mode .mobile-edit-profile-btn {
+  color: var(--ml-accent) !important;
+  border-color: rgba(124, 58, 237, 0.30) !important;
+}
+/* Import pill: dark-mode cyan fill -> light lavender pill with dark-purple text.
+   Higher specificity (adds .main-tab-mylist) to beat css/16's import-btn rule. */
+body.shelf-light-mode.main-tab-mylist .header-import-btn {
+  background: var(--ml-accent-soft) !important;
+  color: var(--ml-accent) !important;
+  border: 1px solid rgba(124, 58, 237, 0.34) !important;
+}
+body.shelf-light-mode .user-avatar { border-color: var(--ml-border-strong) !important; }
+/* top main-nav pills (Discovery / Friends / My Lists) */
+body.shelf-light-mode .main-nav .main-nav-btn { color: var(--ml-text-2) !important; }
+body.shelf-light-mode .main-nav .main-nav-btn.active { color: var(--ml-text) !important; }
+
+/* ---------------------------------------------------------------------------
+   4. PROFILE BLOCK (#mylist-profile-controls -> .mylist-own-profile-*)
+   --------------------------------------------------------------------------- */
+body.shelf-light-mode .mylist-own-profile-name { color: var(--ml-text) !important; }
+body.shelf-light-mode .mylist-own-profile-bio { color: var(--ml-text-2) !important; }
+body.shelf-light-mode .mylist-own-profile-bio.is-empty,
+body.shelf-light-mode .mylist-own-profile-bio:empty::before { color: var(--ml-muted) !important; }
+body.shelf-light-mode .mylist-profile-social-count { color: var(--ml-text-2) !important; }
+body.shelf-light-mode .mylist-profile-social-count strong { color: var(--ml-text) !important; }
+body.shelf-light-mode .mylist-profile-social-sep { color: var(--ml-muted) !important; }
+body.shelf-light-mode .mylist-own-profile-shortcut img { border-color: var(--ml-border-strong) !important; }
+body.shelf-light-mode .mylist-own-profile-edit-pencil { color: var(--ml-icon) !important; }
+
+/* ---------------------------------------------------------------------------
+   5. CATEGORY SELECTOR (#mylist-header.mylist-section-card). Soft paper surface,
+      not a harsh white block. Active chip readable — beats css/13's
+      `#ffffff !important` by adding .shelf-light-mode to the same selector.
+   --------------------------------------------------------------------------- */
+body.shelf-light-mode #mylist-view #mylist-header.mylist-section-card {
+  background: var(--ml-surface-2) !important;
+  border-color: var(--ml-border) !important;
+  box-shadow: 0 1px 2px rgba(60, 40, 90, 0.05) !important;
+}
+body.shelf-light-mode #mylist-view .mylist-categories-label { color: var(--ml-muted) !important; }
+body.shelf-light-mode #mylist-view #mylist-header .section-toggle > .section-btn { color: var(--ml-text-2) !important; }
+body.shelf-light-mode #mylist-view #mylist-header .section-toggle > .section-btn.active {
+  color: var(--ml-accent) !important;
+  background: var(--ml-accent-soft) !important;
+  box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.28) !important;
+}
+
+/* ---------------------------------------------------------------------------
+   6. STATUS TABS (#mylist-toolbar .tabs .tab-btn). Beats css/13's #fff active.
+   --------------------------------------------------------------------------- */
+body.shelf-light-mode #mylist-view .toolbar {
+  background: var(--ml-surface) !important;
+  border-color: var(--ml-border) !important;
+  box-shadow: 0 1px 2px rgba(60, 40, 90, 0.05) !important;
+}
+body.shelf-light-mode #mylist-view #mylist-toolbar .tabs > .tab-btn { color: var(--ml-text-2) !important; }
+body.shelf-light-mode #mylist-view #mylist-toolbar .tabs > .tab-btn:hover { color: var(--ml-text) !important; background: rgba(20, 16, 40, 0.05) !important; }
+body.shelf-light-mode #mylist-view #mylist-toolbar .tabs > .tab-btn.active {
+  color: var(--ml-accent) !important;
+  background: var(--ml-accent-soft) !important;
+}
+body.shelf-light-mode #mylist-view #mylist-toolbar .tabs > .tab-btn.active::after,
+body.shelf-light-mode #mylist-view #mylist-toolbar .tab-underline { background: var(--ml-accent) !important; }
+body.shelf-light-mode #mylist-view .tab-count { color: var(--ml-text-2) !important; background: rgba(20, 16, 40, 0.07) !important; }
+body.shelf-light-mode #mylist-view .tab-btn.active .tab-count { background: rgba(124, 58, 237, 0.16) !important; color: var(--ml-accent) !important; }
+
+/* ---------------------------------------------------------------------------
+   7. SEARCH + SORT + toolbar icon buttons
+   --------------------------------------------------------------------------- */
+body.shelf-light-mode #mylist-view input[type="text"],
+body.shelf-light-mode #mylist-view .search-input,
+body.shelf-light-mode #mylist-view .comment-textarea {
+  background: #FFFFFF !important; color: var(--ml-text) !important;
+  border-color: var(--ml-border) !important;
+}
+body.shelf-light-mode #mylist-view input::placeholder,
+body.shelf-light-mode #mylist-view .comment-textarea::placeholder { color: var(--ml-muted) !important; }
+body.shelf-light-mode #mylist-view .mylist-search-toggle-btn,
+body.shelf-light-mode #mylist-view .mylist-search-clear-btn,
+body.shelf-light-mode #mylist-view .sort-btn {
+  color: var(--ml-icon) !important;
+  background: rgba(20, 16, 40, 0.04) !important;
+  border-color: var(--ml-border) !important;
+}
+body.shelf-light-mode #mylist-view .sort-btn-icon,
+body.shelf-light-mode #mylist-view .sort-dropdown-arrow,
+body.shelf-light-mode #mylist-view .sort-btn-label { color: var(--ml-icon) !important; }
+body.shelf-light-mode #mylist-view .sort-dropdown { background: #FFFFFF !important; border-color: var(--ml-border) !important; box-shadow: var(--shadow-soft) !important; }
+body.shelf-light-mode #mylist-view .sort-option { color: var(--ml-text) !important; }
+body.shelf-light-mode #mylist-view .sort-option:hover { background: rgba(20, 16, 40, 0.05) !important; }
+
+/* ---------------------------------------------------------------------------
+   8. CARDS — surface, border, shadow, title, metadata
+   --------------------------------------------------------------------------- */
+body.shelf-light-mode #mylist-view .card,
+body.shelf-light-mode #mylist-view .card[data-library-item-id],
+body.true-dark-mode.shelf-light-mode #mylist-view .card[data-library-item-id] {
+  background: var(--ml-card) !important;
+  border: 1px solid var(--ml-border) !important;
+  box-shadow: 0 1px 2px rgba(40, 30, 70, 0.05), 0 6px 16px rgba(40, 30, 70, 0.05) !important;
+}
+body.shelf-light-mode #mylist-view .card-title,
+body.shelf-light-mode #mylist-view .card-title > span,
+body.shelf-light-mode #mylist-view .card-title .card-title-profile-btn,
+body.shelf-light-mode #mylist-view .card-title .media-title-profile-btn,
+body.shelf-light-mode #mylist-view .card-title .game-title-profile-btn { color: var(--ml-text) !important; }
+body.shelf-light-mode #mylist-view .card-genre { color: var(--ml-muted) !important; }
+body.shelf-light-mode #mylist-view .card-year.mylist-watchlist-year,
+body.shelf-light-mode #mylist-view .card-artist,
+body.shelf-light-mode #mylist-view .card-anime-season-line,
+body.shelf-light-mode #mylist-view .card-anime-episode-line,
+body.shelf-light-mode #mylist-view .card-comment-body,
+body.shelf-light-mode #mylist-view .card-comment-body--watched-media { color: var(--ml-text-2) !important; }
+body.shelf-light-mode #mylist-view .card-release-date { color: var(--ml-accent) !important; }
+body.shelf-light-mode #mylist-view .card-cover span,
+body.shelf-light-mode #mylist-view .screenlist-game-cover-pending span { color: var(--ml-muted) !important; }
+
+/* ---------------------------------------------------------------------------
+   9. PROGRESS bars + meta (the pale "3/17 episodes" / "18%" in the screenshot)
+   --------------------------------------------------------------------------- */
+body.shelf-light-mode #mylist-view .progress-meta,
+body.shelf-light-mode #mylist-view .progress-meta span,
+body.shelf-light-mode #mylist-view .progress-percent-inline { color: var(--ml-text-2) !important; }
+body.shelf-light-mode #mylist-view .progress-bar { background: rgba(20, 16, 40, 0.10) !important; }
+body.shelf-light-mode #mylist-view .progress-fill { background: var(--ml-accent) !important; }
+
+/* ---------------------------------------------------------------------------
+   10. STATUS PILLS (collapsed + selector). Active states darkened for white bg.
+   --------------------------------------------------------------------------- */
+body.shelf-light-mode #mylist-view .status-pill,
+body.shelf-light-mode #mylist-view .game-status-current-pill {
+  color: var(--ml-pill-text) !important; background: var(--ml-pill-bg) !important; border-color: var(--ml-border) !important;
+}
+body.shelf-light-mode #mylist-view .status-pill.watching-active,
+body.true-dark-mode.shelf-light-mode #mylist-view #cards-grid .card .status-pill.watching-active {
+  color: #6D28D9 !important; border-color: rgba(109,40,217,0.45) !important;
+  background: rgba(109,40,217,0.08) !important; box-shadow: inset 0 0 0 1px rgba(109,40,217,0.30) !important;
+}
+body.shelf-light-mode #mylist-view .status-pill.planned-active { color: #9A6A00 !important; border-color: rgba(154,106,0,0.42) !important; background: rgba(251,191,36,0.12) !important; }
+body.shelf-light-mode #mylist-view .status-pill.watched-active { color: #0E7C8B !important; border-color: rgba(14,124,139,0.40) !important; background: rgba(103,232,249,0.12) !important; }
+body.shelf-light-mode #mylist-view .status-pill.paused-active { color: #B4530B !important; border-color: rgba(180,83,11,0.40) !important; background: rgba(249,115,22,0.12) !important; }
+body.shelf-light-mode #mylist-view .status-pill.dropped-active { color: #C0392B !important; border-color: rgba(192,57,43,0.40) !important; background: rgba(248,113,113,0.12) !important; }
+body.true-dark-mode.shelf-light-mode #mylist-view #cards-grid .card[data-library-section="anime"] .status-pill.watching-active,
+body.shelf-light-mode #mylist-view .card[data-library-section="anime"] .status-pill.watching-active {
+  color: #6D28D9 !important; border-color: #6D28D9 !important; background: rgba(109,40,217,0.08) !important;
+  box-shadow: inset 0 0 0 1px rgba(109,40,217,0.38) !important;
+}
+body.shelf-light-mode #mylist-view .card[data-library-section="anime"] .status-pill.watched-active { color: #0E7C8B !important; }
+body.shelf-light-mode #mylist-view .card[data-library-section="anime"] .status-pill.planned-active { color: #9A6A00 !important; }
+body.shelf-light-mode #mylist-view .card[data-library-section="anime"] .status-pill.paused-active { color: #B4530B !important; }
+
+/* ---------------------------------------------------------------------------
+   11. ACTION-ROW BUTTONS — rating bubble, episode/rating, comments,
+       Episodes toggle (the dark pill on white in the screenshot), Share-Watch,
+       comment-add, priority pill+input, delete x
+   --------------------------------------------------------------------------- */
+body.shelf-light-mode #mylist-view .rating-bubble {
+  background: #FFFFFF !important; border-color: var(--ml-border-strong) !important; color: var(--ml-gold) !important;
+  box-shadow: 0 1px 2px rgba(40,30,70,0.06) !important;
+}
+body.shelf-light-mode #mylist-view .ep-rating-btn { color: var(--ml-text-2) !important; }
+body.shelf-light-mode #mylist-view .ep-rating-btn:hover { background: rgba(20,16,40,0.05) !important; }
+body.shelf-light-mode #mylist-view .ep-rating-btn.has-rating,
+body.shelf-light-mode #mylist-view .track-fav-btn.has-rating { color: var(--ml-gold) !important; }
+body.shelf-light-mode #mylist-view .comments-btn {
+  color: var(--ml-text) !important; border-color: var(--ml-border) !important; background: #FFFFFF !important;
+}
+body.shelf-light-mode #mylist-view .comments-btn-label,
+body.shelf-light-mode #mylist-view .comment-count { color: var(--ml-text-2) !important; }
+/* Episodes toggle / footer buttons — were black pills on the white card */
+body.shelf-light-mode #mylist-view .ep-toggle-bar,
+body.shelf-light-mode #mylist-view .ep-toggle-bar span,
+body.shelf-light-mode #mylist-view .game-details-expand-btn,
+body.shelf-light-mode #mylist-view .card-tracklist-btn,
+body.shelf-light-mode #mylist-view .card-comment-add-btn,
+body.shelf-light-mode #mylist-view .card-footer-btn,
+body.shelf-light-mode #mylist-view .competitive-more-btn {
+  color: var(--ml-text) !important; border-color: var(--ml-border) !important;
+  background: rgba(20, 16, 40, 0.045) !important;
+}
+body.shelf-light-mode #mylist-view .ep-toggle-bar svg,
+body.shelf-light-mode #mylist-view .card-footer-btn svg,
+body.shelf-light-mode #mylist-view .card-comment-add-btn svg { color: var(--ml-icon) !important; stroke: var(--ml-icon) !important; }
+/* Share / Watch Together + friends icon button */
+body.shelf-light-mode #mylist-view .watch-together-card-btn,
+body.shelf-light-mode #mylist-view .watch-together-card-control {
+  color: var(--ml-text) !important; border-color: var(--ml-border) !important; background: rgba(20, 16, 40, 0.045) !important;
+}
+body.shelf-light-mode #mylist-view .watch-together-card-btn svg { color: var(--ml-icon) !important; stroke: var(--ml-icon) !important; }
+body.shelf-light-mode #mylist-view .watchlist-priority-slot { background: var(--ml-pill-bg) !important; border-color: var(--ml-border) !important; color: var(--ml-text-2) !important; }
+body.shelf-light-mode #mylist-view .watchlist-priority-input { color: #B4530B !important; }
+body.shelf-light-mode #mylist-view .watchlist-priority-input::placeholder { color: var(--ml-muted) !important; }
+body.shelf-light-mode #mylist-view .delete-btn { color: var(--ml-muted) !important; }
+
+/* ---------------------------------------------------------------------------
+   12. WATCHLIST availability / where-to-watch + EMPTY STATE + LOAD MORE
+   --------------------------------------------------------------------------- */
+body.shelf-light-mode #mylist-view .mylist-availability-where-to-watch,
+body.shelf-light-mode #mylist-view .mylist-availability-where-text { color: var(--ml-text-2) !important; }
+body.shelf-light-mode #mylist-view .mylist-availability-release-date { color: #0E7C8B !important; }
+body.shelf-light-mode #mylist-view .mylist-availability-in-theaters { color: #B4530B !important; }
+body.shelf-light-mode #mylist-view .empty { color: var(--ml-text-2) !important; border-color: var(--ml-border) !important; background: #FFFFFF !important; }
+body.shelf-light-mode #mylist-view .empty-sub,
+body.shelf-light-mode #mylist-view #empty-text,
+body.shelf-light-mode #mylist-view .empty-icon { color: var(--ml-muted) !important; }
+body.shelf-light-mode #mylist-view .mylist-load-more-btn,
+body.shelf-light-mode #mylist-view [data-mylist-load-more] {
+  color: var(--ml-text) !important; background: #FFFFFF !important; border-color: var(--ml-border) !important; box-shadow: var(--shadow-soft) !important;
+}
+
+/* ---------------------------------------------------------------------------
+   13. GAME-SPECIFIC fields + Steam resync
+   --------------------------------------------------------------------------- */
+body.shelf-light-mode #mylist-view .game-card-stats-inline,
+body.shelf-light-mode #mylist-view .game-card-stats-inline *,
+body.shelf-light-mode #mylist-view .games-wishlist-card-priority,
+body.shelf-light-mode #mylist-view .games-wishlist-card-priority * { color: var(--ml-text-2) !important; }
+body.shelf-light-mode #mylist-view .games-playing-toggle { color: var(--ml-text) !important; border-color: var(--ml-border) !important; background: rgba(20,16,40,0.045) !important; }
+body.shelf-light-mode #mylist-view .games-playing-toggle.active { color: var(--ml-accent) !important; background: var(--ml-accent-soft) !important; }
+body.shelf-light-mode #mylist-view .steam-resync-btn,
+body.shelf-light-mode #mylist-view .mylist-toolbar-resync-btn,
+body.shelf-light-mode #mylist-view [class*="resync"] {
+  color: var(--ml-text) !important; background: #FFFFFF !important; border-color: var(--ml-border) !important;
+}
+
+/* ---------------------------------------------------------------------------
+   14. SETTINGS MODAL (opened from the cog; appended to <body>)
+   --------------------------------------------------------------------------- */
+body.shelf-light-mode .mylist-settings-modal .mylist-settings-panel,
+.mylist-settings-modal.mylist-light-mode .mylist-settings-panel {
+  background:
+    linear-gradient(155deg, rgba(255,255,255,0.88) 0%, rgba(255,255,255,0.74) 100%),
+    linear-gradient(180deg, rgba(247,243,234,0.95), rgba(251,247,239,0.93)) !important;
+  border-color: var(--ml-border-strong) !important;
+  box-shadow: 0 24px 64px rgba(60,40,90,0.22), inset 0 1px 0 rgba(255,255,255,0.8) !important;
+  color: var(--ml-text) !important;
+}
+body.shelf-light-mode .mylist-settings-title { color: var(--ml-text) !important; }
+body.shelf-light-mode .mylist-settings-section-label { color: var(--ml-muted) !important; }
+body.shelf-light-mode .mylist-settings-row-label { color: var(--ml-text) !important; }
+body.shelf-light-mode .mylist-settings-row-icon { color: var(--ml-icon) !important; }
+body.shelf-light-mode .mylist-edit-list-count { color: var(--ml-muted) !important; }
+body.shelf-light-mode .mylist-settings-divider,
+body.shelf-light-mode .mylist-settings-milky-divider { background: var(--ml-border) !important; border-color: var(--ml-border) !important; }
+body.shelf-light-mode .mylist-settings-action-btn { color: var(--ml-accent) !important; background: var(--ml-accent-soft) !important; border-color: rgba(124,58,237,0.30) !important; }
+body.shelf-light-mode .mylist-delete-category-btn { color: #C0392B !important; border-color: rgba(192,57,43,0.30) !important; }
+body.shelf-light-mode .mylist-settings-import-box { background: rgba(20,16,40,0.03) !important; border-color: var(--ml-border) !important; }
+body.shelf-light-mode .mylist-vis-toggle { background: rgba(20,16,40,0.18) !important; }
+body.shelf-light-mode .mylist-vis-toggle.on { background: #7c3aed !important; }
+
+/* ---------------------------------------------------------------------------
+   15. BOTTOM NAV — light frosted glass over the paper page (not a redesign,
+       just a Shelf-light treatment so the dark glass doesn't clash).
+   --------------------------------------------------------------------------- */
+body.shelf-light-mode .mobile-bottom-nav {
+  background: linear-gradient(180deg, rgba(255,255,255,0.78), rgba(247,243,234,0.72)) !important;
+  border-color: var(--ml-border) !important;
+  box-shadow: 0 10px 34px rgba(60,40,90,0.16) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(160%) brightness(1.04);
+  backdrop-filter: blur(28px) saturate(160%) brightness(1.04);
+}
+body.shelf-light-mode .mobile-bottom-nav .main-nav-btn,
+body.shelf-light-mode .mobile-bottom-nav .bottom-nav-icon-btn { color: var(--ml-icon) !important; }
+body.shelf-light-mode .mobile-bottom-nav .main-nav-btn.active { color: var(--ml-accent) !important; }
+body.shelf-light-mode .mobile-bottom-nav .bottom-nav-icon { background-color: var(--ml-icon) !important; }
+body.shelf-light-mode .mobile-bottom-nav .main-nav-btn.active .bottom-nav-icon { background-color: var(--ml-accent) !important; }

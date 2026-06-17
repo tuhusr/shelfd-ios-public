@@ -1,0 +1,3 @@
+v11.927 — Shift DM group details body up 15px (padding-top 36->21 / 28->13); back chevron stays put
+Deployed 2026-06-13
+Version ID: afff01f9-b6d1-415c-94ca-6e2e29ec4e95

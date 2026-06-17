@@ -1,0 +1,3 @@
+v11.924 — DM group details People section + owner-only Remove user
+Deployed 2026-06-13
+Version ID: 500356c5-6672-4a84-bc1b-cf919f30a41c

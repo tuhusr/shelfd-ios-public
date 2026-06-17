@@ -1,0 +1,5 @@
+v11.912 - DM group details default font
+
+- Set the new Direct Message group details page to inherit Shelfd's default font.
+- Forced group details page text, rows, actions, options, and notification sheet text to 400 font weight.
+- Kept the Instagram-inspired layout scale while applying Shelfd typography rules.

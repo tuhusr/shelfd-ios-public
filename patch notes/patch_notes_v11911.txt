@@ -1,0 +1,7 @@
+v11.911 - DM group details page
+
+- Added an "Edit group chat" action to the group chat thread overflow menu.
+- Built a new Instagram-style group details page that slides in from the right.
+- Added group image/name, Change Name and Image, Add, Mute, Options, Theme, and People surfaces.
+- Added the Notifications bottom sheet for Mute Messages and the Leave/Report options popover.
+- Cleans up the group details overlay when Direct Messages closes.

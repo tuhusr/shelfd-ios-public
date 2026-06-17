@@ -1,0 +1,5 @@
+v11.900 - DM thread owner badge
+
+- Added the owner red C badge beside the creator username in the Direct Message chat page header.
+- Kept the thread header username display username-based, matching the inbox.
+- Preserved the no-crown/no-`(Creator)` treatment in Direct Message surfaces.

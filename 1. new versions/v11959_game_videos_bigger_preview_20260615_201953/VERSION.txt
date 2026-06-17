@@ -1,0 +1,2 @@
+v11.959 — Game FPMP Videos swipe row: bigger inline preview. grid-auto-columns 264px -> min(86vw, 380px) so each 16:9 video is ~86% of the viewport (335x189 on a 390px phone) with a peek of the next card, keeping the horizontal swipe. CSS-only (css/06).
+Deployed 2026-06-15

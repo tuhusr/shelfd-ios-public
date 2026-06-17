@@ -1,0 +1,43 @@
+/* =============================================================
+   Google Fonts (DM Sans, Sora, Space Grotesk) bundled locally.
+   ─────────────────────────────────────────────────────────────
+   Previously loaded from fonts.googleapis.com via a render-blocking
+   <link> in index.html. That stylesheet then triggered ~10 woff2
+   fetches from fonts.gstatic.com on every cold start. Bundling
+   here (v10.697) eliminates the network hop entirely.
+
+   These are variable fonts — ONE woff2 file per family covers all
+   weight axes. Total bundle: ~85 KB (vs. ~300+ KB of upstream
+   variants when fetched as classic per-weight files).
+
+   Latin range only — UI does not need latin-ext / cyrillic / vietnamese.
+   If we ever add non-latin content (translations etc.) we will need
+   to re-download the additional subsets.
+   ============================================================= */
+
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 100 1000;
+  font-display: swap;
+  src: url('/fonts/google/dm-sans-v17-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Sora';
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url('/fonts/google/sora-v17-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('/fonts/google/space-grotesk-v22-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}

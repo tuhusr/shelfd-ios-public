@@ -1,0 +1,3 @@
+v11.940 — Removed the Tracker.gg "T" shortcut chip next to the COMPETITIVE pill on the My List game profile hero. Removed markup, the dead renderMyListGameProfileTrackerShortcut function + const, and the chip/eyebrow-row CSS. Kicker now renders directly.
+Deployed 2026-06-14
+Version ID: 7da54779-8601-4775-a585-d33d48db8248

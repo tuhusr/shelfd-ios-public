@@ -1,0 +1,5 @@
+v11.908 - DM group thread title weight
+
+- Fixed the Direct Message chat thread header name span so group chat names render at 500 font weight.
+- Kept the chat thread header name letter spacing at 0.
+- Bumped the profile/search DM override CSS cache buster for deployment.

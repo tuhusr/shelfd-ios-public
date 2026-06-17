@@ -1,0 +1,140 @@
+/*
+   39-profile-game-achievements.css
+   Extracted from 06-profile.css to keep surface ownership explicit.
+*/
+
+/* =============================================================================
+   Steam achievements — game media profile (v11.385)
+   Editorial Dark: true black, single lavender accent, no chrome. Single-player
+   games only (gated server-side). Full grid w/ unlock dates + rarity.
+   ========================================================================== */
+.steam-achievements-section[hidden] { display: none !important; }
+.steam-achievements-section .steam-achv-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; margin-bottom: 12px;
+}
+/* v11.433: collapsible Achievements section (game profiles). Preset shows 9
+   tiles; tapping the header collapses the tile grid (header + progress stay). */
+.mylist-game-profile-achievements-head,
+.steam-achv-head-toggle { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.achv-collapse-chevron {
+  vertical-align: middle;
+  margin-left: 4px;
+  color: rgba(255, 255, 255, 0.5);
+  transition: transform 0.2s ease;
+}
+.mylist-game-profile-achievements.achv-collapsed .achv-collapse-chevron,
+.steam-achievements-section.achv-collapsed .achv-collapse-chevron {
+  transform: rotate(-90deg);
+}
+.mylist-game-profile-achievements.achv-collapsed .steam-achv-grid,
+.mylist-game-profile-achievements.achv-collapsed .steam-achv-toggle,
+.steam-achievements-section.achv-collapsed .steam-achv-grid,
+.steam-achievements-section.achv-collapsed .steam-achv-toggle,
+.steam-achievements-section.achv-collapsed .steam-achv-source {
+  display: none !important;
+}
+.steam-achievements-section .steam-achv-head h3 { margin: 0; letter-spacing: 0.03em; }
+.steam-achv-progress { display: inline-flex; align-items: baseline; gap: 10px; white-space: nowrap; }
+.steam-achv-count { font-size: 14px; font-weight: 400; letter-spacing: 0.03em; color: rgba(235,232,244,0.62); }
+.steam-achv-count strong { font-weight: 600; color: #f5f5f7; }
+.steam-achv-percent { font-size: 12px; font-weight: 600; letter-spacing: 0.03em; color: #a78bfa; }
+.steam-achv-bar {
+  height: 4px; border-radius: 999px; background: rgba(255,255,255,0.08);
+  overflow: hidden; margin-bottom: 16px;
+}
+.steam-achv-bar > span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #8b5cf6, #7c3aed); }
+.steam-achv-note { margin: 0 0 14px; font-size: 12.5px; letter-spacing: 0.02em; color: rgba(235,232,244,0.55); }
+.steam-achv-note strong { color: #cbbbf3; font-weight: 600; }
+.steam-achv-grid { display: flex; flex-direction: column; gap: 8px; }
+.steam-achv-tile {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  border-radius: 14px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+}
+.steam-achv-tile.is-unlocked { background: rgba(124,58,237,0.06); border-color: rgba(124,58,237,0.20); }
+.steam-achv-tile.is-locked { opacity: 0.62; }
+.steam-achv-icon {
+  flex: 0 0 auto; width: 44px; height: 44px; border-radius: 10px; overflow: hidden;
+  background: rgba(0,0,0,0.4); display: inline-flex; align-items: center; justify-content: center;
+}
+.steam-achv-icon img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.steam-achv-tile.is-locked .steam-achv-icon img { filter: grayscale(1); }
+.steam-achv-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.steam-achv-name { font-size: 14px; font-weight: 600; letter-spacing: 0.02em; color: #f5f5f7; }
+.steam-achv-desc { font-size: 12.5px; font-weight: 400; letter-spacing: 0.02em; color: rgba(235,232,244,0.58); line-height: 1.35; }
+.steam-achv-meta {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-top: 2px;
+  font-size: 11.5px; letter-spacing: 0.03em; color: rgba(235,232,244,0.48);
+}
+.steam-achv-dot { opacity: 0.5; }
+.steam-achv-rarity { color: rgba(235,232,244,0.55); }
+.steam-achv-rarity.is-rare { color: #a78bfa; font-weight: 600; }
+.steam-achv-toggle {
+  margin-top: 12px; width: 100%; padding: 11px 14px; border-radius: 999px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.10);
+  color: rgba(235,232,244,0.82); font-family: 'Sohne', 'DM Sans', sans-serif;
+  font-size: 13px; font-weight: 500; letter-spacing: 0.03em; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.steam-achv-toggle:active { opacity: 0.7; }
+.steam-achv-source {
+  margin-top: 12px; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: rgba(235,232,244,0.3);
+}
+
+/* v11.388 — Achievements panel on the My List game profile page (single-player).
+   Reuses the global .steam-achv-* grid/tile styling; only the empty state and
+   progress spacing are page-specific. */
+.mylist-game-profile-achievements-body { margin-top: 2px; }
+.mylist-game-profile-achievements-empty {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: rgba(235,232,244,0.5);
+}
+.mylist-game-profile-achievements .steam-achv-progress-row { margin-bottom: 10px; }
+
+/* v11.639 / v11.640 — Full-page profile hero stats: canonical typography for the four
+   flat stat cards (All Media · Hours Watched · Average Rating · Most Watched
+   Genre · Best Average Rating Genre). Single source of truth for
+   size/weight/letter-spacing/font so the older layered breakpoint rules above
+   don't fight it. Values stay 600 / 15px, "All Media" is 300 / 15px, and the
+   sub-labels are 400 / 12px, every line letter-spacing 0, default Sohne text. */
+.profile-page .profile-hero-card > .profile-stats-grid > .profile-stat-card.profile-stat-card-flat .profile-stat-value,
+.profile-page .profile-stat-card.profile-stat-card-flat .profile-stat-value {
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 500 !important;
+  line-height: 1.5 !important;
+  margin: 0 !important;
+  letter-spacing: 0 !important;
+}
+.profile-page .profile-hero-card > .profile-stats-grid > .profile-stat-card.profile-stat-card-flat .profile-stat-label,
+.profile-page .profile-stat-card.profile-stat-card-flat .profile-stat-label {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 0 !important;
+  margin-top: 0 !important;
+  line-height: 1.5 !important;
+}
+.profile-page .profile-hero-card > .profile-stats-grid > .profile-stat-card.profile-stat-card-flat .profile-stat-label-main,
+.profile-page .profile-stat-card.profile-stat-card-flat .profile-stat-label-main {
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 300 !important;
+  display: block !important;
+  margin: 0 !important;
+  line-height: 1.5 !important;
+  letter-spacing: 0 !important;
+}
+.profile-page .profile-hero-card > .profile-stats-grid > .profile-stat-card.profile-stat-card-flat .profile-stat-label-sub,
+.profile-page .profile-stat-card.profile-stat-card-flat .profile-stat-label-sub {
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  display: block !important;
+  margin-top: 0 !important;
+  line-height: 1.5 !important;
+  letter-spacing: 0 !important;
+}

@@ -1,0 +1,111 @@
+/* v11.867: Direct Messages layout patches.
+   Moved from 17-auth-flow-setup.css so DM layout is owned by a DM-specific
+   stylesheet instead of the auth flow stylesheet. */
+
+html.shelfd-capacitor-ios .direct-messages-topbar {
+  padding-top: 4px !important;
+}
+
+html.shelfd-capacitor-ios .direct-messages-page {
+  --dm-main-topbar-h: 52px !important;
+  --dm-thread-topbar-h: 56px !important;
+}
+
+html.shelfd-capacitor-ios #direct-messages-page:not(.dm-thread-open) {
+  --dm-main-topbar-h: 58px !important;
+}
+
+html.shelfd-capacitor-ios #direct-messages-page:not(.dm-thread-open) .direct-messages-topbar {
+  min-height: var(--dm-main-topbar-h) !important;
+  height: var(--dm-main-topbar-h) !important;
+  padding: 5px 13px 7px !important;
+  align-items: center !important;
+  grid-template-columns: 44px minmax(0, 1fr) 44px !important;
+}
+
+html.shelfd-capacitor-ios #direct-messages-page:not(.dm-thread-open) .direct-messages-close,
+html.shelfd-capacitor-ios #direct-messages-page:not(.dm-thread-open) .direct-messages-new-btn {
+  align-self: center !important;
+  margin: 0 !important;
+}
+
+html.shelfd-capacitor-ios #direct-messages-page:not(.dm-thread-open) .direct-messages-title-wrap {
+  align-self: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+}
+
+html.shelfd-capacitor-ios #direct-messages-page:not(.dm-thread-open) .direct-messages-content {
+  height: calc(100dvh - var(--dm-main-topbar-h)) !important;
+  padding-top: 4px !important;
+}
+
+.direct-messages-topbar {
+  padding-top: calc(var(--shelfd-safe-top, 0px) + 4px) !important;
+  padding-bottom: 8px !important;
+  min-height: 56px !important;
+  height: auto !important;
+}
+
+.direct-messages-page .direct-messages-header::after,
+#direct-messages-page .direct-messages-header::after,
+.direct-messages-page .direct-messages-divider,
+#direct-messages-page .direct-messages-divider {
+  display: none !important;
+}
+
+.direct-messages-page,
+#direct-messages-page {
+  padding-top: 0 !important;
+}
+
+.direct-messages-page::after,
+#direct-messages-page::after {
+  display: none !important;
+}
+
+.direct-messages-page.dm-thread-open .dm-message-list,
+#direct-messages-page.dm-thread-open .dm-message-list {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 64px) !important;
+}
+
+.direct-messages-page .dm-compose-row,
+#direct-messages-page .dm-compose-row {
+  bottom: env(safe-area-inset-bottom, 0px) !important;
+  z-index: 9999 !important;
+}
+
+.direct-messages-page .dm-chat-row,
+#direct-messages-page .dm-chat-row {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+body.light-mode .direct-messages-page .dm-chat-row,
+body.light-mode #direct-messages-page .dm-chat-row {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+  background: transparent !important;
+  background-image: none !important;
+}
+
+html.shelfd-capacitor-ios .direct-messages-page.dm-thread-open {
+  --dm-topbar-h: 64px !important;
+  --dm-thread-topbar-h: 64px !important;
+}
+
+html.shelfd-capacitor-ios .direct-messages-page.dm-thread-open .direct-messages-topbar {
+  min-height: 64px !important;
+  height: 64px !important;
+  padding: 6px 14px 8px !important;
+  align-items: center !important;
+}
+
+html.shelfd-capacitor-ios .direct-messages-page.dm-thread-open .direct-messages-content {
+  height: calc(100dvh - 64px) !important;
+}

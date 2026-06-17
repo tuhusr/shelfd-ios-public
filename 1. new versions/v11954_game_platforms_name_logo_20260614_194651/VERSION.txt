@@ -1,0 +1,3 @@
+v11.954 — Platforms section fixes. (1) Logos were not showing because the client/edge had cached the pre-logo /api/igdb/game-info response (24h). Bumped the worker edge cache key (v1 -> v2-platform-logos) AND added an iv=2 version param to both client fetches (js/06 fetchGameInfoFromIgdb + js/11 fetchIgdbSimilarGamesForMoreLikeThis) so the browser HTTP cache cannot replay the stale shape. (2) Reordered per spec: platform NAME in plain text on the LEFT, high-res IGDB logo to its RIGHT (logo in a light badge). Removed the pill chrome; plain-text names with spacing. Verified: client-style request (iv=2, no force) now returns logos (cache MISS on new key); markup renders name-before-logo.
+Deployed 2026-06-14
+Version ID: 7dcddb07-00f8-4873-aeb4-188e7551afae

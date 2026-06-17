@@ -1,0 +1,2 @@
+v11.955 — Game FPMP (+) add button: made it a fixed 38x38 circle matching the share/sound buttons (was a padding-based pill) and sized the +/check glyph to 24px so it fills the circle like the other glyphs. Scoped to exclude the text "Change Cover" button.
+Deployed 2026-06-14

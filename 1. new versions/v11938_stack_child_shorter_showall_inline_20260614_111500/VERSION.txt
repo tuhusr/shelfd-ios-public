@@ -1,0 +1,3 @@
+v11.938 — Compact dropdown child card shortened (207->130px, stopped carousel flex-stretch + content height + compact action row) and Show all dropped to bottom:11 to sit perfectly in line with the action row. Harness-verified (centerDelta 0).
+Deployed 2026-06-14
+Version ID: 7b35ad13-680f-413a-a618-e6c5b71cc2cb

@@ -1,0 +1,4 @@
+v11.919 - Profile chevron shelf position
+
+- Fixed the remaining top-left chevron return path from full user profile to friend shelf.
+- Reserved the hidden app header layout space during the chevron close animation so the incoming shelf no longer renders too high before settling.

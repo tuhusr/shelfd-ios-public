@@ -1,0 +1,747 @@
+/* =============================================================
+   32-discovery-card-shell.css
+   Legacy Discovery card shell, trailer, friend-stack, and modal
+   rules extracted from 04-activity-feed.css. Activity cards should
+   not own Discovery card layout or friend-signal UI.
+   Loaded immediately after 04 to preserve the previous cascade slot.
+   ============================================================= */
+
+  .discover-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 14px;
+  }
+  .discover-card {
+    background: #060510; border: 1px solid #3d3466; border-radius: 12px;
+    overflow: hidden; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
+    display: flex; flex-direction: column;
+    transition: box-shadow 0.24s ease, border-color 0.24s ease, transform 0.24s ease;
+  }
+  .discover-card:not(.discover-card-expanded) {
+    border-radius: 3px;
+  }
+  .discover-card:not(.discover-card-expanded) > .discover-poster,
+  .discover-card:not(.discover-card-expanded) > .discover-poster .discover-poster-media,
+  .discover-card:not(.discover-card-expanded) > .discover-poster .discover-poster-video {
+    border-radius: 3px 3px 0 0;
+  }
+  .discover-card:not(.discover-card-expanded) > .discover-card-body {
+    border-radius: 0 0 3px 3px;
+  }
+  .discover-card:not(.games-discover-card) {
+    position: relative;
+    z-index: 1;
+    transform-origin: center top;
+    will-change: transform;
+    cursor: pointer;
+    overflow: visible;
+  }
+  .discover-rank {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: linear-gradient(135deg, #f59e0b, #fbbf24);
+    color: #050410;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    z-index: 2;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    font-family: 'Sora', sans-serif;
+  }
+  .discover-card:not(.games-discover-card).discover-card-expanded {
+    --discover-expanded-width: clamp(420px, 42vw, 720px);
+    border-color: rgba(139,92,246,0.38);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06), 0 18px 42px rgba(10, 8, 22, 0.58), 0 0 34px rgba(139,92,246,0.22);
+    transform: translateY(-12px) scale(1.03);
+    z-index: 32;
+  }
+  .discover-card.discover-hidden { display: none; }
+  .discover-poster {
+    width: 100%; aspect-ratio: 2 / 3; background-size: cover;
+    background-position: center; background-color: #151025;
+    position: relative; overflow: hidden;
+    transition: aspect-ratio 0.34s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.28s ease;
+    touch-action: pan-y;
+  }
+  .discover-card:not(.games-discover-card).discover-card-expanded .discover-poster {
+    width: min(var(--discover-expanded-width), calc(100vw - 24px));
+    aspect-ratio: 16 / 9;
+    left: 50%;
+    transform: translateX(-50%);
+    box-shadow: 0 10px 28px rgba(5, 4, 16, 0.34);
+    border-radius: 10px 10px 0 0;
+  }
+  .discover-card:not(.games-discover-card).discover-card-expanded .discover-card-body {
+    width: min(var(--discover-expanded-width), calc(100vw - 24px));
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 12px 12px;
+    background: #060510;
+    border: 1px solid #3d3466;
+    border-top: 0;
+    border-radius: 0 0 10px 10px;
+    box-shadow: 0 14px 32px rgba(10, 8, 22, 0.42);
+  }
+  .discover-poster-media,
+  .discover-poster-video {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+  }
+  .discover-poster-media {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    transition: opacity 0.28s ease;
+    opacity: 1;
+  }
+  .discover-poster-video {
+    border: 0;
+    opacity: 0;
+    transition: opacity 0.28s ease;
+    pointer-events: none;
+  }
+  .discover-poster.trailer-active .discover-poster-media { opacity: 0; }
+  .discover-poster.trailer-active .discover-poster-video { opacity: 1; }
+  .discover-card:not(.games-discover-card).discover-card-expanded .discover-poster-video { pointer-events: auto; }
+  /* v812: legacy square "preview trailer" expand-icon button was being
+     re-shown by the @media (max-width: 700px) block lower in this file
+     (which sets display:inline-flex on .discover-expand-icon for the
+     expanded-card mobile layout). The JS still renders the button into
+     posters, but it is no longer part of the current Discover UI ? kill
+     it everywhere with !important so no media query / theme override can
+     bring it back. */
+  .discover-expand-icon {
+    display: none !important;
+  }
+  .discover-poster-tooltip {
+    display: none;
+  }
+  .discover-friend-stack {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    z-index: 4;
+    display: none;
+    align-items: center;
+    max-width: calc(100% - 20px);
+    padding: 3px 5px 3px 3px;
+    border-radius: 999px;
+    background: rgba(6, 5, 16, 0.72);
+    border: 1px solid rgba(255,255,255,0.12);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 8px 18px rgba(0,0,0,0.36);
+    pointer-events: none;
+  }
+  .discover-friend-stack.has-friends { display: inline-flex; }
+  .discover-friend-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #1e2028;
+    border: 2px solid #050410;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+  }
+  .discover-friend-avatar + .discover-friend-avatar,
+  .discover-friend-count {
+    margin-left: -8px;
+  }
+  .discover-friend-count {
+    min-width: 24px;
+    height: 24px;
+    padding: 0 6px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #151025;
+    border: 2px solid #050410;
+    color: #e8e3f3;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .discover-card:not(.games-discover-card).discover-card-expanded .discover-friend-stack {
+    right: 12px;
+    bottom: 12px;
+  }
+  .discover-poster.trailer-active .discover-friend-stack { opacity: 0; }
+  body.light-mode .discover-friend-stack {
+    background: rgba(255,255,255,0.74);
+    border-color: rgba(124,58,237,0.18);
+  }
+  body.light-mode .discover-friend-avatar,
+  body.light-mode .discover-friend-count {
+    border-color: #f4f1fb;
+  }
+  body.light-mode .discover-friend-count {
+    background: #ede9fe;
+    color: #12082e;
+  }
+  @media (max-width: 600px) {
+    .discover-friend-stack {
+      right: 8px;
+      bottom: 8px;
+      padding: 3px;
+      pointer-events: auto;
+      cursor: pointer;
+      transition: transform 0.18s ease, opacity 0.18s ease;
+    }
+    .discover-friend-stack:active { transform: scale(0.96); }
+    .discover-friend-avatar,
+    .discover-friend-count { width: 22px; height: 22px; min-width: 22px; }
+    .discover-friend-count { display: none; }
+  }
+  .discover-friends-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2400;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    background: rgba(5, 4, 16, 0);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.28s ease, background 0.28s ease;
+  }
+  .discover-friends-modal-overlay.open {
+    background: rgba(0, 0, 0, 0.72);
+    opacity: 1;
+    pointer-events: auto;
+  }
+  /* v11.417: rebuilt to the app's Editorial Dark UI — true-black surfaces,
+     hairline white borders, a single lavender accent, Söhne type at 0.03em.
+     (Was a legacy purple-tinted #0a081a card in DM Sans / weight 800.) */
+  .discover-friends-modal {
+    width: min(92vw, 360px);
+    max-height: min(76vh, 560px);
+    overflow: hidden;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    background: #161616;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+    font-family: 'Sohne', 'DM Sans', sans-serif;
+    letter-spacing: 0.03em;
+    transform: translateY(16px) scale(0.96);
+    opacity: 0;
+    transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.24s ease;
+  }
+  .discover-friends-modal-overlay.open .discover-friends-modal {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  .discover-friends-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 18px 18px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .discover-friends-modal-title {
+    color: #ffffff;
+    font-family: 'Sohne', 'DM Sans', sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
+  }
+  .discover-friends-modal-subtitle { display: none; }
+  .discover-friends-modal-close {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .discover-friends-modal-rule {
+    margin: 14px 16px 0;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.60);
+    font-size: 11.5px;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    line-height: 1.45;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+  }
+  .discover-friends-modal-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 16px 18px;
+    max-height: 330px;
+    overflow-y: auto;
+  }
+  .discover-friends-modal-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .discover-friends-modal-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    flex-shrink: 0;
+  }
+  .discover-friends-modal-name {
+    color: #ffffff;
+    font-family: 'Sohne', 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+  }
+  .discover-friends-modal-status {
+    color: #c4b5fd;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    margin-top: 3px;
+    text-transform: capitalize;
+  }
+  body.light-mode .discover-friends-modal-overlay.open { background: rgba(18, 8, 46, 0.34); }
+  body.light-mode .discover-friends-modal {
+    background: #fff;
+    border-color: rgba(124,58,237,0.20);
+    box-shadow: 0 22px 60px rgba(18, 8, 46, 0.22);
+  }
+  body.light-mode .discover-friends-modal-head { border-bottom-color: #e0d9f0; }
+  body.light-mode .discover-friends-modal-title,
+  body.light-mode .discover-friends-modal-name { color: #12082e; }
+  body.light-mode .discover-friends-modal-subtitle { color: #7c6fa0; }
+  body.light-mode .discover-friends-modal-close { background: #f4f1fb; border-color: #d8cfee; color: #12082e; }
+  body.light-mode .discover-friends-modal-rule { background: rgba(124,58,237,0.08); color: #5a4780; border-color: rgba(124,58,237,0.16); }
+  body.light-mode .discover-friends-modal-row { background: #f8f6ff; border-color: #e0d9f0; }
+  body.light-mode .discover-friends-modal-avatar { border-color: #f4f1fb; }
+  @media (min-width: 601px) {
+    .discover-friends-modal-overlay { display: none; }
+  }
+  .discover-card.games-discover-card .discover-poster {
+    width: 100%;
+    aspect-ratio: 11 / 14;
+    flex-shrink: 0;
+    background-size: cover !important;
+    background-position: center top !important;
+    background-repeat: no-repeat !important;
+    background-color: #0b0818;
+  }
+  .discover-card.games-discover-card {
+    display: flex;
+    flex-direction: column;
+  }
+  .discover-card.games-discover-card .discover-card-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+  .discover-card.games-discover-card .discover-add-btn {
+    margin-top: auto;
+  }
+  .discover-card.games-discover-card.discover-hidden {
+    display: none;
+  }
+  .discover-card-body {
+    padding: 13px 12px 14px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 8px;
+    min-height: 132px;
+  }
+  .discover-card-heading-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+    width: 100%;
+    overflow: hidden;
+  }
+  .discover-card-title {
+    display: block;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    font-size: 13px; font-weight: 800; color: #e8e3f3;
+    line-height: 1.22; min-height: 0;
+    letter-spacing: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transform-origin: left top;
+    transition: transform 0.24s ease, color 0.24s ease;
+  }
+  .discover-title-profile-btn {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    font-family: inherit;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: default;
+  }
+  .discover-card-rating {
+    flex: 0 0 auto;
+    min-width: 48px;
+    max-width: 58px;
+    min-height: 24px;
+    padding: 4px 6px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #f5f1ff;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 1px;
+    text-align: right;
+    line-height: 1;
+  }
+  .discover-card-rating-label {
+    color: #fbbf24;
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: 0.03em;
+    line-height: 1;
+  }
+  .discover-card-rating-value {
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0;
+  }
+  .discover-card-rating.loading .discover-card-rating-value,
+  .discover-card-rating.empty .discover-card-rating-value {
+    color: #81769f;
+  }
+  .discover-card-game-rating .discover-card-rating-label {
+    color: #67e8f9;
+  }
+  .discover-card-info-row,
+  .discover-card-info-stack {
+    display: flex;
+    min-width: 0;
+  }
+  .discover-card-info-row {
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .discover-card-info-stack {
+    flex: 1;
+    flex-direction: column;
+  }
+  .discover-card-genre {
+    display: block;
+    min-height: 14px;
+    color: #a99dc6;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .discover-card-genre-empty {
+    opacity: 0;
+  }
+  .discover-card:not(.games-discover-card).discover-card-expanded .discover-card-title { transform: scale(1.04); }
+  .discover-card:not(.games-discover-card).discover-card-expanded .discover-card-overview {
+    display: none;
+  }
+  @media (max-width: 700px) {
+    .discover-card:not(.games-discover-card).discover-card-expanded {
+      --discover-expanded-width: min(94vw, 520px);
+      transform: translateY(-10px) scale(1.01);
+      z-index: 40;
+    }
+    .discover-card:not(.games-discover-card).discover-card-expanded .discover-poster,
+    .discover-card:not(.games-discover-card).discover-card-expanded .discover-card-body {
+      width: min(var(--discover-expanded-width), calc(100vw - 24px));
+      max-width: calc(100vw - 24px);
+      left: 50%;
+      right: auto;
+      transform: translateX(calc(-50% + var(--discover-mobile-shift-x, 0px)));
+    }
+    .discover-card:not(.games-discover-card).discover-card-expanded .discover-card-info-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .discover-card:not(.games-discover-card).discover-card-expanded .discover-card-info-stack {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      flex: 1;
+    }
+    .discover-card:not(.games-discover-card).discover-card-expanded .discover-card-title {
+      min-height: 0;
+    }
+    .discover-title-profile-btn {
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .discover-title-profile-btn:active {
+      color: #f4d27a;
+    }
+    .discover-card-genre {
+      display: block;
+      margin-top: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.22px;
+      color: #bdb4d8;
+      line-height: 1.25;
+    }
+    .discover-card:not(.games-discover-card).discover-card-expanded .discover-card-meta {
+      margin-top: 6px;
+    }
+    .discover-card:not(.games-discover-card).discover-card-expanded .discover-card-overview {
+      display: -webkit-box;
+      margin-top: 10px;
+      margin-bottom: 16px;
+      height: auto;
+      min-height: 0;
+      max-height: none;
+      -webkit-line-clamp: 8;
+      color: #b8afd1;
+      line-height: 1.45;
+      overflow: hidden;
+    }
+    .discover-expand-icon {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 3;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border: 1px solid rgba(180, 188, 255, 0.28);
+      border-radius: 999px;
+      background: rgba(10, 9, 22, 0.64);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      box-shadow: 0 8px 20px rgba(6, 5, 16, 0.24);
+    }
+    .discover-expand-icon span {
+      position: absolute;
+      width: 7px;
+      height: 7px;
+      border-color: rgba(238, 246, 255, 0.92);
+      border-style: solid;
+      pointer-events: none;
+    }
+    .discover-expand-icon span:nth-child(1) {
+      top: 7px;
+      left: 7px;
+      border-width: 1.5px 0 0 1.5px;
+    }
+    .discover-expand-icon span:nth-child(2) {
+      top: 7px;
+      right: 7px;
+      border-width: 1.5px 1.5px 0 0;
+    }
+    .discover-expand-icon span:nth-child(3) {
+      right: 7px;
+      bottom: 7px;
+      border-width: 0 1.5px 1.5px 0;
+    }
+    .discover-expand-icon span:nth-child(4) {
+      bottom: 7px;
+      left: 7px;
+      border-width: 0 0 1.5px 1.5px;
+    }
+    .discover-expand-icon:active {
+      transform: scale(0.96);
+      background: rgba(24, 18, 40, 0.78);
+      border-color: rgba(103, 232, 249, 0.42);
+    }
+    .discover-card:not(.games-discover-card).discover-card-expanded .discover-close-btn {
+      align-self: flex-start;
+      min-width: 34px;
+      min-height: 18px;
+      height: 18px;
+      margin: 0;
+      padding: 0 6px;
+      border-color: rgba(248, 113, 113, 0.58);
+      background: linear-gradient(135deg, rgba(98, 28, 40, 0.96), rgba(58, 16, 26, 0.98));
+      color: #fecaca;
+      box-shadow: 0 8px 20px rgba(30, 8, 16, 0.24);
+      font-size: 9px;
+    }
+    .discover-card:not(.games-discover-card).discover-card-expanded .discover-close-btn:active {
+      background: linear-gradient(135deg, rgba(126, 34, 52, 0.98), rgba(74, 18, 32, 0.98));
+      border-color: rgba(252, 165, 165, 0.78);
+      color: #ffe4e6;
+    }
+  }
+  .discover-card-meta {
+    margin-top: 6px; min-height: 18px; font-size: 11px; color: #b8afd1;
+  }
+  .discover-card-context {
+    color: #ffffff;
+    font-size: 11px;
+    line-height: 1.35;
+    font-weight: 700;
+    letter-spacing: 0;
+    margin-top: 3px;
+  }
+  .discover-rating-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 14px;
+    font-weight: 800;
+    color: #f3effb;
+  }
+  .discover-rating-star {
+    color: #f59e0b;
+    font-size: 17px;
+    line-height: 1;
+  }
+  .discover-card-overview {
+    display: none;
+    margin-top: 9px; margin-bottom: 14px; font-size: 11px; color: #b8afd1;
+    line-height: 1.45; height: 64px; min-height: 64px; overflow: hidden;
+    -webkit-line-clamp: 4; -webkit-box-orient: vertical;
+  }
+  .discover-card:not(.games-discover-card).discover-card-expanded .discover-card-overview {
+    display: -webkit-box;
+  }
+  .discover-card-overview:empty {
+    display: none;
+  }
+  .discover-close-btn { display: none; }
+  .discover-card:not(.games-discover-card).discover-card-expanded .discover-close-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: center;
+    min-width: 108px;
+    height: 38px;
+    margin: 12px auto 10px;
+    padding: 0 18px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: 'DM Sans', sans-serif;
+    line-height: 1;
+    transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+  }
+  .discover-card:not(.games-discover-card).discover-card-expanded .discover-close-btn:active {
+    transform: scale(0.97);
+  }
+  @media (min-width: 701px) {
+    .discover-card:not(.games-discover-card):not(.discover-card-expanded):hover {
+      transform: translateY(-2px) scale(1.015);
+      border-color: rgba(125, 211, 252, 0.24);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05), 0 10px 22px rgba(9, 8, 22, 0.3), 0 0 18px rgba(139, 92, 246, 0.12);
+      z-index: 6;
+    }
+    .discover-card:not(.games-discover-card) .discover-poster-tooltip {
+      position: absolute;
+      left: 50%;
+      bottom: 10px;
+      transform: translate(-50%, 6px);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 28px;
+      padding: 0 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(125, 211, 252, 0.22);
+      background: rgba(7, 8, 18, 0.76);
+      color: #d9f8ff;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      box-shadow: 0 8px 20px rgba(6, 6, 16, 0.28), 0 0 16px rgba(56, 189, 248, 0.08);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    .discover-card:not(.games-discover-card):not(.discover-card-expanded) .discover-poster:hover .discover-poster-tooltip {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+    .discover-card:not(.games-discover-card).discover-card-expanded .discover-close-btn {
+      border: 1px solid rgba(248, 113, 113, 0.52);
+      background: linear-gradient(135deg, rgba(86, 26, 38, 0.94), rgba(48, 15, 22, 0.96));
+      color: #fecaca;
+      box-shadow: 0 10px 24px rgba(30, 8, 16, 0.28);
+    }
+    .discover-card:not(.games-discover-card).discover-card-expanded .discover-close-btn:hover {
+      background: linear-gradient(135deg, rgba(112, 33, 50, 0.98), rgba(68, 18, 30, 0.98));
+      border-color: rgba(252, 165, 165, 0.78);
+      color: #ffe4e6;
+      box-shadow: 0 12px 28px rgba(46, 10, 20, 0.34);
+    }
+  }
+  @media (max-width: 700px) {
+    .discover-card:not(.games-discover-card).discover-card-expanded .discover-close-btn {
+      border: 1px solid rgba(248, 113, 113, 0.58);
+      background: linear-gradient(135deg, rgba(98, 28, 40, 0.96), rgba(58, 16, 26, 0.98));
+      color: #fecaca;
+      box-shadow: 0 8px 20px rgba(30, 8, 16, 0.24);
+    }
+    .discover-card:not(.games-discover-card).discover-card-expanded .discover-close-btn:active {
+      background: linear-gradient(135deg, rgba(126, 34, 52, 0.98), rgba(74, 18, 32, 0.98));
+      border-color: rgba(252, 165, 165, 0.78);
+      color: #ffe4e6;
+    }
+  }
+  .discover-add-btn {
+    width: 100%;
+    height: 42px;
+    margin-top: auto;
+    padding: 0 16px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    cursor: pointer;
+    background: linear-gradient(135deg, #7c3aed, #9333ea);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: 'DM Sans', sans-serif;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    box-shadow: 0 10px 22px rgba(124,58,237,0.22);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+  }
+.discover-add-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(124,58,237,0.26);
+  filter: brightness(1.04);
+}

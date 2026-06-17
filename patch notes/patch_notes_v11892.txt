@@ -1,0 +1,7 @@
+Shelfd v11.892 - DM inbox timestamp truly inline
+
+Corrected the DM inbox preview line so the timestamp no longer rides the far-right edge.
+
+- The preview line now shrink-wraps to its text up to the available row width.
+- The timestamp sits immediately after the preview text as `preview • time`.
+- Long previews still truncate before the inline timestamp.

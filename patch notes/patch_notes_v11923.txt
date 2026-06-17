@@ -1,0 +1,5 @@
+v11.923 - DM Add people back button reliability
+
+- Rebuilt the Add people back button wiring so it uses one bound page controller instead of a fragile inline close action.
+- Made the Add people close path idempotent so one valid tap starts one close and disables repeated interaction during the exit animation.
+- Re-bound the parent Edit group chat swipe handler after group detail refreshes so the previous page stays consistent after adding members.

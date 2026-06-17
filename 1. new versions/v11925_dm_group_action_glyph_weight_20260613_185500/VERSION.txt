@@ -1,0 +1,3 @@
+v11.925 — DM group details Add+Mute action glyphs stroke-width 2.05 -> 1.2
+Deployed 2026-06-13
+Version ID: 40b8575d-b73a-4374-9140-4bad9579065f

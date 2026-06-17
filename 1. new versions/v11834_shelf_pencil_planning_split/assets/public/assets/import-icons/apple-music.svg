@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Apple Music">
+  <defs>
+    <linearGradient id="apple-music-bg" x1="80" y1="36" x2="432" y2="476" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ff2d55"/>
+      <stop offset="0.38" stop-color="#ff375f"/>
+      <stop offset="0.68" stop-color="#bf5af2"/>
+      <stop offset="1" stop-color="#5e5ce6"/>
+    </linearGradient>
+    <linearGradient id="apple-music-shine" x1="256" y1="0" x2="256" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="0.48" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#apple-music-bg)"/>
+  <rect width="512" height="512" rx="112" fill="url(#apple-music-shine)"/>
+  <path fill="#fff" d="M352.4 102.6c15.2-3.1 28.6 8.5 28.6 24v206.9c0 38.8-32.5 67.2-72.1 67.2-33.2 0-57.9-19.4-57.9-46.6 0-31.6 28.9-55.3 66.9-55.3 11.8 0 23.1 2.3 32.2 6.6V205.8l-145.9 29.7v138.4c0 38.8-32.5 67.2-72.1 67.2-33.2 0-57.9-19.4-57.9-46.6 0-31.6 28.9-55.3 66.9-55.3 11.8 0 23.1 2.3 32.2 6.6V177.2c0-11.8 8.3-22 19.9-24.3l159.2-50.3Zm-2.3 50.4-145.9 29.7v22.4l145.9-29.7V153Z"/>
+</svg>

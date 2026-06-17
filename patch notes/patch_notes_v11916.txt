@@ -1,0 +1,4 @@
+v11.916 - DM thread title plain white
+
+- Locked the full-page DM thread header username/group name to plain 100% white.
+- Removed inherited creator/gold/gradient/text effects from thread header title text for both group chats and 1:1 chats.

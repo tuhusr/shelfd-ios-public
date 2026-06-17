@@ -1,0 +1,1 @@
+﻿v12.091 - 2026-06-17 - stacked card: add height:auto + max-height:none to override base card 207px hard cap that was clipping fanned posters

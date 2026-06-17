@@ -1,0 +1,5 @@
+v11.914 - DM group change events
+
+- Added centered group system messages when a group chat photo or name changes.
+- System messages use 12px text, 300 font weight, and centered alignment.
+- Forced the v2 chat thread header group name path to stay 100% white with no inherited creator-name gold styling.

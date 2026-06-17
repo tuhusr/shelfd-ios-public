@@ -2105,6 +2105,11 @@ async function fetchAllFriendActivities(dayLimit = 7) {
           const hasRating = Number(item.rating || 0) > 0;
           const modIsDistinct = modifiedAt && modifiedAt !== addedAt &&
             (new Date(modifiedAt).getTime() - new Date(addedAt).getTime()) > 5 * 60 * 1000;
+          const reviewActivityAt = item.lastReviewActivityAt || item.reviewUpdatedAt || item.reviewEditedAt || item.reviewSavedAt || item.reviewPostedAt || '';
+          const modTime = modifiedAt ? new Date(modifiedAt).getTime() : 0;
+          const reviewTime = reviewActivityAt ? new Date(reviewActivityAt).getTime() : 0;
+          const modIsReviewActivity = Number.isFinite(modTime) && Number.isFinite(reviewTime) && modTime > 0 && reviewTime > 0 &&
+            Math.abs(reviewTime - modTime) <= 60 * 1000;
 
           // Added event
           if (addedAt && (!cutoff || addedAt >= cutoff)) {
@@ -2112,7 +2117,7 @@ async function fetchAllFriendActivities(dayLimit = 7) {
           }
 
           // Modification event (rating or status change after initial add)
-          if (modIsDistinct && (!cutoff || modifiedAt >= cutoff)) {
+          if (modIsDistinct && !modIsReviewActivity && (!cutoff || modifiedAt >= cutoff)) {
             let modEventType = 'added';
             if (hasRating) {
               modEventType = 'rated';

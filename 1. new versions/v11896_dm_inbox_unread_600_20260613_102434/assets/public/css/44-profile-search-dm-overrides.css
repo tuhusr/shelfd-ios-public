@@ -1,0 +1,5263 @@
+/*
+   44-profile-search-dm-overrides.css
+   Extracted from 31-surface-default-overrides.css to keep surface ownership explicit.
+*/
+
+/* v609: Full-page user profile typography uses Sohne, capped at 600 weight. */
+#profile-page,
+#profile-page *:not(svg):not(path) {
+  font-family: 'Sohne', 'S?hne', 'DM Sans', system-ui, sans-serif !important;
+}
+
+#profile-page *:not(svg):not(path) {
+  font-weight: 400 !important;
+}
+
+#profile-page :is(
+  .profile-topbar-title,
+  .profile-settings-card-title,
+  .profile-name-input,
+  .profile-section-title,
+  .profile-stat-value,
+  .profile-stat-value *,
+  .profile-card-lists-btn,
+  .profile-creator-badge,
+  .profile-creator-badge *,
+  .profile-favorite-title,
+  .profile-media-title,
+  .profile-group-stat-value,
+  .profile-fav-row-title,
+  .profile-fav-name,
+  .profile-fav-rating,
+  .profile-picker-title,
+  .profile-picker-selected-title,
+  .profile-profile-display-name,
+  .profile-link-field label,
+  .profile-rating-option-copy strong,
+  .profile-save-btn,
+  .profile-share-btn,
+  .profile-back-btn,
+  .profile-mini-btn,
+  .profile-social-count strong,
+  .profile-social-counts strong,
+  strong,
+  b
+) {
+  font-weight: 600 !important;
+}
+
+#profile-page :is(
+  .profile-topbar-sub,
+  .profile-settings-card-sub,
+  .profile-section-sub,
+  .profile-stat-label,
+  .profile-group-stat-label,
+  .profile-fav-row-source,
+  .profile-fav-empty,
+  .profile-bio-input,
+  .profile-rating-option-copy small,
+  .theme-disabled-note,
+  small
+) {
+  font-weight: 300 !important;
+}
+
+/* v11.641: profile showcase typography must NOT inherit the broad
+   `#profile-page :is(...) { font-weight:600 !important; }` rule above.
+   These three surfaces have bespoke weights/sizes:
+   - card headers: 16.2px / 500
+   - stat values: 15px / 400
+   - row subheaders: 14.4px / 400
+   - poster titles: keep existing size, but weight 400
+   Keep this in the same late stylesheet so it wins in both dark and light
+   mode without relying on earlier file order. */
+#profile-page .profile-media-group .profile-media-title,
+#profile-page .profile-media-group .profile-media-title * {
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.02em !important;
+  font-synthesis: none !important;
+}
+#profile-page .profile-media-group .profile-group-stat-value,
+#profile-page .profile-media-group .profile-group-stat-value * {
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.02em !important;
+  font-synthesis: none !important;
+}
+#profile-page .profile-media-group .profile-group-stat-label,
+#profile-page .profile-media-group .profile-group-stat-label * {
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif !important;
+  font-size: 9.5px !important;
+  font-weight: 300 !important;
+  font-synthesis: none !important;
+}
+#profile-page .profile-media-group .profile-fav-row-title,
+#profile-page .profile-media-group .profile-fav-row-title * {
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif !important;
+  font-size: 14.4px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  line-height: 1.2 !important;
+  font-synthesis: none !important;
+}
+#profile-page .profile-media-group .profile-fav-name,
+#profile-page .profile-media-group .profile-fav-name * {
+  font-weight: 400 !important;
+  font-synthesis: none !important;
+}
+
+/* v612: Full-page user profile gold accent color */
+#profile-page :is(
+  .profile-eyebrow,
+  .profile-creator-badge,
+  .profile-creator-badge *,
+  .profile-card-lists-btn,
+  .profile-fav-rating,
+  .profile-fav-rating *,
+  .profile-fav-rating-star,
+  .profile-rating-star,
+  .profile-stat-value-star,
+  .profile-stat-label-star,
+  .profile-fav-empty-rating,
+  .profile-fav-empty-rating *,
+  .profile-picker-library-note,
+  .profile-manual-rating,
+  .profile-db-rating,
+  .profile-character-editor-kicker,
+  .screenlist-gold-star-icon,
+  [data-profile-db-rating-preview],
+  [data-profile-db-rating-preview] *,
+  [data-manual-rating-preview],
+  [data-manual-rating-preview] *
+) {
+  color: #C9A84C !important;
+}
+
+#profile-page :is(
+  .profile-card-lists-btn,
+  .profile-character-crop-mask
+) {
+  border-color: #C9A84C !important;
+}
+
+#profile-page :is(
+  .profile-card-lists-btn:hover,
+  .profile-character-search-tile:hover
+) {
+  border-color: #C9A84C !important;
+}
+/* When a section's grid is empty after filtering, hide its empty shell */
+#discover-view.discover-filter-movie .discover-grid:not(:has(.discover-card[data-media-type="movie"])),
+#discover-view.discover-filter-tv .discover-grid:not(:has(.discover-card[data-media-type="tv"])) {
+  /* Don't actually hide ? let "Show more" still work ? but trim padding */
+  min-height: 0 !important;
+}
+
+/* v613: Keep profile poster editor as the final 80% bottom sheet after contrast overrides. */
+html.profile-character-editor-open,
+body.profile-character-editor-open {
+  overflow: hidden !important;
+  overscroll-behavior: contain !important;
+}
+
+body.profile-character-editor-open #profile-page {
+  overflow: hidden !important;
+}
+
+.profile-character-editor-overlay,
+.profile-character-editor-overlay.open,
+body.light-mode .profile-character-editor-overlay,
+body.light-mode .profile-character-editor-overlay.open {
+  align-items: flex-end !important;
+  justify-content: center !important;
+  padding: 0 !important;
+}
+
+.profile-character-editor-modal,
+body.light-mode .profile-character-editor-modal {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 80dvh !important;
+  max-height: 80dvh !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 24px 24px 0 0 !important;
+  opacity: 1 !important;
+  /* v616: NO static transform ? keyframes own the full timeline. */
+  animation: profilePosterSheetInFinal 0.28s cubic-bezier(0.22, 0.82, 0.24, 1) forwards !important;
+  /* v617: overflow-y scroll so iOS can scroll the input into view and
+     raise the keyboard. overflow:hidden blocked keyboard on iOS. */
+  overflow: hidden !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+@keyframes profilePosterSheetInFinal {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+@media (min-width: 760px) {
+  .profile-character-editor-modal,
+  body.light-mode .profile-character-editor-modal {
+    width: min(560px, 100vw) !important;
+    max-width: 560px !important;
+  }
+}
+
+.profile-character-preview-row,
+.profile-character-section,
+body.light-mode .profile-character-preview-row,
+body.light-mode .profile-character-section {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.profile-character-field-input,
+.profile-character-search-btn,
+.profile-character-upload-btn,
+.profile-character-search-empty,
+body.light-mode .profile-character-field-input,
+body.light-mode .profile-character-search-btn,
+body.light-mode .profile-character-upload-btn,
+body.light-mode .profile-character-search-empty {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* v614: Floating share icon on each profile top-three card. */
+#profile-page .profile-fav-share-btn,
+body.light-mode #profile-page .profile-fav-share-btn {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  font-size: 10px !important;
+  font-weight: 300 !important;
+  opacity: 1 !important;
+}
+
+#profile-page .profile-fav-share-btn svg,
+body.light-mode #profile-page .profile-fav-share-btn svg {
+  color: #ffffff !important;
+  stroke: currentColor !important;
+}
+
+#profile-page .profile-fav-shared-focus,
+body.light-mode #profile-page .profile-fav-shared-focus {
+  box-shadow: 0 0 0 1px rgba(201,168,76,0.84), 0 0 0 5px rgba(201,168,76,0.18), 0 18px 36px rgba(0,0,0,0.32) !important;
+}
+
+/* v626: Activity feed progressive load-more button */
+.activity-feed-load-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 18px 16px 28px;
+}
+.activity-feed-load-more-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  padding: 11px 22px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 160ms ease, transform 160ms ease, opacity 160ms ease;
+  will-change: transform;
+}
+.activity-feed-load-more-btn:hover {
+  background: rgba(255,255,255,0.10);
+}
+.activity-feed-load-more-btn:active {
+  transform: scale(0.97);
+}
+.activity-feed-load-more-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+body.light-mode .activity-feed-load-more-btn {
+  background: rgba(0,0,0,0.04);
+  border-color: rgba(0,0,0,0.12);
+  color: #111;
+}
+body.light-mode .activity-feed-load-more-btn:hover {
+  background: rgba(0,0,0,0.08);
+}
+
+/* =============================================================
+   v628: Search hub ? full UI inside .shelfd-search-page-inner.
+   IMDb / Letterboxd-inspired, Shelfd-native palette.
+   Animation rules: transform + opacity only. Stagger via per-row
+   custom property --shelfd-row-delay.
+   ============================================================= */
+
+.shelfd-search-page-inner {
+  display: flex !important;
+  flex-direction: column !important;
+  background: #181c20 !important;
+  color: #ffffff !important;
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif !important;
+  padding-top: 18px !important;
+}
+
+/* v10.758: "+Add To Shelf" identity header above the search bar */
+.shelfd-search-page-header {
+  padding: 0 20px 10px;
+  flex-shrink: 0;
+  text-align: center;
+}
+.shelfd-search-page-title {
+  font-size: 18px;
+  font-weight: 500;
+  color: #f5f5f7;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+/* ---------- Sticky top bar ---------- */
+.shelfd-search-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 8px;
+  background: linear-gradient(180deg, #181c20 0%, rgba(24,28,32,0.92) 88%, rgba(24,28,32,0) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.shelfd-search-back-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 140ms cubic-bezier(0.22, 1, 0.36, 1), background 160ms ease;
+  will-change: transform;
+}
+.shelfd-search-back-btn:hover { background: rgba(255,255,255,0.09); }
+.shelfd-search-back-btn:active { transform: scale(0.92); }
+.shelfd-search-back-btn svg { width: 18px; height: 18px; }
+
+.shelfd-search-input-wrap {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(196,181,253,0.12);
+  border-radius: 999px;
+  padding: 0 10px 0 38px;
+  height: 40px;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 200ms ease;
+}
+/* v10.70: focus-within visual feedback removed per user â€” was adding a
+   lavender `box-shadow: 0 0 0 3px rgba(139,92,246,0.16)` ring (the
+   "rectangular box" the user saw around the search pill on tap), plus a
+   subtle background/border shift. Caret + keyboard already make focus
+   obvious; no extra outline needed.
+
+   v10.71: turns out that wasn't the only ring. The `<input>` itself also
+   inherited a lavender 3px ring from two GLOBAL rules in 05-messages-early-
+   polish.css:
+     - L1780  `input:focus, .comment-textarea:focus { box-shadow: 0 0 0 3px rgba(139,92,246,0.12); ... }`
+     - L2373  `*:focus-visible { box-shadow: 0 0 0 3px rgba(139,92,246,0.22), 0 0 0 1px rgba(196,181,253,0.42); ... }`
+   The shadow is rectangular (the <input> has border-radius: 0), but the
+   surrounding wrap is a pill (border-radius: 999px), so the shadow extends
+   past the pill curves and reads as a "rectangular box around the search
+   field" â€” exactly what the user reported.
+   Three targeted overrides below kill ALL focus chrome on the search input
+   (selector specificity 0,3,2 > the global 0,1,1 and 0,1,0). */
+body.true-dark-mode .shelfd-search-input:focus,
+body.true-dark-mode .shelfd-search-input:focus-visible,
+body.true-dark-mode .shelfd-search-input:focus-within {
+  outline: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+.shelfd-search-input-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px; height: 16px;
+  color: rgba(232,227,243,0.55);
+  pointer-events: none;
+}
+.shelfd-search-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  font-family: inherit;
+  padding: 0;
+}
+.shelfd-search-input::placeholder { color: rgba(232,227,243,0.42); }
+.shelfd-search-input::-webkit-search-decoration,
+.shelfd-search-input::-webkit-search-cancel-button { display: none; }
+.shelfd-search-clear-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255,255,255,0.10);
+  border: 0;
+  color: #ffffff;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 140ms ease, background 160ms ease;
+}
+.shelfd-search-clear-btn:hover { background: rgba(255,255,255,0.18); }
+.shelfd-search-clear-btn:active { transform: scale(0.88); }
+.shelfd-search-clear-btn svg { width: 12px; height: 12px; }
+
+.shelfd-search-filter-btn.discover-universal-search-filter-btn {
+  flex: 0 0 auto;
+  height: 40px;
+  min-height: 40px;
+  width: auto;
+  min-width: 78px;
+  padding: 0 12px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.shelfd-search-filter-btn.discover-universal-search-filter-btn svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+/* ---------- Filter chips ----------
+   v646: hidden by default; .shelfd-search-chips--visible appears when the
+   search input is focused or has a query. Chips fill the width evenly so
+   all 5 fit on a single row without scroll on mobile. */
+.shelfd-search-chips {
+  display: none;
+  gap: 5px;
+  padding: 0 12px 12px;
+  width: 100%;
+  overflow: visible;
+  /* Smooth height/opacity transition on appear */
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1), transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+.shelfd-search-chips.shelfd-search-chips--visible {
+  display: flex;
+  opacity: 1;
+  transform: translateY(0);
+}
+.shelfd-search-chip {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 1 1 0;
+  min-width: 0;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.78);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  padding: 7px 6px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: transform 140ms cubic-bezier(0.22, 1, 0.36, 1), background 160ms ease, color 160ms ease, border-color 160ms ease;
+  will-change: transform;
+}
+.shelfd-search-chip:hover { background: rgba(255,255,255,0.07); color: #ffffff; }
+.shelfd-search-chip:active { transform: scale(0.96); }
+.shelfd-search-chip.active {
+  background: rgba(139,92,246,0.18);
+  border-color: rgba(196,181,253,0.42);
+  color: #ffffff;
+  box-shadow: 0 0 0 1px rgba(139,92,246,0.15) inset;
+}
+
+/* ---------- Body region ---------- */
+.shelfd-search-body {
+  flex: 1;
+  padding: 4px 12px 120px;
+}
+
+/* ---------- Sections (recents, browse, trending) ---------- */
+.shelfd-search-section { margin-bottom: 22px; }
+.shelfd-search-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 6px 4px 10px;
+}
+.shelfd-search-section-head h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(232,227,243,0.66);
+}
+.shelfd-search-section-meta {
+  font-size: 11px;
+  color: rgba(232,227,243,0.42);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.shelfd-search-section-action {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(196,181,253,0.78);
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  padding: 4px 6px;
+  margin: -4px -6px;
+}
+.shelfd-search-section-action:hover { color: #c4b5fd; }
+
+/* v10.760: Recent searches — vertical stack, plain text, no pill chrome */
+.shelfd-search-recent-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+.shelfd-search-recent-chip {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: rgba(235,232,244,0.78);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: -0.005em;
+  padding: 10px 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  text-align: left;
+  transition: color 120ms ease;
+}
+.shelfd-search-recent-chip:hover { color: #ffffff; background: transparent; }
+.shelfd-search-recent-chip:active { color: #ffffff; opacity: 0.7; }
+.shelfd-search-recent-chip svg { display: none; }
+.shelfd-search-recent-chip span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shelfd-search-browse-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.shelfd-search-browse-card {
+  appearance: none;
+  -webkit-appearance: none;
+  background: linear-gradient(160deg, rgba(255,255,255,0.045), rgba(255,255,255,0.02));
+  border: 1px solid rgba(196,181,253,0.10);
+  border-radius: 14px;
+  padding: 14px 12px;
+  color: #ffffff;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1), background 180ms ease, border-color 200ms ease;
+  will-change: transform;
+}
+.shelfd-search-browse-card:hover {
+  background: linear-gradient(160deg, rgba(139,92,246,0.10), rgba(139,92,246,0.04));
+  border-color: rgba(196,181,253,0.24);
+}
+.shelfd-search-browse-card:active { transform: scale(0.98); }
+.shelfd-search-browse-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: rgba(139,92,246,0.10);
+  border: 1px solid rgba(196,181,253,0.16);
+  color: #c4b5fd;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 200ms ease, color 200ms ease, border-color 200ms ease;
+}
+.shelfd-search-browse-icon svg { width: 17px; height: 17px; }
+.shelfd-search-browse-card:hover .shelfd-search-browse-icon {
+  background: rgba(139,92,246,0.18);
+  border-color: rgba(196,181,253,0.32);
+  color: #ddd6fe;
+}
+.shelfd-search-browse-label {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+}
+body.light-mode .shelfd-search-browse-icon {
+  background: rgba(139,92,246,0.10);
+  border-color: rgba(120,90,200,0.20);
+  color: #6d4dc7;
+}
+
+.shelfd-search-trending-row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  padding: 2px 0 10px;
+  scrollbar-width: none;
+}
+.shelfd-search-trending-row::-webkit-scrollbar { display: none; }
+.shelfd-search-trending-card {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  flex: 0 0 auto;
+  width: 104px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  scroll-snap-align: start;
+  font-family: inherit;
+  color: #ffffff;
+  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+.shelfd-search-trending-card:hover { transform: translateY(-2px); }
+.shelfd-search-trending-card:active { transform: scale(0.97); }
+.shelfd-search-trending-card img,
+.shelfd-search-trending-card-placeholder {
+  width: 104px;
+  height: 156px;
+  object-fit: cover;
+  border-radius: 9px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(196,181,253,0.10);
+  display: block;
+}
+.shelfd-search-trending-card span {
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  line-height: 1.25;
+  color: rgba(232,227,243,0.84);
+  text-align: left;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.shelfd-search-trending-skeleton {
+  flex: 0 0 auto;
+  width: 104px;
+  height: 156px;
+  border-radius: 9px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.07), rgba(255,255,255,0.04));
+  background-size: 200% 100%;
+  animation: shelfdSearchShimmer 1.4s ease-in-out infinite;
+}
+
+/* ---------- Result rows ---------- */
+.shelfd-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.shelfd-search-row {
+  appearance: none;
+  -webkit-appearance: none;
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 12px;
+  padding: 10px;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  color: #ffffff;
+  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1), background 180ms ease, border-color 200ms ease;
+  will-change: transform, opacity;
+  opacity: 0;
+  transform: translateY(8px);
+  animation: shelfdSearchRowIn 320ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: var(--shelfd-row-delay, 0ms);
+}
+.shelfd-search-row:hover {
+  background: rgba(139,92,246,0.06);
+  border-color: rgba(196,181,253,0.18);
+}
+.shelfd-search-row:active { transform: scale(0.99); }
+.shelfd-search-row-poster {
+  width: 64px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #2a2f36;
+  border: 1px solid rgba(196,181,253,0.10);
+  display: block;
+}
+.shelfd-search-row-poster--placeholder {
+  background: linear-gradient(140deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+}
+/* v732: Actors filter ? circular avatar, square aspect ratio. */
+.shelfd-search-row-poster--person {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  align-self: center;
+  object-position: center 20%;
+}
+/* v10.236: music + artist rows always render the cover/avatar as a 1:1
+   square â€” album art and artist photos should never be cropped to portrait. */
+.shelfd-search-row[data-row-kind="music"] .shelfd-search-row-poster,
+.shelfd-search-row[data-row-kind="artist"] .shelfd-search-row-poster {
+  width: 72px !important;
+  height: 72px !important;
+  border-radius: 0 !important;
+  align-self: center !important;
+  object-fit: cover !important;
+}
+.shelfd-search-row[data-row-kind="artist"] .shelfd-search-row-poster {
+  border-radius: 50% !important;
+}
+.shelfd-search-row-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.shelfd-search-row-title {
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.25;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* v646: year and type each on their own row beneath the title */
+.shelfd-search-row-year {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+  color: rgba(232,227,243,0.66);
+}
+.shelfd-search-row-type {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1.3;
+  color: rgba(196,181,253,0.78);
+}
+.shelfd-search-row-chevron {
+  color: rgba(232,227,243,0.30);
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-right: 2px;
+}
+.shelfd-search-row-chevron svg { width: 14px; height: 14px; }
+.shelfd-search-load-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 14px 0 28px;
+}
+.shelfd-search-load-more-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  min-width: 132px;
+  min-height: 38px;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  color: #ffffff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 180ms ease, border-color 180ms ease, opacity 180ms ease, transform 160ms ease;
+}
+.shelfd-search-load-more-btn:active {
+  transform: scale(0.98);
+}
+.shelfd-search-load-more-btn:disabled {
+  cursor: default;
+  opacity: 0.62;
+}
+
+/* ---------- Skeleton rows ---------- */
+.shelfd-search-skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.shelfd-search-skeleton-row {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.shelfd-search-skeleton-poster {
+  width: 64px; height: 96px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.07), rgba(255,255,255,0.04));
+  background-size: 200% 100%;
+  animation: shelfdSearchShimmer 1.4s ease-in-out infinite;
+}
+.shelfd-search-skeleton-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+.shelfd-search-skeleton-line {
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.07), rgba(255,255,255,0.04));
+  background-size: 200% 100%;
+  animation: shelfdSearchShimmer 1.4s ease-in-out infinite;
+}
+.shelfd-search-skeleton-line--title { width: 70%; }
+.shelfd-search-skeleton-line--meta  { width: 40%; height: 10px; }
+
+/* ---------- No-results state ---------- */
+.shelfd-search-noresults {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 60px 24px 30px;
+  color: rgba(232,227,243,0.62);
+}
+.shelfd-search-noresults svg {
+  width: 36px; height: 36px;
+  color: rgba(196,181,253,0.34);
+  margin-bottom: 12px;
+}
+.shelfd-search-noresults strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 4px;
+}
+.shelfd-search-noresults p {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  max-width: 280px;
+}
+
+/* =============================================================
+   v10.145: Full Page Universal Search preset discovery hub.
+   Scoped to the bottom-nav search page; uses transform-only right
+   slide panels and compact 3-card title grids.
+   ============================================================= */
+
+.shelfd-search-page-inner {
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.shelfd-search-body {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* v10.215: stop iOS rubber-band from fighting pull-down-to-dismiss
+     once the user reaches scrollTop = 0 */
+  overscroll-behavior-y: contain;
+}
+
+.shelfd-search-preset-section {
+  margin: 2px 0 24px;
+}
+
+.shelfd-search-preset-hero {
+  margin: 2px 0 12px;
+  padding: 18px 16px 16px;
+  border-radius: 24px;
+  border: 1px solid rgba(196,181,253,0.13);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(196,181,253,0.18), transparent 38%),
+    linear-gradient(145deg, rgba(255,255,255,0.075), rgba(255,255,255,0.026));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+.shelfd-search-preset-kicker,
+.shelfd-search-preset-panel-heading span,
+.shelfd-search-preset-minihead {
+  display: block;
+  color: #c4b5fd;
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.shelfd-search-preset-hero h3 {
+  margin: 8px 0 6px;
+  color: #fff;
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif;
+  font-size: clamp(24px, 8vw, 34px);
+  line-height: 0.96;
+  letter-spacing: -0.045em;
+}
+
+.shelfd-search-preset-hero p {
+  margin: 0;
+  color: rgba(232,227,243,0.68);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.shelfd-search-preset-list,
+.shelfd-search-preset-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shelfd-search-preset-card,
+.shelfd-search-preset-option {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  border: 1px solid rgba(196,181,253,0.11);
+  background: rgba(255,255,255,0.045);
+  color: #fff;
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 150ms cubic-bezier(.22,1,.36,1), border-color 180ms ease, background 180ms ease;
+}
+
+.shelfd-search-preset-card {
+  min-height: 70px;
+  border-radius: 18px;
+  padding: 12px 12px;
+  display: grid;
+  grid-template-columns: 42px minmax(0,1fr) 18px;
+  align-items: center;
+  gap: 11px;
+}
+
+.shelfd-search-preset-card:active,
+.shelfd-search-preset-option:active,
+.shelfd-search-preset-title-card:active {
+  transform: scale(0.985);
+}
+
+.shelfd-search-preset-card:hover,
+.shelfd-search-preset-option:hover {
+  background: rgba(139,92,246,0.10);
+  border-color: rgba(196,181,253,0.28);
+}
+
+.shelfd-search-preset-card.is-locked {
+  background: rgba(255,255,255,0.03);
+}
+
+.shelfd-search-preset-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #d8b4fe;
+  background: rgba(139,92,246,0.13);
+  border: 1px solid rgba(196,181,253,0.16);
+}
+
+.shelfd-search-preset-icon svg,
+.shelfd-search-preset-disabled-note svg,
+.shelfd-search-preset-locked-state svg {
+  width: 20px;
+  height: 20px;
+}
+
+.shelfd-search-preset-copy,
+.shelfd-search-preset-option span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.shelfd-search-preset-title,
+.shelfd-search-preset-option strong {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+}
+
+.shelfd-search-preset-subtitle,
+.shelfd-search-preset-option small {
+  color: rgba(232,227,243,0.58);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.28;
+}
+
+.shelfd-search-preset-arrow,
+.shelfd-search-preset-option-arrow {
+  color: rgba(232,227,243,0.36);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.shelfd-search-preset-stack {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.shelfd-search-preset-stack.is-open {
+  pointer-events: auto;
+}
+
+.shelfd-search-preset-panel {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(139,92,246,0.15), transparent 38%),
+    #05040d;
+  transform: translate3d(104%,0,0);
+  transition: transform 300ms cubic-bezier(.16,1,.3,1);
+  will-change: transform;
+  box-shadow: -20px 0 55px rgba(0,0,0,0.34);
+}
+
+.shelfd-search-preset-panel.is-active {
+  transform: translate3d(0,0,0);
+}
+
+.shelfd-search-preset-panel.is-under {
+  transform: translate3d(-10%,0,0);
+}
+
+.shelfd-search-preset-panel.is-exiting {
+  transform: translate3d(104%,0,0);
+}
+
+.shelfd-search-preset-panel-inner {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: max(8px, var(--shelfd-safe-top, 0px)) 14px calc(28px + env(safe-area-inset-bottom, 0px));
+}
+
+.shelfd-search-preset-panel-topbar {
+  z-index: 3;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  align-items: center;
+  gap: 8px;
+  min-height: 56px;
+  padding: 4px 0 8px;
+  background: linear-gradient(180deg, #05040d 72%, rgba(5,4,13,0));
+}
+
+.shelfd-search-preset-back {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  border: 1px solid rgba(196,181,253,0.12);
+  background: rgba(255,255,255,0.055);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shelfd-search-preset-back svg {
+  width: 18px;
+  height: 18px;
+}
+
+.shelfd-search-preset-panel-heading {
+  min-width: 0;
+  text-align: center;
+}
+
+.shelfd-search-preset-panel-heading strong {
+  display: block;
+  margin-top: 2px;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 850;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shelfd-search-preset-panel-subtitle {
+  margin: 0 4px 14px;
+  color: rgba(232,227,243,0.62);
+  font-size: 12.5px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.shelfd-search-preset-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.shelfd-search-preset-minihead {
+  margin: 4px 4px 10px;
+}
+
+.shelfd-search-preset-option {
+  min-height: 58px;
+  border-radius: 16px;
+  padding: 11px 12px;
+  display: grid;
+  grid-template-columns: minmax(0,1fr) 18px;
+  align-items: center;
+  gap: 10px;
+}
+
+.shelfd-search-preset-option.is-disabled,
+.shelfd-search-preset-option:disabled {
+  opacity: 0.52;
+  cursor: default;
+}
+
+.shelfd-search-preset-disabled-note,
+.shelfd-search-preset-locked-state {
+  margin-top: 14px;
+  border: 1px solid rgba(251,191,36,0.18);
+  background: rgba(251,191,36,0.055);
+  border-radius: 18px;
+  color: rgba(255,244,214,0.92);
+}
+
+.shelfd-search-preset-disabled-note {
+  display: grid;
+  grid-template-columns: 30px minmax(0,1fr);
+  gap: 10px;
+  padding: 13px;
+}
+
+.shelfd-search-preset-disabled-note svg,
+.shelfd-search-preset-locked-state svg {
+  color: #facc15;
+}
+
+.shelfd-search-preset-disabled-note span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.shelfd-search-preset-disabled-note strong,
+.shelfd-search-preset-locked-state strong {
+  color: #fde68a;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.shelfd-search-preset-disabled-note small,
+.shelfd-search-preset-locked-state p {
+  color: rgba(255,244,214,0.66);
+  font-size: 12px;
+  line-height: 1.38;
+}
+
+.shelfd-search-preset-locked-state {
+  min-height: 240px;
+  padding: 28px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+}
+
+.shelfd-search-preset-locked-state svg {
+  width: 34px;
+  height: 34px;
+}
+
+.shelfd-search-preset-locked-state p {
+  margin: 0;
+  max-width: 270px;
+}
+
+.shelfd-search-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 9px;
+  padding: 2px 0 10px;
+}
+
+.shelfd-search-preset-title-card {
+  appearance: none;
+  -webkit-appearance: none;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #fff;
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 150ms cubic-bezier(.22,1,.36,1);
+}
+
+.shelfd-search-preset-poster {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 3px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.055);
+  border: 1px solid rgba(196,181,253,0.12);
+}
+
+.shelfd-search-preset-poster img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.shelfd-search-preset-rating {
+  position: absolute;
+  left: 5px;
+  bottom: 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 19px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.72);
+  color: #facc15;
+  font-size: 10px;
+  font-weight: 850;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.shelfd-search-preset-card-title {
+  display: block;
+  min-width: 0;
+  margin-top: 6px;
+  color: rgba(255,255,255,0.92);
+  font-size: 11.5px;
+  font-weight: 750;
+  line-height: 1.18;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shelfd-search-preset-card-meta {
+  display: block;
+  min-width: 0;
+  margin-top: 2px;
+  color: rgba(232,227,243,0.48);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shelfd-search-preset-empty-state {
+  margin: 42px auto;
+  max-width: 280px;
+  color: rgba(232,227,243,0.58);
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.shelfd-search-preset-card-skeleton {
+  min-width: 0;
+}
+
+.shelfd-search-preset-card-skeleton span,
+.shelfd-search-preset-card-skeleton i {
+  display: block;
+  background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.09), rgba(255,255,255,0.05));
+  background-size: 200% 100%;
+  animation: shelfdSearchShimmer 1.4s ease-in-out infinite;
+}
+
+.shelfd-search-preset-card-skeleton span {
+  aspect-ratio: 2 / 3;
+  border-radius: 8px;
+}
+
+.shelfd-search-preset-card-skeleton i {
+  width: 82%;
+  height: 10px;
+  margin-top: 7px;
+  border-radius: 999px;
+}
+
+/* v10.146: Shelfdline visual pass for bottom-nav search presets.
+   Removes the legacy icon-card presentation and matches the flat
+   Discovery Search / Filter UI language: text rows, dividers, small chevrons. */
+.shelfd-search-preset-hero,
+.shelfd-search-preset-icon,
+.shelfd-search-preset-linehead,
+.shelfd-search-preset-summary,
+.shelfd-search-preset-option small {
+  display: none !important;
+}
+
+.shelfd-search-preset-section {
+  margin: 0 0 28px !important;
+}
+
+.shelfd-search-preset-linehead {
+  margin: 2px 0 0 !important;
+  padding: 2px 4px 12px !important;
+  border-bottom: 1px solid rgba(232,227,243,0.14) !important;
+}
+
+.shelfd-search-preset-linehead span {
+  display: block !important;
+  color: rgba(248,244,255,0.42) !important;
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 850 !important;
+  letter-spacing: 0.18em !important;
+  line-height: 1 !important;
+  text-transform: uppercase !important;
+}
+
+.shelfd-search-preset-linehead h3 {
+  margin: 8px 0 0 !important;
+  color: #ffffff !important;
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif !important;
+  font-size: 26px !important;
+  font-weight: 850 !important;
+  letter-spacing: -0.035em !important;
+  line-height: 1 !important;
+}
+
+.shelfd-search-preset-list,
+.shelfd-search-preset-options {
+  gap: 0 !important;
+}
+
+.shelfd-search-preset-card,
+.shelfd-search-preset-option {
+  min-height: 64px !important;
+  padding: 0 4px !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(232,227,243,0.13) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 22px !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.shelfd-search-preset-card:hover,
+.shelfd-search-preset-option:hover {
+  background: transparent !important;
+  border-color: rgba(232,227,243,0.13) !important;
+}
+
+.shelfd-search-preset-card:active,
+.shelfd-search-preset-option:active {
+  transform: translate3d(0,1px,0) !important;
+}
+
+.shelfd-search-preset-copy {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: baseline !important;
+  gap: 12px !important;
+  min-width: 0 !important;
+}
+
+.shelfd-search-preset-title,
+.shelfd-search-preset-option strong {
+  color: #ffffff !important;
+  font-size: 16.1px !important;
+  font-weight: 620 !important;
+  line-height: 1.12 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.shelfd-search-preset-title.is-lock-title {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.shelfd-search-preset-title.is-lock-title svg {
+  width: 14px !important;
+  height: 14px !important;
+  flex: 0 0 auto !important;
+  color: #c4b5fd !important;
+}
+
+.shelfd-search-preset-summary,
+.shelfd-search-preset-option small {
+  justify-self: end !important;
+  max-width: 42vw !important;
+  overflow: hidden !important;
+  color: rgba(248,244,255,0.40) !important;
+  font-size: 12px !important;
+  font-weight: 720 !important;
+  line-height: 1.15 !important;
+  text-align: right !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.shelfd-search-preset-arrow,
+.shelfd-search-preset-option-arrow {
+  color: #c4b5fd !important;
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif !important;
+  font-size: 26px !important;
+  font-style: normal !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  text-align: right !important;
+}
+
+.shelfd-search-preset-card.is-locked {
+  opacity: 0.82 !important;
+}
+
+.shelfd-search-preset-card.is-locked .shelfd-search-preset-summary {
+  color: rgba(196,181,253,0.62) !important;
+}
+
+.shelfd-search-preset-panel {
+  background: #181c20 !important;
+  box-shadow: none !important;
+}
+
+.shelfd-search-preset-panel-inner {
+  padding: max(10px, calc(var(--shelfd-safe-top, 0px) + 8px)) 18px calc(28px + env(safe-area-inset-bottom, 0px)) !important;
+  overflow: hidden !important;
+}
+
+.shelfd-search-preset-panel-topbar {
+  min-height: 70px !important;
+  padding: 0 0 14px !important;
+  border-bottom: 1px solid rgba(232,227,243,0.14) !important;
+  background: #181c20 !important;
+}
+
+.shelfd-search-preset-back {
+  width: 44px !important;
+  height: 44px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #c4b5fd !important;
+  box-shadow: none !important;
+}
+
+.shelfd-search-preset-panel-heading {
+  text-align: center !important;
+}
+
+.shelfd-search-preset-panel-heading span {
+  color: rgba(248,244,255,0.42) !important;
+}
+
+.shelfd-search-preset-panel-heading strong {
+  color: #ffffff !important;
+  font-size: 26px !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.035em !important;
+}
+
+.shelfd-search-preset-panel-subtitle {
+  display: none !important;
+}
+
+.shelfd-search-preset-panel-body {
+  padding-top: 14px !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+.shelfd-search-preset-option span {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: baseline !important;
+  gap: 12px !important;
+}
+
+.shelfd-search-preset-flat-note {
+  padding: 22px 4px !important;
+  border-bottom: 1px solid rgba(232,227,243,0.13) !important;
+  color: rgba(248,244,255,0.58) !important;
+}
+
+.shelfd-search-preset-flat-note strong {
+  display: block !important;
+  margin-bottom: 8px !important;
+  color: #ffffff !important;
+  font-size: 18px !important;
+  font-weight: 620 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.shelfd-search-preset-flat-note span {
+  display: block !important;
+  color: rgba(248,244,255,0.52) !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+}
+
+.shelfd-search-premium-notice {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 85 !important;
+  pointer-events: none !important;
+}
+
+.shelfd-search-premium-notice.is-open {
+  pointer-events: auto !important;
+}
+
+.shelfd-search-premium-notice-backdrop {
+  width: 100% !important;
+  height: 100% !important;
+  border: 0 !important;
+  padding: 24px !important;
+  background: rgba(5, 7, 10, 0.54) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  opacity: 0 !important;
+  transition: opacity 180ms ease !important;
+}
+
+.shelfd-search-premium-notice.is-open .shelfd-search-premium-notice-backdrop {
+  opacity: 1 !important;
+}
+
+.shelfd-search-premium-notice-card {
+  width: min(320px, calc(100vw - 42px)) !important;
+  padding: 18px 20px !important;
+  border: 1px solid rgba(196,181,253,0.18) !important;
+  border-radius: 22px !important;
+  background: #181c20 !important;
+  box-shadow: 0 22px 60px rgba(0,0,0,0.34) !important;
+  color: #ffffff !important;
+  transform: translate3d(0, 10px, 0) scale(0.98) !important;
+  transition: transform 180ms ease !important;
+}
+
+.shelfd-search-premium-notice.is-open .shelfd-search-premium-notice-card {
+  transform: translate3d(0, 0, 0) scale(1) !important;
+}
+
+.shelfd-search-premium-notice-copy {
+  display: block !important;
+  color: #ffffff !important;
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  line-height: 1.42 !important;
+  letter-spacing: -0.015em !important;
+  text-align: center !important;
+}
+
+/* ---------- Animations ---------- */
+@keyframes shelfdSearchRowIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes shelfdSearchShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ---------- Light-mode overrides ---------- */
+body.light-mode .shelfd-search-page-inner {
+  background: #f5f3ee !important;
+  color: #111111 !important;
+}
+body.light-mode .shelfd-search-topbar {
+  background: linear-gradient(180deg, #f5f3ee 0%, rgba(245,243,238,0.92) 88%, rgba(245,243,238,0) 100%);
+}
+body.light-mode .shelfd-search-back-btn {
+  background: rgba(0,0,0,0.04);
+  border-color: rgba(0,0,0,0.10);
+  color: #111111;
+}
+body.light-mode .shelfd-search-input-wrap {
+  background: rgba(0,0,0,0.04);
+  border-color: rgba(120,90,200,0.20);
+}
+body.light-mode .shelfd-search-input-wrap:focus-within {
+  background: rgba(0,0,0,0.06);
+  border-color: rgba(120,90,200,0.42);
+}
+body.light-mode .shelfd-search-input { color: #111111; }
+body.light-mode .shelfd-search-input::placeholder { color: rgba(0,0,0,0.42); }
+body.light-mode .shelfd-search-chip {
+  background: rgba(0,0,0,0.04);
+  border-color: rgba(0,0,0,0.10);
+  color: rgba(0,0,0,0.72);
+}
+body.light-mode .shelfd-search-chip.active {
+  background: rgba(139,92,246,0.16);
+  border-color: rgba(120,90,200,0.42);
+  color: #1a1130;
+}
+body.light-mode .shelfd-search-row {
+  background: rgba(0,0,0,0.025);
+  border-color: rgba(0,0,0,0.06);
+  color: #111111;
+}
+body.light-mode .shelfd-search-row:hover {
+  background: rgba(139,92,246,0.07);
+  border-color: rgba(120,90,200,0.22);
+}
+body.light-mode .shelfd-search-row-title { color: #111111; }
+body.light-mode .shelfd-search-row-meta { color: rgba(20,15,40,0.62); }
+body.light-mode .shelfd-search-row-overview { color: rgba(20,15,40,0.55); }
+body.light-mode .shelfd-search-noresults strong { color: #111111; }
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .shelfd-search-row { animation: none; opacity: 1; transform: none; }
+  .shelfd-search-skeleton-poster,
+  .shelfd-search-skeleton-line,
+  .shelfd-search-trending-skeleton { animation: none; }
+}
+
+/* =============================================================
+   v634: Google Identity Services (GIS) sign-in button styling
+   ============================================================= */
+
+/* v644: GIS-rendered button wrapper ? gives the Google button proper visual
+   prominence on the landing page. The button HTML is owned by Google's iframe
+   so we can't restyle it directly, but we can:
+    1. Scale the iframe up via transform ? makes the entire button visually
+       larger without relying on GIS's limited 'large' size option.
+    2. Wrap it in a soft golden glow halo (drop-shadow) ? same warm-amber +
+       cyan tint that the original .google-btn had.
+    3. Add generous vertical breathing room so the CTA feels like the
+       primary action on the page. */
+/* v747: Restored a native, recognizable Google sign-in button.
+   Three problems were making the previous version look fake:
+     1. transform: scale(1.18) on the iframe blurred the pixel-perfect
+        button rendering ? Google logo and text became fuzzy on Retina.
+        Removed entirely. GIS's `large` size is 400px wide which is
+        already a substantial CTA ? no scaling needed.
+     2. Heavy golden drop-shadow halo made it read as "custom-skinned
+        knockoff" instead of the trusted Google CTA users recognize.
+        Replaced with a subtle elevation shadow ? same depth a real
+        modern button would have.
+     3. theme: filled_black (in JS) is rare and unrecognizable. Switched
+        to filled_blue for dark mode and outline for light mode ? the
+        two canonical Google-recommended variants. */
+.gis-signin-target {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  margin: 18px auto 22px;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.32));
+  transition: filter 200ms cubic-bezier(0.22, 1, 0.36, 1), transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+  /* v950: dropped `filter` from will-change â€” filter is non-compositable; only
+     transform benefits from the layer hint. */
+  will-change: transform;
+}
+.gis-signin-target:hover {
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.40));
+}
+.gis-signin-target:active { transform: scale(0.985); }
+
+.gis-signin-target:empty {
+  min-height: 0;
+  margin: 0 auto;
+  filter: none;
+}
+
+body.light-mode .gis-signin-target {
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.12));
+}
+body.light-mode .gis-signin-target:hover {
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.18));
+}
+
+/* When GIS button is rendered, hide the legacy <button class="gis-legacy-btn"> */
+.gis-legacy-btn.gis-replaced {
+  display: none !important;
+}
+body.gis-active .gis-legacy-btn { display: none !important; }
+
+/* Sign-in progress overlay (shown while signInWithCredential settles) */
+.gis-signin-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  background: rgba(10, 8, 24, 0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: #ffffff;
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  opacity: 0;
+  transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: auto;
+}
+.gis-signin-overlay.is-visible { opacity: 1; }
+.gis-signin-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(196,181,253,0.22);
+  border-top-color: #c4b5fd;
+  animation: gisSpin 0.9s linear infinite;
+}
+@keyframes gisSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .gis-signin-spinner { animation: none; }
+  .gis-signin-hint-dot { animation: none; }
+}
+
+/* v636: Inline hint that appears below the GIS button if the user came back
+   from another app (Gmail / Authenticator) without sign-in completing. */
+.gis-signin-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px auto 0;
+  padding: 9px 14px;
+  max-width: 360px;
+  background: rgba(196, 181, 253, 0.08);
+  border: 1px solid rgba(196, 181, 253, 0.22);
+  border-radius: 12px;
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 12.5px;
+  font-weight: 400;
+  letter-spacing: 0.005em;
+  line-height: 1.4;
+  color: rgba(232,227,243,0.86);
+  text-align: left;
+  animation: gisHintIn 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, opacity;
+}
+.gis-signin-hint-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #c4b5fd;
+  box-shadow: 0 0 0 0 rgba(196,181,253,0.55);
+  animation: gisHintPulse 1.6s ease-in-out infinite;
+}
+@keyframes gisHintIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes gisHintPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(196,181,253,0.55); }
+  60%  { box-shadow: 0 0 0 8px rgba(196,181,253,0); }
+  100% { box-shadow: 0 0 0 0 rgba(196,181,253,0); }
+}
+body.light-mode .gis-signin-hint {
+  background: rgba(120,90,200,0.06);
+  border-color: rgba(120,90,200,0.22);
+  color: rgba(20,15,40,0.78);
+}
+
+/* =============================================================
+   v645: Disable double-tap-to-zoom globally.
+   touch-action: manipulation = pan + pinch-zoom + tap allowed,
+   double-tap zoom disabled. Per CSS spec, the effective touch
+   behavior for any element is the INTERSECTION of touch-action
+   along the ancestor chain ? so specific elements that already
+   declare pan-y / pan-x / none still keep those behaviors.
+   ============================================================= */
+* {
+  touch-action: manipulation;
+}
+
+/* =============================================================
+   v648: Multi-task UI refinements (My Lists header + toolbar,
+   Friends page tabs / cards, Requests sub-tabs)
+   ============================================================= */
+
+/* (1) DM button vertically aligned with the cogwheel on mobile.
+   Cogwheel uses transform: translateY(52px) on My Lists tab ?
+   match it exactly so the two icons sit at the same baseline. */
+@media (max-width: 700px) {
+  body.main-tab-mylist .header-dm-btn {
+    transform: translateY(52px) !important;
+  }
+}
+
+/* (2a) Filter status pills (Watching/Watchlist/Watched/Paused)
+   and the "+ Add to Shelf" button live on the SAME row.
+   Previous rules forced both `.tabs` and `.toolbar-right` to
+   width:100%, so each took a full row. Override that. */
+body:not(.light-mode):not(.true-dark-mode) #mylist-view .tabs,
+#mylist-view #mylist-toolbar .tabs {
+  width: auto !important;
+  flex: 1 1 auto !important;
+}
+#mylist-view #mylist-toolbar .toolbar-right {
+  width: auto !important;
+  flex: 0 0 auto !important;
+  margin-left: auto !important;
+}
+#mylist-view #mylist-toolbar {
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+}
+
+/* (2b) Drop "+ Add to Shelf" font-weight from 600 ? 400 */
+#mylist-view #add-btn,
+.btn-primary#add-btn {
+  font-weight: 400 !important;
+}
+
+/* (3) v650: Sleek compact capsule borders on friend action buttons.
+   Paper-white text, 11px / 400 weight, 1px lavender border, pill shape. */
+#community-view .friend-action-btn,
+#community-view .friend-screenlist-btn,
+#community-view .friend-message-btn,
+#community-view .friend-mobile-profile-btn,
+#community-view .friend-profile-desktop-btn,
+#community-view .friend-add-btn,
+#community-view .friend-remove-btn,
+#community-view .friend-accept-btn,
+#friends-list-view .friend-list-card .friend-action-btn {
+  background: transparent !important;
+  border: 1px solid rgba(196, 181, 253, 0.32) !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  padding: 4px 12px !important;
+  min-height: 24px !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  color: #F8F5EF !important;
+  letter-spacing: 0 !important;
+}
+body.light-mode #community-view .friend-action-btn,
+body.light-mode #community-view .friend-screenlist-btn,
+body.light-mode #community-view .friend-message-btn,
+body.light-mode #community-view .friend-mobile-profile-btn,
+body.light-mode #community-view .friend-profile-desktop-btn,
+body.light-mode #friends-list-view .friend-list-card .friend-action-btn {
+  border-color: rgba(120, 90, 200, 0.32) !important;
+  color: #1a1130 !important;
+}
+
+/* (4) Center the Friends-page tabs (Activity / Friends / Requests)
+   horizontally on the page. Bump font +2px and drop weight -200. */
+#community-view .friends-tabs {
+  justify-content: center !important;
+}
+#community-view .friends-tab-btn {
+  font-size: 16px !important;
+  font-weight: 200 !important;
+}
+
+/* (5) v650: Friend name weight -100 again (500 ? 400) on the cards */
+#friends-list-view .friend-list-card .user-card-name,
+#community-view .user-card-name {
+  font-weight: 400 !important;
+}
+
+/* (6) v652: Friend card height +20% vertical ? restore breathing room
+   without going back to the original size. Padding 9 ? 13, avatar
+   40 ? 48, gap 8 ? 11. */
+@media (max-width: 700px) {
+  #friends-list-view .friend-list-card {
+    padding: 13px 40px 13px 15px !important;
+    gap: 11px !important;
+  }
+  #friends-list-view .friend-list-card .friend-card-main {
+    gap: 11px !important;
+  }
+  #friends-list-view .friend-list-card .user-card-avatar {
+    width: 48px !important;
+    height: 48px !important;
+  }
+  #friends-list-view .friend-list-card .friend-actions-group {
+    gap: 6px !important;
+    margin-top: 0 !important;
+  }
+  #friends-list-view .friend-list-card .friend-action-btn {
+    min-height: 28px !important;
+    padding: 0 8px !important;
+    font-size: 11px !important;
+  }
+}
+
+/* (7) Requests sub-tabs (Friend Requests / Watch Together) ?
+   weight 850 ? 650 (per "drop by 200"). Browsers will round to
+   the nearest weight available in DM Sans. */
+.request-subtab {
+  font-weight: 650 !important;
+}
+
+/* =============================================================
+   v649: Media profile + search results polish
+   ============================================================= */
+
+/* Bump "Stream:" / "Free:" / "With Ads:" label by 1px (9 ? 10).
+   Provider name + 1px (11 ? 12). Provider trailing logo +1
+   (16 ? 17). Same uplift on the row text itself for cohesion. */
+.discover-media-watch-inline-row {
+  font-size: 12px !important;
+}
+.discover-media-watch-inline-row span:first-child {
+  font-size: 10px !important;
+}
+.discover-media-watch-inline-row .discover-media-watch-inline-provider-list,
+.discover-media-watch-inline-row .discover-media-watch-inline-provider,
+.discover-media-watch-inline-row .discover-provider-name-text,
+.discover-media-watch-inline-row .discover-provider-trailing-logo {
+  font-size: 12px !important;
+}
+.discover-media-watch-inline-row .discover-provider-trailing-logo {
+  width: 17px !important;
+  height: 17px !important;
+  flex-basis: 17px !important;
+}
+
+/* (3) Hide "Series Profile" / "Movie Profile" / "Game Profile" kicker
+   under the poster. Person/actor profile kicker (gender label) stays
+   visible because it lives inside .discover-person-hero. */
+.discover-media-hero:not(.discover-person-hero) .discover-media-kicker {
+  display: none !important;
+}
+
+/* (4 + 5) Search result row tweaks:
+   - title +2px (14.5 ? 16.5)
+   - year +1px (12 ? 13)
+   - type +1px (11 ? 12)
+   - remove the rectangular border / background card around each row */
+.shelfd-search-row {
+  background: transparent !important;
+  border: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+.shelfd-search-row:hover {
+  /* Soft highlight on hover instead of the bordered card look */
+  background: rgba(139,92,246,0.06) !important;
+  border-color: transparent !important;
+}
+.shelfd-search-row-title {
+  font-size: 18.5px !important;  /* v651: +2px (was 16.5) */
+}
+.shelfd-search-row-year {
+  font-size: 13px !important;
+}
+.shelfd-search-row-type {
+  font-size: 12px !important;
+}
+
+/* v651: Combined "year ? type" meta row + "Directed by [name]" credit row.
+   Increased line spacing in the row body so the 3 lines breathe. */
+.shelfd-search-row-body {
+  gap: 7px !important;  /* was 2px ? too compact */
+}
+.shelfd-search-row-meta {
+  font-size: 13px !important;
+  font-weight: 400;
+  letter-spacing: 0.005em;
+  color: rgba(232,227,243,0.78);
+  text-transform: none !important;
+  line-height: 1.3;
+}
+.shelfd-search-row-shelf-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  padding: 2px 7px 2.5px;
+  border-radius: 999px;
+  border: 1px solid rgba(196,181,253,0.24);
+  background: rgba(139,92,246,0.14);
+  color: rgba(232,227,243,0.84);
+  font-size: 10.5px;
+  font-weight: 400;
+  line-height: 1;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.shelfd-search-row-credit {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.005em;
+  color: rgba(232,227,243,0.62);
+  line-height: 1.3;
+}
+.shelfd-search-row-credit-prefix {
+  color: rgba(196,181,253,0.62);
+}
+body.light-mode .shelfd-search-row-meta {
+  color: rgba(20,15,40,0.72);
+}
+body.light-mode .shelfd-search-row-shelf-pill {
+  border-color: rgba(120,90,200,0.22);
+  background: rgba(139,92,246,0.12);
+  color: rgba(20,15,40,0.72);
+}
+body.light-mode .shelfd-search-row-credit {
+  color: rgba(20,15,40,0.62);
+}
+body.light-mode .shelfd-search-row-credit-prefix {
+  color: rgba(120,90,200,0.62);
+}
+
+/* v651: Browse section hidden from the search empty state. The 2x2 grid
+   (Movies / TV Shows / Anime / Games) is no longer needed ? chips do the
+   filtering job once the user starts typing. */
+.shelfd-search-browse-grid,
+.shelfd-search-empty .shelfd-search-section:has(.shelfd-search-browse-grid) {
+  display: none !important;
+}
+body.light-mode .shelfd-search-row {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+body.light-mode .shelfd-search-row:hover {
+  background: rgba(139,92,246,0.07) !important;
+  border-color: transparent !important;
+}
+
+/* =============================================================
+   v650: Discover card +1px, My Lists card next-episode line,
+   status pill compact, synopsis preview/expand, pull-down
+   poster GPU layer fix.
+   ============================================================= */
+
+/* v787: discover-card-title font-size rules removed ? they were dead duplicates.
+   The #discover-view-prefixed rule in 14-live-update-discover-controls.css has
+   higher specificity (0,1,1 vs 0,0,1) and always wins. Source of truth lives in
+   14-live-update-discover-controls.css "v787: Discover title-card title ? 16px". */
+.discover-new-release-date {
+  font-size: 12px !important;
+}
+
+/* My Lists TV/anime next-episode air-date footer line.
+   v10.415: font-weight dropped by 100 on both variants per spec â€”
+   750 -> 650 (default), 900 -> 800 (is-new today-state). */
+.card-next-episode {
+  flex: 0 0 auto;
+  max-width: 46%;
+  margin: 0;
+  /* v11.248: next episode/season metadata — 11.1px / 500 (was 11px / 650). */
+  font-size: 11.1px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  color: #22d3ee;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card-next-episode.is-new {
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #22d3ee;
+  text-transform: uppercase;
+}
+body.light-mode .card-next-episode {
+  color: #0891b2;
+}
+body.light-mode .card-next-episode.is-new {
+  color: #0891b2;
+}
+
+/* Watchlist / Wishlist / Backlog future-release card: release
+   date sits in the rating-area slot (replacing the stars). */
+.card-future-release-area {
+  margin-top: 6px;
+}
+.card-future-release-label {
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(232, 227, 243, 0.55);
+  margin-bottom: 3px;
+}
+.card-future-release-date {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(196, 181, 253, 0.92);
+}
+body.light-mode .card-future-release-label {
+  color: rgba(20, 15, 40, 0.55);
+}
+body.light-mode .card-future-release-date {
+  color: rgba(120, 90, 200, 0.92);
+}
+
+/* Status pill height reduction on My Lists title cards.
+   Padding 3px ? 2px vertical (?25% shorter). */
+#mylist-view .card .status-pill {
+  padding: 2px 10px !important;
+  min-height: 0 !important;
+}
+
+/* Synopsis preview/expand ? 4-line clamp by default, tap to
+   expand to full text. */
+.discover-media-synopsis {
+  cursor: pointer;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  transition: opacity 180ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.discover-media-synopsis:active { opacity: 0.7; }
+.discover-media-synopsis.expanded {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
+/* Pull-down gesture poster fix: ensure the poster img has its
+   own GPU compositing layer that won't drop out when the parent
+   page applies translate3d + scale during the pull-down gesture.
+   v650: stronger isolation than the existing translateZ(0). */
+.discover-media-profile-overlay .discover-media-poster,
+.game-media-profile-overlay .discover-media-poster {
+  isolation: isolate;
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+}
+.discover-media-profile-overlay .discover-media-poster img,
+.game-media-profile-overlay .discover-media-poster img {
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: visible !important;
+  backface-visibility: visible !important;
+}
+
+/* =============================================================
+   v652: Media profile facts sizes + discover card sizes +
+   "slightly higher" tweak for the rating-slot release date.
+   ============================================================= */
+
+/* Task 3: position the future-release line slightly higher than
+   where the rating area normally sits. Reduce its top margin so
+   it nudges up by ~6px relative to the rating slot baseline. */
+.card-future-release-area {
+  margin-top: 0 !important;
+  transform: translateY(-4px);
+}
+
+/* Task 5: full media profile facts.
+   Primary value (movie runtime, TV/anime seasons + episodes) +2px:
+   16 ? 18. Labels (Runtime, Released, First Aired, Country, Type,
+   Status, Seasons, Episodes) +1px: 9 ? 10. */
+.discover-media-profile-overlay .discover-media-facts div.primary strong,
+.game-media-profile-overlay .discover-media-facts div.primary strong {
+  font-size: 18px !important;
+}
+.discover-media-profile-overlay .discover-media-facts .discover-media-fact-release-date strong,
+.game-media-profile-overlay .discover-media-facts .discover-media-fact-release-date strong {
+  color: #67e8f9 !important;
+}
+.discover-media-profile-overlay .discover-media-facts .discover-media-fact-runtime strong,
+.game-media-profile-overlay .discover-media-facts .discover-media-fact-runtime strong {
+  color: #ffffff !important;
+  opacity: 1 !important;
+}
+.discover-media-profile-overlay .discover-media-facts span,
+.discover-media-profile-overlay .discover-media-credits span,
+.game-media-profile-overlay .discover-media-facts span {
+  font-size: 10px !important;
+}
+
+/* v787: discover-card-title font-size duplicates removed ? dead.
+   Source of truth is now 14-live-update-discover-controls.css with
+   #discover-view .discover-card-title (specificity 0,1,1 ? wins). */
+.discover-new-release-date {
+  font-size: 13px !important;
+  font-weight: 900 !important;
+}
+/* Clamp titles to 2 lines max; no min-height so single-line titles
+   don't leave empty vertical space (v789 spacing fix). */
+.discover-card-title {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* =============================================================
+   v692: My Lists toolbar ? search toggle button + inline search row.
+   Row order (left ? right): [Sort btn] [Add to Shelf] [?? btn]
+   ============================================================= */
+
+/* =============================================================
+   v10.917: Discover "View All" full-category page slides in from
+   the right and exits to the right, matching iOS forward navigation.
+   ============================================================= */
+
+/* Default state: page is off-screen to the right. When JS sets
+   display:block, it starts at translateX(100%) before 'is-open' is
+   applied two rAFs later, so the transition fires cleanly. */
+.discover-category-full-page {
+  transform: translateX(100%) !important;
+  transition: transform 600ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+  will-change: transform !important;
+}
+.discover-category-full-page.discover-category-full-page--360ms {
+  transition: transform 360ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+/* Slid-in (visible) state. */
+.discover-category-full-page.is-open {
+  transform: translateX(0) !important;
+}
+
+/* Raise both movie/TV and game media profile overlays above the
+   full-category page (z-index 5620) so a poster tap in "View All"
+   actually surfaces the profile instead of hiding behind it. */
+.discover-media-profile-overlay,
+.game-media-profile-overlay {
+  z-index: 6000 !important;
+}
+
+/* v10.918: media profiles launched from Discovery View All must sit above
+   the still-open View All page (z-index 5620) so back returns
+   Profile -> View All -> Discover.
+   v11.850: but they MUST also stay BELOW the Full Page Review (.mylist-media-review-page,
+   z-index 7200) — at the old 12000 the review composer opened by tapping
+   "+" -> Watched from a View-All profile rendered BEHIND the profile, so it only
+   appeared after backing out. 7000 keeps the profile above the View All page and
+   below the review page. (Nothing in the 6000-7199 band is on-screen during this
+   flow — the only other users, DM css/05 + Watch Together css/08, are never open
+   here.) */
+.discover-media-profile-overlay.discover-media-profile-from-view-all,
+.game-media-profile-overlay.discover-media-profile-from-view-all {
+  z-index: 7000 !important;
+}
+
+/* v10.948: media profiles launched from the My List full-page episode
+   details must sit above that seasons overlay, then back returns to it. */
+.discover-media-profile-overlay.discover-media-profile-from-mylist-episode,
+.game-media-profile-overlay.discover-media-profile-from-mylist-episode {
+  z-index: 12100 !important;
+}
+
+/* v10.958: game media profiles opened from the competitive profile poster
+   must sit above that still-open profile page, then back returns to it. */
+.discover-media-profile-overlay.game-media-profile-from-competitive,
+.game-media-profile-overlay.game-media-profile-from-competitive {
+  z-index: 12120 !important;
+}
+
+/* =============================================================
+   v695: Discover > Games colour-scheme match + backloggd icon
+   removal + section-header and filter-button weight reduction.
+   ============================================================= */
+
+/* 1. Games page ? true-dark-mode treatment matching Movies/TV. */
+body.true-dark-mode #games-discover-view .discover-section-card,
+body.true-dark-mode #games-discover-view .discover-rail,
+body.true-dark-mode #games-discover-view .discover-section,
+body.true-dark-mode #games-discover-view .discover-rail-item {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #games-discover-view .discover-card {
+  background: #212121 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 14px !important;
+  overflow: hidden !important;
+}
+body.true-dark-mode #games-discover-view .discover-card:not(.discover-card-expanded) {
+  border-radius: 3px !important;
+}
+body.true-dark-mode #games-discover-view .discover-card .discover-card-body {
+  background: transparent !important;
+  padding-bottom: 8px !important;
+}
+body.true-dark-mode #games-discover-view .discover-expand-icon {
+  display: none !important;
+}
+/* Fix game poster placeholder ? was #0b0818, now matches current app bg. */
+body.true-dark-mode #games-discover-view .discover-poster,
+body.true-dark-mode #games-discover-view .games-discover-card .discover-poster {
+  background-color: #1c2028 !important;
+}
+/* v702: games hub toggle now uses the same transparent background as
+   movies/TV and anime. The previous rgba(24,28,32,0.92) was too dark and
+   made the border look like a solid black box on the games page.
+   Keeping only search-input override (search bar IS deliberately darker). */
+body.true-dark-mode #games-discover-view .discover-search-input {
+  background: rgba(24, 28, 32, 0.92) !important;
+  border-color: rgba(196, 181, 253, 0.18) !important;
+  box-shadow: none !important;
+}
+/* Belt-and-suspenders: nuke any outline/ring on the toggle itself. */
+.discover-hub-toggle:focus,
+.discover-hub-toggle:focus-visible,
+.discover-hub-toggle:focus-within {
+  outline: none !important;
+  box-shadow: none !important;
+}
+body.true-dark-mode #games-discover-view .discover-card-title { color: #ffffff !important; }
+body.true-dark-mode #games-discover-view .discover-card-genre,
+body.true-dark-mode #games-discover-view .discover-card-context,
+body.true-dark-mode #games-discover-view .discover-card-meta {
+  color: rgba(196, 181, 253, 0.72) !important;
+}
+
+/* 2. Remove Backloggd export icon everywhere (discover cards, profile page,
+   external links bar, floating exports, My Lists cards). */
+.game-discover-backloggd-icon,
+#games-discover-view .game-discover-backloggd-icon,
+.game-backloggd-icon,
+.game-media-external-link.backloggd,
+.game-media-profile-overlay .backloggd,
+.game-media-profile-overlay a.backloggd {
+  display: none !important;
+}
+
+/* Remove "Change Cover" button from the game full-page media profile. */
+.screenlist-game-profile-cover-btn {
+  display: none !important;
+}
+
+/* -- v696: Games discover card 5-row info layout ----------------------- */
+
+/* All game discover cards: equal height across every row.
+   height: 100% fills the grid cell; the cell height is the tallest
+   card in that row, so all cards in the same row are identical.
+   For cross-row uniformity the poster aspect-ratio anchors most of
+   the variance; the body min-height catches the rest. */
+#games-discover-view .discover-card.games-discover-card {
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Body container ? vertical flex; add-btn always at the bottom. */
+.games-dc-body {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  padding: 9px 9px 9px !important;
+  flex: 1 !important;           /* fill remaining card height */
+  min-height: 167px !important; /* v702: +10% (was 152px) */
+}
+
+/* Row 1: title ? clickable, 2-line clamp. */
+.games-dc-title {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 1.3;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 0;
+}
+.games-dc-title:hover { color: #d4c5ff; }
+
+/* Row 2: year. */
+.games-dc-year {
+  font-size: 11px;
+  font-weight: 400;
+  color: rgba(232, 227, 243, 0.60);
+  line-height: 1.3;
+}
+
+/* Row 3: genres (max 3, plain text). */
+.games-dc-genres {
+  font-size: 11px;
+  font-weight: 400;
+  color: rgba(196, 181, 253, 0.70);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Row 4: hidden until Steam data fills it; revealed when live. */
+.games-dc-rating {
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.3;
+}
+/* v698: empty = no space taken; once textContent is set, element shows. */
+.games-dc-rating:empty { display: none !important; }
+/* v697/698: Steam live data ? lavender, upright. */
+.games-dc-rating.games-dc-rating--live {
+  font-style: normal !important;
+  color: rgba(196, 181, 253, 0.82) !important;
+}
+body.light-mode .games-dc-rating.games-dc-rating--live {
+  color: rgba(100, 60, 180, 0.82) !important;
+}
+
+/* Spacer between info rows and the add button ? grows to fill available
+   space (bottom-pinning the button) but is never less than 8px so the
+   button always has breathing room even when content is dense. */
+.games-dc-spacer {
+  flex: 1 0 8px;  /* grow freely, minimum 8px */
+}
+
+/* Row 5: Add to Library ? position handled by .games-dc-spacer above. */
+.games-dc-add-btn {
+  margin-top: 0 !important;
+  background: rgba(139, 92, 246, 0.14) !important;
+  border: 1px solid rgba(196, 181, 253, 0.28) !important;
+  border-radius: 999px !important;
+  color: #d4c5ff !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.01em !important;
+  padding: 6px 10px !important;
+  width: 100% !important;
+  text-align: center !important;
+  cursor: pointer !important;
+  -webkit-tap-highlight-color: transparent !important;
+  transition: background 160ms ease, border-color 160ms ease !important;
+}
+.games-dc-add-btn:hover {
+  background: rgba(139, 92, 246, 0.24) !important;
+  border-color: rgba(196, 181, 253, 0.46) !important;
+}
+.games-dc-add-btn.added {
+  background: rgba(139, 92, 246, 0.08) !important;
+  color: rgba(196, 181, 253, 0.55) !important;
+  border-color: rgba(196, 181, 253, 0.16) !important;
+}
+
+/* "View All" button weight -100 (800 ? 700) on games discover rows. */
+#games-discover-view .discover-expand-btn {
+  font-weight: 700 !important;
+}
+
+body.light-mode .games-dc-title { color: #1a1130; }
+body.light-mode .games-dc-year  { color: rgba(40, 20, 80, 0.60); }
+body.light-mode .games-dc-genres { color: rgba(100, 60, 180, 0.70); }
+body.light-mode .games-dc-rating { color: rgba(40, 20, 80, 0.36); }
+body.light-mode .games-dc-add-btn {
+  background: rgba(139, 92, 246, 0.12) !important;
+  border-color: rgba(120, 90, 200, 0.30) !important;
+  color: #5b21b6 !important;
+}
+
+/* 3. Section-header weight -100 (800 ? 700) ? Movies/TV and Games only.
+   Anime (#anime-discover-view) intentionally excluded. */
+#discover-view .discover-section-title,
+#games-discover-view .discover-section-title {
+  font-weight: 700 !important;
+}
+
+/* 4. "New This Week" / "New This Month" filter buttons weight -100 (800 ? 700). */
+.discover-filter-btn {
+  font-weight: 700 !important;
+}
+
+/* =============================================================
+   v694: Discover hub tabs + version footer tweaks
+   ============================================================= */
+
+/* 1 & 5. Center the Movies & TV / Anime / Games pill row without making
+   it full-width (width:100% caused the pill border to span the whole
+   container, which looked like a thick rectangular box). fit-content
+   + auto margins centres a shrink-wrapped pill cleanly. */
+.discover-hub-toggle {
+  display: flex !important;
+  justify-content: center !important;
+  width: fit-content !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* 4. Remove browser default focus outline/ring on the hub buttons.
+   The active-state background/border already signals selection clearly. */
+.discover-hub-btn:focus,
+.discover-hub-btn:focus-visible,
+.discover-hub-btn:focus-within {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* 2. Hub tab text: +1px font, -100 weight, paper-white colour.
+      Active tab: lavender/purple instead of plain white. */
+.discover-hub-btn {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #F8F5EF !important;
+}
+.discover-hub-btn.active {
+  color: #c4b5fd !important;
+  background: rgba(139, 92, 246, 0.18) !important;
+  box-shadow: inset 0 0 0 1px rgba(196, 181, 253, 0.22) !important;
+}
+body.light-mode .discover-hub-btn { color: rgba(60, 40, 100, 0.85) !important; }
+body.light-mode .discover-hub-btn.active {
+  color: #7c3aed !important;
+  background: rgba(139, 92, 246, 0.14) !important;
+}
+
+/* v11.686: Keep the shared version/date footer light across every page. */
+.screenlist-version-footer {
+  font-weight: 400 !important;
+}
+
+/* v703: Force toolbar-right to always be a single flex row.
+   The mobile CSS in 11-patch-notes-friends-refinements.css:1653 overrides to
+   display:grid with 2 columns, which caused the 3rd button (search toggle) to
+   wrap to a second sub-row. This override beats that with higher specificity +
+   !important and lays out: [Sort] [Add] [??] space-between across full width.
+   The `flex: 0 0 auto` on outer children prevents any button from growing/shrinking
+   except the add-btn which gets `flex: 0 1 auto` to yield a little if tight. */
+#mylist-view #mylist-toolbar .toolbar-right,
+body.main-tab-mylist #mylist-view #mylist-toolbar .toolbar-right {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  gap: 6px !important;
+}
+#mylist-view #mylist-toolbar .toolbar-right > * {
+  flex-shrink: 0 !important;
+}
+#mylist-view #mylist-toolbar .toolbar-right #add-btn {
+  flex: 0 1 auto !important; /* can shrink slightly if needed */
+}
+
+/* v693: Compact Add to Shelf button so Sort + Add + Search fit on one row.
+   Tighter horizontal padding + smaller font. Scoped to the toolbar so no
+   other btn-primary instances are affected. */
+#mylist-view #mylist-toolbar #add-btn,
+#mylist-view #mylist-toolbar .btn-primary#add-btn {
+  padding: 6px 10px !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  border-radius: 999px !important;
+  white-space: nowrap !important;
+}
+
+/* Magnifying-glass icon button ? matches sort button sizing. */
+.mylist-search-toggle-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: none;
+  color: rgba(232, 227, 243, 0.72);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 160ms ease, background 160ms ease, transform 140ms ease;
+}
+.mylist-search-toggle-btn svg { width: 18px; height: 18px; }
+.mylist-search-toggle-btn:hover { color: #ffffff; }
+.mylist-search-toggle-btn:active { transform: scale(0.92); }
+.mylist-search-toggle-btn.mylist-search-toggle-active {
+  color: #c4b5fd;
+  background: rgba(139, 92, 246, 0.14);
+}
+body.light-mode .mylist-search-toggle-btn { color: rgba(60, 40, 100, 0.72); }
+body.light-mode .mylist-search-toggle-btn.mylist-search-toggle-active {
+  color: #7c3aed;
+  background: rgba(139, 92, 246, 0.10);
+}
+
+@media (min-width: 701px) and (hover: hover) and (pointer: fine) and (not (display-mode: standalone)) {
+  body.main-tab-mylist #mylist-view #mylist-toolbar .toolbar-right:has(#sort-dropdown-btn):has(#mylist-search-toggle-btn) {
+    display: grid !important;
+    grid-template-columns: 42px minmax(0, 1fr) 42px !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  body.main-tab-mylist #mylist-view #mylist-toolbar .toolbar-right:has(#sort-dropdown-btn):has(#mylist-search-toggle-btn) > * {
+    min-width: 0 !important;
+  }
+
+  body.main-tab-mylist #mylist-view #mylist-toolbar .toolbar-right:has(#sort-dropdown-btn):has(#mylist-search-toggle-btn) #sort-dropdown-btn {
+    grid-column: 1 !important;
+    width: 42px !important;
+    min-width: 42px !important;
+    max-width: 42px !important;
+  }
+
+  body.main-tab-mylist #mylist-view #mylist-toolbar .toolbar-right:has(#sort-dropdown-btn):has(#mylist-search-toggle-btn) #add-btn,
+  body.main-tab-mylist #mylist-view #mylist-toolbar .toolbar-right:has(#sort-dropdown-btn):has(#mylist-search-toggle-btn) .btn-primary#add-btn {
+    grid-column: 2 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    justify-content: center !important;
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+  }
+
+  body.main-tab-mylist #mylist-view #mylist-toolbar .toolbar-right:has(#sort-dropdown-btn):has(#mylist-search-toggle-btn) #mylist-search-toggle-btn {
+    grid-column: 3 !important;
+    width: 42px !important;
+    min-width: 42px !important;
+    max-width: 42px !important;
+  }
+}
+
+/* v781: Sort + Search ? matching circular icon-only controls in My Lists toolbar.
+   Both buttons are 36?36 circles with identical border, background, and icon opacity.
+   The sort label is always hidden in this context (handled separately).
+   v847: default-state accent moved from neutral white to lavender so the
+   filter/sort control reads as part of the app's lavender-purple system
+   (matches the Add to Shelf button and the active state below). */
+#mylist-view #mylist-toolbar #sort-dropdown-btn,
+#mylist-view #mylist-toolbar #mylist-search-toggle-btn {
+  width: 36px !important;
+  min-width: 36px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 50% !important;
+  border: 1px solid rgba(196,181,253,0.28) !important;
+  background: rgba(167,139,250,0.08) !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: rgba(196,181,253,0.78) !important;
+  flex-shrink: 0 !important;
+  transition: color 160ms ease, background 160ms ease, border-color 160ms ease, transform 140ms ease !important;
+}
+#mylist-view #mylist-toolbar #sort-dropdown-btn:hover,
+#mylist-view #mylist-toolbar #mylist-search-toggle-btn:hover {
+  color: #c4b5fd !important;
+  background: rgba(167,139,250,0.14) !important;
+  border-color: rgba(196,181,253,0.46) !important;
+}
+#mylist-view #mylist-toolbar #sort-dropdown-btn:active,
+#mylist-view #mylist-toolbar #mylist-search-toggle-btn:active {
+  transform: scale(0.92) !important;
+}
+/* Sort icon inherits the parent's rgba white color */
+#mylist-view #mylist-toolbar #sort-dropdown-btn .sort-btn-icon {
+  font-size: 17px !important;
+  color: inherit !important;
+}
+/* Suppress sort label and active-sort purple tint in toolbar context */
+#mylist-view #mylist-toolbar #sort-dropdown-btn .sort-btn-label { display: none !important; }
+#mylist-view #mylist-toolbar #sort-dropdown-btn .sort-btn-icon.sort-active { color: inherit !important; }
+/* Search SVG matches icon size */
+#mylist-view #mylist-toolbar #mylist-search-toggle-btn svg {
+  width: 17px !important;
+  height: 17px !important;
+}
+/* Active state for Search still shows purple highlight */
+#mylist-view #mylist-toolbar #mylist-search-toggle-btn.mylist-search-toggle-active {
+  color: #c4b5fd !important;
+  background: rgba(139,92,246,0.16) !important;
+  border-color: rgba(139,92,246,0.40) !important;
+}
+/* Active state for Sort (non-default sort applied) shows purple highlight */
+#mylist-view #mylist-toolbar #sort-dropdown-btn:has(.sort-btn-icon.sort-active) {
+  color: #c4b5fd !important;
+  background: rgba(139,92,246,0.16) !important;
+  border-color: rgba(139,92,246,0.40) !important;
+}
+body.light-mode #mylist-view #mylist-toolbar #sort-dropdown-btn,
+body.light-mode #mylist-view #mylist-toolbar #mylist-search-toggle-btn {
+  border-color: rgba(0,0,0,0.18) !important;
+  background: rgba(0,0,0,0.04) !important;
+  color: rgba(30,10,70,0.60) !important;
+}
+
+/* Search row that slides below the toolbar when toggle is active. */
+.mylist-search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0 4px;
+  animation: mylistSearchIn 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.mylist-search-row[hidden] { display: none !important; }
+@keyframes mylistSearchIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+/* Override the display:none set on the old inline search input ?
+   the new input doesn't have that inline style. */
+#mylist-view .mylist-search-row .search-input {
+  display: block !important;
+  flex: 1 !important;
+  height: 36px !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(196, 181, 253, 0.18) !important;
+  border-radius: 999px !important;
+  padding: 0 14px !important;
+  font-size: 16px !important;
+  color: #ffffff !important;
+  font-family: inherit !important;
+  outline: none !important;
+  transition: border-color 180ms ease, box-shadow 180ms ease !important;
+}
+#mylist-view .mylist-search-row .search-input:focus {
+  border-color: rgba(196, 181, 253, 0.42) !important;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.14) !important;
+}
+#mylist-view .mylist-search-row .search-input::placeholder { color: rgba(196, 181, 253, 0.50) !important; }
+
+/* Close (?) button inside the search row. */
+.mylist-search-clear-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: rgba(232, 227, 243, 0.72);
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 160ms ease, transform 140ms ease;
+}
+.mylist-search-clear-btn svg { width: 13px; height: 13px; }
+.mylist-search-clear-btn:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
+.mylist-search-clear-btn:active { transform: scale(0.92); }
+
+body.light-mode .mylist-search-row .search-input {
+  background: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(120, 90, 200, 0.22) !important;
+  color: #1a1130 !important;
+}
+body.light-mode .mylist-search-clear-btn {
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(60, 40, 100, 0.72);
+}
+
+/* =============================================================
+   v689: Seasonal Anime "Add to Library" bottom sheet.
+   Reusable component ? same patterns can be adapted for My Lists
+   title cards and other surfaces in future.
+   ============================================================= */
+
+/* Semi-transparent backdrop */
+.sas-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 4200;
+  background: transparent;
+  transition: background 300ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.sas-bd-open {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+/* Sheet ? max 75 % of viewport height, slides up from below */
+.sas-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 4201;
+  max-height: 75vh;
+  background: #181c20;
+  border-top: 1px solid rgba(196, 181, 253, 0.18);
+  border-radius: 20px 20px 0 0;
+  transform: translateY(100%);
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sas-sheet-open {
+  transform: translateY(0);
+}
+
+/* Drag handle pill */
+.sas-handle {
+  width: 38px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(196, 181, 253, 0.28);
+  margin: 12px auto 0;
+  flex-shrink: 0;
+}
+
+/* Scrollable body ? content centered */
+.sas-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  padding: 28px 24px max(32px, env(safe-area-inset-bottom, 0px)) 24px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
+}
+
+/* Anime info row: poster + title/meta */
+.sas-anime-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+.sas-poster {
+  width: 58px;
+  height: 82px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+  background: rgba(196, 181, 253, 0.08);
+}
+.sas-poster-placeholder {
+  width: 58px;
+  height: 82px;
+  border-radius: 8px;
+  background: rgba(196, 181, 253, 0.08);
+  flex-shrink: 0;
+}
+.sas-anime-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.sas-title {
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sas-meta {
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(196, 181, 253, 0.68);
+}
+
+/* "Where do you want it?" */
+.sas-prompt {
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.60);
+  text-align: center;
+  letter-spacing: 0.01em;
+}
+
+/* Status buttons ? full width, stacked */
+.sas-statuses {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+.sas-status-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  padding: 14px 20px;
+  background: rgba(139, 92, 246, 0.10);
+  border: 1px solid rgba(196, 181, 253, 0.22);
+  border-radius: 14px;
+  color: #F8F5EF;
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  cursor: pointer;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 180ms ease, border-color 180ms ease, transform 120ms ease;
+  will-change: transform;
+}
+.sas-status-btn:hover {
+  background: rgba(139, 92, 246, 0.20);
+  border-color: rgba(196, 181, 253, 0.42);
+}
+.sas-status-btn:active {
+  transform: scale(0.98);
+  background: rgba(139, 92, 246, 0.28);
+}
+
+/* Light-mode overrides */
+body.light-mode .sas-sheet {
+  background: #f5f3ee;
+  border-color: rgba(120, 90, 200, 0.18);
+}
+body.light-mode .sas-handle { background: rgba(120, 90, 200, 0.28); }
+body.light-mode .sas-title  { color: #1a1130; }
+body.light-mode .sas-meta   { color: rgba(90, 60, 180, 0.68); }
+body.light-mode .sas-prompt { color: rgba(20, 15, 40, 0.60); }
+body.light-mode .sas-status-btn {
+  background: rgba(139, 92, 246, 0.08);
+  border-color: rgba(120, 90, 200, 0.26);
+  color: #2d1b69;
+}
+body.light-mode .sas-status-btn:hover {
+  background: rgba(139, 92, 246, 0.16);
+  border-color: rgba(120, 90, 200, 0.46);
+}
+
+/* =============================================================
+   v680: Anime sub-tabs (Top Anime / Seasonal Anime) and the
+   seasonal navigation rows that only appear under Seasonal.
+   ============================================================= */
+
+/* Pill row sitting under the main "Movies & TV / Anime / Games" hub toggle. */
+.anime-discover-subtabs {
+  display: flex;
+  gap: 4px;
+  margin: 12px auto 14px;
+  padding: 4px;
+  width: fit-content;
+  border: 1px solid rgba(196, 181, 253, 0.20);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+}
+.anime-discover-subtab-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 7px 18px;
+  border-radius: 999px;
+  color: rgba(232, 227, 243, 0.62);
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms ease, transform 140ms ease;
+}
+.anime-discover-subtab-btn:hover { color: #fff; }
+.anime-discover-subtab-btn:active { transform: scale(0.96); }
+.anime-discover-subtab-btn.active {
+  background: rgba(139, 92, 246, 0.24);
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(196, 181, 253, 0.18);
+}
+
+/* Seasonal-only navigation rows (season selector + type filter). */
+.anime-discover-seasonal-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px auto 14px;
+}
+.anime-discover-season-tabs,
+.anime-discover-type-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+.anime-discover-season-btn,
+.anime-discover-type-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(196, 181, 253, 0.18);
+  padding: 6px 14px;
+  border-radius: 999px;
+  color: rgba(232, 227, 243, 0.78);
+  font-family: 'Sohne', 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  cursor: pointer;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 180ms ease, color 180ms ease, border-color 180ms ease, transform 140ms ease;
+}
+.anime-discover-season-btn:hover,
+.anime-discover-type-btn:hover {
+  color: #fff;
+  border-color: rgba(196, 181, 253, 0.32);
+}
+.anime-discover-season-btn:active,
+.anime-discover-type-btn:active { transform: scale(0.96); }
+.anime-discover-season-btn.active,
+.anime-discover-type-btn.active {
+  background: rgba(139, 92, 246, 0.22);
+  border-color: rgba(196, 181, 253, 0.46);
+  color: #ffffff;
+}
+
+/* Light-mode tints */
+body.light-mode .anime-discover-subtabs {
+  border-color: rgba(120, 90, 200, 0.22);
+  background: rgba(0, 0, 0, 0.04);
+}
+body.light-mode .anime-discover-subtab-btn { color: rgba(20, 15, 40, 0.62); }
+body.light-mode .anime-discover-subtab-btn.active {
+  background: rgba(139, 92, 246, 0.16);
+  color: #1a1130;
+}
+body.light-mode .anime-discover-season-btn,
+body.light-mode .anime-discover-type-btn {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(120, 90, 200, 0.20);
+  color: rgba(20, 15, 40, 0.78);
+}
+body.light-mode .anime-discover-season-btn.active,
+body.light-mode .anime-discover-type-btn.active {
+  background: rgba(139, 92, 246, 0.16);
+  border-color: rgba(120, 90, 200, 0.42);
+  color: #1a1130;
+}
+
+/* =============================================================
+   v681: Custom card layout for the Seasonal Anime grid.
+   ============================================================= */
+
+/* Override the discover-grid container so it's a standard CSS grid
+   (not a horizontal scroller like standard discover grids). */
+#anime-discover-seasonal-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  /* v684: +10px row gap (16 ? 26px). Column gap stays 12. */
+  gap: 26px 12px !important;
+  overflow: visible !important;
+  overflow-x: visible !important;
+  padding: 8px 0 12px !important;
+  flex-wrap: unset !important;
+}
+@media (min-width: 701px) and (hover: hover) and (pointer: fine) and (not (display-mode: standalone)) {
+  #anime-discover-seasonal-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+}
+@media (max-width: 700px) {
+  #anime-discover-seasonal-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 24px 10px !important;
+  }
+}
+
+/* Individual seasonal card. */
+.anime-seasonal-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  /* v688: paper-white border 1px, 30% opacity. */
+  border: 1px solid rgba(248, 244, 255, 0.30);
+  border-radius: 3px;
+  padding: 8px;
+  /* v11.449: card surface = one shade lighter than the Discovery bg (#0E0E0E). */
+  background: #161616;
+}
+.anime-seasonal-card.asc-hidden { display: none !important; }
+body.light-mode .anime-seasonal-card {
+  border-color: rgba(20, 15, 40, 0.22);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* Poster ? tall portrait with overlay. */
+.anime-seasonal-card-poster {
+  position: relative;
+  aspect-ratio: 2 / 3;
+  border-radius: 3px 3px 0 0;
+  overflow: hidden;
+  background: rgba(255,255,255,0.05);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.anime-seasonal-card-poster:hover { transform: scale(1.02); }
+.anime-seasonal-card-poster:active { transform: scale(0.98); }
+.anime-seasonal-card-poster img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+.anime-seasonal-card-poster-placeholder {
+  width: 100%;
+  height: 100%;
+  background: rgba(139, 92, 246, 0.08);
+}
+/* v683: Meta header sits ABOVE the poster (not as an overlay inside it).
+   v684: centered. v685: paper-white at 51% opacity. */
+.anime-seasonal-card-header {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(248, 244, 255, 0.51);
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+  padding: 0 2px 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+body.light-mode .anime-seasonal-card-header {
+  color: rgba(90, 60, 180, 0.72);
+}
+
+/* Info block below the poster ? equal-spaced flex column. */
+.anime-seasonal-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 2px 6px;
+  flex: 1;
+}
+
+/* v685: Genres row ? centered. */
+.anime-seasonal-card-genres {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  justify-content: center;
+  min-width: 0;
+}
+/* v686: genres live in the header zone (above the poster). */
+.anime-seasonal-card-genres--header {
+  padding: 3px 2px 6px;
+}
+
+/* v685: Rating (left) + members (right) share the bottom info row. */
+.anime-seasonal-card-rating-members-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+.anime-seasonal-card-rating {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f5d27a;
+  letter-spacing: 0;
+  flex-shrink: 0;
+}
+.anime-seasonal-genre-chip {
+  font-size: 9px;
+  font-weight: 500;
+  color: rgba(196, 181, 253, 0.88);
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(196, 181, 253, 0.22);
+  border-radius: 999px;
+  padding: 2px 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 52px;
+  flex-shrink: 1;
+}
+body.light-mode .anime-seasonal-genre-chip {
+  color: #4a1d96;
+  background: rgba(139, 92, 246, 0.10);
+  border-color: rgba(120, 90, 200, 0.26);
+}
+.anime-seasonal-card-title-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: #F8F5EF;
+  line-height: 1.3;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.anime-seasonal-card-title-btn:hover { color: #d4c5ff; }
+.anime-seasonal-card-members {
+  font-size: 11px;
+  color: rgba(196,181,253,0.78);
+  letter-spacing: 0.005em;
+}
+.anime-seasonal-card-add-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(139,92,246,0.12);
+  border: 1px solid rgba(196,181,253,0.22);
+  border-radius: 999px;
+  color: #d4c5ff;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 6px 10px;
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 180ms ease, border-color 180ms ease;
+  margin-top: auto;
+}
+.anime-seasonal-card-add-btn:hover {
+  background: rgba(139,92,246,0.22);
+  border-color: rgba(196,181,253,0.42);
+}
+.anime-seasonal-card-add-btn:active {
+  transform: scale(0.97);
+}
+
+/* Load More wrapper + button. */
+.anime-seasonal-load-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 18px 0 26px;
+}
+.anime-seasonal-load-more-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(196,181,253,0.22);
+  border-radius: 999px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  padding: 11px 28px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 160ms ease, transform 140ms ease;
+  will-change: transform;
+}
+.anime-seasonal-load-more-btn:hover { background: rgba(255,255,255,0.10); }
+.anime-seasonal-load-more-btn:active { transform: scale(0.97); }
+
+.mylist-load-more-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 0 30px;
+}
+.mylist-load-more-wrap[hidden] {
+  display: none !important;
+}
+.mylist-load-more-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  min-width: min(220px, 72vw);
+  border: 1px solid rgba(196,181,253,0.24);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.07);
+  color: #fff;
+  font-family: 'Sohne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 12px 24px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 160ms ease, transform 140ms ease, border-color 160ms ease;
+}
+.mylist-load-more-btn:hover {
+  background: rgba(255,255,255,0.11);
+  border-color: rgba(196,181,253,0.36);
+}
+.mylist-load-more-btn:active {
+  transform: scale(0.97);
+}
+.mylist-load-more-count {
+  color: rgba(232,227,243,0.58);
+  font-family: 'Sohne', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+}
+body.light-mode .mylist-load-more-btn {
+  background: rgba(139,92,246,0.10);
+  border-color: rgba(120,90,200,0.24);
+  color: #342052;
+}
+body.light-mode .mylist-load-more-count {
+  color: rgba(52,32,82,0.58);
+}
+
+/* Light-mode card tints. */
+body.light-mode .anime-seasonal-card-poster-placeholder {
+  background: rgba(120,90,200,0.08);
+}
+body.light-mode .anime-seasonal-card-title-btn { color: #1a1130; }
+body.light-mode .anime-seasonal-card-title-btn:hover { color: #4a1d96; }
+body.light-mode .anime-seasonal-card-members { color: rgba(90,60,180,0.72); }
+body.light-mode .anime-seasonal-card-add-btn {
+  background: rgba(139,92,246,0.10);
+  border-color: rgba(120,90,200,0.26);
+  color: #4a1d96;
+}
+
+/* Visibility ? default state is "Top Anime"; Seasonal hidden. */
+#anime-discover-seasonal-controls,
+#anime-discover-seasonal-section {
+  display: none !important;
+}
+body.anime-subtab-seasonal #anime-discover-seasonal-controls {
+  display: flex !important;
+}
+body.anime-subtab-seasonal #anime-discover-seasonal-section {
+  display: block !important;
+}
+/* When Seasonal is active, hide the 6 standard rows + the search-results
+   section (they're irrelevant when browsing by season). */
+body.anime-subtab-seasonal #anime-discover-search-section,
+body.anime-subtab-seasonal #anime-discover-new-section,
+body.anime-subtab-seasonal #anime-discover-years-best-section,
+body.anime-subtab-seasonal #anime-discover-popular-section,
+body.anime-subtab-seasonal #anime-discover-rated-section,
+body.anime-subtab-seasonal #anime-discover-trending-section,
+body.anime-subtab-seasonal #anime-discover-anticipated-section {
+  display: none !important;
+}
+
+/* v705: Game add sheet ? back chevron for two-level status flow.
+   The .sas-prompt becomes a flex row containing the back arrow + label
+   when the user drills into the "Playing" sub-screen. */
+.sas-prompt:has(> .sas-back-btn) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  position: relative;
+}
+.sas-back-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.78);
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.sas-back-btn:active {
+  background: rgba(255, 255, 255, 0.10);
+}
+body.light-mode .sas-back-btn {
+  color: rgba(20, 15, 40, 0.78);
+}
+body.light-mode .sas-back-btn:active {
+  background: rgba(20, 15, 40, 0.08);
+}
+
+/* =======================================================================
+   v706 ? DM redesign ? Profile slide-from-right ? Followers bottom sheet
+   ======================================================================= */
+
+/* -- DM: Typography back to DM Sans / Sora (replaces v280 Aptos) ------- */
+.direct-messages-page,
+.direct-messages-page *,
+.dm-compose-card,
+.dm-compose-card * {
+  font-family: 'Sohne', system-ui, -apple-system, sans-serif !important;
+}
+.direct-messages-title-wrap strong,
+.direct-messages-title-wrap .creator-name,
+.direct-messages-title-wrap .creator-name-wrap {
+  font-family: 'Sohne', system-ui, sans-serif !important;
+}
+
+/* -- DM: Background ? matches app's standard dark canvas -------------- */
+.direct-messages-page {
+  background:
+    radial-gradient(circle at 12% 8%,  rgba(245,158,11,0.08),  transparent 26%),
+    radial-gradient(circle at 84% 10%, rgba(124,58,237,0.22),  transparent 30%),
+    radial-gradient(circle at 60% 90%, rgba(34,211,238,0.06),  transparent 28%),
+    linear-gradient(135deg, #050410 0%, #120d26 48%, #050410 100%) !important;
+}
+
+/* -- DM: Topbar ------------------------------------------------------- */
+.direct-messages-topbar {
+  background: rgba(5,4,16,0.86) !important;
+  border-bottom: 1px solid rgba(167,139,250,0.14) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+}
+.direct-messages-close {
+  background: rgba(255,255,255,0.055) !important;
+  border: 1px solid rgba(196,181,253,0.20) !important;
+  border-radius: 14px !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04) !important;
+}
+.direct-messages-close:active { transform: scale(0.90) !important; }
+
+/* -- DM: Chat list rows ? app-standard glass card ---------------------- */
+.direct-messages-page .dm-chat-row {
+  background: linear-gradient(145deg, rgba(18,12,38,0.92), rgba(8,6,20,0.94)) !important;
+  border: 1px solid rgba(167,139,250,0.18) !important;
+  border-radius: 22px !important;
+  padding: 13px 15px !important;
+  margin-bottom: 9px !important;
+  position: relative !important;
+  overflow: hidden !important;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.22), inset 0 0 0 1px rgba(255,255,255,0.03) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s cubic-bezier(0.22,1,0.36,1) !important;
+}
+.direct-messages-page .dm-chat-row:active {
+  transform: scale(0.984) !important;
+  background: linear-gradient(145deg, rgba(26,18,52,0.94), rgba(12,8,28,0.96)) !important;
+}
+.direct-messages-page .dm-chat-row img {
+  width: 50px !important;
+  height: 50px !important;
+  border-radius: 50% !important;
+  border: 2px solid rgba(167,139,250,0.28) !important;
+  box-shadow: 0 0 0 3px rgba(124,58,237,0.12) !important;
+}
+.direct-messages-page .dm-chat-row.unread {
+  border-color: rgba(167,139,250,0.32) !important;
+  background: linear-gradient(145deg, rgba(28,16,58,0.94), rgba(12,8,28,0.96)) !important;
+}
+.direct-messages-page .dm-chat-row.unread img {
+  border-color: rgba(167,139,250,0.50) !important;
+  box-shadow: 0 0 0 3px rgba(124,58,237,0.22), 0 0 16px rgba(167,139,250,0.14) !important;
+}
+
+/* Chat copy typography ? name WHITE, 2px bigger than before */
+.direct-messages-page .dm-chat-copy strong {
+  font-size: 17.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.018em !important;
+  color: #ffffff !important;
+}
+.direct-messages-page .dm-chat-copy strong::after { display: none !important; }
+.direct-messages-page .dm-chat-row.unread .dm-chat-copy strong::after {
+  display: inline-block !important;
+  width: 7px !important; height: 7px !important;
+  border-radius: 50% !important;
+  background: #a78bfa !important;
+  margin-left: 8px !important;
+  vertical-align: middle !important;
+  box-shadow: 0 0 10px rgba(167,139,250,0.60) !important;
+}
+/* Preview / last-message text ? app secondary text colour */
+.direct-messages-page .dm-chat-copy span {
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  color: #8f86aa !important;
+  margin-top: 3px !important;
+}
+/* Timestamp top-right */
+.direct-messages-page .dm-chat-row em {
+  position: absolute !important;
+  top: 13px !important; right: 15px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  font-style: normal !important;
+  color: rgba(196,181,253,0.44) !important;
+}
+
+/* -- DM: Request cards ? same glass card language ---------------------- */
+.direct-messages-page .dm-request-card {
+  background: linear-gradient(145deg, rgba(18,12,38,0.92), rgba(8,6,20,0.94)) !important;
+  border: 1px solid rgba(167,139,250,0.18) !important;
+  border-radius: 22px !important;
+  padding: 13px 15px !important;
+  margin-bottom: 9px !important;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.22) !important;
+}
+.direct-messages-page .dm-request-card.incoming {
+  border-color: rgba(167,139,250,0.32) !important;
+  background: linear-gradient(145deg, rgba(38,22,70,0.96), rgba(10,7,24,0.96)) !important;
+}
+/* Name in request cards */
+.direct-messages-page .dm-request-copy strong {
+  font-size: 17.5px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  letter-spacing: -0.018em !important;
+}
+
+/* -- DM: Message bubbles ---------------------------------------------- */
+.direct-messages-page .dm-bubble-row { gap: 6px !important; }
+.direct-messages-page .dm-bubble-row.mine .dm-bubble {
+  /* Exact same purple gradient used everywhere in the app */
+  background: linear-gradient(135deg, #7c3aed, #9333ea) !important;
+  border-radius: 20px 20px 5px 20px !important;
+  padding: 10px 15px 8px !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  line-height: 1.48 !important;
+  box-shadow: 0 6px 22px rgba(124,58,237,0.30) !important;
+  color: #fff !important;
+}
+.direct-messages-page .dm-bubble-row.theirs .dm-bubble {
+  /* Matches the app's glass card style */
+  background: linear-gradient(145deg, rgba(18,12,38,0.88), rgba(8,6,20,0.92)) !important;
+  border: 1px solid rgba(167,139,250,0.18) !important;
+  border-radius: 20px 20px 20px 5px !important;
+  padding: 10px 15px 8px !important;
+  color: #e8e3f3 !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  line-height: 1.48 !important;
+}
+.direct-messages-page .dm-bubble em {
+  font-size: 11px !important; font-weight: 600 !important; font-style: normal !important;
+  color: rgba(255,255,255,0.40) !important; margin-top: 5px !important;
+  display: block !important; text-align: right !important;
+}
+.direct-messages-page .dm-bubble-row.theirs .dm-bubble em {
+  color: rgba(196,181,253,0.42) !important;
+}
+.direct-messages-page .dm-message-list { gap: 9px !important; }
+
+/* -- DM: Compose row ? matches app's floating glass pill --------------- */
+.direct-messages-page .dm-compose-row {
+  border: 1px solid rgba(167,139,250,0.18) !important;
+  background: linear-gradient(145deg, rgba(12,9,28,0.94), rgba(6,4,16,0.96)) !important;
+  border-radius: 999px !important;
+  box-shadow: 0 14px 44px rgba(0,0,0,0.42), inset 0 0 0 1px rgba(255,255,255,0.04) !important;
+}
+.direct-messages-page.dm-keyboard-active .dm-compose-row {
+  border-color: rgba(167,139,250,0.26) !important;
+  background: linear-gradient(145deg, rgba(16,11,36,0.96), rgba(8,6,20,0.98)) !important;
+}
+.direct-messages-page .dm-compose-row input {
+  color: #F8F5EF !important;
+  font-weight: 400 !important;
+}
+.direct-messages-page .dm-compose-row input::placeholder {
+  color: #5a5074 !important;
+}
+/* Send button ? matches app's primary CTA */
+.direct-messages-page .dm-send-btn {
+  background: linear-gradient(135deg, #7c3aed, #9333ea) !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  box-shadow: 0 6px 18px rgba(124,58,237,0.32) !important;
+  border-radius: 999px !important;
+}
+.direct-messages-page .dm-photo-upload-btn {
+  background: rgba(255,255,255,0.06) !important;
+  border: 1px solid rgba(196,181,253,0.14) !important;
+  color: #a99fc4 !important;
+  border-radius: 999px !important;
+}
+
+/* -- DM: Subtabs ? underline style, app accent colour ----------------- */
+.direct-messages-page .dm-subtabs {
+  border-bottom-color: rgba(167,139,250,0.14) !important;
+}
+.direct-messages-page .dm-subtabs button {
+  color: #8f86aa !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+}
+.direct-messages-page .dm-subtabs button.active { color: #F8F5EF !important; }
+.direct-messages-page .dm-subtabs button::after { background: #a78bfa !important; }
+
+/* -- DM: Search strip -------------------------------------------------- */
+.direct-messages-page .dm-search-strip {
+  background: linear-gradient(145deg, rgba(18,12,38,0.88), rgba(8,6,20,0.92)) !important;
+  border: 1px solid rgba(167,139,250,0.16) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.18) !important;
+}
+.direct-messages-page .dm-search-strip input {
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  padding: 13px 16px !important;
+  color: #F8F5EF !important;
+}
+.direct-messages-page .dm-search-strip input::placeholder { color: #5a5074 !important; }
+
+/* -- DM: Empty state ? app card look ----------------------------------- */
+.direct-messages-page .dm-empty-card {
+  background: linear-gradient(145deg, rgba(18,12,38,0.86), rgba(8,6,20,0.90)) !important;
+  border: 1px solid rgba(167,139,250,0.16) !important;
+  border-radius: 26px !important;
+  box-shadow: 0 18px 46px rgba(0,0,0,0.28), inset 0 0 0 1px rgba(255,255,255,0.03) !important;
+  padding: 32px 22px !important;
+}
+.direct-messages-page .dm-empty-card strong {
+  font-family: 'Sohne', system-ui, sans-serif !important;
+  font-size: 19px !important; font-weight: 800 !important;
+  letter-spacing: -0.02em !important; color: #fff !important;
+  display: block !important; margin-bottom: 8px !important;
+}
+.direct-messages-page .dm-empty-card {
+  color: #8f86aa !important;
+  font-size: 13.5px !important; line-height: 1.55 !important;
+}
+
+/* -- DM: Section labels ? matches app eyebrow style ------------------- */
+.direct-messages-page .dm-section-label {
+  color: #a78bfa !important;
+  font-size: 10.5px !important; font-weight: 900 !important;
+  letter-spacing: 0.12em !important; padding: 12px 4px 5px !important;
+  text-transform: uppercase !important;
+}
+
+/* -- DM: User search results ------------------------------------------- */
+.direct-messages-page .dm-user-result strong {
+  font-size: 17.5px !important; font-weight: 700 !important;
+  letter-spacing: -0.018em !important; color: #ffffff !important;
+}
+.direct-messages-page .dm-user-result span {
+  color: #8f86aa !important; font-size: 13px !important;
+}
+
+/* -- DM: Action buttons ? app purple CTA + ghost secondary ------------- */
+.direct-messages-page .dm-action-accept,
+.direct-messages-page .dm-action-open,
+.direct-messages-page .dm-action.accept {
+  background: linear-gradient(135deg, #7c3aed, #9333ea) !important;
+  box-shadow: 0 4px 14px rgba(124,58,237,0.28) !important;
+  font-weight: 700 !important; font-size: 13px !important;
+  color: #fff !important;
+}
+.direct-messages-page .dm-action.decline,
+.direct-messages-page .dm-action-sent {
+  background: rgba(255,255,255,0.055) !important;
+  border: 1px solid rgba(196,181,253,0.20) !important;
+  color: #a99fc4 !important;
+  font-weight: 700 !important; font-size: 13px !important;
+}
+
+/* -- DM: Thread head ? sticky user bar in chat view ------------------- */
+.direct-messages-page .dm-thread-head {
+  /* v950: dropped `backdrop-filter: blur(24px)` â€” element is position:sticky,
+     so Safari was rasterizing blur every scroll frame. rgba 0.90 -> 0.94 keeps the look. */
+  background: rgba(5,4,16,0.94) !important;
+  border-bottom: 1px solid rgba(167,139,250,0.12) !important;
+}
+
+/* -- DM: Swipe-item wrapper ? fix clipped border-radius & spacing ------ */
+/* 12-pwa-header-continuity.css sets overflow:hidden + border-radius:0 on
+   .dm-chat-swipe-item, which squares off the card corners. We raise the
+   wrapper's radius to match the card so overflow:hidden clips to the same
+   rounded shape. Spacing goes here (not on the inner button) so it isn't
+   swallowed by overflow:hidden. */
+.direct-messages-page .dm-chat-swipe-item {
+  border-radius: 22px !important;
+  overflow: hidden !important;
+  margin-bottom: 10px !important;
+}
+.direct-messages-page .dm-chat-swipe-item:last-child { margin-bottom: 0 !important; }
+/* Kill gap on the list ? spacing now handled entirely by margin-bottom above */
+.direct-messages-page .dm-chat-list { gap: 0 !important; }
+/* Remove the margin-bottom from the inner button (can't escape overflow:hidden) */
+.direct-messages-page .dm-chat-row {
+  margin-bottom: 0 !important;
+}
+
+/* -- DM: Compose / new-chat button in topbar -------------------------- */
+.direct-messages-new-btn {
+  background: rgba(255,255,255,0.055) !important;
+  border: 1px solid rgba(196,181,253,0.20) !important;
+  border-radius: 14px !important;
+  color: #F8F5EF !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04) !important;
+  transition: background 0.15s ease, transform 0.15s cubic-bezier(0.22,1,0.36,1) !important;
+}
+.direct-messages-new-btn:active { transform: scale(0.91) !important; }
+body.light-mode .direct-messages-new-btn {
+  background: rgba(124,58,237,0.06) !important;
+  border-color: rgba(20,20,20,0.10) !important;
+  color: #5b21b6 !important;
+}
+
+/* -- DM: Light mode ---------------------------------------------------- */
+body.light-mode .direct-messages-page {
+  background:
+    radial-gradient(circle at 12% 8%, rgba(245,158,11,0.10), transparent 26%),
+    radial-gradient(circle at 84% 10%, rgba(124,58,237,0.12), transparent 30%),
+    linear-gradient(135deg, #f4f1fb 0%, #ffffff 48%, #ede9fe 100%) !important;
+}
+body.light-mode .direct-messages-topbar {
+  background: rgba(248,245,255,0.88) !important;
+  border-bottom-color: rgba(124,58,237,0.12) !important;
+}
+body.light-mode .direct-messages-page .dm-chat-row {
+  background: rgba(255,255,255,0.82) !important;
+  border-color: rgba(124,58,237,0.14) !important;
+  box-shadow: 0 8px 22px rgba(44,24,96,0.08), inset 0 0 0 1px rgba(255,255,255,0.60) !important;
+}
+body.light-mode .direct-messages-page .dm-chat-row.unread {
+  background: rgba(237,233,254,0.75) !important;
+  border-color: rgba(20,20,20,0.12) !important;
+}
+/* In light mode names should be dark, not white */
+body.light-mode .direct-messages-page .dm-chat-copy strong { color: #171717 !important; }
+body.light-mode .direct-messages-page .dm-chat-copy span  { color: #6b5b8f !important; }
+body.light-mode .direct-messages-page .dm-chat-row em     { color: rgba(92,56,176,0.44) !important; }
+body.light-mode .direct-messages-page .dm-request-copy strong { color: #171717 !important; }
+body.light-mode .direct-messages-page .dm-request-card {
+  background: rgba(255,255,255,0.82) !important;
+  border-color: rgba(124,58,237,0.14) !important;
+  box-shadow: 0 8px 22px rgba(44,24,96,0.08) !important;
+}
+body.light-mode .direct-messages-page .dm-request-card.incoming {
+  background: rgba(237,233,254,0.65) !important;
+  border-color: rgba(20,20,20,0.12) !important;
+}
+body.light-mode .direct-messages-page .dm-bubble-row.theirs .dm-bubble {
+  background: rgba(255,255,255,0.88) !important;
+  border-color: rgba(124,58,237,0.14) !important;
+  color: #1a0f38 !important;
+}
+body.light-mode .direct-messages-page .dm-bubble em               { color: rgba(18,8,46,0.38) !important; }
+body.light-mode .direct-messages-page .dm-bubble-row.theirs .dm-bubble em { color: rgba(92,56,176,0.40) !important; }
+body.light-mode .direct-messages-page .dm-compose-row {
+  background: rgba(255,255,255,0.92) !important;
+  border-color: rgba(20,20,20,0.10) !important;
+  box-shadow: 0 10px 32px rgba(44,24,96,0.10) !important;
+}
+body.light-mode .direct-messages-page .dm-compose-row input { color: #171717 !important; }
+body.light-mode .direct-messages-page .dm-compose-row input::placeholder { color: #a090c0 !important; }
+body.light-mode .direct-messages-page .dm-photo-upload-btn {
+  background: rgba(124,58,237,0.06) !important; border-color: rgba(124,58,237,0.14) !important;
+  color: #5b21b6 !important;
+}
+body.light-mode .direct-messages-page .dm-empty-card {
+  background: rgba(255,255,255,0.78) !important; border-color: rgba(124,58,237,0.12) !important;
+  box-shadow: 0 14px 36px rgba(44,24,96,0.10) !important;
+}
+body.light-mode .direct-messages-page .dm-empty-card strong { color: #171717 !important; }
+body.light-mode .direct-messages-page .dm-empty-card        { color: #6b5b8f !important; }
+body.light-mode .direct-messages-page .dm-search-strip {
+  background: rgba(255,255,255,0.78) !important; border-color: rgba(124,58,237,0.12) !important;
+}
+body.light-mode .direct-messages-page .dm-search-strip input { color: #171717 !important; }
+body.light-mode .direct-messages-page .dm-search-strip input::placeholder { color: #a090c0 !important; }
+body.light-mode .direct-messages-page .dm-subtabs { border-bottom-color: rgba(124,58,237,0.14) !important; }
+body.light-mode .direct-messages-page .dm-subtabs button       { color: #6b5b8f !important; }
+body.light-mode .direct-messages-page .dm-subtabs button.active { color: #171717 !important; }
+body.light-mode .direct-messages-page .dm-subtabs button::after { background: #7c3aed !important; }
+body.light-mode .direct-messages-page .dm-section-label { color: #7c3aed !important; }
+body.light-mode .direct-messages-page .dm-user-result strong { color: #171717 !important; }
+body.light-mode .direct-messages-page .dm-user-result span   { color: #6b5b8f !important; }
+body.light-mode .direct-messages-page .dm-thread-head {
+  background: rgba(248,245,255,0.92) !important; border-bottom-color: rgba(124,58,237,0.10) !important;
+}
+body.light-mode .direct-messages-page .dm-action.decline,
+body.light-mode .direct-messages-page .dm-action-sent {
+  background: rgba(124,58,237,0.06) !important; border-color: rgba(124,58,237,0.14) !important;
+  color: #5b21b6 !important;
+}
+
+/* -------------------------------------------------------------------------
+   v706: Profile page ? slide in from right, slide out to right
+   ------------------------------------------------------------------------- */
+/* Base: page starts off-screen right whenever it is made display:block */
+.profile-page {
+  transform: translateX(100%);
+  will-change: transform;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  contain: layout paint style;
+}
+
+@keyframes profileEnterRight {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0);    }
+}
+/* v10.977: `@keyframes profileExitRight` removed. It used to drive the
+   .profile-page-closing slide-out, but that path now runs through an
+   inline JS transition in closeProfileWithAnimation() so the close
+   interpolates smoothly from the page's current visual state instead
+   of snapping to the keyframe's from-state for one paint frame
+   (the "two back animations" bug). */
+
+/* Triggered by openProfilePageShell via double-rAF */
+.profile-page.profile-page-open {
+  animation: profileEnterRight 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* v10.977: animation removed — the slide-out is now driven by inline
+   transition in closeProfileWithAnimation(). The class itself is still
+   needed as a re-entry guard (line 4143 of 15-profile-settings.js
+   checks `profilePage.classList.contains('profile-page-closing')`) and
+   to block accidental taps during the close. */
+.profile-page.profile-page-closing {
+  pointer-events: none;
+}
+
+/* -------------------------------------------------------------------------
+   v706: Followers / Following ? full-width bottom sheet, slides from bottom
+   ------------------------------------------------------------------------- */
+.profile-social-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5020;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: transparent;
+  /* v950: dropped `backdrop-filter 0.28s` animation â€” animating GPU blur on a
+     full-viewport overlay is one of the most expensive things you can do on iPhone.
+     Now: open/close just toggles a fixed blur and the background fade does the work. */
+  transition: background 0.28s ease;
+  pointer-events: none;
+}
+.profile-social-overlay.profile-social-open {
+  background: rgba(0,0,0,0.64);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+}
+
+.profile-social-sheet-v2 {
+  width: 100%;
+  max-width: 560px;
+  max-height: min(78dvh, 720px);
+  min-height: 32dvh;
+  background:
+    radial-gradient(circle at top, rgba(255,255,255,0.06), transparent 48%),
+    linear-gradient(180deg, rgba(22,22,24,0.985) 0%, rgba(10,10,12,1) 100%);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 0;
+  border-radius: 30px 30px 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: translateY(100%);
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  box-shadow: 0 -24px 72px rgba(0,0,0,0.48), inset 0 1px 0 rgba(255,255,255,0.05);
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+}
+.profile-social-overlay.profile-social-open .profile-social-sheet-v2 {
+  transform: translateY(0);
+}
+
+.profile-social-drag-handle {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 2px;
+  cursor: grab;
+}
+.profile-social-drag-handle:active { cursor: grabbing; }
+.profile-social-drag-pip {
+  width: 42px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.18);
+}
+
+.profile-social-header-v2 {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.profile-social-heading-v2 {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.profile-social-kicker-v2 {
+  color: rgba(214,205,232,0.58);
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.profile-social-title-row-v2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.profile-social-title-v2 {
+  min-width: 0;
+  color: #f5f5f7;
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif;
+  font-size: clamp(22px, 5vw, 26px);
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+.profile-social-count-v2 {
+  flex: 0 0 auto;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: rgba(245,245,247,0.88);
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 28px;
+  font-weight: 700;
+  text-align: center;
+}
+.profile-social-summary-v2 {
+  color: rgba(214,205,232,0.76);
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 500;
+}
+.profile-social-close-v2 {
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgba(245,245,247,0.72);
+  transition: background 0.14s ease, transform 0.14s cubic-bezier(0.22,1,0.36,1), color 0.14s ease;
+  flex-shrink: 0;
+}
+.profile-social-close-v2:active {
+  transform: scale(0.92);
+  background: rgba(255,255,255,0.11);
+}
+
+.profile-social-body-v2 {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 14px 14px 8px;
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+}
+.profile-social-body-v2::-webkit-scrollbar { display: none; }
+
+/* User rows inside the new sheet (override the old .profile-social-user-row) */
+.profile-social-body-v2 .profile-social-user-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center !important;
+  gap: 12px 14px !important;
+  padding: 14px !important;
+  border: 1px solid rgba(255,255,255,0.07) !important;
+  border-radius: 20px !important;
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  margin-bottom: 10px !important;
+  justify-content: flex-start !important;
+  transition: background 0.14s ease, transform 0.14s cubic-bezier(0.22,1,0.36,1), border-color 0.14s ease !important;
+}
+.profile-social-body-v2 .profile-social-user-row:active {
+  transform: translateY(1px) scale(0.992) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.032)) !important;
+  border-color: rgba(255,255,255,0.11) !important;
+}
+.profile-social-body-v2 .profile-social-avatar {
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 50% !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.22) !important;
+  flex: 0 0 auto !important;
+  object-fit: cover !important;
+}
+.profile-social-body-v2 .profile-social-user-main {
+  flex: 1 !important;
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #f5f5f7 !important;
+  text-align: left !important;
+  cursor: pointer !important;
+}
+.profile-social-body-v2 .profile-social-user-copy {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+.profile-social-body-v2 .profile-social-user-name {
+  display: block !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  color: #f5f5f7 !important;
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif !important;
+  font-size: 15px !important;
+  line-height: 1.2 !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.018em !important;
+}
+.profile-social-body-v2 .profile-social-user-meta {
+  display: block !important;
+  color: rgba(214,205,232,0.62) !important;
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif !important;
+  font-size: 12px !important;
+  line-height: 1.25 !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+}
+.profile-social-body-v2 .friend-actions-group {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+}
+.profile-social-body-v2 .profile-social-view-btn,
+.profile-social-body-v2 .friend-action-btn {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  min-height: 36px !important;
+  padding: 0 14px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(255,255,255,0.09) !important;
+  background: rgba(255,255,255,0.05) !important;
+  color: #f5f5f7 !important;
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif !important;
+  font-size: 12px !important;
+  line-height: 1 !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.01em !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease, transform 0.12s cubic-bezier(0.22,1,0.36,1) !important;
+}
+.profile-social-body-v2 .profile-social-view-btn {
+  background: rgba(255,255,255,0.05) !important;
+  color: rgba(245,245,247,0.92) !important;
+}
+.profile-social-body-v2 .profile-social-view-btn:active,
+.profile-social-body-v2 .friend-action-btn:active {
+  transform: scale(0.97) !important;
+}
+.profile-social-body-v2 .friend-add-btn {
+  background: rgba(167,139,250,0.14) !important;
+  border-color: rgba(167,139,250,0.24) !important;
+  color: #ece4ff !important;
+}
+.profile-social-body-v2 .friend-pending-btn {
+  background: rgba(255,255,255,0.04) !important;
+  border-color: rgba(255,255,255,0.1) !important;
+  color: rgba(214,205,232,0.78) !important;
+}
+.profile-social-body-v2 .friend-pending-btn[disabled] {
+  opacity: 1 !important;
+}
+.profile-social-body-v2 .friend-accept-btn {
+  background: rgba(16,185,129,0.14) !important;
+  border-color: rgba(16,185,129,0.26) !important;
+  color: #bdf1dd !important;
+}
+.profile-social-state-card {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 22px 18px 30px;
+  text-align: center;
+  color: rgba(214,205,232,0.74);
+  font-family: 'Sohne', 'DM Sans', system-ui, sans-serif;
+}
+.profile-social-state-card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 500;
+}
+.profile-social-state-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: rgba(245,245,247,0.85);
+  font-size: 26px;
+  line-height: 1;
+}
+.profile-social-state-spinner {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.12);
+  border-top-color: rgba(196,181,253,0.88);
+  animation: profileSocialSpin 0.85s linear infinite;
+}
+@keyframes profileSocialSpin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 430px) {
+  .profile-social-sheet-v2 {
+    max-height: 82dvh;
+  }
+  .profile-social-header-v2 {
+    padding: 14px 16px 15px;
+  }
+  .profile-social-body-v2 {
+    padding: 12px 12px 6px;
+  }
+  .profile-social-body-v2 .profile-social-user-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .profile-social-body-v2 .friend-actions-group {
+    width: 100% !important;
+    justify-content: flex-start !important;
+    padding-left: 60px;
+  }
+}
+
+@media (max-width: 370px) {
+  .profile-social-body-v2 .friend-actions-group {
+    padding-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-social-overlay,
+  .profile-social-sheet-v2,
+  .profile-social-body-v2 .profile-social-user-row,
+  .profile-social-body-v2 .profile-social-view-btn,
+  .profile-social-body-v2 .friend-action-btn,
+  .profile-social-close-v2 {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Light mode ? followers/following sheet */
+body.light-mode .profile-social-overlay.profile-social-open {
+  background: rgba(15,23,42,0.16);
+}
+body.light-mode .profile-social-sheet-v2 {
+  background:
+    radial-gradient(circle at top, rgba(255,255,255,0.88), transparent 48%),
+    linear-gradient(180deg, #ffffff 0%, #f3f4f6 100%);
+  border-color: rgba(15,23,42,0.08);
+  box-shadow: 0 -18px 48px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9);
+}
+body.light-mode .profile-social-drag-pip { background: rgba(15,23,42,0.16); }
+body.light-mode .profile-social-header-v2 { border-bottom-color: rgba(15,23,42,0.08); }
+body.light-mode .profile-social-kicker-v2,
+body.light-mode .profile-social-summary-v2 { color: rgba(15,23,42,0.58); }
+body.light-mode .profile-social-title-v2 { color: #111827; }
+body.light-mode .profile-social-count-v2 {
+  background: rgba(15,23,42,0.05);
+  border-color: rgba(15,23,42,0.08);
+  color: #111827;
+}
+body.light-mode .profile-social-close-v2 {
+  background: rgba(15,23,42,0.05);
+  border-color: rgba(15,23,42,0.08);
+  color: rgba(17,24,39,0.72);
+}
+body.light-mode .profile-social-body-v2 .profile-social-user-row {
+  background: linear-gradient(180deg, rgba(255,255,255,0.94), rgba(255,255,255,0.84)) !important;
+  border-color: rgba(15,23,42,0.08) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.92), 0 10px 24px rgba(15,23,42,0.05);
+}
+body.light-mode .profile-social-body-v2 .profile-social-avatar {
+  border-color: rgba(15,23,42,0.08) !important;
+}
+body.light-mode .profile-social-body-v2 .profile-social-user-main,
+body.light-mode .profile-social-body-v2 .profile-social-user-name { color: #111827 !important; }
+body.light-mode .profile-social-body-v2 .profile-social-user-meta {
+  color: rgba(55,65,81,0.68) !important;
+}
+body.light-mode .profile-social-body-v2 .profile-social-view-btn {
+  background: rgba(15,23,42,0.04) !important;
+  border-color: rgba(15,23,42,0.1) !important;
+  color: #111827 !important;
+}
+body.light-mode .profile-social-body-v2 .friend-action-btn {
+  background: rgba(15,23,42,0.04) !important;
+  border-color: rgba(15,23,42,0.1) !important;
+  color: #111827 !important;
+}
+body.light-mode .profile-social-body-v2 .friend-add-btn {
+  background: rgba(124,58,237,0.08) !important;
+  border-color: rgba(124,58,237,0.14) !important;
+  color: #5b21b6 !important;
+}
+body.light-mode .profile-social-body-v2 .friend-accept-btn {
+  background: rgba(16,185,129,0.1) !important;
+  border-color: rgba(16,185,129,0.22) !important;
+  color: #065f46 !important;
+}
+body.light-mode .profile-social-state-card {
+  color: rgba(55,65,81,0.72);
+}
+body.light-mode .profile-social-state-icon {
+  background: rgba(15,23,42,0.05);
+  border-color: rgba(15,23,42,0.08);
+  color: #111827;
+}
+body.light-mode .profile-social-state-spinner {
+  border-color: rgba(15,23,42,0.12);
+  border-top-color: rgba(91,33,182,0.78);
+}
+
+/* =========================================================================
+   v712 ? DM page: sleek, modern, simple.
+   #direct-messages-page (ID) beats every competing class rule everywhere.
+   Design direction: clean flat rows + solid-color bubbles. No heavy gradients.
+   ========================================================================= */
+
+/* -- Page ------------------------------------------------------------ */
+#direct-messages-page {
+  background: #0c0a1e !important;
+}
+
+/* -- Fonts ----------------------------------------------------------- */
+#direct-messages-page,
+#direct-messages-page * {
+  font-family: 'Sohne', system-ui, -apple-system, sans-serif !important;
+}
+
+/* -- Topbar ---------------------------------------------------------- */
+#direct-messages-page .direct-messages-topbar {
+  background: #0c0a1e !important;
+  border-bottom: 1px solid rgba(255,255,255,0.07) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+#direct-messages-page .direct-messages-title-wrap {
+  flex: 1 !important;
+  justify-content: flex-start !important;
+  padding-bottom: 0 !important;
+}
+#direct-messages-page .direct-messages-title-wrap strong,
+#direct-messages-page .direct-messages-title-wrap .creator-name,
+#direct-messages-page .direct-messages-title-wrap .creator-name-wrap {
+  font-family: 'Sohne', system-ui, sans-serif !important;
+  font-size: clamp(28px, 7vw, 34px) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.04em !important;
+  color: #ffffff !important;
+  line-height: 1 !important;
+}
+/* Icon buttons */
+#direct-messages-page .direct-messages-close,
+#direct-messages-page .direct-messages-new-btn {
+  width: 40px !important;
+  height: 40px !important;
+  background: rgba(255,255,255,0.07) !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  border-radius: 12px !important;
+  color: rgba(255,255,255,0.70) !important;
+  font-size: 18px !important;
+  flex-shrink: 0 !important;
+  transition: background 0.14s ease !important;
+}
+#direct-messages-page .direct-messages-close:active,
+#direct-messages-page .direct-messages-new-btn:active {
+  background: rgba(255,255,255,0.11) !important;
+}
+
+/* -- Subtabs --------------------------------------------------------- */
+#direct-messages-page .dm-subtabs {
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+#direct-messages-page .dm-subtabs button {
+  background: transparent !important;
+  border-radius: 0 !important;
+  color: rgba(255,255,255,0.35) !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+}
+#direct-messages-page .dm-subtabs button.active { color: #ffffff !important; }
+#direct-messages-page .dm-subtabs button::after { background: #F3EEE6 !important; }
+
+/* -- Chat list ------------------------------------------------------- */
+#direct-messages-page .dm-chat-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+}
+#direct-messages-page .dm-chat-swipe-item {
+  border-radius: 0 !important;
+  overflow: hidden !important;
+  margin-bottom: 0 !important;
+}
+
+/* -- Chat row -------------------------------------------------------- */
+#direct-messages-page .dm-chat-row {
+  width: 100% !important;
+  min-height: 80px !important;
+  padding: 14px 6px 14px 2px !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,0.07) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  gap: 14px !important;
+  transition: background 0.14s ease !important;
+}
+#direct-messages-page .dm-chat-row:active {
+  transform: none !important;
+  background: rgba(255,255,255,0.04) !important;
+}
+/* Unread ? faint left bar, very subtle fill */
+#direct-messages-page .dm-chat-row.unread {
+  background: rgba(139,92,246,0.06) !important;
+  border-left: 2px solid rgba(167,139,250,0.50) !important;
+  padding-left: 13px !important;
+}
+
+/* Avatar */
+#direct-messages-page .dm-chat-row img {
+  width: 52px !important;
+  height: 52px !important;
+  border-radius: 50% !important;
+  border: 2px solid rgba(255,255,255,0.10) !important;
+  box-shadow: none !important;
+  flex: 0 0 auto !important;
+}
+#direct-messages-page .dm-chat-row.unread img {
+  border-color: rgba(167,139,250,0.28) !important;
+}
+
+/* -- Name ? the fix: `strong span` beats `span` in specificity ------- */
+/* strong itself */
+#direct-messages-page .dm-chat-copy strong {
+  display: block !important;
+  font-size: 17px !important;
+  font-weight: 400 !important;
+  color: #ffffff !important;
+  letter-spacing: -0.015em !important;
+  line-height: 1.25 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+/* span / creator-name INSIDE strong ? 1 extra element = wins over .dm-chat-copy span */
+#direct-messages-page .dm-chat-copy strong span,
+#direct-messages-page .dm-chat-copy strong .creator-name,
+#direct-messages-page .dm-chat-copy strong .creator-name-wrap {
+  color: #ffffff !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  letter-spacing: inherit !important;
+  display: inline !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+/* Unread dot after name */
+#direct-messages-page .dm-chat-copy strong::after { display: none !important; }
+#direct-messages-page .dm-chat-row.unread .dm-chat-copy strong::after {
+  content: '' !important;
+  display: inline-block !important;
+  width: 6px !important; height: 6px !important;
+  border-radius: 50% !important;
+  background: #a78bfa !important;
+  margin-left: 7px !important;
+  vertical-align: middle !important;
+}
+
+/* Preview text ? the DIRECT child span, not the one inside strong */
+#direct-messages-page .dm-chat-copy > span,
+#direct-messages-page .dm-chat-copy span:not(strong span) {
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  color: rgba(255,255,255,0.40) !important;
+  margin-top: 4px !important;
+  display: block !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Timestamp */
+#direct-messages-page .dm-chat-row em {
+  position: absolute !important;
+  top: 15px !important;
+  right: 6px !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  font-style: normal !important;
+  color: rgba(255,255,255,0.60) !important;
+}
+
+/* -- Request cards --------------------------------------------------- */
+#direct-messages-page .dm-request-card {
+  border: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+  border-radius: 0 !important;
+  padding: 14px 6px !important;
+  margin-bottom: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+#direct-messages-page .dm-request-card.incoming {
+  background: rgba(139,92,246,0.07) !important;
+  border-left: 3px solid #8b5cf6 !important;
+  padding-left: 13px !important;
+}
+/* Request name ? same fix */
+#direct-messages-page .dm-request-copy strong {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: #ffffff !important;
+  letter-spacing: -0.01em !important;
+}
+#direct-messages-page .dm-request-copy strong span,
+#direct-messages-page .dm-request-copy strong .creator-name {
+  color: #ffffff !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+}
+#direct-messages-page .dm-request-copy em {
+  color: rgba(255,255,255,0.40) !important;
+  font-size: 13px !important;
+  font-style: normal !important;
+}
+
+/* -- Message bubbles ------------------------------------------------- */
+#direct-messages-page .dm-bubble-row { gap: 5px !important; }
+
+/* Mine */
+#direct-messages-page .dm-bubble-row.mine .dm-bubble {
+  background: #7c3aed !important;
+  border-radius: 18px 18px 4px 18px !important;
+  padding: 11px 15px 10px !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  line-height: 1.50 !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+/* Theirs ? just slightly lifted from background */
+#direct-messages-page .dm-bubble-row.theirs .dm-bubble {
+  background: rgba(255,255,255,0.08) !important;
+  border: 1px solid rgba(255,255,255,0.09) !important;
+  border-radius: 18px 18px 18px 4px !important;
+  padding: 11px 15px 10px !important;
+  color: rgba(255,255,255,0.88) !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  line-height: 1.50 !important;
+}
+
+/* Timestamp inside bubble */
+#direct-messages-page .dm-bubble em {
+  font-size: 10.5px !important;
+  font-weight: 500 !important;
+  font-style: normal !important;
+  color: rgba(255,255,255,0.40) !important;
+  margin-top: 4px !important;
+  display: block !important;
+  text-align: right !important;
+}
+#direct-messages-page .dm-bubble-row.theirs .dm-bubble em {
+  color: rgba(196,181,253,0.45) !important;
+}
+#direct-messages-page .dm-message-list { gap: 8px !important; }
+
+/* -- Chat screen: remove left/right safe zones ----------------------- */
+/* The content wrapper had 12?14px horizontal padding acting as "safe zones".
+   Zero it out so messages and the compose bar use the full width. */
+#direct-messages-page .direct-messages-content {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+/* Message list gets its own minimal padding so bubbles don't touch edges */
+#direct-messages-page .dm-message-list {
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+}
+/* Compose bar: extend edge-to-edge with only a 4px gap each side */
+#direct-messages-page .dm-compose-row {
+  width: min(calc(100% - 8px), 720px) !important;
+}
+
+/* -- Compose row ----------------------------------------------------- */
+/* v720 keyboard-gate approach:
+   TWO STATES, completely separate `bottom` rules:
+
+   KEYBOARD OUT (:not(.dm-keyboard-active))
+     ? `bottom` is FORCED to env(safe-area-inset-bottom) ? ignores
+       --dm-keyboard-bottom entirely so a stale variable can't hold
+       the bar up. Spring transition eases it back down.
+
+   KEYBOARD UP (.dm-keyboard-active)
+     ? `bottom` tracks --dm-keyboard-bottom with NO transition so it
+       stays pixel-perfect flush with the keyboard on every frame.
+*/
+#direct-messages-page .dm-compose-row {
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,0.06) !important;
+  box-shadow: none !important;
+  will-change: bottom !important;
+}
+
+/* Keyboard OUT ? always at safe-area bottom, spring transition */
+#direct-messages-page:not(.dm-keyboard-active) .dm-compose-row {
+  bottom: max(6px, env(safe-area-inset-bottom, 0px)) !important;
+  transition:
+    bottom 340ms cubic-bezier(0.22, 1, 0.36, 1),
+    background 160ms ease,
+    border-color 160ms ease !important;
+}
+
+/* Keyboard UP ? tracks variable, no bottom transition */
+#direct-messages-page.dm-keyboard-active .dm-compose-row {
+  bottom: calc(var(--dm-keyboard-bottom, 0px)) !important;
+  background: rgba(255,255,255,0.08) !important;
+  border-color: rgba(167,139,250,0.18) !important;
+  transition: background 160ms ease, border-color 160ms ease !important;
+}
+#direct-messages-page .dm-compose-row input {
+  color: rgba(255,255,255,0.51) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.51) !important;
+  font-weight: 400 !important;
+  background: transparent !important;
+  border: 0 !important;
+}
+#direct-messages-page .dm-compose-row input::placeholder {
+  color: rgba(255,255,255,0.51) !important;
+  opacity: 1 !important;
+}
+/* Send button */
+#direct-messages-page .dm-send-btn {
+  background: #7c3aed !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+#direct-messages-page .dm-photo-upload-btn {
+  background: transparent !important;
+  border: 0 !important;
+  color: rgba(255,255,255,0.45) !important;
+}
+
+/* -- Section labels -------------------------------------------------- */
+#direct-messages-page .dm-section-label {
+  color: rgba(255,255,255,0.32) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.09em !important;
+  text-transform: uppercase !important;
+  padding: 14px 4px 6px !important;
+}
+
+/* -- Search strip ---------------------------------------------------- */
+#direct-messages-page .dm-search-strip {
+  background: rgba(255,255,255,0.06) !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  border-radius: 14px !important;
+  box-shadow: none !important;
+}
+#direct-messages-page .dm-search-strip input {
+  color: #ffffff !important; font-size: 15px !important;
+  font-weight: 400 !important; padding: 12px 16px !important;
+}
+#direct-messages-page .dm-search-strip input::placeholder { color: rgba(255,255,255,0.28) !important; }
+
+/* -- User search results --------------------------------------------- */
+#direct-messages-page .dm-user-result strong,
+#direct-messages-page .dm-user-result strong * {
+  font-size: 15.5px !important; font-weight: 600 !important;
+  color: #ffffff !important; letter-spacing: -0.01em !important;
+}
+#direct-messages-page .dm-user-result span {
+  color: rgba(255,255,255,0.40) !important; font-size: 13px !important;
+}
+
+/* -- Empty state ----------------------------------------------------- */
+#direct-messages-page .dm-empty-card {
+  background: rgba(255,255,255,0.04) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 20px !important;
+  padding: 36px 24px !important;
+  text-align: center !important;
+  box-shadow: none !important;
+}
+#direct-messages-page .dm-empty-card strong {
+  font-size: 18px !important; font-weight: 700 !important;
+  color: #fff !important; display: block !important;
+  margin-bottom: 8px !important; letter-spacing: -0.02em !important;
+}
+#direct-messages-page .dm-empty-card {
+  color: rgba(255,255,255,0.38) !important;
+  font-size: 13.5px !important; line-height: 1.55 !important;
+}
+
+/* -- Action buttons -------------------------------------------------- */
+#direct-messages-page .dm-action-accept,
+#direct-messages-page .dm-action-open,
+#direct-messages-page .dm-action.accept {
+  background: #7c3aed !important; color: #fff !important;
+  font-weight: 600 !important; font-size: 13px !important;
+  box-shadow: 0 2px 10px rgba(124,58,237,0.36) !important;
+}
+#direct-messages-page .dm-action.decline,
+#direct-messages-page .dm-action-sent {
+  background: rgba(255,255,255,0.07) !important;
+  border: 1px solid rgba(255,255,255,0.11) !important;
+  color: rgba(255,255,255,0.55) !important;
+  font-weight: 600 !important; font-size: 13px !important;
+}
+
+/* -- Thread head ----------------------------------------------------- */
+#direct-messages-page .dm-thread-head {
+  /* v950: dropped blur â€” sticky element, was rasterizing on every scroll frame.
+     rgba 0.96 alpha already reads opaque. */
+  background: rgba(8,6,28,0.97) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.07) !important;
+}
+
+/* v921: Direct Messages true-dark redesign
+   Keeps behavior intact, replaces the last legacy-looking layer with
+   the same cleaner true-dark language used elsewhere in the app. */
+#direct-messages-page {
+  background: #0E0E0E !important;
+}
+#direct-messages-page .direct-messages-topbar {
+  background: #0E0E0E !important;
+  border-bottom: 1px solid rgba(255,255,255,0.07) !important;
+  /* v950: was `blur(10px) saturate(120%)` â€” capped to 10px and dropped saturate (2Ã— GPU op). */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+#direct-messages-page .direct-messages-title-wrap {
+  gap: 4px !important;
+}
+#direct-messages-page .direct-messages-title-wrap strong,
+#direct-messages-page .direct-messages-title-wrap .creator-name,
+#direct-messages-page .direct-messages-title-wrap .creator-name-wrap {
+  font-size: clamp(27px, 6.7vw, 33px) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.05em !important;
+  color: #f8f7f3 !important;
+}
+#direct-messages-page .direct-messages-subtitle,
+#direct-messages-page .direct-messages-title-wrap span:not(.creator-role):not(.creative-team-role) {
+  color: rgba(218,220,228,0.52) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em !important;
+}
+#direct-messages-page .direct-messages-top-avatar,
+#direct-messages-page .dm-thread-avatar-btn {
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  background: linear-gradient(180deg, rgba(27,29,37,0.96), rgba(15,16,22,0.98)) !important;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.30) !important;
+}
+#direct-messages-page .direct-messages-top-avatar img,
+#direct-messages-page .dm-thread-avatar-btn img {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: inherit !important;
+  border: 0 !important;
+}
+#direct-messages-page .direct-messages-close,
+#direct-messages-page .direct-messages-new-btn,
+#direct-messages-page .dm-thread-head > button:first-child {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  background: linear-gradient(180deg, rgba(28,31,40,0.96), rgba(17,19,26,0.98)) !important;
+  color: rgba(245,246,248,0.88) !important;
+  box-shadow: 0 12px 24px rgba(0,0,0,0.24) !important;
+}
+#direct-messages-page .direct-messages-close,
+#direct-messages-page .direct-messages-new-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+}
+#direct-messages-page .dm-topbar-icon {
+  width: 18px !important;
+  height: 18px !important;
+  display: block !important;
+  flex: 0 0 auto !important;
+  stroke: currentColor !important;
+  pointer-events: none !important;
+}
+#direct-messages-page::before {
+  background: transparent !important;
+}
+#direct-messages-page:not(.dm-thread-open) {
+  --dm-main-topbar-h: 106px;
+}
+#direct-messages-page:not(.dm-thread-open) .direct-messages-topbar {
+  display: grid !important;
+  grid-template-columns: 44px minmax(0, 1fr) 44px !important;
+  min-height: var(--dm-main-topbar-h) !important;
+  height: var(--dm-main-topbar-h) !important;
+  padding: calc(var(--shelfd-safe-top, 0px) + 16px) 16px 10px !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+#direct-messages-page:not(.dm-thread-open) .direct-messages-title-wrap {
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
+  align-self: center !important;
+  padding-bottom: 0 !important;
+}
+#direct-messages-page:not(.dm-thread-open) .direct-messages-title-wrap strong,
+#direct-messages-page:not(.dm-thread-open) .direct-messages-title-wrap .creator-name,
+#direct-messages-page:not(.dm-thread-open) .direct-messages-title-wrap .creator-name-wrap {
+  text-align: center !important;
+}
+#direct-messages-page:not(.dm-thread-open) .direct-messages-content {
+  padding-top: 8px !important;
+}
+#direct-messages-page .direct-messages-content {
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+  padding-bottom: 132px !important;
+}
+@media (max-width: 700px) {
+  #direct-messages-page:not(.dm-thread-open) {
+    --dm-main-topbar-h: 108px;
+  }
+  #direct-messages-page:not(.dm-thread-open) .direct-messages-topbar {
+    padding: calc(var(--shelfd-safe-top, 0px) + 17px) 13px 9px !important;
+  }
+}
+#direct-messages-page .dm-subtabs {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 8px !important;
+  margin: 10px 0 14px !important;
+  padding: 5px !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  border-radius: 18px !important;
+  background: rgba(255,255,255,0.03) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03) !important;
+}
+#direct-messages-page .dm-subtabs button {
+  min-height: 44px !important;
+  border-radius: 14px !important;
+  color: rgba(218,220,228,0.44) !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.015em !important;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease !important;
+}
+#direct-messages-page .dm-subtabs button.active {
+  color: #f8f7f3 !important;
+  background: linear-gradient(180deg, rgba(41,44,54,0.96), rgba(23,25,33,0.98)) !important;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.20) !important;
+  transform: translateY(-1px) !important;
+}
+#direct-messages-page .dm-subtabs button::after {
+  display: none !important;
+}
+#direct-messages-page .dm-subtabs span {
+  min-width: 18px !important;
+  height: 18px !important;
+  margin-left: 7px !important;
+  background: #d36464 !important;
+  color: #fff !important;
+  box-shadow: 0 0 0 3px rgba(11,13,18,0.90) !important;
+}
+#direct-messages-page .dm-chat-list {
+  gap: 10px !important;
+}
+#direct-messages-page .dm-chat-swipe-item {
+  border-radius: 20px !important;
+  margin-bottom: 10px !important;
+  overflow: hidden !important;
+}
+#direct-messages-page .dm-chat-row {
+  min-height: 86px !important;
+  padding: 16px 14px !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  border-radius: 20px !important;
+  background: linear-gradient(180deg, rgba(23,25,31,0.94), rgba(12,14,18,0.98)) !important;
+  box-shadow: 0 14px 34px rgba(0,0,0,0.18) !important;
+  gap: 14px !important;
+}
+#direct-messages-page .dm-chat-row:active {
+  background: linear-gradient(180deg, rgba(28,31,39,0.98), rgba(16,18,24,0.98)) !important;
+}
+#direct-messages-page .dm-chat-row.unread {
+  background:
+    linear-gradient(180deg, rgba(31,29,45,0.98), rgba(17,18,26,0.98)) !important;
+  border: 1px solid rgba(183,168,255,0.18) !important;
+  border-left: 1px solid rgba(183,168,255,0.18) !important;
+  box-shadow: 0 16px 36px rgba(0,0,0,0.20), inset 0 1px 0 rgba(194,182,255,0.05) !important;
+  padding-left: 14px !important;
+}
+#direct-messages-page .dm-chat-row img {
+  width: 56px !important;
+  height: 56px !important;
+  border-radius: 18px !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.24) !important;
+}
+#direct-messages-page .dm-chat-row.unread img {
+  border-color: rgba(183,168,255,0.28) !important;
+}
+#direct-messages-page .dm-chat-copy strong {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  color: #f8f7f3 !important;
+  letter-spacing: -0.03em !important;
+  line-height: 1.16 !important;
+}
+#direct-messages-page .dm-chat-copy > span,
+#direct-messages-page .dm-chat-copy span:not(strong span) {
+  margin-top: 5px !important;
+  color: rgba(214,217,225,0.48) !important;
+  font-size: 13px !important;
+  line-height: 1.22 !important;
+}
+#direct-messages-page .dm-chat-row em {
+  top: 16px !important;
+  right: 14px !important;
+  color: rgba(214,217,225,0.50) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+#direct-messages-page .dm-chat-row.unread .dm-chat-copy strong::after {
+  width: 7px !important;
+  height: 7px !important;
+  margin-left: 8px !important;
+  background: #d2c6ff !important;
+}
+#direct-messages-page .dm-request-card {
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  border-radius: 20px !important;
+  padding: 16px 14px !important;
+  margin-bottom: 10px !important;
+  background: linear-gradient(180deg, rgba(22,24,31,0.94), rgba(12,14,18,0.98)) !important;
+  box-shadow: 0 14px 30px rgba(0,0,0,0.16) !important;
+}
+#direct-messages-page .dm-request-card.incoming {
+  background: linear-gradient(180deg, rgba(30,28,43,0.98), rgba(14,15,22,0.98)) !important;
+  border: 1px solid rgba(183,168,255,0.16) !important;
+  padding-left: 14px !important;
+}
+#direct-messages-page .dm-request-card > img {
+  width: 54px !important;
+  height: 54px !important;
+  border-radius: 18px !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.20) !important;
+}
+#direct-messages-page .dm-request-copy strong {
+  font-size: 17px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.025em !important;
+}
+#direct-messages-page .dm-request-copy em {
+  margin-top: 5px !important;
+  color: rgba(214,217,225,0.46) !important;
+}
+#direct-messages-page .dm-thread-panel {
+  min-height: calc(100dvh - 176px) !important;
+  padding-bottom: 112px !important;
+}
+#direct-messages-page .dm-thread-head {
+  position: sticky !important;
+  top: -6px !important;
+  margin: -4px 0 0 !important;
+  padding: 12px !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  border-radius: 22px !important;
+  background: linear-gradient(180deg, rgba(18,21,28,0.94), rgba(12,14,19,0.96)) !important;
+  box-shadow: 0 14px 32px rgba(0,0,0,0.24) !important;
+  gap: 12px !important;
+}
+#direct-messages-page .dm-thread-head strong {
+  font-size: 16.2px !important;
+  font-weight: 400 !important;
+  letter-spacing: -0.03em !important;
+  color: #f8f7f3 !important;
+}
+#direct-messages-page .dm-thread-head span {
+  color: rgba(214,217,225,0.50) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+#direct-messages-page .dm-thread-empty {
+  margin-top: 28px !important;
+  padding: 22px 18px !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  border-radius: 20px !important;
+  background: rgba(255,255,255,0.03) !important;
+  color: rgba(214,217,225,0.46) !important;
+  text-align: center !important;
+}
+#direct-messages-page .dm-message-list {
+  gap: 12px !important;
+  padding: 16px 4px 128px !important;
+}
+#direct-messages-page .dm-bubble-row {
+  gap: 6px !important;
+}
+#direct-messages-page .dm-bubble-row.mine .dm-bubble,
+#direct-messages-page .dm-bubble-row.theirs .dm-bubble {
+  max-width: min(82vw, 430px) !important;
+  padding: 12px 15px 10px !important;
+  border-radius: 20px !important;
+  font-size: 15px !important;
+  line-height: 1.46 !important;
+}
+#direct-messages-page .dm-bubble-row.mine .dm-bubble {
+  background: linear-gradient(180deg, #8a69ff 0%, #7355e6 100%) !important;
+  color: #ffffff !important;
+  border-radius: 20px 20px 8px 20px !important;
+  box-shadow: 0 14px 28px rgba(73, 46, 173, 0.34) !important;
+}
+#direct-messages-page .dm-bubble-row.theirs .dm-bubble {
+  background: linear-gradient(180deg, rgba(29,32,40,0.96), rgba(17,19,25,0.98)) !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  color: rgba(245,246,248,0.92) !important;
+  border-radius: 20px 20px 20px 8px !important;
+  box-shadow: 0 12px 24px rgba(0,0,0,0.16) !important;
+}
+#direct-messages-page .dm-bubble small {
+  display: block !important;
+  margin-bottom: 7px !important;
+  color: rgba(210,198,255,0.72) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.01em !important;
+}
+#direct-messages-page .dm-bubble em {
+  margin-top: 6px !important;
+  color: rgba(255,255,255,0.52) !important;
+  font-size: 10px !important;
+}
+#direct-messages-page .dm-bubble-row.theirs .dm-bubble em {
+  color: rgba(214,217,225,0.40) !important;
+}
+#direct-messages-page .dm-compose-row {
+  width: min(calc(100% - 16px), 720px) !important;
+  padding: 8px !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 24px !important;
+  background: linear-gradient(180deg, rgba(18,21,28,0.94), rgba(11,13,18,0.98)) !important;
+  box-shadow: 0 18px 40px rgba(0,0,0,0.30) !important;
+  gap: 8px !important;
+}
+#direct-messages-page:not(.dm-keyboard-active) .dm-compose-row {
+  bottom: max(8px, env(safe-area-inset-bottom, 0px)) !important;
+}
+#direct-messages-page .dm-photo-upload-btn {
+  width: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  border-radius: 16px !important;
+  background: rgba(255,255,255,0.04) !important;
+  color: rgba(245,246,248,0.74) !important;
+}
+#direct-messages-page .dm-compose-row input {
+  min-height: 44px !important;
+  padding: 0 14px !important;
+  border-radius: 16px !important;
+  background: rgba(255,255,255,0.03) !important;
+  color: #f8f7f3 !important;
+  font-size: 16px !important;
+}
+#direct-messages-page .dm-send-btn {
+  min-width: 94px !important;
+  min-height: 44px !important;
+  padding: 0 18px !important;
+  border-radius: 16px !important;
+  background: linear-gradient(180deg, #8a69ff 0%, #7253e3 100%) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  box-shadow: 0 12px 24px rgba(80, 58, 177, 0.34) !important;
+}
+#direct-messages-page .dm-search-strip {
+  border-radius: 18px !important;
+  background: linear-gradient(180deg, rgba(21,23,30,0.94), rgba(13,15,20,0.98)) !important;
+  border: 1px solid rgba(255,255,255,0.07) !important;
+}
+#direct-messages-page .dm-search-strip input {
+  padding: 14px 16px !important;
+}
+#direct-messages-page .dm-user-result {
+  padding: 12px 4px 0 !important;
+}
+#direct-messages-page .dm-empty-card {
+  border-radius: 24px !important;
+  background: linear-gradient(180deg, rgba(20,22,28,0.92), rgba(11,13,18,0.98)) !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  box-shadow: 0 14px 32px rgba(0,0,0,0.18) !important;
+}
+#direct-messages-page .dm-action-accept,
+#direct-messages-page .dm-action-open,
+#direct-messages-page .dm-action.accept {
+  background: linear-gradient(180deg, #8a69ff 0%, #7253e3 100%) !important;
+  box-shadow: 0 10px 20px rgba(80,58,177,0.30) !important;
+}
+#direct-messages-page .dm-action.decline,
+#direct-messages-page .dm-action-sent {
+  background: rgba(255,255,255,0.05) !important;
+  color: rgba(245,246,248,0.62) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+}
+#direct-messages-page .dm-chat-delete-action {
+  background: linear-gradient(180deg, #bb5656 0%, #9e4040 100%) !important;
+  color: #fff !important;
+  border-radius: 18px !important;
+  box-shadow: 0 12px 22px rgba(104,25,25,0.26) !important;
+}
+
+/* -- Light mode ------------------------------------------------------ */
+body.light-mode #direct-messages-page {
+  background: #f5f3fc !important;
+}
+body.light-mode #direct-messages-page .direct-messages-topbar {
+  background: rgba(245,243,252,0.96) !important;
+  border-bottom-color: rgba(0,0,0,0.07) !important;
+}
+body.light-mode #direct-messages-page .direct-messages-close,
+body.light-mode #direct-messages-page .direct-messages-new-btn {
+  background: rgba(0,0,0,0.05) !important;
+  border-color: rgba(0,0,0,0.10) !important;
+  color: #171717 !important;
+}
+body.light-mode #direct-messages-page .direct-messages-title-wrap strong,
+body.light-mode #direct-messages-page .direct-messages-title-wrap .creator-name { color: #171717 !important; }
+body.light-mode #direct-messages-page .dm-subtabs {
+  border-bottom-color: rgba(0,0,0,0.08) !important;
+}
+body.light-mode #direct-messages-page .dm-subtabs button { color: rgba(18,8,46,0.36) !important; }
+body.light-mode #direct-messages-page .dm-subtabs button.active { color: #171717 !important; }
+body.light-mode #direct-messages-page .dm-subtabs button::after { background: #171717 !important; }
+body.light-mode #direct-messages-page .dm-chat-row {
+  background: transparent !important; border-bottom-color: rgba(0,0,0,0.07) !important;
+}
+body.light-mode #direct-messages-page .dm-chat-row:active { background: rgba(0,0,0,0.04) !important; }
+body.light-mode #direct-messages-page .dm-chat-row.unread { background: rgba(139,92,246,0.06) !important; }
+body.light-mode #direct-messages-page .dm-chat-row img { border-color: rgba(0,0,0,0.10) !important; }
+body.light-mode #direct-messages-page .dm-chat-copy strong { color: #171717 !important; }
+body.light-mode #direct-messages-page .dm-chat-copy strong span,
+body.light-mode #direct-messages-page .dm-chat-copy strong .creator-name { color: #171717 !important; }
+body.light-mode #direct-messages-page .dm-chat-copy > span,
+body.light-mode #direct-messages-page .dm-chat-copy span:not(strong span) { color: rgba(18,8,46,0.46) !important; }
+body.light-mode #direct-messages-page .dm-chat-row em { color: rgba(18,8,46,0.36) !important; }
+body.light-mode #direct-messages-page .dm-request-card {
+  background: transparent !important; border-bottom-color: rgba(0,0,0,0.07) !important;
+}
+body.light-mode #direct-messages-page .dm-request-copy strong,
+body.light-mode #direct-messages-page .dm-request-copy strong * { color: #171717 !important; }
+body.light-mode #direct-messages-page .dm-request-copy em { color: rgba(18,8,46,0.46) !important; }
+body.light-mode #direct-messages-page .dm-bubble-row.theirs .dm-bubble {
+  background: rgba(0,0,0,0.07) !important; color: #171717 !important;
+}
+body.light-mode #direct-messages-page .dm-bubble em { color: rgba(255,255,255,0.52) !important; }
+body.light-mode #direct-messages-page .dm-bubble-row.theirs .dm-bubble em { color: rgba(18,8,46,0.38) !important; }
+body.light-mode #direct-messages-page .dm-compose-row {
+  background: rgba(0,0,0,0.05) !important; border-color: rgba(0,0,0,0.10) !important;
+}
+body.light-mode #direct-messages-page .dm-compose-row input { color: #171717 !important; }
+body.light-mode #direct-messages-page .dm-compose-row input::placeholder { color: rgba(18,8,46,0.30) !important; }
+body.light-mode #direct-messages-page .dm-photo-upload-btn { color: rgba(18,8,46,0.40) !important; }
+body.light-mode #direct-messages-page .dm-search-strip {
+  background: rgba(0,0,0,0.05) !important; border-color: rgba(0,0,0,0.09) !important;
+}
+body.light-mode #direct-messages-page .dm-search-strip input { color: #171717 !important; }
+body.light-mode #direct-messages-page .dm-search-strip input::placeholder { color: rgba(18,8,46,0.30) !important; }
+body.light-mode #direct-messages-page .dm-section-label { color: rgba(18,8,46,0.36) !important; }
+body.light-mode #direct-messages-page .dm-user-result strong,
+body.light-mode #direct-messages-page .dm-user-result strong * { color: #171717 !important; }
+body.light-mode #direct-messages-page .dm-user-result span { color: rgba(18,8,46,0.46) !important; }
+body.light-mode #direct-messages-page .dm-empty-card {
+  background: rgba(0,0,0,0.04) !important; border-color: rgba(0,0,0,0.08) !important;
+}
+body.light-mode #direct-messages-page .dm-empty-card strong { color: #171717 !important; }
+body.light-mode #direct-messages-page .dm-empty-card { color: rgba(18,8,46,0.46) !important; }
+body.light-mode #direct-messages-page .dm-action.decline,
+body.light-mode #direct-messages-page .dm-action-sent {
+  background: rgba(0,0,0,0.06) !important; border-color: rgba(0,0,0,0.10) !important; color: rgba(18,8,46,0.52) !important;
+}
+body.light-mode #direct-messages-page .dm-thread-head {
+  background: rgba(245,243,252,0.96) !important; border-bottom-color: rgba(0,0,0,0.07) !important;
+}
+

@@ -1,0 +1,6 @@
+v11.915 - DM group add people page
+
+- Replaced the group details Add placeholder with a full-screen right-slide Add people page.
+- Added a top-left back chevron, centered Add people title, search field, and Suggested friends list.
+- Added immediate Add actions for suggested friends using the existing group thread mirroring flow.
+- Ensured the Add people page closes cleanly when group details or the DM page closes.

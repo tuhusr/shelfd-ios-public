@@ -1,0 +1,2 @@
+v11.962 — Game FPMP Videos: the 6 videos are now sorted by VIEW COUNT, highest first (left) to lowest (right). Worker /api/youtube/game-videos selects the 6 by relevance/official-channel, then fetches their statistics (videos.list?part=statistics) and sorts by viewCount desc before returning. Cache key bumped v1 -> v2-views-sorted; client adds sv=2 to bust the browser cache. Verified live: Empulse returns 521863 -> 40297 -> 30268 -> 3608 -> 1110 -> 7 (sorted desc).
+Deployed 2026-06-15

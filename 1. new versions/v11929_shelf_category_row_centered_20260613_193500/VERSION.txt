@@ -1,0 +1,3 @@
+v11.929 — Center the shelf category pill row (Games/Anime/Music/Movies/TV); zeroed stray .section-toggle margin-left:-10px from css/05 mobile @media
+Deployed 2026-06-13
+Version ID: 8be73617-7650-4091-87f3-8ddd9c859efc

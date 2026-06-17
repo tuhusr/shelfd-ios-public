@@ -1,0 +1,2195 @@
+﻿/* =============================================================================
+   18-dm-instagram-rebuild.css â€” Dark Mode Only
+   -----------------------------------------------------------------------------
+   v10.469 â€” Sole source of truth for the v2 DM thread view (header, message
+   list, composer). The legacy `09-direct-messages.css` was dismantled in the
+   same version, so this file no longer has to fight any specificity wars.
+
+   All selectors target `.dm-v2-*` class names emitted by
+   renderDirectMessageThread() in 09-direct-messages.js. The renderer also
+   sets `.dm-thread-open` on the page when active â€” that hides the legacy
+   outer topbar and lets the v2 panel run full-height edge-to-edge.
+
+   Design references: Instagram DM (Rush Lust / n0ellebaumeister screenshots).
+   ============================================================================= */
+
+
+/* ---------- Hide the outer page-shell topbar ----------
+   The legacy `.direct-messages-topbar` (avatar + "Messages" + edit pencil)
+   is replaced by the v2 inbox header AND the v2 thread header.
+   v10.488: previous selector (`#direct-messages-page .direct-messages-topbar`,
+   specificity 1,1,0) lost to `#direct-messages-page:not(.dm-thread-open) .direct-messages-topbar`
+   in 16-light-mode-contrast.css (specificity 1,2,0), so the legacy
+   topbar kept rendering. New selector boosts specificity by
+   double-classing the IDs/classes â€” guaranteed to win regardless of
+   any future stylesheet additions. */
+.direct-messages-page.direct-messages-page#direct-messages-page .direct-messages-topbar.direct-messages-topbar {
+  display: none !important;
+}
+
+
+/* ---------- v2 thread panel ----------
+   `position: fixed` with explicit edges bypasses the entire wrapper chain.
+   The panel anchors directly to the viewport.
+
+   KEYBOARD HANDLING: bottom edge tracks `--dm-keyboard-bottom`, a CSS
+   variable that 09-direct-messages.js (`updateDirectMessageKeyboardLift`)
+   updates continuously via the visualViewport API. When the iOS keyboard
+   slides up, the panel's bottom rises with it, so the flex column re-flows
+   and the composer (which is `flex: 0 0 auto`) stays anchored to the
+   visible bottom â€” exactly how Instagram and iMessage handle it.
+
+   The JS fires updates per-frame during the keyboard animation, so we
+   skip a CSS transition here â€” the panel tracks the keyboard pixel-for-
+   pixel. A transition would lag behind.
+
+   v10.471: introduced `position: fixed` to defeat ID-specific !important
+   rules from older stylesheets.
+   v10.473: switched from `inset: 0` to explicit edges with keyboard-aware
+   bottom so the composer rises above the iOS keyboard in TestFlight. */
+.dm-v2-panel {
+  position: fixed !important;
+  /* v10.793: top tracks visualViewport.offsetTop so iOS's auto-scroll-to-input
+     behavior cannot drift the header above the visible viewport when the
+     keyboard opens. Updated by updateDirectMessageKeyboardLift() in JS. */
+  top: var(--vv-offset-top, 0px) !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: var(--dm-keyboard-bottom, 0px) !important;
+  height: auto !important;
+  z-index: 2147483000 !important;  /* keep the thread transition above every app surface. */
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100vw !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: #0E0E0E !important;
+  color: #fff;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* v10.826: keep the full-page DM surface above every bottom navigation
+   variant. Some iPad/desktop-style bottom-nav rules put #mobile-bottom-nav at
+   z-index: 5200, higher than the old DM page z-index 4800. */
+#direct-messages-page.direct-messages-page {
+  z-index: 2147482000 !important;
+}
+
+/* v10.820: keep the rendered inbox on the exact same fixed geometry as the
+   animated inbox underlay. Without this, the close animation can finish on the
+   full-screen underlay, then reveal the real inbox inside the older shell for
+   one frame, which looks like the inbox is resizing itself. */
+.direct-messages-page:not(.dm-thread-open) .direct-messages-content,
+.direct-messages-page.dm-nav-finalizing-inbox .direct-messages-content {
+  height: 100dvh !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.direct-messages-page:not(.dm-thread-open) #dm-fullscreen-shell,
+.direct-messages-page.dm-nav-finalizing-inbox #dm-fullscreen-shell,
+.direct-messages-page:not(.dm-thread-open) .dm-shell,
+.direct-messages-page.dm-nav-finalizing-inbox .dm-shell {
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  gap: 0 !important;
+}
+
+.direct-messages-page:not(.dm-thread-open) #dm-fullscreen-shell > .dm-v2-inbox,
+.direct-messages-page.dm-nav-finalizing-inbox #dm-fullscreen-shell > .dm-v2-inbox {
+  height: 100% !important;
+}
+
+/* v10.824: root fix for the black bottom bar on the fullscreen inbox.
+   16-light-mode-contrast.css has `#direct-messages-page .direct-messages-content
+   { padding-bottom: 132px !important; }`, which is more specific than the
+   v10.820 class-only fullscreen rule above. This ID-scoped override removes
+   that reserved bottom-nav/footer space only in the v2 inbox handoff layout. */
+#direct-messages-page.direct-messages-page:not(.dm-thread-open) .direct-messages-content,
+#direct-messages-page.direct-messages-page.dm-nav-finalizing-inbox .direct-messages-content {
+  height: 100dvh !important;
+  padding: 0 !important;
+  padding-top: 0 !important;
+  padding-right: 0 !important;
+  padding-bottom: 0 !important;
+  padding-left: 0 !important;
+  overflow: hidden !important;
+}
+
+#direct-messages-page.direct-messages-page:not(.dm-thread-open) #dm-fullscreen-shell,
+#direct-messages-page.direct-messages-page.dm-nav-finalizing-inbox #dm-fullscreen-shell,
+#direct-messages-page.direct-messages-page:not(.dm-thread-open) .dm-shell,
+#direct-messages-page.direct-messages-page.dm-nav-finalizing-inbox .dm-shell,
+#direct-messages-page.direct-messages-page:not(.dm-thread-open) .dm-v2-inbox,
+#direct-messages-page.direct-messages-page.dm-nav-finalizing-inbox .dm-v2-inbox {
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  gap: 0 !important;
+}
+
+/* v10.825: remove the remaining visible footer band. The inbox list had a
+   hardcoded 100px bottom padding for the floating new-chat button; after the
+   fullscreen shell padding was removed, that 100px showed as a lower black
+   footer. Keep only iOS safe-area breathing room. */
+#direct-messages-page.direct-messages-page:not(.dm-thread-open) .dm-v2-inbox .dm-v2-inbox-list,
+#direct-messages-page.direct-messages-page.dm-nav-finalizing-inbox .dm-v2-inbox .dm-v2-inbox-list {
+  padding: 0 0 max(18px, env(safe-area-inset-bottom, 0px)) !important;
+  scroll-padding-bottom: max(18px, env(safe-area-inset-bottom, 0px)) !important;
+}
+
+/* v10.819: directional DM navigation.
+   Inbox -> chat: chat sheet enters from the right.
+   Chat -> inbox: inbox comes in from the left while chat exits right. */
+/* v11.680: chat OPEN = a snappy slide-in from the right (matches the news reader's
+   in-slide). Chat→inbox CLOSE is NO LONGER a CSS keyframe — the panel is slid off by
+   the generic edge-swipe engine (swipe) or closeDirectMessageThread (tap-back) over a
+   STATIC inbox underlay, identical to the reader. dmInboxEnterFromLeft (the old
+   parallax) + the dm-nav-close-thread rules have been deleted. */
+.direct-messages-page.dm-nav-open-thread .dm-v2-panel.dm-v2-panel-entering {
+  transform: translate3d(100vw, 0, 0);
+  animation: none !important;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.direct-messages-page.dm-thread-swiping .dm-v2-panel,
+.direct-messages-page.dm-nav-finalizing-inbox .dm-v2-panel {
+  animation: none !important;
+}
+@keyframes dmThreadEnterFromRight {
+  from { transform: translate3d(100vw, 0, 0); }
+  to { transform: translate3d(0, 0, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .direct-messages-page.dm-nav-open-thread .dm-v2-panel.dm-v2-panel-entering { animation: none !important; }
+}
+
+
+/* ---------- Header ---------- */
+.dm-v2-panel .dm-v2-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* v10.474: tightened top spacing. Was `safe-area-inset-top + 8px`, which
+     on iOS Capacitor (contentInset: never) added ~100px of empty space
+     between the Dynamic Island and the avatar. We respect ONLY the safe
+     area now â€” no extra buffer â€” so the avatar sits flush under the
+     Dynamic Island, matching the Instagram reference. */
+  padding: var(--shelfd-safe-top, 0px) 12px 8px;
+  background: #0E0E0E;
+  border-bottom: 0;
+  position: relative;
+  z-index: 5;
+}
+
+.dm-v2-panel .dm-v2-back {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  color: #fff;
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  flex: 0 0 auto;
+  -webkit-tap-highlight-color: transparent;
+}
+.dm-v2-panel .dm-v2-back svg {
+  width: 22px;
+  height: 22px;
+}
+
+.dm-v2-panel .dm-v2-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: transparent;
+  border: 0;
+  padding: 4px 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.dm-v2-panel .dm-v2-identity-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: 0 0 36px;
+  /* Subtle lavender ring for Shelfd flavor */
+  box-shadow: 0 0 0 2px #0E0E0E, 0 0 0 3.5px rgba(167, 139, 250, 0.55);
+}
+.dm-v2-panel .dm-v2-identity-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.15;
+}
+.dm-v2-panel .dm-v2-identity-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.dm-v2-panel .dm-v2-identity-handle {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 3-dot overflow menu */
+.dm-v2-panel .dm-v2-overflow-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+.dm-v2-panel .dm-v2-overflow {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  color: #fff;
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.dm-v2-panel .dm-v2-overflow svg {
+  width: 22px;
+  height: 22px;
+}
+.dm-v2-panel .dm-v2-overflow-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 180px;
+  padding: 6px;
+  background: #1c1c1e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.55);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dm-v2-panel .dm-v2-overflow-menu[hidden] {
+  display: none;
+}
+.dm-v2-panel .dm-v2-overflow-menu button {
+  background: transparent;
+  color: #fff;
+  border: 0;
+  text-align: left;
+  font-size: 14px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  font-weight: 500;
+  transition: background 120ms ease;
+}
+.dm-v2-panel .dm-v2-overflow-menu button:hover,
+.dm-v2-panel .dm-v2-overflow-menu button:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+}
+
+
+/* ---------- Message list â€” flex: 1, scrolls ---------- */
+.dm-v2-panel .dm-v2-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 12px 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  background: #0E0E0E;
+  /* v11.783: was `smooth` (v11779). scroll-behavior:smooth ONLY affects PROGRAMMATIC
+     scrolls (our scrollTop = scrollHeight on open/hydrate/send), never the user's native
+     touch scroll — and that animated programmatic scroll-to-bottom GLIDES the message list
+     ~200-400ms after the chat opens, which reads as the screen "animating again." A chat
+     list must settle to the bottom INSTANTLY (iMessage/Instagram behavior). Set to auto so
+     every programmatic scroll-to-bottom is a single instant paint with no second motion. */
+  scroll-behavior: auto;
+}
+.dm-v2-panel .dm-v2-list.dm-initial-bottom-anchor {
+  scroll-behavior: auto !important;
+}
+.dm-v2-panel .dm-v2-list::-webkit-scrollbar {
+  display: none;
+}
+
+.dm-v2-panel .dm-v2-empty {
+  margin: 24px auto;
+  padding: 14px 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 16px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.55);
+  text-align: center;
+  max-width: 360px;
+}
+/* v11.776: loading state shown while a thread's messages are still hydrating
+   from Firestore — prevents the empty "Chat accepted" state from flashing
+   before the real messages arrive (e.g. opening from a push notification). */
+.dm-v2-panel .dm-v2-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 44px 0;
+}
+.dm-v2-panel .dm-v2-spinner {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(255, 255, 255, 0.16);
+  border-top-color: rgba(255, 255, 255, 0.7);
+  animation: dmV2Spin 0.7s linear infinite;
+}
+@keyframes dmV2Spin { to { transform: rotate(360deg); } }
+
+/* Date dividers */
+.dm-v2-panel .dm-v2-day-divider {
+  align-self: center;
+  margin: 18px 0 8px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.42);
+  font-weight: 400;
+  text-align: center;
+}
+
+
+/* ---------- Bubble rows ---------- */
+.dm-v2-panel .dm-v2-bubble-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  width: 100%;
+}
+.dm-v2-panel .dm-v2-bubble-row.mine {
+  justify-content: flex-end;
+}
+.dm-v2-panel .dm-v2-bubble-row.theirs {
+  justify-content: flex-start;
+}
+.dm-v2-panel .dm-v2-bubble-row.grouped {
+  margin-top: -6px; /* tighten consecutive messages from same sender */
+}
+
+.dm-v2-panel .dm-v2-bubble-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: 0 0 30px;
+  margin-bottom: 2px;
+}
+.dm-v2-panel .dm-v2-bubble-avatar-spacer {
+  display: inline-block;
+  flex: 0 0 30px;
+  background: transparent;
+}
+
+.dm-v2-panel .dm-v2-bubble-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 76%;
+  min-width: 0;
+}
+
+.dm-v2-panel .dm-v2-sender-name {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  padding-left: 14px;
+  margin-bottom: 2px;
+}
+
+
+/* ---------- Bubbles ---------- */
+.dm-v2-panel .dm-v2-bubble {
+  padding: 10px 14px;
+  border-radius: 22px;
+  font-size: 15px;
+  line-height: 1.35;
+  color: #fff;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  position: relative;
+}
+
+/* Incoming â€” dark gray */
+.dm-v2-panel .dm-v2-bubble-row.theirs .dm-v2-bubble {
+  background: #262626;
+  color: #fff;
+}
+
+
+/* Outgoing â€” Shelfd lavender. v11.630: softened 0.78 â†’ 0.6 so the accent reads
+   calmer/editorial and the dark in-bubble share card no longer clashes against a
+   vivid purple. */
+.dm-v2-panel .dm-v2-bubble-row.mine .dm-v2-bubble {
+  background: linear-gradient(160deg, rgba(155, 100, 255, 0.7) 0%, rgba(110, 75, 240, 0.6) 100%);
+  color: #fff;
+}
+
+
+/* Emoji-only â€” no background, large */
+.dm-v2-panel .dm-v2-bubble.dm-v2-bubble-emoji,
+.dm-v2-panel .dm-v2-bubble-row.mine .dm-v2-bubble.dm-v2-bubble-emoji,
+.dm-v2-panel .dm-v2-bubble-row.theirs .dm-v2-bubble.dm-v2-bubble-emoji {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  padding: 4px 6px !important;
+  font-size: 60px;
+  line-height: 1;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Inner payload elements emitted by renderDirectMessagePayloadContent */
+.dm-v2-panel .dm-v2-bubble .dm-message-text {
+  display: block;
+}
+.dm-v2-panel .dm-photo-message-button {
+  display: block;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  /* v11.879: neutral dark placeholder (was transparent → a decoding/recreated photo showed the
+     near-black #0E0E0E page behind it = black flash). */
+  background: #16161a;
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: zoom-in;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.dm-v2-panel .dm-photo-message {
+  display: block;
+  max-width: 100%;
+  border-radius: 14px;
+  margin: 0;
+  transform: translateZ(0);
+  will-change: transform;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.dm-v2-panel .dm-photo-message-button:active .dm-photo-message {
+  transform: scale(0.985) translateZ(0);
+}
+.dm-v2-panel .dm-shared-media-card {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  /* v11.629: the card was `transparent`, so it took the bubble colour (#262626
+     incoming / lavender outgoing) and the title/source text blended straight
+     into the bubble. Give it its OWN surface + hairline border so it reads as a
+     distinct card on either bubble. */
+  background: #16161a;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  overflow: hidden;
+  text-decoration: none;
+  color: #fff;
+}
+.dm-v2-panel .dm-shared-media-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 14px 14px 0 0;
+}
+.dm-v2-panel .dm-shared-media-card span {
+  padding: 9px 11px 9px;
+  display: block;
+}
+.dm-v2-panel .dm-shared-media-card strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.dm-v2-panel .dm-shared-media-card em {
+  display: block;
+  font-style: normal;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* v11.655: shared YouTube trailer card — 16:9 thumb + play badge that becomes an
+   inline player on tap (plays in the chat, never opens the article reader). */
+.dm-v2-panel .dm-shared-video-card { display: flex; flex-direction: column; }
+.dm-v2-panel .dm-shared-video-card .dm-video-thumb {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  /* v11.879: was #000 — a black thumb background showed as a harsh black flash while the
+     thumbnail image decoded (or got recreated on a list re-render). A neutral dark surface
+     matches the card and reads as a placeholder, not a flash. */
+  background: #16161a;
+  border-radius: 14px 14px 0 0;
+  overflow: hidden;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.dm-v2-panel .dm-shared-video-card .dm-video-thumb img {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  object-fit: cover;
+  display: block;
+}
+.dm-v2-panel .dm-shared-video-card .dm-video-thumb iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+.dm-v2-panel .dm-shared-video-card .dm-video-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(8, 6, 14, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.dm-v2-panel .dm-shared-video-card .dm-video-play svg { width: 20px; height: 20px; fill: #ffffff; margin-left: 2px; }
+.dm-v2-panel .dm-shared-video-card .dm-video-meta { padding: 9px 11px; display: block; }
+
+/* Seen indicator */
+/* v10.900: "Read {timestamp}" receipt under the last sent message in a
+   1:1 thread. Spec: Söhne Light (font-weight 300), white at 60% opacity,
+   right-aligned (align-self:flex-end works because the parent
+   .dm-message-list is flex-column with `gap`). Tabular numerics keep
+   the time string from shifting horizontally as digits change. */
+.dm-v2-panel .dm-v2-seen {
+  align-self: flex-end;
+  font: 300 11px/1.2 'Sohne', 'DM Sans', sans-serif;
+  color: rgba(255, 255, 255, 0.60);
+  padding: 4px 8px 2px 0;
+  margin-top: -2px;
+  letter-spacing: 0.1px;
+  font-variant-numeric: tabular-nums;
+}
+
+
+/* Standalone media — no bubble bg, floats directly in message stack */
+.dm-v2-panel .dm-v2-media-standalone {
+  border-radius: 16px;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+/* ---------- Composer ---------- */
+.dm-v2-panel .dm-v2-compose {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px max(8px, env(safe-area-inset-bottom, 0px));
+  background: #0E0E0E;
+  border-top: 0;
+  position: relative;
+  z-index: 4;
+  box-sizing: border-box;
+}
+
+/* v10.744: + attachment button — dark circle, no purple */
+.dm-v2-panel .dm-v2-plus-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+.dm-v2-panel .dm-v2-plus-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #1c1c1e;
+  color: #fff;
+  border: 0;
+  flex: 0 0 36px;
+  cursor: pointer;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.dm-v2-panel .dm-v2-plus-btn svg {
+  width: 20px;
+  height: 20px;
+}
+.dm-v2-panel .dm-v2-plus-btn:active {
+  background: rgba(255,255,255,0.12);
+}
+
+/* + attachment menu — floats above the button */
+.dm-v2-panel .dm-v2-plus-menu {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  background: rgba(28, 28, 30, 0.68);
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.16);
+  padding: 6px 0;
+  min-width: 160px;
+  box-shadow: 0 18px 44px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.10);
+  backdrop-filter: blur(22px) saturate(1.35);
+  -webkit-backdrop-filter: blur(22px) saturate(1.35);
+  z-index: 20;
+  opacity: 0;
+  transform: translate3d(0, 12px, 0) scale(0.96);
+  transform-origin: left bottom;
+  pointer-events: none;
+  transition:
+    opacity 600ms cubic-bezier(.16, 1, .3, 1),
+    transform 600ms cubic-bezier(.16, 1, .3, 1),
+    background-color 600ms cubic-bezier(.16, 1, .3, 1);
+  will-change: opacity, transform;
+}
+.dm-v2-panel .dm-v2-plus-menu[hidden] { display: none; }
+.dm-v2-panel .dm-v2-plus-menu.is-open {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  pointer-events: auto;
+}
+.dm-v2-plus-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  background: transparent;
+  border: 0;
+  color: #fff;
+  font-size: 15px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.dm-v2-plus-menu-item:active {
+  background: rgba(255,255,255,0.06);
+}
+.dm-v2-plus-menu-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.12);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 32px;
+}
+.dm-v2-plus-menu-icon svg {
+  width: 17px;
+  height: 17px;
+  color: rgba(255,255,255,0.85);
+}
+
+/* Pill input */
+.dm-v2-panel .dm-v2-input-pill {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #1c1c1e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  padding: 4px 4px 4px 16px;
+  min-width: 0;
+  min-height: 40px;
+  cursor: text;
+  -webkit-tap-highlight-color: transparent;
+}
+.dm-v2-panel .dm-v2-input {
+  flex: 1 1 auto;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0;
+  outline: none;
+  color: #fff;
+  /* v10.740: 16px floor prevents iOS auto-zoom; -webkit-text-fill-color
+     suppresses the iOS autofill/tap-to-fill native overlay box */
+  font-size: 16px;
+  -webkit-text-fill-color: #fff;
+  padding: 6px 4px;
+  min-width: 0;
+  font-family: inherit;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  border-radius: 0;
+}
+.dm-v2-panel .dm-v2-input:-webkit-autofill,
+.dm-v2-panel .dm-v2-input:-webkit-autofill:focus {
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  background-color: transparent !important;
+  -webkit-text-fill-color: #fff !important;
+}
+.dm-v2-panel .dm-v2-input::placeholder {
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.dm-v2-panel .dm-v2-pill-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  border: 0;
+  cursor: pointer;
+  flex: 0 0 32px;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.dm-v2-panel .dm-v2-pill-btn svg {
+  width: 19px;
+  height: 19px;
+}
+.dm-v2-panel .dm-v2-pill-btn:hover,
+.dm-v2-panel .dm-v2-pill-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+}
+
+/* Send button â€” hidden until input has text */
+.dm-v2-panel .dm-v2-send-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: #7c5cff;
+  color: #fff;
+  border: 0;
+  flex: 0 0 36px;
+  cursor: pointer;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.dm-v2-panel .dm-v2-send-btn svg {
+  width: 18px;
+  height: 18px;
+  margin-left: 1px;
+}
+.dm-v2-panel .dm-v2-compose.has-text .dm-v2-send-btn {
+  display: inline-flex;
+}
+/* v10.744: hide the waveform/voice btn when send is active */
+.dm-v2-panel .dm-v2-compose.has-text .dm-v2-voice-btn {
+  display: none;
+}
+
+
+/* ---------- Keyboard-active state (iOS) ---------- */
+.direct-messages-page.dm-keyboard-active .dm-v2-panel .dm-v2-compose {
+  padding-bottom: 8px;
+}
+
+
+/* ---------- Mobile breakpoints ---------- */
+@media (max-width: 700px) {
+  .dm-v2-panel .dm-v2-list {
+    padding: 8px 10px 14px;
+  }
+  .dm-v2-panel .dm-v2-bubble-stack {
+    max-width: 78%;
+  }
+  .dm-v2-panel .dm-v2-header {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
+
+
+/* ---------- iOS Capacitor / TestFlight only ----------
+   v10.808: match the current under-status-bar WebView setup. Older builds
+   subtracted 50px here for a native inset model that is no longer active,
+   which let the DM chat header sit behind the Dynamic Island. Keep the
+   header directly under the safe area, matching Profile Studio. */
+html.shelfd-capacitor-ios .dm-v2-panel .dm-v2-header {
+  padding-top: max(var(--shelfd-safe-top, 0px), env(safe-area-inset-top, 0px)) !important;
+}
+
+
+/* =============================================================================
+   v10.485 â€” Instagram-style inbox (chat list view)
+   -----------------------------------------------------------------------------
+   New layout replaces the old `.dm-lite-head` + `.dm-subtabs` + flat list
+   with: avatar (left) + "Chat" title (center) + filter pill (right),
+   followed by a wide search pill, then the flat chat list, with a
+   floating lavender FAB at the bottom-right for starting a new chat.
+
+   Reuses the existing `.dm-chat-list` / `.dm-chat-swipe-item` /
+   `.dm-chat-row` markup (no JS markup changes needed) but resets all the
+   legacy card styling those classes had so the rows render as Instagram-
+   style flat list items.
+   ============================================================================= */
+
+.dm-v2-inbox {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  background: #0E0E0E;
+  position: relative;
+}
+
+/* ---------- Inbox header ---------- */
+.dm-v2-inbox-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(var(--shelfd-safe-top, 0px) + 8px) 16px 10px;
+  background: #0E0E0E;
+}
+
+/* v10.740: Restyled as a plain left-arrow button matching the thread's
+   .dm-v2-back. The old avatar/story-ring styling was for an <img> avatar;
+   the JS now places a chevron SVG here so the circle-crop looked wrong. */
+.dm-v2-inbox-back {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: visible;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  flex: 0 0 36px;
+  -webkit-tap-highlight-color: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: none;
+}
+.dm-v2-inbox-back svg {
+  width: 22px;
+  height: 22px;
+}
+.dm-v2-inbox-back img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.dm-v2-inbox-title {
+  flex: 1 1 auto;
+  text-align: center;
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.01em;
+  font-family: inherit;
+}
+
+/* "All â–¼" filter pill on the right */
+.dm-v2-inbox-filter-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+.dm-v2-inbox-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px 7px 14px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.20);
+  background: transparent;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  font-family: inherit;
+  letter-spacing: -0.005em;
+}
+.dm-v2-inbox-filter svg {
+  width: 13px;
+  height: 13px;
+}
+.dm-v2-inbox-filter-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 200px;
+  padding: 6px;
+  background: #1c1c1e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.55);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dm-v2-inbox-filter-menu[hidden] {
+  display: none;
+}
+.dm-v2-inbox-filter-menu button {
+  background: transparent;
+  color: #fff;
+  border: 0;
+  text-align: left;
+  font-size: 14px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-weight: 500;
+  font-family: inherit;
+  transition: background 120ms ease;
+}
+.dm-v2-inbox-filter-menu button:hover,
+.dm-v2-inbox-filter-menu button:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+}
+
+/* ---------- Search pill ---------- */
+.dm-v2-inbox-search {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 14px 14px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: #1c1c1e;
+  border: 0;
+}
+.dm-v2-inbox-search svg {
+  width: 18px;
+  height: 18px;
+  color: rgba(255, 255, 255, 0.55);
+  flex: 0 0 18px;
+}
+.dm-v2-inbox-search input {
+  flex: 1 1 auto;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0;
+  outline: none;
+  color: #fff;
+  font-size: 16px; /* 16px floor — prevents iOS auto-zoom on focus */
+  font-family: inherit;
+  min-width: 0;
+  padding: 0;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  /* v10.740: suppress iOS native input appearance + autofill overlay box */
+  appearance: none;
+  -webkit-appearance: none;
+  -webkit-text-fill-color: #fff;
+}
+.dm-v2-inbox-search input:-webkit-autofill,
+.dm-v2-inbox-search input:-webkit-autofill:focus {
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  background-color: transparent !important;
+  -webkit-text-fill-color: #fff !important;
+}
+.dm-v2-inbox-search input::placeholder {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* ---------- Optional composer panel (when "new chat" is open) ---------- */
+.dm-v2-inbox-composer-panel {
+  flex: 0 0 auto;
+  margin: 0 14px 10px;
+}
+
+/* v10.827: centered modern new-message modal. This replaces the old inline
+   composer card visually while preserving the existing DM search/request logic. */
+#direct-messages-page .dm-new-chat-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(18px, env(safe-area-inset-top, 0px)) 18px max(18px, env(safe-area-inset-bottom, 0px));
+  background: rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(20px) saturate(1.15);
+  -webkit-backdrop-filter: blur(20px) saturate(1.15);
+  animation: dmNewChatBackdropIn 220ms cubic-bezier(.16, 1, .3, 1) both;
+}
+
+#direct-messages-page.dm-new-chat-modal-open .dm-v2-inbox-list {
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
+
+#direct-messages-page .dm-new-chat-panel {
+  width: min(430px, calc(100vw - 30px));
+  max-height: min(78dvh, 650px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background:
+    linear-gradient(180deg, rgba(30, 32, 38, 0.94), rgba(13, 14, 18, 0.98));
+  box-shadow:
+    0 28px 80px rgba(0, 0, 0, 0.54),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transform-origin: center;
+  animation: dmNewChatPanelIn 260ms cubic-bezier(.16, 1, .3, 1) both;
+  margin-top: -46px;
+}
+
+#direct-messages-page .dm-new-chat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+#direct-messages-page .dm-new-chat-head > div {
+  min-width: 0;
+}
+
+#direct-messages-page .dm-new-chat-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: rgba(200, 181, 255, 0.74);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#direct-messages-page .dm-new-chat-head strong {
+  display: block;
+  color: #ffffff;
+  font-size: 22px;
+  font-weight: 650;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+
+#direct-messages-page .dm-new-chat-close {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.86);
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#direct-messages-page .dm-new-chat-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+#direct-messages-page .dm-new-chat-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+#direct-messages-page .dm-new-chat-tabs button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.54);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#direct-messages-page .dm-new-chat-tabs button.active {
+  background: rgba(200, 181, 255, 0.18);
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(200, 181, 255, 0.18);
+}
+
+#direct-messages-page .dm-new-chat-panel .dm-search-strip,
+#direct-messages-page .dm-new-search-strip {
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 18px !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+  overflow: hidden;
+}
+
+#direct-messages-page .dm-new-search-label {
+  display: block;
+  padding: 12px 14px 0;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+#direct-messages-page .dm-new-search-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px 13px;
+}
+
+#direct-messages-page .dm-new-search-input-row svg {
+  width: 18px;
+  height: 18px;
+  color: rgba(200, 181, 255, 0.68);
+  flex: 0 0 18px;
+}
+
+#direct-messages-page .dm-new-chat-panel .dm-search-strip input,
+#direct-messages-page .dm-new-search-input-row input {
+  width: 100%;
+  min-width: 0;
+  border: 0 !important;
+  outline: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  font-family: inherit;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+}
+
+#direct-messages-page .dm-new-chat-panel .dm-search-strip input::placeholder {
+  color: rgba(255, 255, 255, 0.36) !important;
+}
+
+#direct-messages-page .dm-new-search-results {
+  max-height: min(42dvh, 330px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#direct-messages-page .dm-new-search-results:empty {
+  display: none;
+}
+
+#direct-messages-page .dm-new-search-results::-webkit-scrollbar {
+  display: none;
+}
+
+#direct-messages-page .dm-new-chat-panel .dm-search-empty {
+  padding: 14px;
+  color: rgba(255, 255, 255, 0.46);
+  font-size: 13px;
+}
+
+#direct-messages-page .dm-new-chat-panel .dm-user-result {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 12px 14px !important;
+  border: 0 !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.07) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#direct-messages-page .dm-new-chat-panel .dm-user-result:first-child {
+  border-top: 0 !important;
+}
+
+#direct-messages-page .dm-new-chat-panel .dm-user-result img {
+  width: 42px !important;
+  height: 42px !important;
+  flex: 0 0 42px !important;
+  border: 0 !important;
+  border-radius: 50% !important;
+  object-fit: cover !important;
+  box-shadow: none !important;
+}
+
+#direct-messages-page .dm-new-chat-panel .dm-user-result > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+#direct-messages-page .dm-new-chat-panel .dm-user-result strong,
+#direct-messages-page .dm-new-chat-panel .dm-user-result strong * {
+  display: block !important;
+  color: #ffffff !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  line-height: 1.18 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+#direct-messages-page .dm-new-chat-panel .dm-user-result span {
+  display: block !important;
+  margin-top: 3px;
+  color: rgba(255, 255, 255, 0.44) !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+#direct-messages-page .dm-new-chat-panel .dm-result-action,
+#direct-messages-page .dm-create-group-btn {
+  min-height: 34px;
+  border: 0 !important;
+  border-radius: 999px !important;
+  padding: 8px 13px !important;
+  background: rgba(200, 181, 255, 0.18) !important;
+  color: #ffffff !important;
+  font-family: inherit;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+
+#direct-messages-page .dm-new-chat-panel .dm-action-sent,
+#direct-messages-page .dm-new-chat-panel .dm-result-action.dm-action-sent {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: rgba(255, 255, 255, 0.58) !important;
+}
+
+#direct-messages-page .dm-create-group-btn {
+  width: 100%;
+  margin-top: -2px;
+  background: #7c5cff !important;
+}
+
+#direct-messages-page .dm-create-group-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+#direct-messages-page .dm-group-setup-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+#direct-messages-page .dm-group-photo-btn {
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.07);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0;
+}
+
+#direct-messages-page .dm-group-photo-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+#direct-messages-page #dm-group-name-input {
+  min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  outline: 0;
+  padding: 0 15px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+  font-family: inherit;
+  font-size: 15px;
+}
+
+#direct-messages-page .dm-group-selected {
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+#direct-messages-page .dm-group-selected-list {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+#direct-messages-page .dm-group-selected-list::-webkit-scrollbar {
+  display: none;
+}
+
+#direct-messages-page .dm-group-selected-list button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 180px;
+  border: 0;
+  border-radius: 999px;
+  padding: 5px 9px 5px 5px;
+  background: rgba(200, 181, 255, 0.14);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+#direct-messages-page .dm-group-selected-list img {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+#direct-messages-page .dm-group-selected-list em {
+  font-style: normal;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+@keyframes dmNewChatBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes dmNewChatPanelIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+/* ---------- Chat list ---------- */
+.dm-v2-inbox-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 0 100px;
+  scroll-behavior: smooth;
+}
+.dm-v2-inbox-list::-webkit-scrollbar {
+  display: none;
+}
+
+/* Reset legacy chat-row card styling â€” make rows flat list items.
+   Using high specificity (.dm-v2-inbox-list scope + !important) to
+   beat the 16-light-mode-contrast.css ID-scoped rules. */
+.dm-v2-inbox-list .dm-chat-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.dm-v2-inbox-list .dm-chat-swipe-item {
+  border-radius: 0 !important;
+  overflow: visible !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+}
+.dm-v2-inbox-list .dm-chat-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+  width: 100% !important;
+  min-height: 0 !important;
+  padding: 7px 16px !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  text-align: left !important;
+  cursor: pointer;
+  position: relative;
+  overflow: visible !important;
+}
+.dm-v2-inbox-list .dm-chat-row:active {
+  background: rgba(255, 255, 255, 0.04) !important;
+  transform: none !important;
+}
+.dm-v2-inbox-list .dm-chat-row img {
+  width: 56px !important;
+  height: 56px !important;
+  border-radius: 50% !important;
+  object-fit: cover !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  flex: 0 0 56px !important;
+  /* v11.879: a neutral dark fill behind the avatar so that when the inbox list is rebuilt on
+     back-from-chat and the (cached) photo is re-inserted, any one-frame decode gap reads as a
+     dark circle — never the black blink the user saw. Pairs with decoding="sync" in the markup. */
+  background-color: #1c1c22 !important;
+}
+.dm-v2-inbox-list .dm-chat-row .dm-chat-copy {
+  flex: 1 1 auto !important;
+  min-width: 0;
+}
+.dm-v2-inbox-list .dm-chat-row .dm-chat-copy strong,
+.dm-v2-inbox-list .dm-chat-row .dm-chat-copy strong * {
+  display: block !important;
+  color: #ffffff !important;
+  font-size: 16px !important;
+  font-weight: 500 !important;
+  line-height: 1.2 !important;
+  letter-spacing: -0.01em !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* v11.680: SECOND LINE = preview + timestamp (timestamp sits to the RIGHT of the
+   preview, on the same line below the username). */
+/* ID-scoped so these beat the legacy `#direct-messages-page .dm-chat-copy span`
+   contrast rules in css/16 (which otherwise force color/ margin onto these spans).
+   This is the cascade consolidation the rebuild called for — one authoritative
+   definition of the second line + timestamp. */
+#direct-messages-page .dm-v2-inbox-list .dm-chat-row .dm-chat-copy .dm-chat-line2 {
+  display: flex !important;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 2px !important;
+  min-width: 0;
+}
+#direct-messages-page .dm-v2-inbox-list .dm-chat-row .dm-chat-copy .dm-chat-preview {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: block !important;
+  color: rgba(255, 255, 255, 0.50) !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  margin: 0 !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* timestamp: 300 weight, white @ 51% opacity (per spec). */
+#direct-messages-page .dm-v2-inbox-list .dm-chat-row .dm-chat-copy .dm-chat-time {
+  flex: 0 0 auto;
+  color: rgba(255, 255, 255, 0.51) !important;
+  font-size: 12px !important;
+  font-weight: 300 !important;
+  font-style: normal !important;
+  margin: 0 !important;
+  white-space: nowrap;
+}
+/* v10.822/v11.687: unread rows stay visually quiet — just the lavender name +
+   the iOS-style dot to the left of the avatar. */
+.direct-messages-page#direct-messages-page .dm-v2-inbox-list .dm-chat-row.unread {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+.direct-messages-page#direct-messages-page .dm-v2-inbox-list .dm-chat-row.unread img {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.direct-messages-page#direct-messages-page .dm-v2-inbox-list .dm-chat-row.unread .dm-chat-copy strong,
+.direct-messages-page#direct-messages-page .dm-v2-inbox-list .dm-chat-row.unread .dm-chat-copy strong * {
+  color: #c8b5ff !important;
+}
+/* v11.687: NEW-MESSAGE indicator = iOS-style French-lilac dot to the left of
+   the avatar. It stays out of the text/timestamp flow and only renders for
+   unread rows. */
+#direct-messages-page .dm-v2-inbox-list .dm-chat-row .dm-chat-unread-dot {
+  position: absolute;
+  left: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #c8a2c8;
+  box-shadow: 0 0 10px rgba(200, 162, 200, 0.42);
+  pointer-events: none;
+}
+
+/* v10.823: specificity lock for the full-page v2 inbox. Older contrast
+   styles use #direct-messages-page + !important for legacy DM rows, so these
+   selectors intentionally scope through the v2 inbox tree and the page ID. */
+body #direct-messages-page.direct-messages-page .dm-v2-inbox .dm-v2-inbox-list .dm-chat-row {
+  background: transparent !important;
+  border: 0 !important;
+  border-left: 0 !important;
+  box-shadow: none !important;
+  padding-top: 7px !important;
+  padding-bottom: 7px !important;
+}
+body #direct-messages-page.direct-messages-page .dm-v2-inbox .dm-v2-inbox-list .dm-chat-row.unread {
+  background: transparent !important;
+  border: 0 !important;
+  border-left: 0 !important;
+  box-shadow: none !important;
+  padding-left: 16px !important;
+  padding-top: 7px !important;
+  padding-bottom: 7px !important;
+}
+body #direct-messages-page.direct-messages-page .dm-v2-inbox .dm-v2-inbox-list .dm-chat-row img,
+body #direct-messages-page.direct-messages-page .dm-v2-inbox .dm-v2-inbox-list .dm-chat-row.unread img {
+  width: 56px !important;
+  height: 56px !important;
+  flex: 0 0 56px !important;
+  border-radius: 50% !important;
+  object-fit: cover !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+body #direct-messages-page.direct-messages-page .dm-v2-inbox .dm-v2-inbox-list .dm-chat-row .dm-chat-copy strong,
+body #direct-messages-page.direct-messages-page .dm-v2-inbox .dm-v2-inbox-list .dm-chat-row .dm-chat-copy strong *,
+body.light-mode #direct-messages-page.direct-messages-page .dm-v2-inbox .dm-v2-inbox-list .dm-chat-row .dm-chat-copy strong,
+body.light-mode #direct-messages-page.direct-messages-page .dm-v2-inbox .dm-v2-inbox-list .dm-chat-row .dm-chat-copy strong * {
+  color: #ffffff !important;
+  font-size: 16px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+}
+body #direct-messages-page.direct-messages-page .dm-v2-inbox .dm-v2-inbox-list .dm-chat-row.unread .dm-chat-copy strong,
+body #direct-messages-page.direct-messages-page .dm-v2-inbox .dm-v2-inbox-list .dm-chat-row.unread .dm-chat-copy strong *,
+body.light-mode #direct-messages-page.direct-messages-page .dm-v2-inbox .dm-v2-inbox-list .dm-chat-row.unread .dm-chat-copy strong,
+body.light-mode #direct-messages-page.direct-messages-page .dm-v2-inbox .dm-v2-inbox-list .dm-chat-row.unread .dm-chat-copy strong * {
+  color: #c8b5ff !important;
+}
+body #direct-messages-page.direct-messages-page .dm-v2-inbox .dm-v2-inbox-list .dm-chat-row .dm-chat-copy strong::after,
+body #direct-messages-page.direct-messages-page .dm-v2-inbox .dm-v2-inbox-list .dm-chat-row.unread .dm-chat-copy strong::after,
+body.light-mode #direct-messages-page.direct-messages-page .dm-v2-inbox .dm-v2-inbox-list .dm-chat-row .dm-chat-copy strong::after,
+body.light-mode #direct-messages-page.direct-messages-page .dm-v2-inbox .dm-v2-inbox-list .dm-chat-row.unread .dm-chat-copy strong::after {
+  content: none !important;
+  display: none !important;
+}
+/* v11.680: the old high-specificity ::after unread dot was REMOVED — the dot is now
+   a real .dm-chat-unread-dot flex element (see above) so it can't overlap the
+   timestamp. This selector is neutralized to guarantee no duplicate dot renders. */
+body #direct-messages-page.direct-messages-page .dm-v2-inbox .dm-v2-inbox-list .dm-chat-row.unread::after,
+body.light-mode #direct-messages-page.direct-messages-page .dm-v2-inbox .dm-v2-inbox-list .dm-chat-row.unread::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* Empty state inside the v2 inbox */
+.dm-v2-inbox-list .dm-empty-card {
+  margin: 24px 16px;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 18px !important;
+  padding: 28px 22px !important;
+  text-align: center !important;
+  color: rgba(255, 255, 255, 0.55) !important;
+  font-size: 14px !important;
+  line-height: 1.55 !important;
+  box-shadow: none !important;
+}
+.dm-v2-inbox-list .dm-empty-card strong {
+  display: block !important;
+  color: #ffffff !important;
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  margin-bottom: 6px !important;
+  letter-spacing: -0.015em !important;
+}
+
+/* ---------- Floating action button (new chat) ----------
+   v10.777: switched from `position: absolute` to `position: fixed` so
+   the FAB stays anchored to the bottom-right of the VIEWPORT regardless
+   of inbox scroll. Previously absolute positioning made it relative to
+   the nearest positioned ancestor — when the inbox list scrolled, the
+   button scrolled with it and ended up stuck way down past the visible
+   area. Now it floats above the scrollable inbox, always visible. */
+.dm-v2-inbox-fab {
+  position: fixed;
+  right: 20px;
+  /* Bottom nav is hidden via body.dm-fullscreen-open (.mobile-bottom-nav display:none),
+     so we only need to clear the iOS home indicator safe area + breathing room. */
+  bottom: max(28px, calc(env(safe-area-inset-bottom, 0px) + 14px));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 0;
+  background: #7c5cff;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2200;
+  box-shadow: 0 10px 28px rgba(124, 92, 255, 0.42);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.dm-v2-inbox-fab:active {
+  transform: scale(0.94);
+}
+.dm-v2-inbox-fab svg {
+  width: 26px;
+  height: 26px;
+}
+
+/* iOS Capacitor: same safe-area alignment as the thread header. */
+html.shelfd-capacitor-ios .dm-v2-inbox-header {
+  padding-top: max(var(--shelfd-safe-top, 0px), env(safe-area-inset-top, 0px)) !important;
+}
+
+/* v10.809: Keep the global bottom nav/footer out of the fullscreen DM inbox
+   and chat pages. Later bottom-nav rules use the #mobile-bottom-nav ID, so
+   this ID-scoped rule must live in the late-loaded DM stylesheet. */
+body.dm-fullscreen-open #mobile-bottom-nav,
+body.dm-fullscreen-open .mobile-bottom-nav,
+body.dm-fullscreen-open [data-dm-hidden-chrome="1"],
+html:has(body.dm-fullscreen-open) #mobile-bottom-nav,
+html:has(body.dm-fullscreen-open) .mobile-bottom-nav,
+html:has(#direct-messages-page.open) #mobile-bottom-nav,
+html:has(#direct-messages-page.open) .mobile-bottom-nav {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  transform: translate3d(-9999px, 9999px, 0) !important;
+  z-index: -1 !important;
+}
+
+/* v10.815: DM photo hero viewer. Uses transform/opacity only for the open
+   and close animation so iOS can keep the transition on the compositor. */
+.dm-photo-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  opacity: 0;
+  pointer-events: auto;
+  transition: opacity 260ms cubic-bezier(.16, 1, .3, 1);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.dm-photo-viewer.is-open {
+  opacity: 1;
+}
+.dm-photo-viewer.is-closing {
+  opacity: 0;
+  transition-duration: 220ms;
+  transition-timing-function: cubic-bezier(.32, 0, .67, 0);
+}
+.dm-photo-viewer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.92);
+  backdrop-filter: blur(18px) saturate(1.15);
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+}
+.dm-photo-viewer-image {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: contain;
+  transform-origin: top left;
+  transform: translate3d(0, 0, 0) scale(1, 1);
+  will-change: transform;
+  z-index: 1;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.dm-photo-viewer-close {
+  position: fixed;
+  top: max(14px, calc(env(safe-area-inset-top, 0px) + 8px));
+  right: 14px;
+  z-index: 2;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(20,20,22,0.62);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  cursor: pointer;
+}
+.dm-photo-viewer-close svg {
+  width: 19px;
+  height: 19px;
+}
+
+@media (max-width: 700px) {
+  .dm-v2-inbox-header {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  .dm-v2-inbox-search {
+    margin-left: 12px;
+    margin-right: 12px;
+  }
+  .dm-v2-inbox-fab {
+    right: 16px;
+  }
+}
+
+/* =============================================================================
+   v11.689 — Edit group chat page refresh.
+   ========================================================================== */
+.dm-group-edit-page {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #0a0a0c;
+  color: #f5f5f7;
+  font-family: inherit;
+}
+.dm-group-edit-page,
+.dm-group-edit-page * {
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  box-sizing: border-box;
+}
+.dm-group-edit-topbar {
+  flex: 0 0 auto;
+  min-height: calc(max(var(--shelfd-safe-top, 0px), env(safe-area-inset-top, 0px)) + 58px);
+  padding: max(var(--shelfd-safe-top, 0px), env(safe-area-inset-top, 0px)) 12px 8px;
+  display: grid;
+  grid-template-columns: 44px 1fr 64px;
+  align-items: end;
+  background: #0a0a0c;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.dm-group-edit-back,
+.dm-group-edit-save {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #f5f5f7;
+  min-height: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.dm-group-edit-back {
+  justify-content: flex-start;
+}
+.dm-group-edit-back svg {
+  width: 25px;
+  height: 25px;
+}
+.dm-group-edit-title {
+  align-self: center;
+  justify-self: center;
+  font-size: 17px;
+  line-height: 1.2;
+  color: #ffffff;
+}
+.dm-group-edit-save {
+  justify-content: flex-end;
+  font-size: 15px;
+  color: #c8a2c8;
+}
+.dm-group-edit-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 24px 16px max(34px, env(safe-area-inset-bottom, 0px));
+}
+.dm-group-edit-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 28px;
+}
+.dm-group-edit-photo {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  color: #c8a2c8;
+  font-size: 13px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.dm-group-edit-photo img {
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #1e2028;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.08), 0 12px 34px rgba(0,0,0,0.34);
+}
+.dm-group-edit-name-wrap {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dm-group-edit-name-wrap label,
+.dm-group-edit-section-title {
+  color: rgba(245,245,247,0.58);
+  font-size: 13px;
+  line-height: 1.2;
+}
+.dm-group-edit-name-wrap input {
+  width: 100%;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.06);
+  color: #ffffff;
+  min-height: 48px;
+  padding: 0 14px;
+  outline: 0;
+  font-size: 16px;
+}
+.dm-group-edit-crop-panel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.05);
+}
+.dm-group-edit-crop-stage {
+  width: min(300px, 76vw);
+  height: min(300px, 76vw);
+  border-radius: 50%;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.18);
+}
+#dm-group-edit-crop-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+#dm-group-edit-crop-canvas:active {
+  cursor: grabbing;
+}
+.dm-group-edit-crop-actions {
+  display: flex;
+  width: 100%;
+  gap: 10px;
+}
+.dm-group-edit-crop-actions button {
+  flex: 1 1 0;
+  min-height: 42px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  color: #ffffff;
+  font-size: 14px;
+}
+.dm-group-edit-crop-actions button:last-child {
+  background: rgba(200,162,200,0.22);
+  color: #f5d7f5;
+}
+.dm-group-edit-add,
+.dm-group-edit-members {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 22px;
+}
+.dm-group-edit-section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 2px 5px;
+}
+.dm-group-edit-pending-adds {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+.dm-group-edit-pending-adds button {
+  border: 0;
+  border-radius: 999px;
+  background: rgba(200,162,200,0.16);
+  color: #f5d7f5;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px 5px 5px;
+  white-space: nowrap;
+}
+.dm-group-edit-pending-adds img {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.dm-group-edit-add-list,
+.dm-group-edit-members {
+  width: 100%;
+}
+.dm-group-edit-add-row,
+.dm-group-edit-member {
+  width: 100%;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: transparent;
+  color: #f5f5f7;
+  text-align: left;
+}
+.dm-group-edit-add-row img,
+.dm-group-edit-member img {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #1e2028;
+  flex: 0 0 auto;
+}
+.dm-group-edit-add-row span,
+.dm-group-edit-member span {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  line-height: 1.2;
+  color: #ffffff;
+}
+.dm-group-edit-add-row em,
+.dm-group-edit-member em,
+.dm-group-edit-member button {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  color: rgba(245,245,247,0.68);
+  font-style: normal;
+  font-size: 13px;
+  padding: 6px 10px;
+}
+.dm-group-edit-add-row.is-selected em {
+  background: rgba(200,162,200,0.2);
+  color: #f5d7f5;
+}
+.dm-group-edit-member button {
+  color: #ff8f8f;
+  background: rgba(255,95,95,0.12);
+}
+.dm-group-edit-empty {
+  color: rgba(245,245,247,0.46);
+  font-size: 14px;
+  padding: 10px 2px;
+}
+
+/* =============================================================================
+   v11.389 — Full-page Instagram-style "New message" / "New group chat" composer.
+   Replaces the centered modal. Dark, content-forward; back chevron + centered
+   title, To: search, Group chat entry, Suggested people list (+ checkboxes in
+   group mode). No AI-chats / invite-link rows.
+   ========================================================================== */
+.dm-new-chat-page {
+  position: fixed;
+  inset: 0;
+  z-index: 6000;
+  display: flex;
+  flex-direction: column;
+  background: #0a0a0c;
+  padding-top: var(--shelfd-safe-top, 0px);
+}
+.dm-new-chat-topbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.dm-new-chat-title { font-size: 17px; font-weight: 700; letter-spacing: 0.01em; color: #f5f5f7; }
+.dm-new-chat-back {
+  position: absolute; left: 6px; top: 50%; transform: translateY(-50%);
+  width: 40px; height: 40px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 0; color: #f5f5f7; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.dm-new-chat-back svg { width: 24px; height: 24px; }
+.dm-new-chat-back:active { opacity: 0.55; }
+.dm-new-chat-create {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  background: transparent; border: 0; padding: 6px;
+  font-size: 15px; font-weight: 700; letter-spacing: 0.02em; color: #8b5cf6; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.dm-new-chat-create:disabled { color: rgba(235,232,244,0.3); cursor: default; }
+.dm-new-chat-topbar-spacer { position: absolute; right: 12px; width: 40px; height: 1px; }
+.dm-new-chat-body { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 0 24px; }
+
+.dm-new-to-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.dm-new-to-label { font-size: 15px; color: rgba(235,232,244,0.55); font-weight: 500; }
+.dm-new-to-row input {
+  flex: 1 1 auto; min-width: 0; background: transparent; border: 0; outline: 0;
+  font-size: 15px; color: #f5f5f7; caret-color: #8b5cf6;
+}
+.dm-new-to-row input::placeholder { color: rgba(235,232,244,0.42); }
+
+.dm-new-group-entry {
+  display: flex; align-items: center; gap: 14px; width: 100%;
+  padding: 14px 16px; background: transparent; border: 0; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.dm-new-group-entry:active { background: rgba(255,255,255,0.03); }
+.dm-new-group-entry-icon {
+  flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.08); color: #f5f5f7;
+}
+.dm-new-group-entry-icon svg { width: 22px; height: 22px; }
+.dm-new-group-entry-label { flex: 1 1 auto; text-align: left; font-size: 15px; font-weight: 600; color: #f5f5f7; letter-spacing: 0.01em; }
+.dm-new-group-entry-chevron { flex: 0 0 auto; color: rgba(235,232,244,0.4); }
+.dm-new-group-entry-chevron svg { width: 18px; height: 18px; }
+
+.dm-group-name-field {
+  display: block; width: calc(100% - 32px); margin: 16px; padding: 16px;
+  background: transparent; border: 1px solid rgba(255,255,255,0.18); border-radius: 12px;
+  font-size: 15px; color: #f5f5f7; outline: 0;
+}
+.dm-group-name-field::placeholder { color: rgba(235,232,244,0.42); }
+.dm-new-search-bar {
+  display: flex; align-items: center; gap: 8px; margin: 0 16px 8px; padding: 10px 12px;
+  background: rgba(255,255,255,0.07); border-radius: 10px;
+}
+.dm-new-search-bar svg { width: 18px; height: 18px; color: rgba(235,232,244,0.5); flex: 0 0 auto; }
+.dm-new-search-bar input { flex: 1 1 auto; min-width: 0; background: transparent; border: 0; outline: 0; font-size: 15px; color: #f5f5f7; }
+.dm-new-search-bar input::placeholder { color: rgba(235,232,244,0.46); }
+
+.dm-new-suggested-head { padding: 16px 16px 8px; font-size: 15px; font-weight: 700; color: #f5f5f7; letter-spacing: 0.01em; }
+.dm-new-suggested-list { display: flex; flex-direction: column; }
+
+.dm-new-user-row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 8px 16px; background: transparent; border: 0; cursor: pointer; text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+.dm-new-user-row:active { background: rgba(255,255,255,0.03); }
+.dm-new-user-avatar { flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: #1e2028; }
+.dm-new-user-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.dm-new-user-name { font-size: 15px; font-weight: 600; color: #f5f5f7; letter-spacing: 0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dm-new-user-sub { font-size: 13px; color: rgba(235,232,244,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dm-new-user-hint { flex: 0 0 auto; font-size: 13px; font-weight: 600; color: #8b5cf6; padding: 6px 12px; border-radius: 999px; background: rgba(139,92,246,0.12); }
+.dm-new-user-hint.is-muted { color: rgba(235,232,244,0.5); background: rgba(255,255,255,0.06); }
+
+.dm-new-user-check {
+  flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%;
+  border: 2px solid rgba(235,232,244,0.4);
+  display: inline-flex; align-items: center; justify-content: center; color: #fff;
+}
+.dm-new-user-check.is-checked { background: linear-gradient(135deg, #8b5cf6, #7c3aed); border-color: transparent; }
+.dm-new-user-check svg { width: 14px; height: 14px; }
+
+.dm-group-selected-list { display: flex; gap: 8px; overflow-x: auto; padding: 4px 16px 10px; }
+.dm-group-selected-chip {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px 5px 5px; border-radius: 999px; background: rgba(255,255,255,0.07);
+  border: 0; cursor: pointer; color: #f5f5f7; font-size: 13px;
+}
+.dm-group-selected-chip img { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
+.dm-group-selected-chip em { color: rgba(235,232,244,0.6); font-style: normal; font-size: 15px; }
+
+.dm-new-chat-page .dm-search-empty { padding: 16px; font-size: 14px; color: rgba(235,232,244,0.5); }

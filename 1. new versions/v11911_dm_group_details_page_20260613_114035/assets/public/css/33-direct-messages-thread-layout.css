@@ -1,0 +1,30 @@
+/* v11.869: Direct Messages thread/chat layout guards.
+   Split from the old mixed 29-direct-messages-layout.css file. Keep this late
+   in the CSS order so thread composer/list sizing wins over legacy surfaces. */
+
+.direct-messages-page.dm-thread-open .dm-message-list,
+#direct-messages-page.dm-thread-open .dm-message-list {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 64px) !important;
+}
+
+.direct-messages-page .dm-compose-row,
+#direct-messages-page .dm-compose-row {
+  bottom: env(safe-area-inset-bottom, 0px) !important;
+  z-index: 9999 !important;
+}
+
+html.shelfd-capacitor-ios .direct-messages-page.dm-thread-open {
+  --dm-topbar-h: 64px !important;
+  --dm-thread-topbar-h: 64px !important;
+}
+
+html.shelfd-capacitor-ios .direct-messages-page.dm-thread-open .direct-messages-topbar {
+  min-height: 64px !important;
+  height: 64px !important;
+  padding: 6px 14px 8px !important;
+  align-items: center !important;
+}
+
+html.shelfd-capacitor-ios .direct-messages-page.dm-thread-open .direct-messages-content {
+  height: calc(100dvh - 64px) !important;
+}

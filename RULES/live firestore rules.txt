@@ -1,0 +1,310 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isCreatorPreviewUid(uid) {
+      return uid == 'KihPpiqSsFMpn5Tee4xZWFWapg62';
+    }
+
+    function isCreatorAdminRequest() {
+      return isSignedIn()
+        && request.auth.uid == 'KihPpiqSsFMpn5Tee4xZWFWapg62';
+    }
+
+    function validNotificationType() {
+      return request.resource.data.type in [
+        'feed_like',
+        'activity_like',
+        'activity_comment',
+        'comment_reply',
+        'comment_like',
+        'friend_request',
+        'friend_accept',
+        'shared_watch_request',
+        'friend_review_posted',
+        'friend_highlight_posted'
+      ];
+    }
+
+    function validNotificationWrite(recipientUid) {
+      return isSignedIn()
+        && request.resource.data.recipientUid == recipientUid
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.actorUid != recipientUid
+        && validNotificationType();
+    }
+
+    function validNotificationBackfillByRecipient(recipientUid) {
+      return isSignedIn()
+        && request.auth.uid == recipientUid
+        && request.resource.data.recipientUid == recipientUid
+        && request.resource.data.actorUid != recipientUid
+        && validNotificationType()
+        && request.resource.data.backfilled == true;
+    }
+
+    function usernameChangeAllowed(uid) {
+      let existing = get(/databases/$(database)/documents/users/$(uid)).data;
+      let prevHandle = existing.get('usernameHandleLower', '');
+      let nextHandle = request.resource.data.get('usernameHandleLower', '');
+      let prevTimestamp = existing.get('usernameLastChangedAt', null);
+      let prevMs = prevTimestamp is timestamp
+        ? prevTimestamp.toMillis()
+        : existing.get('usernameLastChangedAtMs', 0);
+      let cooldownMs = 14 * 24 * 60 * 60 * 1000;
+      let nowMs = request.time.toMillis();
+      return (
+        nextHandle == prevHandle
+        || (
+          (prevHandle == '' || nowMs >= prevMs + cooldownMs)
+          && request.resource.data.get('usernameLastChangedAt', null) == request.time
+        )
+      );
+    }
+
+    function validLowercaseUsername(value) {
+      return value is string
+        && value.matches('^[a-z0-9._]{1,30}$');
+    }
+
+    function validUsernameCreateFields() {
+      let keys = request.resource.data.keys();
+      let hasHandle = keys.hasAny(['usernameHandle']);
+      let hasLower = keys.hasAny(['usernameHandleLower']);
+      let handle = request.resource.data.get('usernameHandle', '');
+      let lower = request.resource.data.get('usernameHandleLower', '');
+      return (!hasHandle || validLowercaseUsername(handle))
+        && (!hasLower || validLowercaseUsername(lower))
+        && (!(hasHandle && hasLower) || handle == lower);
+    }
+
+    function validUsernameUpdateFields() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let handle = request.resource.data.get('usernameHandle', '');
+      let lower = request.resource.data.get('usernameHandleLower', '');
+      return !changed.hasAny(['usernameHandle', 'usernameHandleLower'])
+        || (
+          validLowercaseUsername(handle)
+          && validLowercaseUsername(lower)
+          && handle == lower
+        );
+    }
+
+    function validUsernameReservation(normalizedUsername) {
+      return normalizedUsername.matches('^[a-z0-9._]{1,30}$')
+        && request.resource.data.get('username', '') == normalizedUsername;
+    }
+
+    function validAdminUsernameUserUpdate(uid) {
+      return isCreatorAdminRequest()
+        && request.auth.uid != uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'usernameHandle',
+          'usernameHandleLower',
+          'updatedAt'
+        ])
+        && validUsernameUpdateFields();
+    }
+
+    function validWatchTogetherMirrorShape() {
+      return request.resource.data.get('watchTogetherIncomingRequests', []) is list
+        && request.resource.data.get('watchTogetherOutgoingRequests', []) is list
+        && request.resource.data.get('watchTogetherApprovedGroups', []) is list
+        && request.resource.data.get('watchTogetherIncomingRequestMap', {}) is map
+        && request.resource.data.get('watchTogetherOutgoingRequestMap', {}) is map
+        && request.resource.data.get('watchTogetherApprovedGroupMap', {}) is map;
+    }
+
+    function validWatchTogetherMirrorUpdate(uid) {
+      return isSignedIn()
+        && request.auth.uid != uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'watchTogetherIncomingRequests',
+          'watchTogetherIncomingRequestMap',
+          'watchTogetherOutgoingRequests',
+          'watchTogetherOutgoingRequestMap',
+          'watchTogetherApprovedGroups',
+          'watchTogetherApprovedGroupMap'
+        ])
+        && validWatchTogetherMirrorShape();
+    }
+
+    match /users/{uid} {
+      allow read: if isSignedIn() || isCreatorPreviewUid(uid);
+
+      allow create: if isSignedIn()
+                    && request.auth.uid == uid
+                    && validUsernameCreateFields();
+
+      allow update: if isSignedIn()
+                    && (
+                      (
+                        request.auth.uid == uid
+                        && usernameChangeAllowed(uid)
+                        && validUsernameUpdateFields()
+                      )
+                      || validWatchTogetherMirrorUpdate(uid)
+                      || validAdminUsernameUserUpdate(uid)
+                    );
+
+      allow delete: if isSignedIn()
+                    && request.auth.uid == uid;
+    }
+
+    match /watchlist/{uid} {
+      allow read: if isSignedIn() || isCreatorPreviewUid(uid);
+      allow write: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /watchlist/{uid}/sections/{sectionId} {
+      allow read: if isSignedIn() || isCreatorPreviewUid(uid);
+      allow write: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /publicProfiles/{profileId} {
+      allow read: if profileId == 'kingkooom';
+      allow write: if isSignedIn()
+                   && request.auth.uid == 'KihPpiqSsFMpn5Tee4xZWFWapg62';
+    }
+
+    match /dmThreads/{threadId} {
+      allow read: if isSignedIn()
+                  && request.auth.uid in resource.data.participantUids;
+
+      allow create: if isSignedIn()
+                    && request.auth.uid in request.resource.data.participantUids;
+
+      allow update: if isSignedIn()
+                    && request.auth.uid in resource.data.participantUids
+                    && request.auth.uid in request.resource.data.participantUids;
+
+      allow delete: if isSignedIn()
+                    && request.auth.uid in resource.data.participantUids;
+    }
+
+    match /usernames/{normalizedUsername} {
+      allow read: if isSignedIn();
+
+      allow create: if (
+        isSignedIn()
+        && request.auth.uid == request.resource.data.uid
+        && validUsernameReservation(normalizedUsername)
+        && request.resource.data.keys().hasOnly([
+          'uid',
+          'username',
+          'createdAt'
+        ])
+      ) || (
+        isCreatorAdminRequest()
+        && validUsernameReservation(normalizedUsername)
+        && request.resource.data.keys().hasOnly([
+          'uid',
+          'username',
+          'createdAt'
+        ])
+      );
+
+      allow update: if false;
+
+      allow delete: if (
+        isSignedIn()
+        && resource.data.uid == request.auth.uid
+      ) || isCreatorAdminRequest();
+    }
+
+    match /meta/{docId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /comments/{mediaKey} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if false;
+    }
+
+    match /reports/{reportId} {
+      allow read: if isSignedIn()
+                  && (
+                    resource.data.reportedBy == request.auth.uid
+                    || resource.data.reportedUid == request.auth.uid
+                  );
+      allow create: if isSignedIn()
+                    && request.resource.data.reportedBy == request.auth.uid;
+      allow update: if false;
+      allow delete: if isSignedIn()
+                    && (
+                      resource.data.reportedBy == request.auth.uid
+                      || resource.data.reportedUid == request.auth.uid
+                    );
+    }
+
+    match /feed/{postId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+                    && request.resource.data.uid == request.auth.uid;
+
+      allow update: if isSignedIn()
+                    && (
+                      resource.data.uid == request.auth.uid
+                      || request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['likes', 'replies'])
+                    );
+
+      allow delete: if isSignedIn()
+                    && resource.data.uid == request.auth.uid;
+    }
+
+    match /activities/{activityId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+                    && request.resource.data.uid == request.auth.uid;
+
+      allow update: if isSignedIn()
+                    && resource.data.uid == request.auth.uid;
+
+      allow delete: if isSignedIn()
+                    && resource.data.uid == request.auth.uid;
+    }
+
+    match /notifications/{recipientUid}/items/{notificationId} {
+      allow read: if isSignedIn()
+                  && request.auth.uid == recipientUid;
+
+      allow create: if validNotificationWrite(recipientUid)
+                    || validNotificationBackfillByRecipient(recipientUid);
+
+      allow update: if isSignedIn()
+                    && (
+                      validNotificationWrite(recipientUid)
+                      || validNotificationBackfillByRecipient(recipientUid)
+                      || (
+                        request.auth.uid == recipientUid
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                          .hasOnly([
+                            'read',
+                            'readAt',
+                            'readAtMs',
+                            'updatedAt',
+                            'updatedAtMs'
+                          ])
+                      )
+                    );
+
+      allow delete: if isSignedIn()
+                    && request.auth.uid == recipientUid;
+    }
+
+    match /albumRatings/{albumKey} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if false;
+    }
+  }
+}

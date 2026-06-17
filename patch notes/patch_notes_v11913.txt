@@ -1,0 +1,7 @@
+v11.913 - DM group info editor
+
+- Added a new right-slide Edit group info page from the group details Change Name and Image action.
+- Added Cancel, centered Edit group info title, Save, group photo, Change photo, Name, and Description fields.
+- Added a Change photo bottom sheet with Take Photo and Choose From Photos.
+- Persists group name, group image, and group description to the shared DM thread.
+- Kept the new page on Shelfd default font with 400 font weight.

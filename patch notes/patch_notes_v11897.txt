@@ -1,0 +1,5 @@
+v11.897 - DM thread header and composer typing opacity
+
+- Set the Direct Message chat thread header username back to 500 font weight.
+- Set the chat thread header username letter spacing to 0.
+- Kept the bottom composer placeholder at 51% opacity while typed message text returns to 100% opacity.

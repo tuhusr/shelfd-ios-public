@@ -1,0 +1,137 @@
+/* v11.866: Discovery title-card presentation.
+   This file owns the compact movie/TV/anime Discovery card text rows, category
+   full-page card metadata, and main Discovery movie/TV rail typography. */
+
+/* Compact card body: rating, title, genre, release metadata. */
+.discover-card .discover-card-body {
+  padding: 7px 8px 8px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  min-height: 0 !important;
+}
+
+.discover-card .discover-card-overview,
+.discover-card .discover-card-context,
+.discover-card .discover-card-meta,
+.discover-card .discover-card-heading-row {
+  display: none !important;
+}
+
+.discover-card .dc-rating {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  color: rgba(255, 255, 255, 0.82) !important;
+  white-space: nowrap !important;
+  letter-spacing: 0 !important;
+  margin: 0 0 3px !important;
+}
+
+.discover-card .dc-rating-star {
+  color: #f2c94c !important;
+  font-size: 10px !important;
+  line-height: 1 !important;
+}
+
+.discover-card .discover-card-title {
+  display: block !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  font-weight: 400 !important;
+  line-height: 1.3 !important;
+  color: #ffffff !important;
+  font-family: 'Sohne', 'DM Sans', sans-serif !important;
+  letter-spacing: 0 !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+  width: 100% !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  cursor: pointer !important;
+  margin: 0 0 3px !important;
+}
+
+.discover-card .discover-title-profile-btn {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.discover-card .discover-card-genre {
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  color: rgba(255, 255, 255, 0.58) !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  line-height: 1.2 !important;
+  margin: 0 0 3px !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
+
+.discover-card .dc-release-line {
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  color: #c9a84c !important;
+  letter-spacing: 0 !important;
+  line-height: 1.2 !important;
+  margin: 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.discover-card:not(.discover-card-expanded) .discover-close-btn {
+  display: none !important;
+}
+
+.discover-card .discover-poster .discover-card-rating {
+  display: none !important;
+}
+
+/* Category full-page card metadata. */
+.discover-category-full-page .discover-card .discover-card-title,
+.discover-category-full-page .discover-card .discover-title-profile-btn,
+.discover-category-full-page .discover-card-title-row .discover-card-title {
+  font-size: 14px !important;
+  font-weight: 500 !important;
+}
+
+.discover-category-full-page .discover-card .discover-card-genre,
+.discover-category-full-page .discover-card .dc-release-line {
+  font-size: 12px !important;
+  font-weight: 400 !important;
+}
+
+/* Main Discovery movie/TV rails. */
+#discover-view .discover-grid[id^="discover-movie-"] .discover-card .discover-card-title,
+#discover-view .discover-grid[id^="discover-tv-"] .discover-card .discover-card-title,
+#discover-view .discover-grid[id^="discover-movie-"] .discover-card .discover-title-profile-btn,
+#discover-view .discover-grid[id^="discover-tv-"] .discover-card .discover-title-profile-btn {
+  font-weight: 400 !important;
+  letter-spacing: 0.00em !important;
+}
+
+#discover-view .discover-grid[id^="discover-movie-"] .discover-card .discover-card-genre,
+#discover-view .discover-grid[id^="discover-tv-"] .discover-card .discover-card-genre {
+  font-weight: 400 !important;
+  letter-spacing: 0.00em !important;
+}
+
+#discover-view .discover-grid[id^="discover-movie-"] .discover-card .dc-rating,
+#discover-view .discover-grid[id^="discover-tv-"] .discover-card .dc-rating,
+#discover-view .discover-grid[id^="discover-movie-"] .discover-card .dc-release-line,
+#discover-view .discover-grid[id^="discover-tv-"] .discover-card .dc-release-line {
+  letter-spacing: 0.00em !important;
+}

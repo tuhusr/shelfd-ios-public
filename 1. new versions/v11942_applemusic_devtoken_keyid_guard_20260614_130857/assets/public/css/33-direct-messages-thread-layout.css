@@ -1,0 +1,60 @@
+/* v11.869: Direct Messages thread/chat layout guards.
+   Split from the old mixed 29-direct-messages-layout.css file. Keep this late
+   in the CSS order so thread composer/list sizing wins over legacy surfaces. */
+
+.direct-messages-page.dm-thread-open .dm-message-list,
+#direct-messages-page.dm-thread-open .dm-message-list {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 64px) !important;
+}
+
+.direct-messages-page .dm-compose-row,
+#direct-messages-page .dm-compose-row {
+  bottom: env(safe-area-inset-bottom, 0px) !important;
+  z-index: 9999 !important;
+}
+
+html.shelfd-capacitor-ios .direct-messages-page.dm-thread-open {
+  --dm-topbar-h: 64px !important;
+  --dm-thread-topbar-h: 64px !important;
+}
+
+html.shelfd-capacitor-ios .direct-messages-page.dm-thread-open .direct-messages-topbar {
+  min-height: 64px !important;
+  height: 64px !important;
+  padding: 6px 14px 8px !important;
+  align-items: center !important;
+}
+
+html.shelfd-capacitor-ios .direct-messages-page.dm-thread-open .direct-messages-content {
+  height: calc(100dvh - 64px) !important;
+}
+
+/* v11.916: Full-page chat thread titles must be plain 100% white text for
+   both group chats and 1:1 chats. This file loads after the broader DM styles,
+   so this removes inherited creator/gold/gradient effects at the final layer. */
+#direct-messages-page.dm-thread-open .dm-v2-panel .dm-v2-identity-name,
+#direct-messages-page.dm-thread-open .dm-v2-panel .dm-v2-identity-name span,
+#direct-messages-page.dm-thread-open .dm-v2-panel .dm-v2-identity-name strong,
+#direct-messages-page.dm-thread-open .dm-v2-panel .dm-v2-identity-name .creator-name,
+#direct-messages-page.dm-thread-open .dm-v2-panel .dm-v2-identity-name .creator-name-wrap,
+#direct-messages-page.dm-thread-open .dm-v2-panel .dm-v2-identity-name .dm-thread-username,
+#direct-messages-page.dm-thread-open .dm-v2-panel .dm-v2-identity-name .dm-thread-username-wrap,
+#direct-messages-page .dm-v2-panel .dm-v2-identity-name,
+#direct-messages-page .dm-v2-panel .dm-v2-identity-name span,
+#direct-messages-page .dm-v2-panel .dm-v2-identity-name strong,
+#direct-messages-page .dm-v2-panel .dm-v2-identity-name .creator-name,
+#direct-messages-page .dm-v2-panel .dm-v2-identity-name .creator-name-wrap,
+#direct-messages-page .dm-v2-panel .dm-v2-identity-name .dm-thread-username,
+#direct-messages-page .dm-v2-panel .dm-v2-identity-name .dm-thread-username-wrap {
+  color: #ffffff !important;
+  opacity: 1 !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: transparent !important;
+  background-image: none !important;
+  -webkit-background-clip: border-box !important;
+  background-clip: border-box !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}

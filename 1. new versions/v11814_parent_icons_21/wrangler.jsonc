@@ -1,0 +1,92 @@
+{
+  // Required Cloudflare secret for Trakt: TRAKT_CLIENT_ID = your Trakt OAuth app Client ID.
+  // Optional accepted aliases in worker.js: TRAKT_API_KEY, TRAKT_KEY, TRAKT_CLIENT_KEY.
+  //
+  // v10.275 — push notifications:
+  //   Required secrets (set via `npx wrangler secret put NAME`):
+  //     APNS_KEY_P8     = full contents of the AuthKey_*.p8 file
+  //     APNS_KEY_ID     = 10-char Key ID from Apple Developer
+  //     APPLE_TEAM_ID   = your 10-char Apple Team ID (also seen in Xcode signing)
+  //   Required binding:
+  //     PUSH_TOKENS_KV  = KV namespace ID. Create with:
+  //                         npx wrangler kv namespace create PUSH_TOKENS
+  //                       Paste the returned id below.
+  "name": "watchlist",
+  "main": "worker.js",
+  "compatibility_date": "2026-04-28",
+  "triggers": {
+    "crons": [
+      "0 9 * * *",
+      "0 10 * * *",
+      "0 13 * * *",
+      "0 14 * * *",
+      // v11.592: News feed refresh every 2 hours (the scheduled handler also
+      // refreshes news on the other crons; IMDb refresh self-gates by time).
+      // v11.674: the YouTube Data API cache is NOT a 6th cron (account is capped
+      // at 5). It is refreshed from runNewsEndpoint on non-stale /api/news calls,
+      // whose invocations have a free subrequest budget — see maybeRefreshYouTubeApiCache.
+      "0 */2 * * *"
+    ]
+  },
+  "kv_namespaces": [
+    {
+      "binding": "PUSH_TOKENS_KV",
+      "id": "c9515d02265340bea6a85a64522b2995"
+    },
+    {
+      // v11.592: cache for the News feed (RSS aggregation; refreshed by cron and
+      // on-demand when stale). Created via: npx wrangler kv namespace create NEWS_KV
+      "binding": "NEWS_KV",
+      "id": "07f3a08f2f9847acae8eac162e282f22"
+    }
+  ],
+  "assets": {
+    "directory": "assets/public",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": [
+      "/api/*",
+      "/profile-card/*",
+      "/profile/*",
+      "/profile-card-og.svg",
+      "/profile-og.svg",
+      "/review-og.svg",
+      "/game-profile-og.png",
+      "/album-profile-og.png",
+      "/media/*",
+      "/album/*",
+      "/game-profile/*",
+      "/review/*",
+      "/article/*",
+      "/auth/*",
+      "/.well-known/apple-app-site-association"
+    ]
+  },
+  "ai": {
+    "binding": "myscreenlistAi"
+  },
+  "routes": [
+    {
+      "pattern": "myscreenlist.com",
+      "zone_name": "myscreenlist.com",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.myscreenlist.com",
+      "zone_name": "myscreenlist.com",
+      "custom_domain": true
+    },
+    {
+      "pattern": "myshelfd.com",
+      "zone_name": "myshelfd.com",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.myshelfd.com",
+      "zone_name": "myshelfd.com",
+      "custom_domain": true
+    }
+  ],
+  "workers_dev": true,
+  "preview_urls": true
+}
